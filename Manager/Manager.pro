@@ -35,12 +35,10 @@ CONFIG += console link_prl
 CONFIG -= app_bundle
 CONFIG -= qt
 
-DESTDIR = $${OUT_PWD}/$${BIN_DIR}
-
 TARGET = manager
 
 SOURCES = \
-    main.cpp
+    src/main.cpp
 
 INCLUDEPATH += \
     .. \
@@ -72,9 +70,13 @@ isEmpty(STATIC_BUILD) | isEqual(STATIC_BUILD, 0) {
     win32-g++: QMAKE_LFLAGS = -static -static-libgcc -static-libstdc++
 }
 
-win32: QMAKE_POST_LINK = \
-    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/../dshow/VirtualCamera/$${DSHOW_PLUGIN_NAME}.plugin/$$normalizedArch(TARGET_ARCH))) $${CMD_SEP} \
-    $(COPY) $$shell_path($${OUT_PWD}/$${BIN_DIR}/$${TARGET}.exe) $$shell_path($${OUT_PWD}/../dshow/VirtualCamera/$${DSHOW_PLUGIN_NAME}.plugin/$$normalizedArch(TARGET_ARCH))
-macx: QMAKE_POST_LINK = \
-    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/../cmio/VirtualCamera/$${CMIO_PLUGIN_NAME}.plugin/Contents/Resources)) $${CMD_SEP} \
-    $(COPY) $$shell_path($${OUT_PWD}/$${BIN_DIR}/$${TARGET}) $$shell_path($${OUT_PWD}/../cmio/VirtualCamera/$${CMIO_PLUGIN_NAME}.plugin/Contents/Resources)
+win32 {
+    INSTALLPATH = $${DSHOW_PLUGIN_NAME}.plugin/$$normalizedArch(TARGET_ARCH)
+} else {
+    INSTALLPATH = $${CMIO_PLUGIN_NAME}.plugin/Contents/Resources
+}
+
+DESTDIR = $${OUT_PWD}/../$${INSTALLPATH}
+
+INSTALLS += target
+target.path = $${PREFIX}/$${INSTALLPATH}

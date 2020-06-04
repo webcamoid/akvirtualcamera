@@ -33,8 +33,6 @@ CONFIG += console link_prl
 CONFIG -= app_bundle
 CONFIG -= qt
 
-DESTDIR = $${OUT_PWD}/$${BIN_DIR}
-
 TARGET = $${CMIO_PLUGIN_ASSISTANT_NAME}
 
 TEMPLATE = app
@@ -54,6 +52,9 @@ HEADERS += \
 INCLUDEPATH += \
     ../..
 
-QMAKE_POST_LINK = \
-    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/../VirtualCamera/$${CMIO_PLUGIN_NAME}.plugin/Contents/Resources)) $${CMD_SEP} \
-    $(COPY) $$shell_path($${OUT_PWD}/$${BIN_DIR}/$${CMIO_PLUGIN_ASSISTANT_NAME}) $$shell_path($${OUT_PWD}/../VirtualCamera/$${CMIO_PLUGIN_NAME}.plugin/Contents/Resources)
+INSTALLPATH = $${CMIO_PLUGIN_NAME}.plugin/Contents/Resources
+
+DESTDIR = $${OUT_PWD}/../../$${INSTALLPATH}
+
+INSTALLS += target
+target.path = $${PREFIX}/$${INSTALLPATH}

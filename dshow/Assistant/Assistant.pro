@@ -34,8 +34,6 @@ CONFIG += console link_prl
 CONFIG -= app_bundle
 CONFIG -= qt
 
-DESTDIR = $${OUT_PWD}/$${BIN_DIR}
-
 TARGET = $${DSHOW_PLUGIN_ASSISTANT_NAME}
 
 SOURCES += \
@@ -65,6 +63,9 @@ isEmpty(STATIC_BUILD) | isEqual(STATIC_BUILD, 0) {
     win32-g++: QMAKE_LFLAGS = -static -static-libgcc -static-libstdc++
 }
 
-QMAKE_POST_LINK = \
-    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/../VirtualCamera/$${DSHOW_PLUGIN_NAME}.plugin/$$normalizedArch(TARGET_ARCH))) $${CMD_SEP} \
-    $(COPY) $$shell_path($${OUT_PWD}/$${BIN_DIR}/$${DSHOW_PLUGIN_ASSISTANT_NAME}.exe) $$shell_path($${OUT_PWD}/../VirtualCamera/$${DSHOW_PLUGIN_NAME}.plugin/$$normalizedArch(TARGET_ARCH))
+INSTALLPATH = $${DSHOW_PLUGIN_NAME}.plugin/$$normalizedArch(TARGET_ARCH)
+
+DESTDIR = $${OUT_PWD}/../../$${INSTALLPATH}
+
+INSTALLS += target
+target.path = $${PREFIX}/$${INSTALLPATH}

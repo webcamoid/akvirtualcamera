@@ -16,6 +16,9 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
+win32: include(dshow/dshow.pri)
+macx: include(cmio/cmio.pri)
+
 TEMPLATE = subdirs
 CONFIG += ordered
 

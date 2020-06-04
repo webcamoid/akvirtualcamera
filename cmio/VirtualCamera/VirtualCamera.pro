@@ -77,17 +77,34 @@ SOURCES += \
     src/objectproperties.cpp \
     src/clock.cpp
 
-OTHER_FILES = \
-    Info.plist
+QMAKE_SUBSTITUTES += Info.plist.in
 
-INSTALLS += vcam
-vcam.files = $${OUT_PWD}/$${TARGET}.plugin
-vcam.path = $${DATAROOTDIR}
-vcam.CONFIG += no_check_exist
+OTHER_FILES = \
+    Info.plist.in
+
+CONTENTSPATH = $${CMIO_PLUGIN_NAME}.plugin/Contents
+MACBINPATH = $${CONTENTSPATH}/MacOS
+RESOURCESPATH = $${CONTENTSPATH}/Resources
+
+INSTALLS += \
+    targetLib \
+    infoPlist \
+    resources
+
+targetLib.files = $$shell_path($${OUT_PWD}/../../$${MACBINPATH}/$${CMIO_PLUGIN_NAME})
+targetLib.path = $${PREFIX}/$${MACBINPATH}
+targetLib.CONFIG += no_check_exist
+
+infoPlist.files = $$shell_path($${OUT_PWD}/Info.plist)
+infoPlist.path = $${PREFIX}/$${CONTENTSPATH}
+infoPlist.CONFIG += no_check_exist
+
+resources.files = $$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp)
+resources.path = $${PREFIX}/$${RESOURCESPATH}
 
 QMAKE_POST_LINK = \
-    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/$${TARGET}.plugin/Contents/MacOS)) $${CMD_SEP} \
-    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/$${TARGET}.plugin/Contents/Resources)) $${CMD_SEP} \
-    $(COPY) $$shell_path($${PWD}/Info.plist) $$shell_path($${OUT_PWD}/$${TARGET}.plugin/Contents) $${CMD_SEP} \
-    $(COPY) $$shell_path($${OUT_PWD}/$${BIN_DIR}/lib$${TARGET}.dylib) $$shell_path($${OUT_PWD}/$${TARGET}.plugin/Contents/MacOS/$${TARGET}) $${CMD_SEP} \
-    $(COPY) $$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp) $$shell_path($${OUT_PWD}/$${TARGET}.plugin/Contents/Resources)
+    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/../../$${MACBINPATH})) $${CMD_SEP} \
+    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/../../$${RESOURCESPATH})) $${CMD_SEP} \
+    $(COPY) $$shell_path($${OUT_PWD}/Info.plist) $$shell_path($${OUT_PWD}/../../$${CONTENTSPATH}) $${CMD_SEP} \
+    $(COPY) $$shell_path($${OUT_PWD}/$${BIN_DIR}/lib$${CMIO_PLUGIN_NAME}.$${QMAKE_EXTENSION_SHLIB}) $$shell_path($${OUT_PWD}/../../$${MACBINPATH}/$${CMIO_PLUGIN_NAME}) $${CMD_SEP} \
+    $(COPY) $$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp) $$shell_path($${OUT_PWD}/../../$${RESOURCESPATH})

@@ -53,6 +53,7 @@ LIBS += \
     -lwinmm
 
 TARGET = $${DSHOW_PLUGIN_NAME}
+
 TEMPLATE = lib
 
 HEADERS += \
@@ -107,8 +108,6 @@ SOURCES += \
     src/videocontrol.cpp \
     src/videoprocamp.cpp
 
-DESTDIR = $${OUT_PWD}/$${BIN_DIR}
-
 OTHER_FILES = \
     VirtualCamera.def
 
@@ -118,13 +117,20 @@ isEmpty(STATIC_BUILD) | isEqual(STATIC_BUILD, 0) {
     win32-g++: QMAKE_LFLAGS = -static -static-libgcc -static-libstdc++
 }
 
-INSTALLS += vcam
-vcam.files = $${OUT_PWD}/$${TARGET}.plugin
-vcam.path = $${DATAROOTDIR}
-vcam.CONFIG += no_check_exist
+INSTALLPATH = $${DSHOW_PLUGIN_NAME}.plugin/$$normalizedArch(TARGET_ARCH)
+RESOURCESPATH = $${DSHOW_PLUGIN_NAME}.plugin/share
+
+DESTDIR = $${OUT_PWD}/../../$${INSTALLPATH}
+
+INSTALLS += \
+    target \
+    resources
+
+target.path = $${PREFIX}/$${INSTALLPATH}
+
+resources.files = $$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp)
+resources.path = $${PREFIX}/$${RESOURCESPATH}
 
 QMAKE_POST_LINK = \
-    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/$${TARGET}.plugin/$$normalizedArch(TARGET_ARCH))) $${CMD_SEP} \
-    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/$${TARGET}.plugin/share)) $${CMD_SEP} \
-    $(COPY) $$shell_path($${OUT_PWD}/$${BIN_DIR}/$${TARGET}.dll) $$shell_path($${OUT_PWD}/$${TARGET}.plugin/$$normalizedArch(TARGET_ARCH)) $${CMD_SEP} \
-    $(COPY) $$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp) $$shell_path($${OUT_PWD}/$${TARGET}.plugin/share)
+    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/../../$${RESOURCESPATH})) $${CMD_SEP} \
+    $(COPY) $$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp) $$shell_path($${OUT_PWD}/../../$${RESOURCESPATH}/TestFrame.bmp)
