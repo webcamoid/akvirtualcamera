@@ -1,0 +1,112 @@
+language: cpp
+
+cache:
+  ccache: true
+  timeout: 1000
+  directories:
+    - keystores
+
+env:
+  global:
+    - QTVER=5.14.1
+    - QTIFWVER=3.2.2
+    - ARCH_ROOT_DATE=2020.04.01
+    - ARCH_ROOT_URL=https://mirror.rackspace.com/archlinux
+    # BT_KEY
+    - secure: "RiR23dM8ft06+5ezNAlfpJXNRQhFH2Cy3hTY9oWD6nyw0qsydgOA9qlogBP0o1/kikyqt2uxv/VRcqZnBV3nkwEg9AuiCRgOuKqMtFdxwNnF8wqxUUz4pun9FQGLNnKkIznJkV61vsuRs8GSO95X3KEwgsoGPD60WQDDuFj3wXcI1kIN7HEP1t3Kq8lbhsYhbMPPeZBUGYcEjuWMz/GcfdcEUQLD6F0bkfEQgLZ+/d5Nqxk3NTJGM/LUYLKuWOthqsK7qNp/BCTRnOCg44NV3XO0DXti4lNkbtbfbLZIEMfD5EeTnbznBd+AHH2OTnw2Gn5ViVz7Z2C9mZgcN+/XyEJi7K80ab9DR9s+ZLMFO2yyF6MVf7/qiOzL0RT7lGFHt2HPLBpTji3qmgPN4JXaXKfF3nIzOjaoUibhTzwh5NlMpkAFlydmYwhBS3argsKQgeck3YTWUUnQVFvkmhFHVZzFBGtqy+0dPr9WGyay0mKKYpnLHqGk74K23dGnBKzk+iJs9o9zVQaSdvS5XnSeRsQCAYlqEKy/sSdrZnLYAOaLv1f291CIm76+e5B2sIkZaGcox7d3rcYw/tqn7ozgsKcyT1BJq8/ZyYSXsIT826ZeDiZd4MFjSQTeas5c9V85btDq2W9LvA66KqzTq0dH5pfJ67+BJJ7ebxUf4HNw6ME="
+
+matrix:
+  include:
+  - os: linux
+    dist: bionic
+    compiler: gcc
+    env:
+      - ARCH_ROOT_MINGW=x86_64
+      - DAILY_BUILD=1
+  - os: linux
+    dist: bionic
+    compiler: gcc
+    env:
+      - ARCH_ROOT_MINGW=i686
+      - DAILY_BUILD=1
+  - os: linux
+    dist: bionic
+    compiler: gcc
+    env:
+      - ARCH_ROOT_MINGW=x86_64
+      - RELEASE_BUILD=1
+  - os: linux
+    dist: bionic
+    compiler: gcc
+    env:
+      - ARCH_ROOT_MINGW=i686
+      - RELEASE_BUILD=1
+  - os: osx
+    osx_image: xcode10
+    compiler: clang
+    env:
+      - DAILY_BUILD=1
+  - os: osx
+    osx_image: xcode10
+    compiler: clang
+    env:
+      - RELEASE_BUILD=1
+  - os: osx
+    osx_image: xcode10.1
+    compiler: clang
+  - os: osx
+    osx_image: xcode10.2
+    compiler: clang
+  - os: osx
+    osx_image: xcode10.3
+    compiler: clang
+  - os: osx
+    osx_image: xcode11
+    compiler: clang
+  - os: osx
+    osx_image: xcode11.1
+    compiler: clang
+  - os: osx
+    osx_image: xcode11.2
+    compiler: clang
+  - os: osx
+    osx_image: xcode11.3
+    compiler: clang
+
+install:
+  - chmod +x ports/ci/travis/install_deps.sh
+  - ports/ci/travis/install_deps.sh
+
+before_script: |
+  if [ "${TRAVIS_OS_NAME}" = linux ]; then
+    export CXX=${ARCH_ROOT_MINGW}-w64-mingw32-g++
+    export COMPILESPEC=win32-g++
+  elif [ "${TRAVIS_OS_NAME}" = osx ]; then
+    brew link --force qt5
+    if [ "${CXX}" = g++ ]; then
+      export COMPILESPEC=macx-g++
+    elif [ "${CXX}" = clang++ ]; then
+      export COMPILESPEC=macx-clang
+    fi
+  fi
+
+script:
+  - chmod +x ports/ci/travis/build.sh
+  - ports/ci/travis/build.sh
+
+#after_success:
+#  - chmod +x ports/ci/travis/deploy.sh
+#  - ports/ci/travis/deploy.sh
+#  - chmod +x ports/ci/travis/upload.sh
+#  - ports/ci/travis/upload.sh
+
+branches:
+  only:
+    - master
+
+notifications:
+  recipients:
+    - hipersayan.x@gmail.com
+  email:
+    on_success: change
+    on_failure: change
