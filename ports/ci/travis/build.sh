@@ -32,6 +32,8 @@ if [ "${TRAVIS_OS_NAME}" = linux ]; then
     EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
 fi
 
+BUILDSCRIPT=dockerbuild.sh
+
 if [ "${TRAVIS_OS_NAME}" = linux ]; then
     sudo mount --bind root.x86_64 root.x86_64
     sudo mount --bind $HOME root.x86_64/$HOME

@@ -26,15 +26,11 @@ else
     export DOWNLOAD_CMD="curl --retry 10 -sS -kLOC -"
 fi
 
-if [ "${TRAVIS_OS_NAME}" = linux ] && [ "${ANDROID_BUILD}" != 1 ]; then
-    if [ "${ARCH_ROOT_BUILD}" = 1 ]; then
-        EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
-    else
-        EXEC="docker exec ${DOCKERSYS}"
-    fi
+if [ "${TRAVIS_OS_NAME}" = linux ]; then
+    EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
 fi
 
-if [ "${ARCH_ROOT_BUILD}" = 1 ]; then
+if [ "${TRAVIS_OS_NAME}" = linux ]; then
     # Download chroot image
     archImage=archlinux-bootstrap-${ARCH_ROOT_DATE}-x86_64.tar.gz
     ${DOWNLOAD_CMD} ${ARCH_ROOT_URL}/iso/${ARCH_ROOT_DATE}/$archImage
