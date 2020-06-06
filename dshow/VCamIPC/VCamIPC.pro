@@ -45,8 +45,7 @@ LIBS = \
     -L$${OUT_PWD}/../../VCamUtils/$${BIN_DIR} -lVCamUtils \
     -ladvapi32 \
     -lkernel32 \
-    -lpsapi \
-    -lrstrmgr
+    -lpsapi
 
 win32-g++: LIBS += -lssp
 
