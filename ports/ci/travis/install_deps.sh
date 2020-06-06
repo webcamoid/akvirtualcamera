@@ -123,7 +123,7 @@ elif [ "${TRAVIS_OS_NAME}" = osx ]; then
         python \
         ccache \
         pkg-config \
-        qt5 \
+        qt5
     brew link --overwrite python
 
     brew link python
