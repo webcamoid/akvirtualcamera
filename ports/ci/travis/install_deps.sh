@@ -88,13 +88,6 @@ EOF
         mingw-w64-gcc \
         mingw-w64-qt5-base
 
-    for mingw_arch in i686 x86_64; do
-        if [ "$mingw_arch" = x86_64 ]; then
-            ff_arch=win64
-        else
-            ff_arch=win32
-        fi
-
     qtIFW=QtInstallerFramework-win-x86.exe
 
     # Install Qt Installer Framework
