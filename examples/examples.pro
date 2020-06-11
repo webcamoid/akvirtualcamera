@@ -16,16 +16,7 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-win32: include(dshow/dshow.pri)
-macx: include(cmio/cmio.pri)
-
 TEMPLATE = subdirs
 CONFIG += ordered
 
-SUBDIRS = VCamUtils
-macx: SUBDIRS += cmio
-win32: SUBDIRS += dshow
-SUBDIRS += Manager
-examples {
-    SUBDIRS += examples
-}
+SUBDIRS = framegenerator
