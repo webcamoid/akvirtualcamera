@@ -64,7 +64,7 @@ macx: LIBS += \
     -framework IOKit \
     -framework IOSurface
 LIBS += \
-    -L$${OUT_PWD}/VCamUtils/$${BIN_DIR} -lVCamUtils
+    -L$${OUT_PWD}/../VCamUtils/$${BIN_DIR} -lVCamUtils
 
 isEmpty(STATIC_BUILD) | isEqual(STATIC_BUILD, 0) {
     win32-g++: QMAKE_LFLAGS = -static -static-libgcc -static-libstdc++

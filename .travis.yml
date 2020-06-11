@@ -94,9 +94,9 @@ script:
   - chmod +x ports/ci/travis/build.sh
   - ports/ci/travis/build.sh
 
-#after_success:
-#  - chmod +x ports/ci/travis/deploy.sh
-#  - ports/ci/travis/deploy.sh
+after_success:
+  - chmod +x ports/ci/travis/deploy.sh
+  - ports/ci/travis/deploy.sh
 #  - chmod +x ports/ci/travis/upload.sh
 #  - ports/ci/travis/upload.sh
 

@@ -38,7 +38,7 @@ win32 {
         DEFAULT_PREFIX = C:/
     }
 }
-macx: DEFAULT_PREFIX = /Library/CoreMediaIO/Plug-Ins/DAL
+macx: DEFAULT_PREFIX = /Applications
 
 isEmpty(PREFIX): PREFIX = $${DEFAULT_PREFIX}
 

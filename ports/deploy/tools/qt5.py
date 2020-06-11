@@ -47,6 +47,7 @@ class DeployToolsQt(tools.utils.DeployToolsUtils):
         self.dependencies = []
         self.binarySolver = None
         self.installerConfig = ''
+        self.installerRunProgram = ''
 
     def detectQt(self, path=''):
         self.detectQmake(path)
@@ -495,7 +496,7 @@ class DeployToolsQt(tools.utils.DeployToolsUtils):
         packageConf.read(self.packageConfig, 'utf-8')
 
         # Create layout
-        componentName = 'com.{0}prj.{0}'.format(self.programName)
+        componentName = 'com.webcamoidprj.{0}'.format(self.programName)
         packageDir = os.path.join(self.installerPackages, componentName)
 
         if not os.path.exists(self.installerConfig):
@@ -541,11 +542,13 @@ class DeployToolsQt(tools.utils.DeployToolsUtils):
             config.write('    <InstallerWindowIcon>{}</InstallerWindowIcon>\n'.format(iconName))
             config.write('    <InstallerApplicationIcon>{}</InstallerApplicationIcon>\n'.format(iconName))
             config.write('    <Logo>{}</Logo>\n'.format(iconName))
-            config.write('    <TitleColor>{}</TitleColor>\n'.format(packageConf['Package']['titleColor'].strip()))
-            config.write('    <RunProgram>{}</RunProgram>\n'.format(self.installerRunProgram))
-            config.write('    <RunProgramDescription>{}</RunProgramDescription>\n'.format(packageConf['Package']['runMessage'].strip()))
-            config.write('    <StartMenuDir>{}</StartMenuDir>\n'.format(appName))
-            config.write('    <MaintenanceToolName>{}MaintenanceTool</MaintenanceToolName>\n'.format(appName))
+
+            if self.installerRunProgram != '':
+                config.write('    <RunProgram>{}</RunProgram>\n'.format(self.installerRunProgram))
+                config.write('    <RunProgramDescription>{}</RunProgramDescription>\n'.format(packageConf['Package']['runMessage'].strip()))
+                config.write('    <StartMenuDir>{}</StartMenuDir>\n'.format(appName))
+
+            config.write('    <MaintenanceToolName>Uninstall</MaintenanceToolName>\n')
             config.write('    <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>\n')
             config.write('    <TargetDir>{}</TargetDir>\n'.format(self.installerTargetDir))
             config.write('</Installer>\n')
@@ -582,6 +585,7 @@ class DeployToolsQt(tools.utils.DeployToolsUtils):
             f.write('    <Default>true</Default>\n')
             f.write('    <ForcedInstallation>true</ForcedInstallation>\n')
             f.write('    <Essential>false</Essential>\n')
+            f.write('    <RequiresAdminRights>true</RequiresAdminRights>\n')
             f.write('</Package>\n')
 
         # Remove old file

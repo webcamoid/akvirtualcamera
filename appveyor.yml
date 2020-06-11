@@ -62,12 +62,12 @@ build_script:
         C:\msys64\usr\bin\bash -lc "cd /c/projects/akvirtualcamera && ./ports/ci/appveyor/build.sh '%INSTALL_PREFIX%'"
     )
 
-#after_build:
-#  - if "%MSYS2_BUILD%" == "" (
-#        ports\ci\appveyor\deploy.bat
-#    ) else (
-#        C:\msys64\usr\bin\bash -lc "cd /c/projects/akvirtualcamera && ./ports/ci/appveyor/deploy.sh"
-#    )
+after_build:
+ - if "%MSYS2_BUILD%" == "" (
+       ports\ci\appveyor\deploy.bat
+   ) else (
+       C:\msys64\usr\bin\bash -lc "cd /c/projects/akvirtualcamera && ./ports/ci/appveyor/deploy.sh"
+   )
 #  - ports\ci\appveyor\push_artifacts.bat
 #
 #deploy_script:
