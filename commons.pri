@@ -33,7 +33,7 @@ win32 {
     } else: !isEmpty(ProgramFiles) {
         DEFAULT_PREFIX = $(ProgramFiles)
     } else: contains(host_name, linux) {
-        DEFAULT_PREFIX = /opt
+        DEFAULT_PREFIX = /
     } else {
         DEFAULT_PREFIX = C:/
     }

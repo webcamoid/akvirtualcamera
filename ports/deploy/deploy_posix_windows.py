@@ -37,24 +37,10 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         self.targetSystem = 'posix_windows'
         self.installDir = os.path.join(self.buildDir, 'ports/deploy/temp_priv')
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto/windows')
-        self.detectQt(os.path.join(self.buildDir, 'StandAlone'))
-        self.programName = 'webcamoid'
-        self.rootInstallDir = os.path.join(self.installDir, self.programName)
+        self.detectQt(os.path.join(self.buildDir, 'Manager'))
+        self.programName = 'AkVirtualCamera'
+        self.rootInstallDir = os.path.join(self.installDir, self.programName + '.plugin')
         self.binaryInstallDir = os.path.join(self.rootInstallDir, 'bin')
-        self.libInstallDir = self.qmakeQuery(var='QT_INSTALL_LIBS') \
-                                .replace(self.qmakeQuery(var='QT_INSTALL_PREFIX'),
-                                         self.rootInstallDir)
-        self.libQtInstallDir = self.qmakeQuery(var='QT_INSTALL_ARCHDATA') \
-                                .replace(self.qmakeQuery(var='QT_INSTALL_PREFIX'),
-                                         self.rootInstallDir)
-        self.qmlInstallDir = self.qmakeQuery(var='QT_INSTALL_QML') \
-                                .replace(self.qmakeQuery(var='QT_INSTALL_PREFIX'),
-                                         self.rootInstallDir)
-        self.pluginsInstallDir = self.qmakeQuery(var='QT_INSTALL_PLUGINS') \
-                                .replace(self.qmakeQuery(var='QT_INSTALL_PREFIX'),
-                                         self.rootInstallDir)
-        self.qtConf = os.path.join(self.binaryInstallDir, 'qt.conf')
-        self.qmlRootDirs = ['StandAlone/share/qml', 'libAvKys/Plugins']
         self.mainBinary = os.path.join(self.binaryInstallDir, self.programName + '.exe')
         self.programName = os.path.splitext(os.path.basename(self.mainBinary))[0]
         self.programVersion = self.detectVersion(os.path.join(self.rootDir, 'commons.pri'))
@@ -65,12 +51,8 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         self.dependencies = []
         self.installerConfig = os.path.join(self.installDir, 'installer/config')
         self.installerPackages = os.path.join(self.installDir, 'installer/packages')
-        self.installerIconSize = 256
-        self.appIcon = os.path.join(self.rootDir,
-                                    'StandAlone/share/themes/WebcamoidTheme/icons/hicolor/{1}x{1}/{0}.ico'.format(self.programName,
-                                                                                                           self.installerIconSize))
+        self.appIcon = os.path.join(self.rootDir, 'share/TestFrame/webcamoid.png')
         self.licenseFile = os.path.join(self.rootDir, 'COPYING')
-        self.installerRunProgram = '@TargetDir@/bin/' + self.programName + '.exe'
         self.installerScript = os.path.join(self.rootDir, 'ports/deploy/installscript.windows.qs')
         self.changeLog = os.path.join(self.rootDir, 'ChangeLog')
         self.targetArch = '64bit' if 'x86_64' in self.qtInstallBins else '32bit'
@@ -109,141 +91,19 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
             else:
                 appsDir = '@ApplicationsDirX64@'
 
-        self.installerTargetDir = appsDir + '/' + self.programName
+        self.installerTargetDir = appsDir + '/' + self.programName + '.plugin'
         arch = 'win32' if self.targetArch == '32bit' else 'win64'
         self.outPackage = os.path.join(self.pkgsDir,
                                        '{}-{}-{}.exe'.format(self.programName,
                                                              self.programVersion,
                                                              arch))
 
-        print('Copying Qml modules\n')
-        self.solvedepsQml()
-        print('\nCopying required plugins\n')
-        self.solvedepsPlugins()
-        print('\nRemoving Qt debug libraries')
-        self.removeDebugs()
-        print('Copying required libs\n')
-        self.solvedepsLibs()
-        print('\nWritting qt.conf file')
-        self.writeQtConf()
         print('Stripping symbols')
         self.binarySolver.stripSymbols(self.installDir)
-        print('Writting launcher file')
-        self.createLauncher()
         print('Removing unnecessary files')
         self.removeUnneededFiles(self.installDir)
         print('\nWritting build system information\n')
         self.writeBuildInfo()
-
-    def solvedepsLibs(self):
-        deps = set(self.binarySolver.scanDependencies(self.installDir))
-        extraDeps = ['libeay32.dll',
-                     'ssleay32.dll',
-                     'libEGL.dll',
-                     'libGLESv2.dll',
-                     'D3DCompiler_43.dll',
-                     'D3DCompiler_46.dll',
-                     'D3DCompiler_47.dll']
-
-        for dep in extraDeps:
-            path = self.whereBin(dep)
-
-            if path != '':
-                deps.add(path)
-
-                for depPath in self.binarySolver.allDependencies(path):
-                    deps.add(depPath)
-
-        deps = sorted(deps)
-
-        for dep in deps:
-            depPath = os.path.join(self.binaryInstallDir, os.path.basename(dep))
-
-            if dep != depPath:
-                print('    {} -> {}'.format(dep, depPath))
-                self.copy(dep, depPath)
-                self.dependencies.append(dep)
-
-    def removeDebugs(self):
-        dbgFiles = set()
-
-        for root, _, files in os.walk(self.libQtInstallDir):
-            for f in files:
-                if f.endswith('.dll'):
-                    fname, ext = os.path.splitext(f)
-                    dbgFile = os.path.join(root, '{}d{}'.format(fname, ext))
-
-                    if os.path.exists(dbgFile):
-                        dbgFiles.add(dbgFile)
-
-        for f in dbgFiles:
-            os.remove(f)
-
-    def searchPackageFor(self, path):
-        os.environ['LC_ALL'] = 'C'
-        pacman = self.whereBin('pacman')
-
-        if len(pacman) > 0:
-            process = subprocess.Popen([pacman, '-Qo', path], # nosec
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
-            stdout, _ = process.communicate()
-
-            if process.returncode != 0:
-                return ''
-
-            info = stdout.decode(sys.getdefaultencoding()).split(' ')
-
-            if len(info) < 2:
-                return ''
-
-            package, version = info[-2:]
-
-            return ' '.join([package.strip(), version.strip()])
-
-        dpkg = self.whereBin('dpkg')
-
-        if len(dpkg) > 0:
-            process = subprocess.Popen([dpkg, '-S', path], # nosec
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
-            stdout, _ = process.communicate()
-
-            if process.returncode != 0:
-                return ''
-
-            package = stdout.split(b':')[0].decode(sys.getdefaultencoding()).strip()
-
-            process = subprocess.Popen([dpkg, '-s', package], # nosec
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
-            stdout, _ = process.communicate()
-
-            if process.returncode != 0:
-                return ''
-
-            for line in stdout.decode(sys.getdefaultencoding()).split('\n'):
-                line = line.strip()
-
-                if line.startswith('Version:'):
-                    return ' '.join([package, line.split()[1].strip()])
-
-            return ''
-
-        rpm = self.whereBin('rpm')
-
-        if len(rpm) > 0:
-            process = subprocess.Popen([rpm, '-qf', path], # nosec
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
-            stdout, _ = process.communicate()
-
-            if process.returncode != 0:
-                return ''
-
-            return stdout.decode(sys.getdefaultencoding()).strip()
-
-        return ''
 
     def commitHash(self):
         try:
@@ -272,10 +132,15 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         return info
 
     def writeBuildInfo(self):
+        try:
+            os.makedirs(self.pkgsDir)
+        except:
+            pass
+
         shareDir = os.path.join(self.rootInstallDir, 'share')
 
         try:
-            os.makedirs(self.pkgsDir)
+            os.makedirs(shareDir)
         except:
             pass
 
@@ -348,44 +213,6 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
             print()
             f.write('\n')
 
-        # Write binary dependencies info.
-
-        packages = set()
-
-        for dep in self.dependencies:
-            packageInfo = self.searchPackageFor(dep)
-
-            if len(packageInfo) > 0:
-                packages.add(packageInfo)
-
-        packages = sorted(packages)
-
-        with open(depsInfoFile, 'a') as f:
-            for packge in packages:
-                print('    ' + packge)
-                f.write(packge + '\n')
-
-    def createLauncher(self):
-        path = os.path.join(self.rootInstallDir, self.programName) + '.bat'
-        libDir = os.path.relpath(self.libInstallDir, self.rootInstallDir)
-
-        with open(path, 'w') as launcher:
-            launcher.write('@echo off\n')
-            launcher.write('\n')
-            launcher.write('rem Default values: desktop | angle | software\n')
-            launcher.write('rem set QT_OPENGL=angle\n')
-            launcher.write('\n')
-            launcher.write('rem Default values: d3d11 | d3d9 | warp\n')
-            launcher.write('rem set QT_ANGLE_PLATFORM=d3d11\n')
-            launcher.write('\n')
-            launcher.write('rem Default values: software | d3d12 | openvg\n')
-            launcher.write('rem set QT_QUICK_BACKEND=""\n')
-            launcher.write('\n')
-            launcher.write('start /b "" '
-                           + '"%~dp0bin\\{}" '.format(self.programName)
-                           + '-p "%~dp0{}\\avkys" '.format(libDir)
-                           + '-c "%~dp0share\\config"\n')
-
     @staticmethod
     def hrSize(size):
         i = int(math.log(size) // math.log(1024))
@@ -409,30 +236,6 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
                   os.path.basename(path),
                   'FAILED')
 
-    def createPortable(self, mutex):
-        arch = 'win32' if self.targetArch == '32bit' else 'win64'
-        packagePath = \
-            os.path.join(self.pkgsDir,
-                         '{}-portable-{}-{}.zip'.format(self.programName,
-                                                        self.programVersion,
-                                                        arch))
-
-        if not os.path.exists(self.pkgsDir):
-            os.makedirs(self.pkgsDir)
-
-        with zipfile.ZipFile(packagePath, 'w', zipfile.ZIP_DEFLATED, False) as zipFile:
-            for root, dirs, files in os.walk(self.rootInstallDir):
-                for f in dirs + files:
-                    filePath = os.path.join(root, f)
-                    dstPath = os.path.join(self.programName,
-                                           filePath.replace(self.rootInstallDir + os.sep, ''))
-                    zipFile.write(filePath, dstPath)
-
-        mutex.acquire()
-        print('Created portable package:')
-        self.printPackageInfo(packagePath)
-        mutex.release()
-
     def createAppInstaller(self, mutex):
         packagePath = self.createInstaller()
 
@@ -446,9 +249,8 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
 
     def package(self):
         mutex = threading.Lock()
-
-        threads = [threading.Thread(target=self.createPortable, args=(mutex,))]
-        packagingTools = ['zip']
+        threads = []
+        packagingTools = []
 
         if self.qtIFW != '':
             threads.append(threading.Thread(target=self.createAppInstaller, args=(mutex,)))

@@ -35,7 +35,7 @@ CONFIG += console link_prl
 CONFIG -= app_bundle
 CONFIG -= qt
 
-TARGET = manager
+TARGET = AkVCamManager
 
 SOURCES = \
     src/main.cpp

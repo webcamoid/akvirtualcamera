@@ -38,23 +38,9 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         super().__init__()
         self.installDir = os.path.join(self.buildDir, 'ports/deploy/temp_priv')
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto', sys.platform)
-        self.detectQt(os.path.join(self.buildDir, 'StandAlone'))
+        self.detectQt(os.path.join(self.buildDir, 'Manager'))
         self.rootInstallDir = os.path.join(self.installDir, self.qmakeQuery(var='QT_INSTALL_PREFIX')[1:])
         self.binaryInstallDir = os.path.join(self.rootInstallDir, 'bin')
-        self.libInstallDir = self.qmakeQuery(var='QT_INSTALL_LIBS') \
-                                .replace(self.qmakeQuery(var='QT_INSTALL_PREFIX'),
-                                         self.rootInstallDir)
-        self.libQtInstallDir = self.qmakeQuery(var='QT_INSTALL_ARCHDATA') \
-                                .replace(self.qmakeQuery(var='QT_INSTALL_PREFIX'),
-                                         self.rootInstallDir)
-        self.qmlInstallDir = self.qmakeQuery(var='QT_INSTALL_QML') \
-                                .replace(self.qmakeQuery(var='QT_INSTALL_PREFIX'),
-                                         self.rootInstallDir)
-        self.pluginsInstallDir = self.qmakeQuery(var='QT_INSTALL_PLUGINS') \
-                                .replace(self.qmakeQuery(var='QT_INSTALL_PREFIX'),
-                                         self.rootInstallDir)
-        self.qtConf = os.path.join(self.binaryInstallDir, 'qt.conf')
-        self.qmlRootDirs = ['StandAlone/share/qml', 'libAvKys/Plugins']
         self.mainBinary = os.path.join(self.binaryInstallDir, 'webcamoid')
         self.programName = os.path.basename(self.mainBinary)
         self.programVersion = self.detectVersion(os.path.join(self.rootDir, 'commons.pri'))

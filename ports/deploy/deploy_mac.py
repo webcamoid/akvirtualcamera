@@ -39,8 +39,8 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         self.installDir = os.path.join(self.buildDir, 'ports/deploy/temp_priv')
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto', self.targetSystem)
         self.detectQt(os.path.join(self.buildDir, 'Manager'))
-        self.rootInstallDir = os.path.join(self.installDir, 'Applications')
         self.programName = 'AkVirtualCamera'
+        self.rootInstallDir = os.path.join(self.installDir, 'Applications')
         self.appBundleDir = os.path.join(self.rootInstallDir, self.programName + '.plugin')
         self.execPrefixDir = os.path.join(self.appBundleDir, 'Contents')
         self.binaryInstallDir = os.path.join(self.execPrefixDir, 'MacOS')

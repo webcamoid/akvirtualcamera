@@ -132,5 +132,8 @@ resources.files = $$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp)
 resources.path = $${PREFIX}/$${RESOURCESPATH}
 
 QMAKE_POST_LINK = \
-    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/../../$${RESOURCESPATH})) $${CMD_SEP} \
-    $(COPY) $$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp) $$shell_path($${OUT_PWD}/../../$${RESOURCESPATH}/TestFrame.bmp)
+    $$sprintf($$QMAKE_MKDIR_CMD, \
+              $$shell_quote($$shell_path($${OUT_PWD}/../../$${RESOURCESPATH}))) \
+    $${CMD_SEP} \
+    $(COPY) $$shell_quote($$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp)) \
+            $$shell_quote($$shell_path($${OUT_PWD}/../../$${RESOURCESPATH}/TestFrame.bmp))

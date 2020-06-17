@@ -10,12 +10,22 @@ Component.prototype.beginInstallation = function()
 Component.prototype.createOperations = function()
 {
     component.createOperations();
+    let archs = ["x86", "x64"];
 
-    // Create shortcuts.
-    var installDir = ["@TargetDir@", "@StartMenuDir@", "@DesktopDir@"];
+    for (let i in archs) {
+        let assistantPath =
+            installer.value("TargetDir")
+            + "/"
+            + archs[i]
+            + "/AkVCamAssistant.exe";
 
-    for (var dir in installDir)
-        component.addOperation("CreateShortcut",
-                                "@TargetDir@/bin/webcamoid.exe",
-                                installDir[dir] + "/webcamoid.lnk");
+        if (!installer.fileExists(assistantPath))
+            continue;
+
+        // Load assistant daemon.
+        component.addElevatedOperation("Execute",
+                                       assistantPath, "--install",
+                                       "UNDOEXECUTE",
+                                       assistantPath, "--uninstall");
+    }
 }
