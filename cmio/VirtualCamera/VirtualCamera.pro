@@ -99,7 +99,7 @@ infoPlist.files = $$shell_path($${OUT_PWD}/Info.plist)
 infoPlist.path = $${PREFIX}/$${CONTENTSPATH}
 infoPlist.CONFIG += no_check_exist
 
-resources.files = $$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp)
+resources.files = ../../share/TestFrame/TestFrame.bmp
 resources.path = $${PREFIX}/$${RESOURCESPATH}
 
 QMAKE_POST_LINK = \
