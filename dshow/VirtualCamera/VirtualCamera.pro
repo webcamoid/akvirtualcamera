@@ -128,7 +128,7 @@ INSTALLS += \
 
 target.path = $${PREFIX}/$${INSTALLPATH}
 
-resources.files = ../../share/TestFrame/TestFrame.bmp)
+resources.files = ../../share/TestFrame/TestFrame.bmp
 resources.path = $${PREFIX}/$${RESOURCESPATH}
 
 QMAKE_POST_LINK = \
