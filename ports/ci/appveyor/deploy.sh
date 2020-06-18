@@ -20,5 +20,3 @@
 
 export PATH=/mingw64/bin:$PATH
 python3 ports/deploy/deploy.py
-echo READ MAKE
-cat dshow/VirtualCamera/Makefile.Release

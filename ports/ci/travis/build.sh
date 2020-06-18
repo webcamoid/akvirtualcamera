@@ -139,10 +139,10 @@ EOF
 
     ${EXEC} bash $HOME/${BUILDSCRIPT}
 
-    sudo mkdir -p AkVirtualCamera.plugin/${mingw_dstdir}
+    sudo mkdir -p ports/deploy/temp_priv/AkVirtualCamera.plugin/${mingw_dstdir}
     sudo cp -rvf \
         akvcam/AkVirtualCamera.plugin/${mingw_dstdir}/* \
-        AkVirtualCamera.plugin/${mingw_dstdir}/
+        ports/deploy/temp_priv/AkVirtualCamera.plugin/${mingw_dstdir}/
 
     sudo umount root.x86_64/$HOME
     sudo umount root.x86_64
