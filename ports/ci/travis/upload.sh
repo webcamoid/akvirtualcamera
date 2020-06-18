@@ -57,7 +57,7 @@ if [[ ( ! -z "$DAILY_BUILD" || ! -z "$RELEASE_BUILD" ) && "$TRAVIS_BRANCH" == "m
             --override=true \
             --publish=$publish \
             $f \
-            webcamoid/webcamoid/webcamoid/$version \
+            webcamoid/webcamoid/akvirtualcamera/$version \
             $folder/
     done
 

@@ -97,8 +97,8 @@ script:
 after_success:
   - chmod +x ports/ci/travis/deploy.sh
   - ports/ci/travis/deploy.sh
-#  - chmod +x ports/ci/travis/upload.sh
-#  - ports/ci/travis/upload.sh
+  - chmod +x ports/ci/travis/upload.sh
+  - ports/ci/travis/upload.sh
 
 branches:
   only:
