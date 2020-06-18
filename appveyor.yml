@@ -23,7 +23,7 @@ environment:
     PYTHON_VERSION: Python38
     QMAKESPEC: win32-g++
     MAKETOOL: mingw32-make
-    INSTALL_PREFIX: C:/projects/akvirtualcamera/ports/deploy/temp_priv/usr
+    INSTALL_PREFIX: C:/projects/akvirtualcamera/ports/deploy/temp_priv
     # api key from https://bintray.com/profile/edit
     # encrypted in https://ci.appveyor.com/tools/encrypt
     BT_KEY:
