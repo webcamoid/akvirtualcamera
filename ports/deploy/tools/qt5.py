@@ -548,7 +548,7 @@ class DeployToolsQt(tools.utils.DeployToolsUtils):
                 config.write('    <RunProgramDescription>{}</RunProgramDescription>\n'.format(packageConf['Package']['runMessage'].strip()))
                 config.write('    <StartMenuDir>{}</StartMenuDir>\n'.format(appName))
 
-            config.write('    <MaintenanceToolName>Uninstall</MaintenanceToolName>\n')
+            config.write('    <MaintenanceToolName>AkVirtualCameraUninstall</MaintenanceToolName>\n')
             config.write('    <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>\n')
             config.write('    <TargetDir>{}</TargetDir>\n'.format(self.installerTargetDir))
             config.write('</Installer>\n')
