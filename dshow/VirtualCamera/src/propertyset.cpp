@@ -23,8 +23,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "PropertySet"
-
 AkVCam::PropertySet::PropertySet():
     CUnknown(this, IID_IKsPropertySet)
 {
@@ -49,7 +47,7 @@ HRESULT AkVCam::PropertySet::Set(const GUID &guidPropSet,
     UNUSED(cbInstanceData)
     UNUSED(pPropData)
     UNUSED(cbPropData)
-    AkLogMethod();
+    AkLogFunction();
 
     return E_NOTIMPL;
 }
@@ -64,7 +62,7 @@ HRESULT AkVCam::PropertySet::Get(const GUID &guidPropSet,
 {
     UNUSED(pInstanceData)
     UNUSED(cbInstanceData)
-    AkLogMethod();
+    AkLogFunction();
 
     if (!IsEqualGUID(guidPropSet, AMPROPSETID_Pin))
         return E_PROP_SET_UNSUPPORTED;
@@ -94,7 +92,7 @@ HRESULT AkVCam::PropertySet::QuerySupported(const GUID &guidPropSet,
                                             DWORD dwPropID,
                                             DWORD *pTypeSupport)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!IsEqualGUID(guidPropSet, AMPROPSETID_Pin))
         return E_PROP_SET_UNSUPPORTED;

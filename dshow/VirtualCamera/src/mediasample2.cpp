@@ -21,8 +21,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "MediaFilter2"
-
 namespace AkVCam
 {
     class MediaSample2Private
@@ -60,7 +58,7 @@ AkVCam::MediaSample2::~MediaSample2()
 HRESULT AkVCam::MediaSample2::SetProperties(DWORD cbProperties,
                                             const BYTE *pbProperties)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (cbProperties < sizeof(AM_SAMPLE2_PROPERTIES))
         return E_INVALIDARG;
@@ -96,7 +94,7 @@ HRESULT AkVCam::MediaSample2::SetProperties(DWORD cbProperties,
 HRESULT AkVCam::MediaSample2::GetProperties(DWORD cbProperties,
                                             BYTE *pbProperties)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (cbProperties < sizeof(AM_SAMPLE2_PROPERTIES))
         return E_INVALIDARG;

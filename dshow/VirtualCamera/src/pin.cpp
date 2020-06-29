@@ -41,8 +41,6 @@
 #include "VCamUtils/src/image/videoframe.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "Pin"
-
 namespace AkVCam
 {
     class PinPrivate
@@ -185,23 +183,23 @@ AkVCam::Pin::~Pin()
 
 AkVCam::BaseFilter *AkVCam::Pin::baseFilter() const
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return this->d->m_baseFilter;
 }
 
 void AkVCam::Pin::setBaseFilter(BaseFilter *baseFilter)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_baseFilter = baseFilter;
 }
 
 HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
 {
     auto self = reinterpret_cast<Pin *>(userData);
-    AkLoggerLog(AK_CUR_INTERFACE, "(", self, ")::", __FUNCTION__, "()");
-    AkLoggerLog("Old state: ", self->d->m_prevState);
-    AkLoggerLog("New state: ", state);
+    AkLogFunction();
+    AkLogInfo() << "Old state: " << self->d->m_prevState << std::endl;
+    AkLogInfo() << "New state: " << state << std::endl;
 
     if (state == self->d->m_prevState)
         return S_OK;
@@ -221,7 +219,9 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
         self->d->m_running = true;
         self->d->m_sendFrameThread =
                 std::thread(&PinPrivate::sendFrameLoop, self->d);
-        AkLoggerLog("Launching thread ", self->d->m_sendFrameThread.get_id());
+        AkLogInfo() << "Launching thread "
+                    << self->d->m_sendFrameThread.get_id()
+                    << std::endl;
 
         auto clock = self->d->m_baseFilter->referenceClock();
         REFERENCE_TIME now = 0;
@@ -260,7 +260,7 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
 
 void AkVCam::Pin::serverStateChanged(IpcBridge::ServerState state)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (state == IpcBridge::ServerStateGone) {
         this->d->m_broadcaster.clear();
@@ -279,9 +279,9 @@ void AkVCam::Pin::serverStateChanged(IpcBridge::ServerState state)
 
 void AkVCam::Pin::frameReady(const VideoFrame &frame)
 {
-    AkLogMethod();
-    AkLoggerLog("Running: ", this->d->m_running);
-    AkLoggerLog("Broadcaster: ", this->d->m_broadcaster);
+    AkLogFunction();
+    AkLogInfo() << "Running: " << this->d->m_running << std::endl;
+    AkLogInfo() << "Broadcaster: " << this->d->m_broadcaster << std::endl;
 
     if (!this->d->m_running)
         return;
@@ -300,8 +300,8 @@ void AkVCam::Pin::frameReady(const VideoFrame &frame)
 
 void AkVCam::Pin::setBroadcasting(const std::string &broadcaster)
 {
-    AkLogMethod();
-    AkLoggerLog("Broadcaster: ", broadcaster);
+    AkLogFunction();
+    AkLogInfo() << "Broadcaster: " << broadcaster << std::endl;
 
     if (this->d->m_broadcaster == broadcaster)
         return;
@@ -317,7 +317,7 @@ void AkVCam::Pin::setBroadcasting(const std::string &broadcaster)
 
 void AkVCam::Pin::setMirror(bool horizontalMirror, bool verticalMirror)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (this->d->m_horizontalMirror == horizontalMirror
         && this->d->m_verticalMirror == verticalMirror)
@@ -330,7 +330,7 @@ void AkVCam::Pin::setMirror(bool horizontalMirror, bool verticalMirror)
 
 void AkVCam::Pin::setScaling(Scaling scaling)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (this->d->m_scaling == scaling)
         return;
@@ -341,7 +341,7 @@ void AkVCam::Pin::setScaling(Scaling scaling)
 
 void AkVCam::Pin::setAspectRatio(AspectRatio aspectRatio)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (this->d->m_aspectRatio == aspectRatio)
         return;
@@ -352,7 +352,7 @@ void AkVCam::Pin::setAspectRatio(AspectRatio aspectRatio)
 
 void AkVCam::Pin::setSwapRgb(bool swap)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (this->d->m_swapRgb == swap)
         return;
@@ -383,8 +383,8 @@ void AkVCam::Pin::setVerticalFlip(bool flip)
 
 HRESULT AkVCam::Pin::QueryInterface(const IID &riid, void **ppvObject)
 {
-    AkLogMethod();
-    AkLoggerLog("IID: ", AkVCam::stringFromClsid(riid));
+    AkLogFunction();
+    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;
@@ -433,9 +433,9 @@ HRESULT AkVCam::Pin::QueryInterface(const IID &riid, void **ppvObject)
 
 HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
 {
-    AkLogMethod();
-    AkLoggerLog("Receive pin: ", pReceivePin);
-    AkLoggerLog("Media type: ", stringFromMediaType(pmt));
+    AkLogFunction();
+    AkLogInfo() << "Receive pin: " << pReceivePin << std::endl;
+    AkLogInfo() << "Media type: " << stringFromMediaType(pmt) << std::endl;
 
     if (!pReceivePin)
         return E_POINTER;
@@ -496,7 +496,9 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
                 mediaTypes->Reset();
 
                 while (mediaTypes->Next(1, &mt, nullptr) == S_OK) {
-                    AkLoggerLog("Testing media type: ", stringFromMediaType(mt));
+                    AkLogInfo() << "Testing media type: "
+                                << stringFromMediaType(mt)
+                                << std::endl;
 
                     // If the mediatype match our suported mediatypes...
                     if (this->QueryAccept(mt) == S_OK) {
@@ -535,7 +537,9 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
     if (!mediaType)
         return VFW_E_NO_ACCEPTABLE_TYPES;
 
-    AkLoggerLog("Setting Media Type: ", stringFromMediaType(mediaType));
+    AkLogInfo() << "Setting Media Type: "
+                << stringFromMediaType(mediaType)
+                << std::endl;
     auto result = pReceivePin->ReceiveConnection(this, mediaType);
 
     if (FAILED(result)) {
@@ -544,7 +548,7 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
         return result;
     }
 
-    AkLoggerLog("Connection accepted by input pin");
+    AkLogInfo() << "Connection accepted by input pin" << std::endl;
 
     // Define memory allocator requirements.
     ALLOCATOR_PROPERTIES allocatorRequirements;
@@ -606,7 +610,7 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
     this->d->m_connectedTo = pReceivePin;
     this->d->m_connectedTo->AddRef();
     this->d->m_baseFilter->connectStateChanged(this, &Pin::stateChanged);
-    AkLoggerLog("Connected to ", pReceivePin);
+    AkLogInfo() << "Connected to " << pReceivePin << std::endl;
 
     return S_OK;
 }
@@ -616,14 +620,14 @@ HRESULT AkVCam::Pin::ReceiveConnection(IPin *pConnector,
 {
     UNUSED(pConnector)
     UNUSED(pmt)
-    AkLogMethod();
+    AkLogFunction();
 
     return VFW_E_TYPE_NOT_ACCEPTED;
 }
 
 HRESULT AkVCam::Pin::Disconnect()
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_baseFilter->disconnectStateChanged(this, &Pin::stateChanged);
 
     if (this->d->m_baseFilter) {
@@ -654,7 +658,7 @@ HRESULT AkVCam::Pin::Disconnect()
 
 HRESULT AkVCam::Pin::ConnectedTo(IPin **pPin)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPin)
         return E_POINTER;
@@ -672,7 +676,7 @@ HRESULT AkVCam::Pin::ConnectedTo(IPin **pPin)
 
 HRESULT AkVCam::Pin::ConnectionMediaType(AM_MEDIA_TYPE *pmt)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pmt)
         return E_POINTER;
@@ -685,14 +689,16 @@ HRESULT AkVCam::Pin::ConnectionMediaType(AM_MEDIA_TYPE *pmt)
     AM_MEDIA_TYPE *mediaType = nullptr;
     this->GetFormat(&mediaType);
     copyMediaType(pmt, mediaType);
-    AkLoggerLog("Media Type: ", stringFromMediaType(mediaType));
+    AkLogInfo() << "Media Type: "
+                << stringFromMediaType(mediaType)
+                << std::endl;
 
     return S_OK;
 }
 
 HRESULT AkVCam::Pin::QueryPinInfo(PIN_INFO *pInfo)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pInfo)
         return E_POINTER;
@@ -716,7 +722,7 @@ HRESULT AkVCam::Pin::QueryPinInfo(PIN_INFO *pInfo)
 
 HRESULT AkVCam::Pin::QueryDirection(PIN_DIRECTION *pPinDir)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPinDir)
         return E_POINTER;
@@ -728,7 +734,7 @@ HRESULT AkVCam::Pin::QueryDirection(PIN_DIRECTION *pPinDir)
 
 HRESULT AkVCam::Pin::QueryId(LPWSTR *Id)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!Id)
         return E_POINTER;
@@ -749,27 +755,27 @@ HRESULT AkVCam::Pin::QueryId(LPWSTR *Id)
 
 HRESULT AkVCam::Pin::QueryAccept(const AM_MEDIA_TYPE *pmt)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pmt)
         return E_POINTER;
 
-    AkLoggerLog("Accept? ", stringFromMediaType(pmt));
+    AkLogInfo() << "Accept? " << stringFromMediaType(pmt) << std::endl;
 
     if (!containsMediaType(pmt, this->d->m_mediaTypes)) {
-        AkLoggerLog("NO");
+        AkLogInfo() << "NO" << std::endl;
 
         return S_FALSE;
     }
 
-    AkLoggerLog("YES");
+    AkLogInfo() << "YES" << std::endl;
 
     return S_OK;
 }
 
 HRESULT AkVCam::Pin::EnumMediaTypes(IEnumMediaTypes **ppEnum)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!ppEnum)
         return E_POINTER;
@@ -782,7 +788,7 @@ HRESULT AkVCam::Pin::EnumMediaTypes(IEnumMediaTypes **ppEnum)
 
 HRESULT AkVCam::Pin::QueryInternalConnections(IPin **apPin, ULONG *nPin)
 {
-    AkLogMethod();
+    AkLogFunction();
     UNUSED(apPin)
     UNUSED(nPin)
 
@@ -791,21 +797,21 @@ HRESULT AkVCam::Pin::QueryInternalConnections(IPin **apPin, ULONG *nPin)
 
 HRESULT AkVCam::Pin::EndOfStream()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return E_UNEXPECTED;
 }
 
 HRESULT AkVCam::Pin::BeginFlush()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return E_UNEXPECTED;
 }
 
 HRESULT AkVCam::Pin::EndFlush()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return E_UNEXPECTED;
 }
@@ -814,7 +820,7 @@ HRESULT AkVCam::Pin::NewSegment(REFERENCE_TIME tStart,
                                 REFERENCE_TIME tStop,
                                 double dRate)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_start = tStart;
     this->d->m_stop = tStop;
     this->d->m_rate = dRate;
@@ -824,39 +830,46 @@ HRESULT AkVCam::Pin::NewSegment(REFERENCE_TIME tStart,
 
 void AkVCam::PinPrivate::sendFrameOneShot()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     WaitForSingleObject(this->m_sendFrameEvent, INFINITE);
     this->sendFrame();
-    AkLoggerLog("Thread ", std::this_thread::get_id(), " finnished");
+    AkLogInfo() << "Thread "
+                << std::this_thread::get_id()
+                << " finnished"
+                << std::endl;
     this->m_running = false;
 }
 
 void AkVCam::PinPrivate::sendFrameLoop()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     while (this->m_running) {
         WaitForSingleObject(this->m_sendFrameEvent, INFINITE);
         auto result = this->sendFrame();
 
         if (FAILED(result)) {
-            AkLoggerLog("Error sending frame: ",
-                        result,
-                        ": ",
-                        stringFromResult(result));
+            AkLogError() << "Error sending frame: "
+                         << result
+                         << ": "
+                         << stringFromResult(result)
+                         << std::endl;
             this->m_running = false;
 
             break;
         }
     }
 
-    AkLoggerLog("Thread ", std::this_thread::get_id(), " finnished");
+    AkLogInfo() << "Thread "
+                << std::this_thread::get_id()
+                << " finnished"
+                << std::endl;
 }
 
 HRESULT AkVCam::PinPrivate::sendFrame()
 {
-    AkLogMethod();
+    AkLogFunction();
     IMediaSample *sample = nullptr;
 
     if (FAILED(this->m_memAllocator->GetBuffer(&sample,
@@ -929,9 +942,9 @@ HRESULT AkVCam::PinPrivate::sendFrame()
     sample->SetDiscontinuity(false);
     sample->SetSyncPoint(true);
     sample->SetPreroll(false);
-    AkLoggerLog("Sending ", stringFromMediaSample(sample));
+    AkLogInfo() << "Sending " << stringFromMediaSample(sample) << std::endl;
     auto result = this->m_memInputPin->Receive(sample);
-    AkLoggerLog("Frame sent");
+    AkLogInfo() << "Frame sent" << std::endl;
     sample->Release();
 
     return result;
@@ -1026,7 +1039,7 @@ void AkVCam::PinPrivate::propertyChanged(void *userData,
                                          LONG lValue,
                                          LONG Flags)
 {
-    AkLoggerLog("PinPrivate::propertyChanged()");
+    AkLogFunction();
     UNUSED(Flags)
     auto self = reinterpret_cast<PinPrivate *>(userData);
 

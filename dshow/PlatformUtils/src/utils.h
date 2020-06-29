@@ -27,10 +27,7 @@
 #include "VCamUtils/src/logger/logger.h"
 
 #define AkLogInterface(interface, instance) \
-    AkLoggerLog("Returning ", #interface, "(", instance, ")")
-
-#define AkLogMethod() \
-    AkLoggerLog(AK_CUR_INTERFACE, "(", this, ")::", __FUNCTION__, "()")
+    AkLogInfo() << "Returning " << #interface << "(" << instance << ")" << std::endl
 
 namespace AkVCam
 {
@@ -79,6 +76,9 @@ namespace AkVCam
                      LPDWORD pdwType,
                      PVOID pvData,
                      LPDWORD pcbData);
+    std::string regReadString(const std::string &key,
+                              const std::string &defaultValue={});
+    int regReadInt(const std::string &key, int defaultValue=0);
     std::vector<CLSID> listRegisteredCameras(HINSTANCE hinstDLL);
     DWORD camerasCount();
     std::wstring createDevicePath();

@@ -29,12 +29,6 @@
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/logger/logger.h"
 
-#define AkPluginPrivateIntefaceLog() \
-    AkLoggerLog("PluginInterfacePrivate::", __FUNCTION__, "()")
-
-#define AkPluginPrivateIntefaceLogID(x) \
-    AkLoggerLog("PluginInterfacePrivate::", __FUNCTION__, "(id = ", x, ")")
-
 namespace AkVCam
 {
     struct PluginInterfacePrivate
@@ -165,7 +159,7 @@ AkVCam::PluginInterface::PluginInterface():
     auto homePath = std::string("/Users/") + getenv("USER");
 
     std::stringstream ss;
-    ss << CMIO_DAEMONS_PATH << "/" << AKVCAM_ASSISTANT_NAME << ".plist";
+    ss << CMIO_DAEMONS_PATH << "/" << CMIO_ASSISTANT_NAME << ".plist";
     auto daemon = ss.str();
 
     if (daemon[0] == '~')
@@ -201,7 +195,7 @@ CMIOObjectID AkVCam::PluginInterface::objectID() const
 
 CMIOHardwarePlugInRef AkVCam::PluginInterface::create()
 {
-    AkLoggerLog("Creating plugin interface.");
+    AkLogFunction();
 
     auto pluginInterface = new PluginInterface();
     pluginInterface->d->AddRef(pluginInterface->d);
@@ -220,14 +214,14 @@ AkVCam::Object *AkVCam::PluginInterface::findObject(CMIOObjectID objectID)
 
 HRESULT AkVCam::PluginInterface::QueryInterface(REFIID uuid, LPVOID *interface)
 {
+    AkLogFunction();
+
     if (!interface)
         return E_POINTER;
 
-    AkLoggerLog("AkVCam::PluginInterface::QueryInterface");
-
     if (uuidEqual(uuid, kCMIOHardwarePlugInInterfaceID)
         || uuidEqual(uuid, IUnknownUUID)) {
-        AkLoggerLog("Found plugin interface.");
+        AkLogInfo() << "Found plugin interface." << std::endl;
         this->d->AddRef(this->d);
         *interface = this->d;
 
@@ -239,26 +233,17 @@ HRESULT AkVCam::PluginInterface::QueryInterface(REFIID uuid, LPVOID *interface)
 
 OSStatus AkVCam::PluginInterface::Initialize()
 {
-    AkLoggerLog("AkVCam::PluginInterface::Initialize");
+    AkLogFunction();
 
     return this->InitializeWithObjectID(kCMIOObjectUnknown);
 }
 
 OSStatus AkVCam::PluginInterface::InitializeWithObjectID(CMIOObjectID objectID)
 {
-    AkLoggerLog("AkVCam::PluginInterface::InitializeWithObjectID: ", objectID);
+    AkLogFunction();
+    AkLogInfo() << objectID << std::endl;
 
     this->m_objectID = objectID;
-
-#if defined(QT_DEBUG) && 0
-    std::vector<VideoFormat> formats {
-        {PixelFormatRGB32, 640, 480, {30.0}}
-    };
-
-    this->createDevice("org.webcamoid.cmio.AkVCam.Driver.Debug",
-                       "Virtual Debug Camera (driver side)",
-                       formats);
-#endif
 
     for (auto deviceId: this->d->m_ipcBridge.listDevices())
         this->deviceAdded(this, deviceId);
@@ -268,7 +253,7 @@ OSStatus AkVCam::PluginInterface::InitializeWithObjectID(CMIOObjectID objectID)
 
 OSStatus AkVCam::PluginInterface::Teardown()
 {
-    AkLoggerLog("AkVCam::PluginInterface::Teardown");
+    AkLogFunction();
 
     return kCMIOHardwareNoError;
 }
@@ -276,7 +261,7 @@ OSStatus AkVCam::PluginInterface::Teardown()
 void AkVCam::PluginInterface::serverStateChanged(void *userData,
                                                  IpcBridge::ServerState state)
 {
-    AkLoggerLog("AkVCam::PluginInterface::frameReady");
+    AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
 
     for (auto device: self->m_devices)
@@ -289,8 +274,8 @@ void AkVCam::PluginInterface::serverStateChanged(void *userData,
 void AkVCam::PluginInterface::deviceAdded(void *userData,
                                           const std::string &deviceId)
 {
-    AkLoggerLog("AkVCam::PluginInterface::deviceAdded");
-    AkLoggerLog("Device Added: ", deviceId);
+    AkLogFunction();
+    AkLogInfo() << "Device Added: " << deviceId << std::endl;
 
     auto self = reinterpret_cast<PluginInterface *>(userData);
     auto description = self->d->m_ipcBridge.description(deviceId);
@@ -302,8 +287,8 @@ void AkVCam::PluginInterface::deviceAdded(void *userData,
 void AkVCam::PluginInterface::deviceRemoved(void *userData,
                                             const std::string &deviceId)
 {
-    AkLoggerLog("AkVCam::PluginInterface::deviceRemoved");
-    AkLoggerLog("Device Removed: ", deviceId);
+    AkLogFunction();
+    AkLogInfo() << "Device Removed: " << deviceId << std::endl;
 
     auto self = reinterpret_cast<PluginInterface *>(userData);
     self->destroyDevice(deviceId);
@@ -313,7 +298,7 @@ void AkVCam::PluginInterface::frameReady(void *userData,
                                          const std::string &deviceId,
                                          const VideoFrame &frame)
 {
-    AkLoggerLog("AkVCam::PluginInterface::frameReady");
+    AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
 
     for (auto device: self->m_devices)
@@ -325,9 +310,9 @@ void AkVCam::PluginInterface::setBroadcasting(void *userData,
                                               const std::string &deviceId,
                                               const std::string &broadcaster)
 {
-    AkLoggerLog("AkVCam::PluginInterface::setBroadcasting");
-    AkLoggerLog("Device: ", deviceId);
-    AkLoggerLog("Broadcaster: ", broadcaster);
+    AkLogFunction();
+    AkLogInfo() << "Device: " << deviceId << std::endl;
+    AkLogInfo() << "Broadcaster: " << broadcaster << std::endl;
     auto self = reinterpret_cast<PluginInterface *>(userData);
 
     for (auto device: self->m_devices)
@@ -340,7 +325,7 @@ void AkVCam::PluginInterface::setMirror(void *userData,
                                         bool horizontalMirror,
                                         bool verticalMirror)
 {
-    AkLoggerLog("AkVCam::PluginInterface::setMirror");
+    AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
 
     for (auto device: self->m_devices)
@@ -352,7 +337,7 @@ void AkVCam::PluginInterface::setScaling(void *userData,
                                          const std::string &deviceId,
                                          Scaling scaling)
 {
-    AkLoggerLog("AkVCam::PluginInterface::setScaling");
+    AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
 
     for (auto device: self->m_devices)
@@ -364,7 +349,7 @@ void AkVCam::PluginInterface::setAspectRatio(void *userData,
                                              const std::string &deviceId,
                                              AspectRatio aspectRatio)
 {
-    AkLoggerLog("AkVCam::PluginInterface::setAspectRatio");
+    AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
 
     for (auto device: self->m_devices)
@@ -376,7 +361,7 @@ void AkVCam::PluginInterface::setSwapRgb(void *userData,
                                          const std::string &deviceId,
                                          bool swap)
 {
-    AkLoggerLog("AkVCam::PluginInterface::setSwapRgb");
+    AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
 
     for (auto device: self->m_devices)
@@ -387,7 +372,7 @@ void AkVCam::PluginInterface::setSwapRgb(void *userData,
 void AkVCam::PluginInterface::addListener(void *userData,
                                           const std::string &deviceId)
 {
-    AkLoggerLog("AkVCam::PluginInterface::addListener");
+    AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
     self->d->m_ipcBridge.addListener(deviceId);
 }
@@ -395,7 +380,7 @@ void AkVCam::PluginInterface::addListener(void *userData,
 void AkVCam::PluginInterface::removeListener(void *userData,
                                              const std::string &deviceId)
 {
-    AkLoggerLog("AkVCam::PluginInterface::removeListener");
+    AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
     self->d->m_ipcBridge.removeListener(deviceId);
 }
@@ -404,8 +389,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
                                            const std::wstring &description,
                                            const std::vector<VideoFormat> &formats)
 {
-    AkLoggerLog("AkVCam::PluginInterface::createDevice");
-
+    AkLogFunction();
     StreamPtr stream;
 
     // Create one device.
@@ -488,7 +472,7 @@ createDevice_failed:
 
 void AkVCam::PluginInterface::destroyDevice(const std::string &deviceId)
 {
-    AkLoggerLog("AkVCam::PluginInterface::destroyDevice");
+    AkLogFunction();
 
     for (auto it = this->m_devices.begin(); it != this->m_devices.end(); it++) {
         auto device = *it;
@@ -524,7 +508,7 @@ HRESULT AkVCam::PluginInterfacePrivate::QueryInterface(void *self,
                                                        REFIID uuid,
                                                        LPVOID *interface)
 {
-    AkPluginPrivateIntefaceLog();
+    AkLogFunction();
 
     if (!self)
         return E_FAIL;
@@ -536,7 +520,7 @@ HRESULT AkVCam::PluginInterfacePrivate::QueryInterface(void *self,
 
 ULONG AkVCam::PluginInterfacePrivate::AddRef(void *self)
 {
-    AkPluginPrivateIntefaceLog();
+    AkLogFunction();
 
     if (!self)
         return 0;
@@ -549,7 +533,7 @@ ULONG AkVCam::PluginInterfacePrivate::AddRef(void *self)
 
 ULONG AkVCam::PluginInterfacePrivate::Release(void *self)
 {
-    AkPluginPrivateIntefaceLog();
+    AkLogFunction();
 
     if (!self)
         return 0;
@@ -571,7 +555,7 @@ ULONG AkVCam::PluginInterfacePrivate::Release(void *self)
 
 OSStatus AkVCam::PluginInterfacePrivate::Initialize(CMIOHardwarePlugInRef self)
 {
-    AkPluginPrivateIntefaceLog();
+    AkLogFunction();
 
     if (!self)
         return kCMIOHardwareUnspecifiedError;
@@ -584,7 +568,7 @@ OSStatus AkVCam::PluginInterfacePrivate::Initialize(CMIOHardwarePlugInRef self)
 OSStatus AkVCam::PluginInterfacePrivate::InitializeWithObjectID(CMIOHardwarePlugInRef self,
                                                                 CMIOObjectID objectID)
 {
-    AkPluginPrivateIntefaceLog();
+    AkLogFunction();
 
     if (!self)
         return kCMIOHardwareUnspecifiedError;
@@ -596,7 +580,7 @@ OSStatus AkVCam::PluginInterfacePrivate::InitializeWithObjectID(CMIOHardwarePlug
 
 OSStatus AkVCam::PluginInterfacePrivate::Teardown(CMIOHardwarePlugInRef self)
 {
-    AkPluginPrivateIntefaceLog();
+    AkLogFunction();
 
     if (!self)
         return kCMIOHardwareUnspecifiedError;
@@ -609,7 +593,8 @@ OSStatus AkVCam::PluginInterfacePrivate::Teardown(CMIOHardwarePlugInRef self)
 void AkVCam::PluginInterfacePrivate::ObjectShow(CMIOHardwarePlugInRef self,
                                                 CMIOObjectID objectID)
 {
-    AkPluginPrivateIntefaceLogID(objectID);
+    AkLogFunction();
+    AkLogInfo() << "ObjectID " << objectID << std::endl;
 
     if (!self)
         return;
@@ -626,7 +611,8 @@ Boolean AkVCam::PluginInterfacePrivate::ObjectHasProperty(CMIOHardwarePlugInRef 
                                                           CMIOObjectID objectID,
                                                           const CMIOObjectPropertyAddress *address)
 {
-    AkPluginPrivateIntefaceLogID(objectID);
+    AkLogFunction();
+    AkLogInfo() << "ObjectID " << objectID << std::endl;
     Boolean result = false;
 
     if (!self)
@@ -647,7 +633,8 @@ OSStatus AkVCam::PluginInterfacePrivate::ObjectIsPropertySettable(CMIOHardwarePl
                                                                   const CMIOObjectPropertyAddress *address,
                                                                   Boolean *isSettable)
 {
-    AkPluginPrivateIntefaceLogID(objectID);
+    AkLogFunction();
+    AkLogInfo() << "ObjectID " << objectID << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -672,7 +659,8 @@ OSStatus AkVCam::PluginInterfacePrivate::ObjectGetPropertyDataSize(CMIOHardwareP
                                                                    const void *qualifierData,
                                                                    UInt32 *dataSize)
 {
-    AkPluginPrivateIntefaceLogID(objectID);
+    AkLogFunction();
+    AkLogInfo() << "ObjectID " << objectID << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -703,7 +691,8 @@ OSStatus AkVCam::PluginInterfacePrivate::ObjectGetPropertyData(CMIOHardwarePlugI
                                                                UInt32 *dataUsed,
                                                                void *data)
 {
-    AkPluginPrivateIntefaceLogID(objectID);
+    AkLogFunction();
+    AkLogInfo() << "ObjectID " << objectID << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -737,7 +726,8 @@ OSStatus AkVCam::PluginInterfacePrivate::ObjectSetPropertyData(CMIOHardwarePlugI
                                                                UInt32 dataSize,
                                                                const void *data)
 {
-    AkPluginPrivateIntefaceLogID(objectID);
+    AkLogFunction();
+    AkLogInfo() << "ObjectID " << objectID << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -764,7 +754,8 @@ OSStatus AkVCam::PluginInterfacePrivate::ObjectSetPropertyData(CMIOHardwarePlugI
 OSStatus AkVCam::PluginInterfacePrivate::DeviceSuspend(CMIOHardwarePlugInRef self,
                                                        CMIODeviceID device)
 {
-    AkPluginPrivateIntefaceLogID(device);
+    AkLogFunction();
+    AkLogInfo() << "DeviceID " << device << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -782,7 +773,8 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceSuspend(CMIOHardwarePlugInRef sel
 OSStatus AkVCam::PluginInterfacePrivate::DeviceResume(CMIOHardwarePlugInRef self,
                                                       CMIODeviceID device)
 {
-    AkPluginPrivateIntefaceLogID(device);
+    AkLogFunction();
+    AkLogInfo() << "DeviceID " << device << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -801,7 +793,8 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceStartStream(CMIOHardwarePlugInRef
                                                            CMIODeviceID device,
                                                            CMIOStreamID stream)
 {
-    AkPluginPrivateIntefaceLogID(device);
+    AkLogFunction();
+    AkLogInfo() << "DeviceID " << device << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -820,7 +813,8 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceStopStream(CMIOHardwarePlugInRef 
                                                           CMIODeviceID device,
                                                           CMIOStreamID stream)
 {
-    AkPluginPrivateIntefaceLogID(device);
+    AkLogFunction();
+    AkLogInfo() << "DeviceID " << device << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -839,7 +833,8 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceProcessAVCCommand(CMIOHardwarePlu
                                                                  CMIODeviceID device,
                                                                  CMIODeviceAVCCommand *ioAVCCommand)
 {
-    AkPluginPrivateIntefaceLogID(device);
+    AkLogFunction();
+    AkLogInfo() << "DeviceID " << device << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -858,7 +853,8 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceProcessRS422Command(CMIOHardwareP
                                                                    CMIODeviceID device,
                                                                    CMIODeviceRS422Command *ioRS422Command)
 {
-    AkPluginPrivateIntefaceLogID(device);
+    AkLogFunction();
+    AkLogInfo() << "DeviceID " << device << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -879,7 +875,8 @@ OSStatus AkVCam::PluginInterfacePrivate::StreamCopyBufferQueue(CMIOHardwarePlugI
                                                                void *queueAlteredRefCon,
                                                                CMSimpleQueueRef *queue)
 {
-    AkPluginPrivateIntefaceLogID(stream);
+    AkLogFunction();
+    AkLogInfo() << "StreamID " << stream << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -899,7 +896,8 @@ OSStatus AkVCam::PluginInterfacePrivate::StreamCopyBufferQueue(CMIOHardwarePlugI
 OSStatus AkVCam::PluginInterfacePrivate::StreamDeckPlay(CMIOHardwarePlugInRef self,
                                                         CMIOStreamID stream)
 {
-    AkPluginPrivateIntefaceLogID(stream);
+    AkLogFunction();
+    AkLogInfo() << "StreamID " << stream << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -917,7 +915,8 @@ OSStatus AkVCam::PluginInterfacePrivate::StreamDeckPlay(CMIOHardwarePlugInRef se
 OSStatus AkVCam::PluginInterfacePrivate::StreamDeckStop(CMIOHardwarePlugInRef self,
                                                         CMIOStreamID stream)
 {
-    AkPluginPrivateIntefaceLogID(stream);
+    AkLogFunction();
+    AkLogInfo() << "StreamID " << stream << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -936,7 +935,8 @@ OSStatus AkVCam::PluginInterfacePrivate::StreamDeckJog(CMIOHardwarePlugInRef sel
                                                        CMIOStreamID stream,
                                                        SInt32 speed)
 {
-    AkPluginPrivateIntefaceLogID(stream);
+    AkLogFunction();
+    AkLogInfo() << "StreamID " << stream << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -956,7 +956,8 @@ OSStatus AkVCam::PluginInterfacePrivate::StreamDeckCueTo(CMIOHardwarePlugInRef s
                                                          Float64 frameNumber,
                                                          Boolean playOnCue)
 {
-    AkPluginPrivateIntefaceLogID(stream);
+    AkLogFunction();
+    AkLogInfo() << "StreamID " << stream << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)

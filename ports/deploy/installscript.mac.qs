@@ -59,6 +59,10 @@ Component.prototype.createOperations = function()
                       + "            <key>org.webcamoid.cmio.AkVCam.Assistant</key>\n"
                       + "            <true/>\n"
                       + "        </dict>\n"
+                      + "        <key>StandardOutPath</key>\n"
+                      + "        <string>/tmp/AkVCamAssistant.log</string>\n"
+                      + "        <key>StandardErrorPath</key>\n"
+                      + "        <string>/tmp/AkVCamAssistant.log</string>\n"
                       + "    </dict>\n"
                       + "</plist>\n";
     component.addElevatedOperation("Delete", daemonPlist);

@@ -28,8 +28,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "SpecifyPropertyPages"
-
 namespace AkVCam
 {
     class SpecifyPropertyPagesPrivate
@@ -55,7 +53,7 @@ AkVCam::SpecifyPropertyPages::~SpecifyPropertyPages()
 
 HRESULT AkVCam::SpecifyPropertyPages::GetPages(CAUUID *pPages)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPages)
         return E_POINTER;
@@ -80,11 +78,11 @@ HRESULT AkVCam::SpecifyPropertyPages::GetPages(CAUUID *pPages)
     pPages->cElems = ULONG(pages.size());
     pPages->pElems =
             reinterpret_cast<GUID *>(CoTaskMemAlloc(sizeof(GUID) * pages.size()));
-    AkLoggerLog("Returning property pages:");
+    AkLogInfo() << "Returning property pages:" << std::endl;
 
     for (size_t i = 0; i < pages.size(); i++) {
         memcpy(&pPages->pElems[i], &pages[i], sizeof(GUID));
-        AkLoggerLog("    ", stringFromClsid(pages[i]));
+        AkLogInfo() << "    " << stringFromClsid(pages[i]) << std::endl;
     }
 
     return S_OK;

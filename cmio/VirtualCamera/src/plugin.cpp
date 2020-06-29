@@ -19,6 +19,7 @@
 
 #include "plugin.h"
 #include "utils.h"
+#include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/logger/logger.h"
 
@@ -26,14 +27,20 @@ extern "C" void *akPluginMain(CFAllocatorRef allocator,
                               CFUUIDRef requestedTypeUUID)
 {
     UNUSED(allocator)
+    auto logLevel =
+            AkVCam::Preferences::readInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
+    AkVCam::Logger::setLogLevel(logLevel);
 
-#if defined(QT_DEBUG) && 0
-    // Turn on lights
-    freopen("/dev/tty", "a", stdout);
-    freopen("/dev/tty", "a", stderr);
-#endif
+    if (AkVCam::Logger::logLevel() > AKVCAM_LOGLEVEL_DEFAULT) {
+        // Turn on lights
+        freopen("/dev/tty", "a", stdout);
+        freopen("/dev/tty", "a", stderr);
+    }
 
-    AkLoggerStart("/tmp/" CMIO_PLUGIN_NAME, "log");
+    auto logFile =
+            AkVCam::Preferences::readString("logfile",
+                                            "/tmp/" CMIO_PLUGIN_NAME ".log");
+    AkVCam::Logger::setLogFile(logFile);
 
     if (!CFEqual(requestedTypeUUID, kCMIOHardwarePlugInTypeID))
         return nullptr;

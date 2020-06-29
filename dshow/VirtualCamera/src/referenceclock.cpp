@@ -30,8 +30,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "ReferenceClock"
-
 namespace AkVCam
 {
     class AdviseCookiePrivate
@@ -90,7 +88,7 @@ AkVCam::ReferenceClock::~ReferenceClock()
 
 HRESULT AkVCam::ReferenceClock::GetTime(REFERENCE_TIME *pTime)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pTime)
         return E_POINTER;
@@ -110,7 +108,7 @@ HRESULT AkVCam::ReferenceClock::AdviseTime(REFERENCE_TIME baseTime,
                                            HEVENT hEvent,
                                            DWORD_PTR *pdwAdviseCookie)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->cleanup();
 
     if (!pdwAdviseCookie)
@@ -136,7 +134,7 @@ HRESULT AkVCam::ReferenceClock::AdvisePeriodic(REFERENCE_TIME startTime,
                                                HSEMAPHORE hSemaphore,
                                                DWORD_PTR *pdwAdviseCookie)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->cleanup();
 
     if (!pdwAdviseCookie)
@@ -159,7 +157,7 @@ HRESULT AkVCam::ReferenceClock::AdvisePeriodic(REFERENCE_TIME startTime,
 
 HRESULT AkVCam::ReferenceClock::Unadvise(DWORD_PTR dwAdviseCookie)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     auto it = std::find(this->d->m_cookies.begin(),
                         this->d->m_cookies.end(),
@@ -186,7 +184,7 @@ void AkVCam::AdviseCookiePrivate::adviseTime(REFERENCE_TIME baseTime,
                                              REFERENCE_TIME streamTime,
                                              HEVENT hEvent)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->m_run = true;
     this->m_thread = std::thread(&AdviseCookiePrivate::adviseTimeTh,
@@ -194,14 +192,14 @@ void AkVCam::AdviseCookiePrivate::adviseTime(REFERENCE_TIME baseTime,
                                  baseTime,
                                  streamTime,
                                  hEvent);
-    AkLoggerLog("Launching thread ", this->m_thread.get_id());
+    AkLogInfo() << "Launching thread " << this->m_thread.get_id() << std::endl;
 }
 
 void AkVCam::AdviseCookiePrivate::adviseTimeTh(REFERENCE_TIME baseTime,
                                                REFERENCE_TIME streamTime,
                                                HEVENT hEvent)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     REFERENCE_TIME clockTime;
     this->m_clock->GetTime(&clockTime);
@@ -222,14 +220,17 @@ void AkVCam::AdviseCookiePrivate::adviseTimeTh(REFERENCE_TIME baseTime,
         SetEvent(HANDLE(hEvent));
 
     this->m_run = false;
-    AkLoggerLog("Thread ", std::this_thread::get_id(), " finnished");
+    AkLogInfo() << "Thread "
+                << std::this_thread::get_id()
+                << " finnished"
+                << std::endl;
 }
 
 void AkVCam::AdviseCookiePrivate::advisePeriodic(REFERENCE_TIME startTime,
                                                  REFERENCE_TIME periodTime,
                                                  HSEMAPHORE hSemaphore)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->m_run = true;
     this->m_thread = std::thread(&AdviseCookiePrivate::advisePeriodicTh,
@@ -237,14 +238,14 @@ void AkVCam::AdviseCookiePrivate::advisePeriodic(REFERENCE_TIME startTime,
                                  startTime,
                                  periodTime,
                                  hSemaphore);
-    AkLoggerLog("Launching thread ", this->m_thread.get_id());
+    AkLogInfo() << "Launching thread " << this->m_thread.get_id() << std::endl;
 }
 
 void AkVCam::AdviseCookiePrivate::advisePeriodicTh(REFERENCE_TIME startTime,
                                                    REFERENCE_TIME periodTime,
                                                    HSEMAPHORE hSemaphore)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     REFERENCE_TIME clockTime;
     this->m_clock->GetTime(&clockTime);
@@ -271,12 +272,15 @@ void AkVCam::AdviseCookiePrivate::advisePeriodicTh(REFERENCE_TIME startTime,
         this->m_mutex.unlock();
     }
 
-    AkLoggerLog("Thread ", std::this_thread::get_id(), " finnished");
+    AkLogInfo() << "Thread "
+                << std::this_thread::get_id()
+                << " finnished"
+                << std::endl;
 }
 
 void AkVCam::AdviseCookiePrivate::unadvise()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->m_run = false;
     this->m_mutex.lock();

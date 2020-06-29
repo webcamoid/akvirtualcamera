@@ -23,8 +23,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "ClassFactory"
-
 namespace AkVCam
 {
     class ClassFactoryPrivate
@@ -56,8 +54,8 @@ bool AkVCam::ClassFactory::locked()
 
 HRESULT AkVCam::ClassFactory::QueryInterface(const IID &riid, void **ppvObject)
 {
-    AkLogMethod();
-    AkLoggerLog("IID: ", AkVCam::stringFromClsid(riid));
+    AkLogFunction();
+    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;
@@ -94,9 +92,9 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
                                              const IID &riid,
                                              void **ppvObject)
 {
-    AkLogMethod();
-    AkLoggerLog("Outer: ", ULONG_PTR(pUnkOuter));
-    AkLoggerLog("IID: ", stringFromClsid(riid));
+    AkLogFunction();
+    AkLogInfo() << "Outer: " << ULONG_PTR(pUnkOuter) << std::endl;
+    AkLogInfo() << "IID: " << stringFromClsid(riid) << std::endl;
 
     if (!ppvObject)
         return E_INVALIDARG;
@@ -114,7 +112,7 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
 
 HRESULT AkVCam::ClassFactory::LockServer(BOOL fLock)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_locked += fLock? 1: -1;
 
     return S_OK;

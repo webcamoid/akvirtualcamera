@@ -36,12 +36,6 @@
 #include "VCamUtils/src/logger/logger.h"
 #include "VCamUtils/src/utils.h"
 
-#define AkIpcBridgeLogMethod() \
-    AkLoggerLog("IpcBridge::", __FUNCTION__, "()")
-
-#define AkIpcBridgePrivateLogMethod() \
-    AkLoggerLog("IpcBridgePrivate::", __FUNCTION__, "()")
-
 #define AKVCAM_BIND_FUNC(member) \
     std::bind(&member, this, std::placeholders::_1, std::placeholders::_2)
 
@@ -116,7 +110,7 @@ namespace AkVCam
 
 AkVCam::IpcBridge::IpcBridge()
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
     this->d = new IpcBridgePrivate(this);
     ipcBridgePrivate().add(this);
 }
@@ -136,7 +130,7 @@ std::wstring AkVCam::IpcBridge::errorMessage() const
 void AkVCam::IpcBridge::setOption(const std::string &key,
                                   const std::string &value)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (value.empty())
         this->d->m_options.erase(key);
@@ -146,14 +140,14 @@ void AkVCam::IpcBridge::setOption(const std::string &key,
 
 std::vector<std::wstring> AkVCam::IpcBridge::driverPaths() const
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     return *this->d->driverPaths();
 }
 
 void AkVCam::IpcBridge::setDriverPaths(const std::vector<std::wstring> &driverPaths)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
     *this->d->driverPaths() = driverPaths;
 }
 
@@ -189,25 +183,25 @@ bool AkVCam::IpcBridge::setRootMethod(const std::string &rootMethod)
 
 void AkVCam::IpcBridge::connectService(bool asClient)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
     this->d->m_asClient = asClient;
     this->registerPeer(asClient);
 }
 
 void AkVCam::IpcBridge::disconnectService()
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
     this->unregisterPeer();
     this->d->m_asClient = false;
 }
 
 bool AkVCam::IpcBridge::registerPeer(bool asClient)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!asClient) {
         std::string plistFile =
-                CMIO_DAEMONS_PATH "/" AKVCAM_ASSISTANT_NAME ".plist";
+                CMIO_DAEMONS_PATH "/" CMIO_ASSISTANT_NAME ".plist";
 
         auto daemon = replace(plistFile, "~", this->d->homePath());
 
@@ -226,7 +220,7 @@ bool AkVCam::IpcBridge::registerPeer(bool asClient)
     bool status = false;
 
     auto serverMessagePort =
-            xpc_connection_create_mach_service(AKVCAM_ASSISTANT_NAME,
+            xpc_connection_create_mach_service(CMIO_ASSISTANT_NAME,
                                                nullptr,
                                                0);
 
@@ -299,7 +293,7 @@ bool AkVCam::IpcBridge::registerPeer(bool asClient)
     this->d->m_messagePort = messagePort;
     this->d->m_serverMessagePort = serverMessagePort;
 
-    AkLoggerLog("SUCCESSFUL");
+    AkLogInfo() << "SUCCESSFUL" << std::endl;
 
     return true;
 
@@ -310,14 +304,14 @@ registerEndPoint_failed:
     if (serverMessagePort)
         xpc_release(serverMessagePort);
 
-    AkLoggerLog("FAILED");
+    AkLogError() << "FAILED" << std::endl;
 
     return false;
 }
 
 void AkVCam::IpcBridge::unregisterPeer()
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (this->d->m_messagePort) {
         xpc_release(this->d->m_messagePort);
@@ -343,7 +337,7 @@ void AkVCam::IpcBridge::unregisterPeer()
 
 std::vector<std::string> AkVCam::IpcBridge::listDevices() const
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return {};
@@ -369,19 +363,17 @@ std::vector<std::string> AkVCam::IpcBridge::listDevices() const
 
     xpc_release(reply);
 
-#ifdef QT_DEBUG
-    AkLoggerLog("Devices:");
+    AkLogInfo() << "Devices:" << std::endl;
 
     for (auto &device: devices)
-        AkLoggerLog("    ", device);
-#endif
+        AkLogInfo() << "    " << device << std::endl;
 
     return devices;
 }
 
 std::wstring AkVCam::IpcBridge::description(const std::string &deviceId) const
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return {};
@@ -427,7 +419,7 @@ AkVCam::PixelFormat AkVCam::IpcBridge::defaultOutputPixelFormat() const
 
 std::vector<AkVCam::VideoFormat> AkVCam::IpcBridge::formats(const std::string &deviceId) const
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return {};
@@ -466,7 +458,7 @@ std::vector<AkVCam::VideoFormat> AkVCam::IpcBridge::formats(const std::string &d
 
 std::string AkVCam::IpcBridge::broadcaster(const std::string &deviceId) const
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return {};
@@ -488,15 +480,15 @@ std::string AkVCam::IpcBridge::broadcaster(const std::string &deviceId) const
     std::string broadcaster = xpc_dictionary_get_string(reply, "broadcaster");
     xpc_release(reply);
 
-    AkLoggerLog("Device: ", deviceId);
-    AkLoggerLog("Broadcaster: ", broadcaster);
+    AkLogInfo() << "Device: " << deviceId << std::endl;
+    AkLogInfo() << "Broadcaster: " << broadcaster << std::endl;
 
     return broadcaster;
 }
 
 bool AkVCam::IpcBridge::isHorizontalMirrored(const std::string &deviceId)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return false;
@@ -523,7 +515,7 @@ bool AkVCam::IpcBridge::isHorizontalMirrored(const std::string &deviceId)
 
 bool AkVCam::IpcBridge::isVerticalMirrored(const std::string &deviceId)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return false;
@@ -550,7 +542,7 @@ bool AkVCam::IpcBridge::isVerticalMirrored(const std::string &deviceId)
 
 AkVCam::Scaling AkVCam::IpcBridge::scalingMode(const std::string &deviceId)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return ScalingFast;
@@ -577,7 +569,7 @@ AkVCam::Scaling AkVCam::IpcBridge::scalingMode(const std::string &deviceId)
 
 AkVCam::AspectRatio AkVCam::IpcBridge::aspectRatioMode(const std::string &deviceId)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return AspectRatioIgnore;
@@ -604,7 +596,7 @@ AkVCam::AspectRatio AkVCam::IpcBridge::aspectRatioMode(const std::string &device
 
 bool AkVCam::IpcBridge::swapRgb(const std::string &deviceId)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return false;
@@ -631,7 +623,7 @@ bool AkVCam::IpcBridge::swapRgb(const std::string &deviceId)
 
 std::vector<std::string> AkVCam::IpcBridge::listeners(const std::string &deviceId)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return {};
@@ -658,8 +650,8 @@ std::vector<std::string> AkVCam::IpcBridge::listeners(const std::string &deviceI
 
     xpc_release(reply);
 
-    AkLoggerLog("Device: ", deviceId);
-    AkLoggerLog("Listeners: ", listeners.size());
+    AkLogInfo() << "Device: " << deviceId << std::endl;
+    AkLogInfo() << "Listeners: " << listeners.size() << std::endl;
 
     return listeners;
 }
@@ -728,7 +720,7 @@ bool AkVCam::IpcBridge::canApply(AkVCam::IpcBridge::Operation operation) const
 std::string AkVCam::IpcBridge::deviceCreate(const std::wstring &description,
                                             const std::vector<VideoFormat> &formats)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->canApply(OperationCreate)) {
         this->d->m_error = L"The driver is in use";
@@ -789,7 +781,7 @@ bool AkVCam::IpcBridge::deviceEdit(const std::string &deviceId,
                                    const std::wstring &description,
                                    const std::vector<VideoFormat> &formats)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->canApply(OperationEdit)) {
         this->d->m_error = L"The driver is in use";
@@ -813,7 +805,7 @@ bool AkVCam::IpcBridge::deviceEdit(const std::string &deviceId,
 bool AkVCam::IpcBridge::changeDescription(const std::string &deviceId,
                                           const std::wstring &description)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->canApply(OperationEdit)) {
         this->d->m_error = L"The driver is in use";
@@ -841,7 +833,7 @@ bool AkVCam::IpcBridge::changeDescription(const std::string &deviceId,
 
 bool AkVCam::IpcBridge::deviceDestroy(const std::string &deviceId)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->canApply(OperationDestroy)) {
         this->d->m_error = L"The driver is in use";
@@ -868,7 +860,7 @@ bool AkVCam::IpcBridge::deviceDestroy(const std::string &deviceId)
 
 bool AkVCam::IpcBridge::destroyAllDevices()
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->canApply(OperationDestroyAll)) {
         this->d->m_error = L"The driver is in use";
@@ -886,7 +878,7 @@ bool AkVCam::IpcBridge::deviceStart(const std::string &deviceId,
                                     const VideoFormat &format)
 {
     UNUSED(format)
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return false;
@@ -922,7 +914,7 @@ bool AkVCam::IpcBridge::deviceStart(const std::string &deviceId,
 
 void AkVCam::IpcBridge::deviceStop(const std::string &deviceId)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return;
@@ -948,7 +940,7 @@ void AkVCam::IpcBridge::deviceStop(const std::string &deviceId)
 bool AkVCam::IpcBridge::write(const std::string &deviceId,
                               const VideoFrame &frame)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return false;
@@ -1021,7 +1013,7 @@ void AkVCam::IpcBridge::setMirroring(const std::string &deviceId,
                                      bool horizontalMirrored,
                                      bool verticalMirrored)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return;
@@ -1040,7 +1032,7 @@ void AkVCam::IpcBridge::setMirroring(const std::string &deviceId,
 void AkVCam::IpcBridge::setScaling(const std::string &deviceId,
                                    Scaling scaling)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return;
@@ -1058,7 +1050,7 @@ void AkVCam::IpcBridge::setScaling(const std::string &deviceId,
 void AkVCam::IpcBridge::setAspectRatio(const std::string &deviceId,
                                        AspectRatio aspectRatio)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return;
@@ -1075,7 +1067,7 @@ void AkVCam::IpcBridge::setAspectRatio(const std::string &deviceId,
 
 void AkVCam::IpcBridge::setSwapRgb(const std::string &deviceId, bool swap)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return;
@@ -1092,7 +1084,7 @@ void AkVCam::IpcBridge::setSwapRgb(const std::string &deviceId, bool swap)
 
 bool AkVCam::IpcBridge::addListener(const std::string &deviceId)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return false;
@@ -1120,7 +1112,7 @@ bool AkVCam::IpcBridge::addListener(const std::string &deviceId)
 
 bool AkVCam::IpcBridge::removeListener(const std::string &deviceId)
 {
-    AkIpcBridgeLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
         return true;
@@ -1203,7 +1195,7 @@ std::vector<AkVCam::IpcBridge *> &AkVCam::IpcBridgePrivate::bridges()
 void AkVCam::IpcBridgePrivate::isAlive(xpc_connection_t client,
                                        xpc_object_t event)
 {
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     auto reply = xpc_dictionary_create_reply(event);
     xpc_dictionary_set_bool(reply, "alive", true);
@@ -1215,7 +1207,7 @@ void AkVCam::IpcBridgePrivate::deviceCreate(xpc_connection_t client,
                                             xpc_object_t event)
 {
     UNUSED(client)
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
     std::string device = xpc_dictionary_get_string(event, "device");
 
     for (auto bridge: this->m_bridges)
@@ -1226,7 +1218,7 @@ void AkVCam::IpcBridgePrivate::deviceDestroy(xpc_connection_t client,
                                              xpc_object_t event)
 {
     UNUSED(client)
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     std::string device = xpc_dictionary_get_string(event, "device");
 
@@ -1238,7 +1230,7 @@ void AkVCam::IpcBridgePrivate::frameReady(xpc_connection_t client,
                                           xpc_object_t event)
 {
     UNUSED(client)
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     std::string deviceId =
             xpc_dictionary_get_string(event, "device");
@@ -1273,7 +1265,7 @@ void AkVCam::IpcBridgePrivate::setBroadcasting(xpc_connection_t client,
                                                xpc_object_t event)
 {
     UNUSED(client)
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     std::string deviceId =
             xpc_dictionary_get_string(event, "device");
@@ -1288,7 +1280,7 @@ void AkVCam::IpcBridgePrivate::setMirror(xpc_connection_t client,
                                          xpc_object_t event)
 {
     UNUSED(client)
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     std::string deviceId =
             xpc_dictionary_get_string(event, "device");
@@ -1309,7 +1301,7 @@ void AkVCam::IpcBridgePrivate::setScaling(xpc_connection_t client,
                                           xpc_object_t event)
 {
     UNUSED(client)
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     std::string deviceId =
             xpc_dictionary_get_string(event, "device");
@@ -1324,7 +1316,7 @@ void AkVCam::IpcBridgePrivate::setAspectRatio(xpc_connection_t client,
                                               xpc_object_t event)
 {
     UNUSED(client)
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     std::string deviceId =
             xpc_dictionary_get_string(event, "device");
@@ -1339,7 +1331,7 @@ void AkVCam::IpcBridgePrivate::setSwapRgb(xpc_connection_t client,
                                           xpc_object_t event)
 {
     UNUSED(client)
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     std::string deviceId =
             xpc_dictionary_get_string(event, "device");
@@ -1353,7 +1345,7 @@ void AkVCam::IpcBridgePrivate::listenerAdd(xpc_connection_t client,
                                            xpc_object_t event)
 {
     UNUSED(client)
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     std::string deviceId = xpc_dictionary_get_string(event, "device");
     std::string listener = xpc_dictionary_get_string(event, "listener");
@@ -1366,7 +1358,7 @@ void AkVCam::IpcBridgePrivate::listenerRemove(xpc_connection_t client,
                                               xpc_object_t event)
 {
     UNUSED(client)
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     std::string deviceId = xpc_dictionary_get_string(event, "device");
     std::string listener = xpc_dictionary_get_string(event, "listener");
@@ -1382,7 +1374,7 @@ void AkVCam::IpcBridgePrivate::messageReceived(xpc_connection_t client,
 
     if (type == XPC_TYPE_ERROR) {
         auto description = xpc_copy_description(event);
-        AkLoggerLog("ERROR: ", description);
+        AkLogError() << description << std::endl;
         free(description);
     } else if (type == XPC_TYPE_DICTIONARY) {
         auto message = xpc_dictionary_get_int64(event, "message");
@@ -1494,7 +1486,7 @@ bool AkVCam::IpcBridgePrivate::rm(const std::string &path) const
 
 bool AkVCam::IpcBridgePrivate::createDaemonPlist(const std::string &fileName) const
 {
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
     std::fstream plistFile;
     plistFile.open(fileName, std::ios_base::out);
 
@@ -1508,7 +1500,7 @@ bool AkVCam::IpcBridgePrivate::createDaemonPlist(const std::string &fileName) co
               << "<plist version=\"1.0\">" << std::endl
               << "    <dict>" << std::endl
               << "        <key>Label</key>" << std::endl
-              << "        <string>" << AKVCAM_ASSISTANT_NAME
+              << "        <string>" << CMIO_ASSISTANT_NAME
                                     << "</string>" << std::endl
               << "        <key>ProgramArguments</key>" << std::endl
               << "        <array>" << std::endl
@@ -1523,21 +1515,11 @@ bool AkVCam::IpcBridgePrivate::createDaemonPlist(const std::string &fileName) co
               << "        </array>" << std::endl
               << "        <key>MachServices</key>" << std::endl
               << "        <dict>" << std::endl
-              << "            <key>" << AKVCAM_ASSISTANT_NAME
+              << "            <key>" << CMIO_ASSISTANT_NAME
                                      << "</key>" << std::endl
               << "            <true/>" << std::endl
-              << "        </dict>" << std::endl;
-
-#ifdef QT_DEBUG
-    std::string daemonLog = "/tmp/" AKVCAM_ASSISTANT_NAME ".log";
-
-    plistFile << "        <key>StandardOutPath</key>" << std::endl
-              << "        <string>" << daemonLog << "</string>" << std::endl
-              << "        <key>StandardErrorPath</key>" << std::endl
-              << "        <string>" << daemonLog << "</string>" << std::endl;
-#endif
-
-    plistFile << "    </dict>" << std::endl
+              << "        </dict>" << std::endl
+              << "    </dict>" << std::endl
               << "</plist>" << std::endl;
 
     return true;
@@ -1545,14 +1527,14 @@ bool AkVCam::IpcBridgePrivate::createDaemonPlist(const std::string &fileName) co
 
 bool AkVCam::IpcBridgePrivate::loadDaemon()
 {
-    AkIpcBridgePrivateLogMethod();
-    auto launchctl = popen("launchctl list " AKVCAM_ASSISTANT_NAME, "r");
+    AkLogFunction();
+    auto launchctl = popen("launchctl list " CMIO_ASSISTANT_NAME, "r");
 
     if (launchctl && !pclose(launchctl))
         return true;
 
     auto daemonsPath = replace(CMIO_DAEMONS_PATH, "~", this->homePath());
-    auto dstDaemonsPath = daemonsPath + "/" AKVCAM_ASSISTANT_NAME ".plist";
+    auto dstDaemonsPath = daemonsPath + "/" CMIO_ASSISTANT_NAME ".plist";
 
     if (!this->fileExists(dstDaemonsPath)) {
         this->m_error = L"Daemon plist does not exists";
@@ -1573,8 +1555,8 @@ bool AkVCam::IpcBridgePrivate::loadDaemon()
 
 void AkVCam::IpcBridgePrivate::unloadDaemon() const
 {
-    AkIpcBridgePrivateLogMethod();
-    std::string daemonPlist = AKVCAM_ASSISTANT_NAME ".plist";
+    AkLogFunction();
+    std::string daemonPlist = CMIO_ASSISTANT_NAME ".plist";
     auto daemonsPath = replace(CMIO_DAEMONS_PATH, "~", this->homePath());
     auto dstDaemonsPath = daemonsPath + "/" + daemonPlist;
 
@@ -1589,7 +1571,7 @@ void AkVCam::IpcBridgePrivate::unloadDaemon() const
 
 bool AkVCam::IpcBridgePrivate::checkDaemon()
 {
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
     auto driverPath = this->locateDriverPath();
 
     if (driverPath.empty()) {
@@ -1637,7 +1619,7 @@ bool AkVCam::IpcBridgePrivate::checkDaemon()
     }
 
     auto daemonsPath = replace(CMIO_DAEMONS_PATH, "~", this->homePath());
-    auto dstDaemonsPath = daemonsPath + "/" + AKVCAM_ASSISTANT_NAME + ".plist";
+    auto dstDaemonsPath = daemonsPath + "/" + CMIO_ASSISTANT_NAME + ".plist";
 
     if (!this->fileExists(dstDaemonsPath)) {
         if (!this->mkpath(daemonsPath)) {
@@ -1658,7 +1640,7 @@ bool AkVCam::IpcBridgePrivate::checkDaemon()
 
 void AkVCam::IpcBridgePrivate::uninstallPlugin()
 {
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
 
     // Stop the daemon
     this->unloadDaemon();
@@ -1666,7 +1648,7 @@ void AkVCam::IpcBridgePrivate::uninstallPlugin()
     // Remove the agent plist
     auto daemonsPath =
             replace(CMIO_DAEMONS_PATH, "~", this->homePath());
-    this->rm(daemonsPath + "/" AKVCAM_ASSISTANT_NAME ".plist");
+    this->rm(daemonsPath + "/" CMIO_ASSISTANT_NAME ".plist");
 
     // Remove the plugin
     auto driverPath = this->locateDriverPath();
@@ -1684,7 +1666,7 @@ void AkVCam::IpcBridgePrivate::uninstallPlugin()
 
 std::wstring AkVCam::IpcBridgePrivate::locateDriverPath() const
 {
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
     std::wstring driverPath;
 
     for (auto it = this->driverPaths()->rbegin();
@@ -1714,7 +1696,7 @@ std::wstring AkVCam::IpcBridgePrivate::locateDriverPath() const
 
 int AkVCam::IpcBridgePrivate::sudo(const std::vector<std::string> &parameters)
 {
-    AkIpcBridgePrivateLogMethod();
+    AkLogFunction();
     std::stringstream ss;
     ss << "osascript -e \"do shell script \\\"";
 
@@ -1742,7 +1724,7 @@ int AkVCam::IpcBridgePrivate::sudo(const std::vector<std::string> &parameters)
     auto result = pclose(sudo);
 
     if (result)
-        AkLoggerLog(output);
+        AkLogInfo() << output << std::endl;
 
     return result;
 }

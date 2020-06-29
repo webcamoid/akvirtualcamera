@@ -23,7 +23,6 @@
 #include <functional>
 #include <xpc/xpc.h>
 
-#define AKVCAM_ASSISTANT_NAME        "org.webcamoid.cmio.AkVCam.Assistant"
 #define AKVCAM_ASSISTANT_CLIENT_NAME "org.webcamoid.cmio.AkVCam.Client"
 #define AKVCAM_ASSISTANT_SERVER_NAME "org.webcamoid.cmio.AkVCam.Server"
 

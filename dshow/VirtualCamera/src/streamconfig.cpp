@@ -29,8 +29,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "StreamConfig"
-
 namespace AkVCam
 {
     class StreamConfigPrivate
@@ -62,7 +60,7 @@ void AkVCam::StreamConfig::setPin(Pin *pin)
 
 HRESULT AkVCam::StreamConfig::SetFormat(AM_MEDIA_TYPE *pmt)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pmt)
         return E_POINTER;
@@ -103,7 +101,7 @@ HRESULT AkVCam::StreamConfig::SetFormat(AM_MEDIA_TYPE *pmt)
 
 HRESULT AkVCam::StreamConfig::GetFormat(AM_MEDIA_TYPE **pmt)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pmt)
         return E_POINTER;
@@ -127,7 +125,7 @@ HRESULT AkVCam::StreamConfig::GetFormat(AM_MEDIA_TYPE **pmt)
         mediaTypes->Release();
     }
 
-    AkLoggerLog("MediaType: ", stringFromMediaType(*pmt));
+    AkLogInfo() << "MediaType: " << stringFromMediaType(*pmt) << std::endl;
 
     return *pmt? S_OK: E_FAIL;
 }
@@ -135,7 +133,7 @@ HRESULT AkVCam::StreamConfig::GetFormat(AM_MEDIA_TYPE **pmt)
 HRESULT AkVCam::StreamConfig::GetNumberOfCapabilities(int *piCount,
                                                       int *piSize)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!piCount || !piSize)
         return E_POINTER;
@@ -169,7 +167,7 @@ HRESULT AkVCam::StreamConfig::GetStreamCaps(int iIndex,
                                             AM_MEDIA_TYPE **pmt,
                                             BYTE *pSCC)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pmt || !pSCC)
         return E_POINTER;
@@ -247,7 +245,7 @@ HRESULT AkVCam::StreamConfig::GetStreamCaps(int iIndex,
                         configCaps->ShrinkTapsX = 1;
                         configCaps->ShrinkTapsY = 1;
                         configCaps->MinFrameInterval = format->AvgTimePerFrame;
-                        configCaps->MaxFrameInterval = format->AvgTimePerFrame;                        
+                        configCaps->MaxFrameInterval = format->AvgTimePerFrame;
                         configCaps->MinBitsPerSecond = LONG(format->dwBitRate);
                         configCaps->MaxBitsPerSecond = LONG(format->dwBitRate);
                     }
@@ -262,7 +260,7 @@ HRESULT AkVCam::StreamConfig::GetStreamCaps(int iIndex,
         }
     }
 
-    AkLoggerLog("Media Type: ", stringFromMediaType(*pmt));
+    AkLogInfo() << "Media Type: " << stringFromMediaType(*pmt) << std::endl;
 
     return *pmt? S_OK: S_FALSE;
 }

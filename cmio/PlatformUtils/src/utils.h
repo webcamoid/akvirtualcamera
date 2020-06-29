@@ -17,41 +17,22 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#include "qualitycontrol.h"
-#include "PlatformUtils/src/utils.h"
-#include "VCamUtils/src/utils.h"
+#ifndef PLATFORM_UTILS_H
+#define PLATFORM_UTILS_H
 
-AkVCam::QualityControl::QualityControl():
-    CUnknown(this, IID_IQualityControl)
+#include <string>
+#include <CoreFoundation/CoreFoundation.h>
+
+namespace AkVCam
 {
+    class VideoFormat;
 
+    std::shared_ptr<CFTypeRef> cfTypeFromStd(const std::string &str);
+    std::shared_ptr<CFTypeRef> cfTypeFromStd(const std::wstring &str);
+    std::shared_ptr<CFTypeRef> cfTypeFromStd(int num);
+    std::shared_ptr<CFTypeRef> cfTypeFromStd(double num);
+    std::string stringFromCFType(CFTypeRef cfType);
+    std::wstring wstringFromCFType(CFTypeRef cfType);
 }
 
-AkVCam::QualityControl::~QualityControl()
-{
-
-}
-
-HRESULT AkVCam::QualityControl::Notify(IBaseFilter *pSelf, Quality q)
-{
-    UNUSED(q)
-    AkLogFunction();
-
-    if (!pSelf)
-        return E_POINTER;
-
-    AkLogInfo() << "Type: " << (q.Type == Famine? "Famine": "Flood") << std::endl;
-    AkLogInfo() << "Proportion: " << q.Proportion << std::endl;
-    AkLogInfo() << "Late: " << q.Late << std::endl;
-    AkLogInfo() << "TimeStamp:" << q.TimeStamp << std::endl;
-
-    return S_OK;
-}
-
-HRESULT AkVCam::QualityControl::SetSink(IQualityControl *piqc)
-{
-    UNUSED(piqc)
-    AkLogFunction();
-
-    return E_NOTIMPL;
-}
+#endif // PLATFORM_UTILS_H

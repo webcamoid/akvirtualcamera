@@ -21,8 +21,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "Persist"
-
 namespace AkVCam
 {
     class PersistPrivate
@@ -46,7 +44,7 @@ AkVCam::Persist::~Persist()
 
 HRESULT AkVCam::Persist::GetClassID(CLSID *pClassID)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pClassID)
         return E_POINTER;

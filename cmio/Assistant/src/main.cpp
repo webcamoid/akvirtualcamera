@@ -23,14 +23,18 @@
 
 #include "assistant.h"
 #include "assistantglobals.h"
+#include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/logger/logger.h"
 
 GLOBAL_STATIC(AkVCam::Assistant, assistant)
 
 int main(int argc, char **argv)
 {
+    auto loglevel =
+            AkVCam::Preferences::readInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
+    AkVCam::Logger::setLogLevel(loglevel);
     auto server =
-            xpc_connection_create_mach_service(AKVCAM_ASSISTANT_NAME,
+            xpc_connection_create_mach_service(CMIO_ASSISTANT_NAME,
                                                NULL,
                                                XPC_CONNECTION_MACH_SERVICE_LISTENER);
 
@@ -40,7 +44,7 @@ int main(int argc, char **argv)
     for (int i = 0; i < argc; i++)
         if (strcmp(argv[i], "--timeout") == 0 && i + 1 < argc) {
             auto timeout = strtod(argv[i + 1], nullptr);
-            AkLoggerLog("Set timeout: ", timeout);
+            AkLogInfo() << "Set timeout: " << timeout << std::endl;
             assistant()->setTimeout(timeout);
 
             break;
@@ -51,7 +55,7 @@ int main(int argc, char **argv)
 
         if (type == XPC_TYPE_ERROR) {
              auto description = xpc_copy_description(event);
-             AkLoggerLog("ERROR: ", description);
+             AkLogError() << description << std::endl;
              free(description);
 
              return;

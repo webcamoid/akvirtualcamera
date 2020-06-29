@@ -33,11 +33,6 @@
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "BaseFilter"
-
-#define AkBaseFilterPrivateLog() \
-    AkLoggerLog("BaseFilterPrivate::", __FUNCTION__, "()")
-
 #define AkVCamPinCall(pins, func, ...) \
     pins->Reset(); \
     Pin *pin = nullptr; \
@@ -116,7 +111,7 @@ void AkVCam::BaseFilter::addPin(const std::vector<AkVCam::VideoFormat> &formats,
                                 const std::wstring &pinName,
                                 bool changed)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_pins->addPin(new Pin(this, formats, pinName), changed);
 
     if (this->d->m_pins->count() == 1)
@@ -125,24 +120,26 @@ void AkVCam::BaseFilter::addPin(const std::vector<AkVCam::VideoFormat> &formats,
 
 void AkVCam::BaseFilter::removePin(IPin *pin, bool changed)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_ipcBridge.disconnectService();
     this->d->m_pins->removePin(pin, changed);
 }
 
 AkVCam::BaseFilter *AkVCam::BaseFilter::create(const GUID &clsid)
 {
-    AkLoggerLog("BaseFilter::create()");
+    AkLogFunction();
     auto camera = cameraFromId(clsid);
-    AkLoggerLog("CLSID: ", stringFromClsid(clsid));
-    AkLoggerLog("ID: ", camera);
+    AkLogInfo() << "CLSID: " << stringFromClsid(clsid) << std::endl;
+    AkLogInfo() << "ID: " << camera << std::endl;
 
     if (camera < 0)
         return nullptr;
 
     auto description = cameraDescription(DWORD(camera));
-    AkLoggerLog("Description: ", std::string(description.begin(),
-                                             description.end()));
+    AkLogInfo() << "Description: "
+                << std::string(description.begin(),
+                               description.end())
+                << std::endl;
     auto baseFilter = new BaseFilter(clsid,
                                      description,
                                      DSHOW_PLUGIN_VENDOR_L);
@@ -164,8 +161,8 @@ IReferenceClock *AkVCam::BaseFilter::referenceClock() const
 
 HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppvObject)
 {
-    AkLogMethod();
-    AkLoggerLog("IID: ", AkVCam::stringFromClsid(riid));
+    AkLogFunction();
+    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;
@@ -238,7 +235,7 @@ HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppvObject)
 
 HRESULT AkVCam::BaseFilter::EnumPins(IEnumPins **ppEnum)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_pins)
         return E_FAIL;
@@ -253,7 +250,7 @@ HRESULT AkVCam::BaseFilter::EnumPins(IEnumPins **ppEnum)
 
 HRESULT AkVCam::BaseFilter::FindPin(LPCWSTR Id, IPin **ppPin)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!ppPin)
         return E_POINTER;
@@ -290,7 +287,7 @@ HRESULT AkVCam::BaseFilter::FindPin(LPCWSTR Id, IPin **ppPin)
 
 HRESULT AkVCam::BaseFilter::QueryFilterInfo(FILTER_INFO *pInfo)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pInfo)
         return E_POINTER;
@@ -314,21 +311,23 @@ HRESULT AkVCam::BaseFilter::QueryFilterInfo(FILTER_INFO *pInfo)
 
 HRESULT AkVCam::BaseFilter::JoinFilterGraph(IFilterGraph *pGraph, LPCWSTR pName)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->d->m_filterGraph = pGraph;
     this->d->m_filterName = std::wstring(pName? pName: L"");
 
-    AkLoggerLog("Filter graph: ", this->d->m_filterGraph);
-    AkLoggerLog("Name: ", std::string(this->d->m_filterName.begin(),
-                                      this->d->m_filterName.end()));
+    AkLogInfo() << "Filter graph: " << this->d->m_filterGraph << std::endl;
+    AkLogInfo() << "Name: "
+                << std::string(this->d->m_filterName.begin(),
+                               this->d->m_filterName.end())
+                << std::endl;
 
     return S_OK;
 }
 
 HRESULT AkVCam::BaseFilter::QueryVendorInfo(LPWSTR *pVendorInfo)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (this->d->m_vendor.size() < 1)
         return E_NOTIMPL;
@@ -396,7 +395,7 @@ AkVCam::BaseFilterPrivate::~BaseFilterPrivate()
 
 IEnumPins *AkVCam::BaseFilterPrivate::pinsForDevice(const std::string &deviceId)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     CLSID clsid;
     self->GetClassID(&clsid);
@@ -450,7 +449,7 @@ void AkVCam::BaseFilterPrivate::updatePins()
 void AkVCam::BaseFilterPrivate::serverStateChanged(void *userData,
                                                    IpcBridge::ServerState state)
 {
-    AkBaseFilterPrivateLog();
+    AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
     IEnumPins *pins = nullptr;
     self->self->EnumPins(&pins);
@@ -468,7 +467,7 @@ void AkVCam::BaseFilterPrivate::frameReady(void *userData,
                                            const std::string &deviceId,
                                            const VideoFrame &frame)
 {
-    AkBaseFilterPrivateLog();
+    AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
     AkVCamDevicePinCall(deviceId, self, frameReady, frame);
 }
@@ -477,7 +476,7 @@ void AkVCam::BaseFilterPrivate::setBroadcasting(void *userData,
                                                 const std::string &deviceId,
                                                 const std::string &broadcaster)
 {
-    AkBaseFilterPrivateLog();
+    AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
     AkVCamDevicePinCall(deviceId, self, setBroadcasting, broadcaster);
 }
@@ -487,7 +486,7 @@ void AkVCam::BaseFilterPrivate::setMirror(void *userData,
                                           bool horizontalMirror,
                                           bool verticalMirror)
 {
-    AkBaseFilterPrivateLog();
+    AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
     AkVCamDevicePinCall(deviceId,
                         self,
@@ -500,7 +499,7 @@ void AkVCam::BaseFilterPrivate::setScaling(void *userData,
                                            const std::string &deviceId,
                                            Scaling scaling)
 {
-    AkBaseFilterPrivateLog();
+    AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
     AkVCamDevicePinCall(deviceId, self, setScaling, scaling);
 }
@@ -509,7 +508,7 @@ void AkVCam::BaseFilterPrivate::setAspectRatio(void *userData,
                                                const std::string &deviceId,
                                                AspectRatio aspectRatio)
 {
-    AkBaseFilterPrivateLog();
+    AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
     AkVCamDevicePinCall(deviceId, self, setAspectRatio, aspectRatio);
 }
@@ -518,7 +517,7 @@ void AkVCam::BaseFilterPrivate::setSwapRgb(void *userData,
                                            const std::string &deviceId,
                                            bool swap)
 {
-    AkBaseFilterPrivateLog();
+    AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
     AkVCamDevicePinCall(deviceId, self, setSwapRgb, swap);
 }

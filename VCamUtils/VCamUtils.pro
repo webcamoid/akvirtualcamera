@@ -26,8 +26,6 @@ exists(commons.pri) {
     }
 }
 
-include(VCamUtils.pri)
-
 CONFIG += \
     staticlib \
     create_prl \

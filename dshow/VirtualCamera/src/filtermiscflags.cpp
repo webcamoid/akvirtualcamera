@@ -21,8 +21,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "FilterMiscFlags"
-
 AkVCam::FilterMiscFlags::FilterMiscFlags():
     CUnknown(this, IID_IAMFilterMiscFlags)
 {
@@ -36,7 +34,7 @@ AkVCam::FilterMiscFlags::~FilterMiscFlags()
 
 ULONG AkVCam::FilterMiscFlags::GetMiscFlags()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return AM_FILTER_MISC_FLAGS_IS_SOURCE;
 }

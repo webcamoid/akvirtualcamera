@@ -31,8 +31,6 @@
 #include "VCamUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
 
-#define AK_CUR_INTERFACE "VideoControl"
-
 namespace AkVCam
 {
     class VideoControlPrivate
@@ -58,7 +56,7 @@ AkVCam::VideoControl::~VideoControl()
 
 HRESULT AkVCam::VideoControl::GetCaps(IPin *pPin, LONG *pCapsFlags)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPin || !pCapsFlags)
         return E_POINTER;
@@ -86,7 +84,7 @@ HRESULT AkVCam::VideoControl::GetCaps(IPin *pPin, LONG *pCapsFlags)
 
 HRESULT AkVCam::VideoControl::SetMode(IPin *pPin, LONG Mode)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPin)
         return E_POINTER;
@@ -114,7 +112,7 @@ HRESULT AkVCam::VideoControl::SetMode(IPin *pPin, LONG Mode)
 
 HRESULT AkVCam::VideoControl::GetMode(IPin *pPin, LONG *Mode)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPin || !Mode)
         return E_POINTER;
@@ -149,7 +147,7 @@ HRESULT AkVCam::VideoControl::GetMode(IPin *pPin, LONG *Mode)
 HRESULT AkVCam::VideoControl::GetCurrentActualFrameRate(IPin *pPin,
                                                         LONGLONG *ActualFrameRate)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPin || !ActualFrameRate)
         return E_POINTER;
@@ -202,7 +200,7 @@ HRESULT AkVCam::VideoControl::GetMaxAvailableFrameRate(IPin *pPin,
                                                        SIZE Dimensions,
                                                        LONGLONG *MaxAvailableFrameRate)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPin || !MaxAvailableFrameRate)
         return E_POINTER;
@@ -256,7 +254,7 @@ HRESULT AkVCam::VideoControl::GetFrameRateList(IPin *pPin,
                                                LONG *ListSize,
                                                LONGLONG **FrameRates)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPin || !ListSize || !FrameRates)
         return E_POINTER;

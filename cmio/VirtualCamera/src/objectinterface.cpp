@@ -62,22 +62,25 @@ CMIOObjectPropertyAddress AkVCam::ObjectInterface::address(CMIOObjectPropertySel
 
 void AkVCam::ObjectInterface::show()
 {
-    AkObjectLogMethod();
-
-    AkLoggerLog("STUB");
+    AkLogFunction();
+    AkLogDebug() << "STUB" << std::endl;
 }
 
 Boolean AkVCam::ObjectInterface::hasProperty(const CMIOObjectPropertyAddress *address)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (!this->m_properties.getProperty(address->mSelector)) {
-        AkLoggerLog("Unknown property ", enumToString(address->mSelector));
+        AkLogWarning() << "Unknown property "
+                       << enumToString(address->mSelector)
+                       << std::endl;
 
         return false;
     }
 
-    AkLoggerLog("Found property ", enumToString(address->mSelector));
+    AkLogInfo() << "Found property "
+                << enumToString(address->mSelector)
+                << std::endl;
 
     return true;
 }
@@ -85,10 +88,12 @@ Boolean AkVCam::ObjectInterface::hasProperty(const CMIOObjectPropertyAddress *ad
 OSStatus AkVCam::ObjectInterface::isPropertySettable(const CMIOObjectPropertyAddress *address,
                                                      Boolean *isSettable)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (!this->m_properties.getProperty(address->mSelector)) {
-        AkLoggerLog("Unknown property ", enumToString(address->mSelector));
+        AkLogWarning() << "Unknown property "
+                       << enumToString(address->mSelector)
+                       << std::endl;
 
         return kCMIOHardwareUnknownPropertyError;
     }
@@ -98,10 +103,11 @@ OSStatus AkVCam::ObjectInterface::isPropertySettable(const CMIOObjectPropertyAdd
     if (isSettable)
         *isSettable = settable;
 
-    AkLoggerLog("Is property ",
-                enumToString(address->mSelector),
-                " settable? ",
-                (settable? "YES": "NO"));
+    AkLogInfo() << "Is property "
+                << enumToString(address->mSelector)
+                << " settable? "
+                << (settable? "YES": "NO")
+                << std::endl;
 
     return kCMIOHardwareNoError;
 }
@@ -111,15 +117,19 @@ OSStatus AkVCam::ObjectInterface::getPropertyDataSize(const CMIOObjectPropertyAd
                                                       const void *qualifierData,
                                                       UInt32 *dataSize)
 {
-    AkObjectLogMethod();
-    AkLoggerLog("Getting property size ", enumToString(address->mSelector));
+    AkLogFunction();
+    AkLogInfo() << "Getting property size "
+                << enumToString(address->mSelector)
+                << std::endl;
 
     if (!this->m_properties.getProperty(address->mSelector,
                                         qualifierDataSize,
                                         qualifierData,
                                         0,
                                         dataSize)) {
-        AkLoggerLog("Unknown property ", enumToString(address->mSelector));
+        AkLogWarning() << "Unknown property "
+                       << enumToString(address->mSelector)
+                       << std::endl;
 
         return kCMIOHardwareUnknownPropertyError;
     }
@@ -134,8 +144,10 @@ OSStatus AkVCam::ObjectInterface::getPropertyData(const CMIOObjectPropertyAddres
                                                   UInt32 *dataUsed,
                                                   void *data)
 {
-    AkObjectLogMethod();
-    AkLoggerLog("Getting property ", enumToString(address->mSelector));
+    AkLogFunction();
+    AkLogInfo() << "Getting property"
+                << enumToString(address->mSelector)
+                << std::endl;
 
     if (!this->m_properties.getProperty(address->mSelector,
                                         qualifierDataSize,
@@ -143,7 +155,9 @@ OSStatus AkVCam::ObjectInterface::getPropertyData(const CMIOObjectPropertyAddres
                                         dataSize,
                                         dataUsed,
                                         data)) {
-        AkLoggerLog("Unknown property ", enumToString(address->mSelector));
+        AkLogWarning() << "Unknown property "
+                       << enumToString(address->mSelector)
+                       << std::endl;
 
         return kCMIOHardwareUnknownPropertyError;
     }
@@ -157,15 +171,19 @@ OSStatus AkVCam::ObjectInterface::setPropertyData(const CMIOObjectPropertyAddres
                                                   UInt32 dataSize,
                                                   const void *data)
 {
-    AkObjectLogMethod();
-    AkLoggerLog("Setting property ", enumToString(address->mSelector));
+    AkLogFunction();
+    AkLogInfo() << "Setting property "
+                << enumToString(address->mSelector)
+                << std::endl;
     UNUSED(qualifierDataSize)
     UNUSED(qualifierData)
 
     if (!this->m_properties.setProperty(address->mSelector,
                                         dataSize,
                                         data)) {
-        AkLoggerLog("Unknown property ", enumToString(address->mSelector));
+        AkLogWarning() << "Unknown property "
+                       << enumToString(address->mSelector)
+                       << std::endl;
 
         return kCMIOHardwareUnknownPropertyError;
     }

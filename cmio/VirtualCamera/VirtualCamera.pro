@@ -27,7 +27,6 @@ exists(commons.pri) {
 }
 
 include(../cmio.pri)
-include(../../VCamUtils/VCamUtils.pri)
 
 CONFIG -= qt link_prl
 CONFIG += \
@@ -41,6 +40,7 @@ INCLUDEPATH += \
     ../..
 
 LIBS = \
+    -L$${OUT_PWD}/../PlatformUtils/$${BIN_DIR} -lPlatformUtils \
     -L$${OUT_PWD}/../../VCamUtils/$${BIN_DIR} -lVCamUtils \
     -L$${OUT_PWD}/../VCamIPC/$${BIN_DIR} -lVCamIPC \
     -framework CoreFoundation \

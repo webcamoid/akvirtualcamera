@@ -28,8 +28,6 @@
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "MemAllocator"
-
 namespace AkVCam
 {
     class MemAllocatorPrivate
@@ -64,7 +62,7 @@ AkVCam::MemAllocator::~MemAllocator()
 HRESULT AkVCam::MemAllocator::SetProperties(ALLOCATOR_PROPERTIES *pRequest,
                                             ALLOCATOR_PROPERTIES *pActual)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pRequest || !pActual)
         return E_POINTER;
@@ -87,7 +85,7 @@ HRESULT AkVCam::MemAllocator::SetProperties(ALLOCATOR_PROPERTIES *pRequest,
 
 HRESULT AkVCam::MemAllocator::GetProperties(ALLOCATOR_PROPERTIES *pProps)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pProps)
         return E_POINTER;
@@ -100,14 +98,14 @@ HRESULT AkVCam::MemAllocator::GetProperties(ALLOCATOR_PROPERTIES *pProps)
 
 HRESULT AkVCam::MemAllocator::Commit()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (this->d->m_commited)
         return S_OK;
 
     if (this->d->m_properties.cBuffers < 1
         || this->d->m_properties.cbBuffer < 1) {
-        AkLoggerLog("Wrong memory allocator size");
+        AkLogError() << "Wrong memory allocator size" << std::endl;
 
         return VFW_E_SIZENOTSET;
     }
@@ -131,7 +129,7 @@ HRESULT AkVCam::MemAllocator::Commit()
 
 HRESULT AkVCam::MemAllocator::Decommit()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_commited)
         return S_OK;
@@ -151,10 +149,14 @@ HRESULT AkVCam::MemAllocator::Decommit()
             freeSamples++;
         }
 
-    AkLoggerLog("Free samples: ", freeSamples, "/", totalSamples);
+    AkLogInfo() << "Free samples: "
+                << freeSamples
+                << "/"
+                << totalSamples
+                << std::endl;
 
     if (freeSamples >= totalSamples) {
-        AkLoggerLog("Decommiting");
+        AkLogInfo() << "Decommiting" << std::endl;
         this->d->m_samples.clear();
         this->d->m_commited = false;
         this->d->m_decommiting = false;
@@ -168,7 +170,7 @@ HRESULT AkVCam::MemAllocator::GetBuffer(IMediaSample **ppBuffer,
                                         REFERENCE_TIME *pEndTime,
                                         DWORD dwFlags)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!ppBuffer)
         return E_POINTER;
@@ -182,7 +184,7 @@ HRESULT AkVCam::MemAllocator::GetBuffer(IMediaSample **ppBuffer,
         *pEndTime = 0;
 
     if (!this->d->m_commited || this->d->m_decommiting) {
-        AkLoggerLog("Allocator not commited.");
+        AkLogError() << "Allocator not commited." << std::endl;
 
         return VFW_E_NOT_COMMITTED;
     }
@@ -219,7 +221,7 @@ HRESULT AkVCam::MemAllocator::GetBuffer(IMediaSample **ppBuffer,
 HRESULT AkVCam::MemAllocator::ReleaseBuffer(IMediaSample *pBuffer)
 {
     UNUSED(pBuffer)
-    AkLogMethod();
+    AkLogFunction();
 
     this->d->m_mutex.lock();
     this->d->m_bufferReleased.notify_one();

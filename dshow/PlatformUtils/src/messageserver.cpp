@@ -28,8 +28,6 @@
 #include "utils.h"
 #include "VCamUtils/src/logger/logger.h"
 
-#define AK_CUR_INTERFACE "MessageServer"
-
 namespace AkVCam
 {
     class MessageServerPrivate
@@ -124,16 +122,16 @@ void AkVCam::MessageServer::setHandlers(const std::map<uint32_t, MessageHandler>
 
 bool AkVCam::MessageServer::start(bool wait)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     switch (this->d->m_mode) {
     case ServerModeReceive:
-        AkLoggerLog("Starting mode receive");
+        AkLogInfo() << "Starting mode receive" << std::endl;
 
         return this->d->startReceive(wait);
 
     case ServerModeSend:
-        AkLoggerLog("Starting mode send");
+        AkLogInfo() << "Starting mode send" << std::endl;
 
         return this->d->startSend();
     }
@@ -143,7 +141,7 @@ bool AkVCam::MessageServer::start(bool wait)
 
 void AkVCam::MessageServer::stop(bool wait)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (this->d->m_mode == ServerModeReceive)
         this->d->stopReceive(wait);
@@ -279,9 +277,10 @@ bool AkVCam::MessageServerPrivate::startReceive(bool wait)
 startReceive_failed:
 
     if (!ok) {
-        AkLoggerLog("Error starting server: ",
-                    errorToString(GetLastError()),
-                    " (", GetLastError(), ")");
+        AkLogError() << "Error starting server: "
+                     << errorToString(GetLastError())
+                     << " (" << GetLastError() << ")"
+                     << std::endl;
         AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateStopped)
     }
 
@@ -371,17 +370,19 @@ void AkVCam::MessageServerPrivate::checkLoop()
 
         if (result
             && this->m_pipeState != AkVCam::MessageServer::PipeStateAvailable) {
-            AkLoggerLog("Pipe Available: ",
-                        std::string(this->m_pipeName.begin(),
-                                    this->m_pipeName.end()));
+            AkLogInfo() << "Pipe Available: "
+                        << std::string(this->m_pipeName.begin(),
+                                       this->m_pipeName.end())
+                        << std::endl;
             this->m_pipeState = AkVCam::MessageServer::PipeStateAvailable;
             AKVCAM_EMIT(this->self, PipeStateChanged, this->m_pipeState);
         } else if (!result
                    && this->m_pipeState != AkVCam::MessageServer::PipeStateGone
                    && GetLastError() != ERROR_SEM_TIMEOUT) {
-            AkLoggerLog("Pipe Gone: ",
-                        std::string(this->m_pipeName.begin(),
-                                    this->m_pipeName.end()));
+            AkLogInfo() << "Pipe Gone: "
+                        << std::string(this->m_pipeName.begin(),
+                                       this->m_pipeName.end())
+                        << std::endl;
             this->m_pipeState = AkVCam::MessageServer::PipeStateGone;
             AKVCAM_EMIT(this->self, PipeStateChanged, this->m_pipeState);
         }
@@ -414,9 +415,10 @@ HRESULT AkVCam::MessageServerPrivate::waitResult(DWORD *bytesTransferred)
              return S_FALSE;
          }
     } else {
-        AkLoggerLog("Wait result failed: ",
-                    errorToString(lastError),
-                    " (", lastError, ")");
+        AkLogWarning() << "Wait result failed: "
+                       << errorToString(lastError)
+                       << " (" << lastError << ")"
+                       << std::endl;
 
         return E_FAIL;
     }

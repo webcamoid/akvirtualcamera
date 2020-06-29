@@ -25,8 +25,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "VideoProcAmp"
-
 namespace AkVCam
 {
     class VideoProcAmpPrivate
@@ -88,7 +86,7 @@ HRESULT AkVCam::VideoProcAmp::GetRange(LONG Property,
                                        LONG *pDefault,
                                        LONG *pCapsFlags)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pMin || !pMax || !pSteppingDelta || !pDefault || !pCapsFlags)
         return E_POINTER;
@@ -115,7 +113,7 @@ HRESULT AkVCam::VideoProcAmp::GetRange(LONG Property,
 
 HRESULT AkVCam::VideoProcAmp::Set(LONG Property, LONG lValue, LONG Flags)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     for (auto &control: ProcAmpPrivate::controls())
         if (control.property == Property) {
@@ -135,7 +133,7 @@ HRESULT AkVCam::VideoProcAmp::Set(LONG Property, LONG lValue, LONG Flags)
 
 HRESULT AkVCam::VideoProcAmp::Get(LONG Property, LONG *lValue, LONG *Flags)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!lValue || !Flags)
         return E_POINTER;

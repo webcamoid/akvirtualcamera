@@ -20,32 +20,45 @@
 #include <chrono>
 #include <ctime>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <thread>
 
 #include "logger.h"
 #include "../utils.h"
 
-#ifdef QT_DEBUG
-
 namespace AkVCam
 {
-    class LoggerPrivate: public std::streambuf
+    class LoggerPrivate
     {
         public:
-            std::ostream *outs;
+            std::string logFile;
             std::string fileName;
-            std::fstream logFile;
-            Logger::LogCallback logCallback;
+            int logLevel {AKVCAM_LOGLEVEL_DEFAULT};
+            std::fstream stream;
 
-            LoggerPrivate();
-            ~LoggerPrivate() override;
+            static std::string logLevelString(int logLevel)
+            {
+                static std::map<int, std::string> llsMap {
+                    {AKVCAM_LOGLEVEL_DEFAULT  , "default"  },
+                    {AKVCAM_LOGLEVEL_EMERGENCY, "emergency"},
+                    {AKVCAM_LOGLEVEL_FATAL    , "fatal"    },
+                    {AKVCAM_LOGLEVEL_CRITICAL , "critical" },
+                    {AKVCAM_LOGLEVEL_ERROR    , "error"    },
+                    {AKVCAM_LOGLEVEL_WARNING  , "warning"  },
+                    {AKVCAM_LOGLEVEL_NOTICE   , "notice"   },
+                    {AKVCAM_LOGLEVEL_INFO     , "info"     },
+                    {AKVCAM_LOGLEVEL_DEBUG    , "debug"    },
+                };
 
-        protected:
-            std::streamsize xsputn(const char *s, std::streamsize n) override;
+                if (llsMap.count(logLevel) < 1)
+                    return {};
+
+                return llsMap[logLevel];
+            }
     };
 
-    inline LoggerPrivate *loggerPrivate()
+    LoggerPrivate *loggerPrivate()
     {
         static LoggerPrivate logger;
 
@@ -53,91 +66,76 @@ namespace AkVCam
     }
 }
 
-void AkVCam::Logger::start(const std::string &fileName,
-                           const std::string &extension)
+std::string AkVCam::Logger::logFile()
 {
-    stop();
-    loggerPrivate()->fileName =
-            fileName + "-" + timeStamp() + "." + extension;
+    return loggerPrivate()->logFile;
 }
 
-void AkVCam::Logger::start(LogCallback callback)
+void AkVCam::Logger::setLogFile(const std::string &fileName)
 {
-    stop();
-    loggerPrivate()->logCallback = callback;
+    loggerPrivate()->logFile = fileName;
+    auto index = fileName.rfind('.');
+
+    if (index == fileName.npos) {
+        loggerPrivate()->fileName = fileName + "-" + timeStamp();
+    } else {
+        std::string fname = fileName.substr(0, index);
+        std::string extension = fileName.substr(index + 1);
+        loggerPrivate()->fileName = fname + "-" + timeStamp() + "." + extension;
+    }
 }
 
-std::string AkVCam::Logger::header()
+int AkVCam::Logger::logLevel()
+{
+    return loggerPrivate()->logLevel;
+}
+
+void AkVCam::Logger::setLogLevel(int logLevel)
+{
+    loggerPrivate()->logLevel = logLevel;
+}
+
+std::string AkVCam::Logger::header(int logLevel, const std::string file, int line)
 {
     auto now = std::chrono::system_clock::now();
-    auto nowMSecs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+    auto nowMSecs =
+            std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
     char timeStamp[256];
     auto time = std::chrono::system_clock::to_time_t(now);
     strftime(timeStamp, 256, "%Y-%m-%d %H:%M:%S", std::localtime(&time));
     std::stringstream ss;
     ss << "["
        << timeStamp
-       << "." << nowMSecs.count() % 1000 << ", " << std::this_thread::get_id() << "] ";
+       << "."
+       << nowMSecs.count() % 1000
+       << ", "
+       << std::this_thread::get_id()
+       << ", "
+       << file
+       << " ("
+       << line
+       << ")] "
+       << LoggerPrivate::logLevelString(logLevel) << ": ";
 
     return ss.str();
 }
 
-std::ostream &AkVCam::Logger::out()
+std::ostream &AkVCam::Logger::log(int logLevel)
 {
-    if (loggerPrivate()->logCallback.second)
-        return *loggerPrivate()->outs;
+    static std::ostream dummy(nullptr);
+
+    if (logLevel > loggerPrivate()->logLevel)
+        return dummy;
 
     if (loggerPrivate()->fileName.empty())
         return std::cout;
 
-    if (!loggerPrivate()->logFile.is_open())
-        loggerPrivate()->logFile.open(loggerPrivate()->fileName,
-                                             std::ios_base::out
-                                             | std::ios_base::app);
+    if (!loggerPrivate()->stream.is_open())
+        loggerPrivate()->stream.open(loggerPrivate()->fileName,
+                                     std::ios_base::out | std::ios_base::app);
 
-    if (!loggerPrivate()->logFile.is_open())
+    if (!loggerPrivate()->stream.is_open())
         return std::cout;
 
-    return loggerPrivate()->logFile;
+    return loggerPrivate()->stream;
 }
-
-void AkVCam::Logger::log()
-{
-    tlog(header());
-}
-
-void AkVCam::Logger::tlog()
-{
-    out() << std::endl;
-}
-
-void AkVCam::Logger::stop()
-{
-    loggerPrivate()->fileName = {};
-
-    if (loggerPrivate()->logFile.is_open())
-        loggerPrivate()->logFile.close();
-
-    loggerPrivate()->logCallback = {nullptr, nullptr};
-}
-
-AkVCam::LoggerPrivate::LoggerPrivate():
-    outs(new std::ostream(this)),
-    logCallback({nullptr, nullptr})
-{
-}
-
-AkVCam::LoggerPrivate::~LoggerPrivate()
-{
-    delete this->outs;
-}
-
-std::streamsize AkVCam::LoggerPrivate::xsputn(const char *s, std::streamsize n)
-{
-    if (this->logCallback.second)
-        this->logCallback.second(this->logCallback.first, s, size_t(n));
-
-    return std::streambuf::xsputn(s, n);
-}
-
-#endif

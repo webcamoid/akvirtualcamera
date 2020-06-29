@@ -34,35 +34,43 @@ inline AkVCam::PluginInterface *pluginInterface()
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     UNUSED(lpvReserved)
+    AkLogFunction();
+    auto logLevel =
+            AkVCam::regReadInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
+    AkVCam::Logger::setLogLevel(logLevel);
 
-#if defined(QT_DEBUG) && 0
-    // Turn on lights
-    freopen("CONOUT$", "a", stdout);
-    freopen("CONOUT$", "a", stderr);
-    setbuf(stdout, nullptr);
-#endif
+    if (AkVCam::Logger::logLevel() > AKVCAM_LOGLEVEL_DEFAULT) {
+        // Turn on lights
+        freopen("CONOUT$", "a", stdout);
+        freopen("CONOUT$", "a", stderr);
+        setbuf(stdout, nullptr);
+    }
 
     auto temp = AkVCam::tempPath();
-    AkLoggerStart(std::string(temp.begin(), temp.end())
-                  + "\\" DSHOW_PLUGIN_NAME, "log");
-    AkLoggerLog(__FUNCTION__, "()");
+    auto logFile =
+            AkVCam::regReadString("logfile",
+                                  std::string(temp.begin(), temp.end())
+                                  + "\\" DSHOW_PLUGIN_NAME ".log");
+    AkVCam::Logger::setLogFile(logFile);
 
     switch (fdwReason) {
         case DLL_PROCESS_ATTACH:
-            AkLoggerLog("Reason Attach");
-            AkLoggerLog("Module file name: ", AkVCam::moduleFileName(hinstDLL));
+            AkLogInfo() << "Reason Attach" << std::endl;
+            AkLogInfo() << "Module file name: "
+                        << AkVCam::moduleFileName(hinstDLL)
+                        << std::endl;
             DisableThreadLibraryCalls(hinstDLL);
             pluginInterface()->pluginHinstance() = hinstDLL;
 
             break;
 
         case DLL_PROCESS_DETACH:
-            AkLoggerLog("Reason Detach");
+            AkLogInfo() << "Reason Detach" << std::endl;
 
             break;
 
         default:
-            AkLoggerLog("Reason Unknown: ", fdwReason);
+            AkLogInfo() << "Reason Unknown: " << fdwReason << std::endl;
 
             break;
     }
@@ -72,9 +80,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 {
-    AkLoggerLog(__FUNCTION__, "()");
-    AkLoggerLog("CLSID: ", AkVCam::stringFromClsid(rclsid));
-    AkLoggerLog("IID: ", AkVCam::stringFromClsid(rclsid));
+    AkLogFunction();
+    AkLogInfo() << "CLSID: " << AkVCam::stringFromClsid(rclsid) << std::endl;
+    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(rclsid) << std::endl;
 
     if (!ppv)
         return E_INVALIDARG;
@@ -95,15 +103,14 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 
 STDAPI DllCanUnloadNow()
 {
-    AkLoggerLog(__FUNCTION__, "()");
+    AkLogFunction();
 
     return AkVCam::ClassFactory::locked()? S_FALSE: S_OK;
 }
 
 STDAPI DllRegisterServer()
 {
-    AkLoggerLog(__FUNCTION__, "()");
-
+    AkLogFunction();
     DllUnregisterServer();
 
     bool ok = true;
@@ -111,16 +118,17 @@ STDAPI DllRegisterServer()
     for (DWORD i = 0; i < AkVCam::camerasCount(); i++) {
         auto description = AkVCam::cameraDescription(i);
         auto path = AkVCam::cameraPath(i);
-
-#ifdef QT_DEBUG
         auto clsid = AkVCam::createClsidFromStr(path);
-#endif
 
-        AkLoggerLog("Creating Camera");
-        AkLoggerLog("\tDescription: ", std::string(description.begin(),
-                                                   description.end()));
-        AkLoggerLog("\tPath: ", std::string(path.begin(), path.end()));
-        AkLoggerLog("\tCLSID: ", AkVCam::stringFromIid(clsid));
+        AkLogInfo() << "Creating Camera" << std::endl;
+        AkLogInfo() << "\tDescription: "
+                    << std::string(description.begin(),
+                                   description.end())
+                    << std::endl;
+        AkLogInfo() << "\tPath: "
+                    << std::string(path.begin(), path.end())
+                    << std::endl;
+        AkLogInfo() << "\tCLSID: " << AkVCam::stringFromIid(clsid) << std::endl;
 
         ok &= pluginInterface()->createDevice(path, description);
     }
@@ -130,22 +138,16 @@ STDAPI DllRegisterServer()
 
 STDAPI DllUnregisterServer()
 {
-    AkLoggerLog(__FUNCTION__, "()");
-
+    AkLogFunction();
     auto cameras =
             AkVCam::listRegisteredCameras(pluginInterface()->pluginHinstance());
 
     for (auto camera: cameras) {
-        AkLoggerLog("Deleting ", AkVCam::stringFromClsid(camera));
+        AkLogInfo() << "Deleting "
+                    << AkVCam::stringFromClsid(camera)
+                    << std::endl;
         pluginInterface()->destroyDevice(camera);
     }
-
-    // Unregister old virtual camera filter.
-    // NOTE: This code must be removed in future versions.
-    CLSID clsid;
-    CLSIDFromString(L"{41764B79-7320-5669-7274-75616C43616D}", &clsid);
-    AkLoggerLog("Deleting ", AkVCam::stringFromClsid(clsid));
-    pluginInterface()->destroyDevice(clsid);
 
     return S_OK;
 }

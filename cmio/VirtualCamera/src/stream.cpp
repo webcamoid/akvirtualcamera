@@ -99,7 +99,7 @@ AkVCam::Stream::~Stream()
 
 OSStatus AkVCam::Stream::createObject()
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (!this->m_pluginInterface
         || !*this->m_pluginInterface
@@ -117,7 +117,7 @@ OSStatus AkVCam::Stream::createObject()
     if (status == kCMIOHardwareNoError) {
         this->m_isCreated = true;
         this->m_objectID = streamID;
-        AkLoggerLog("Created stream: ", this->m_objectID);
+        AkLogInfo() << "Created stream: " << this->m_objectID << std::endl;
     }
 
     return status;
@@ -125,7 +125,7 @@ OSStatus AkVCam::Stream::createObject()
 
 OSStatus AkVCam::Stream::registerObject(bool regist)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!this->m_isCreated
@@ -155,7 +155,7 @@ OSStatus AkVCam::Stream::registerObject(bool regist)
 
 void AkVCam::Stream::setFormats(const std::vector<VideoFormat> &formats)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (formats.empty())
         return;
@@ -174,15 +174,14 @@ void AkVCam::Stream::setFormats(const std::vector<VideoFormat> &formats)
         formatsAdjusted.push_back(format);
     }
 
-#ifdef QT_DEBUG
     for (auto &format: formatsAdjusted)
-        AkLoggerLog("Format: ",
-                    enumToString(format.fourcc()),
-                    " ",
-                    format.width(),
-                    "x",
-                    format.height());
-#endif
+        AkLogInfo() << "Format: "
+                    << enumToString(format.fourcc())
+                    << " "
+                    << format.width()
+                    << "x"
+                    << format.height()
+                    << std::endl;
 
     this->m_properties.setProperty(kCMIOStreamPropertyFormatDescriptions,
                                    formatsAdjusted);
@@ -191,7 +190,7 @@ void AkVCam::Stream::setFormats(const std::vector<VideoFormat> &formats)
 
 void AkVCam::Stream::setFormat(const VideoFormat &format)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
     this->m_properties.setProperty(kCMIOStreamPropertyFormatDescription,
                                    format);
     this->m_properties.setProperty(kCMIOStreamPropertyFrameRates,
@@ -213,7 +212,7 @@ void AkVCam::Stream::setFrameRate(const Fraction &frameRate)
 
 bool AkVCam::Stream::start()
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (this->d->m_running)
         return false;
@@ -223,14 +222,14 @@ bool AkVCam::Stream::start()
     this->d->m_sequence = 0;
     memset(&this->d->m_pts, 0, sizeof(CMTime));
     this->d->m_running = this->d->startTimer();
-    AkLoggerLog("Running: ", this->d->m_running);
+    AkLogInfo() << "Running: " << this->d->m_running << std::endl;
 
     return this->d->m_running;
 }
 
 void AkVCam::Stream::stop()
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (!this->d->m_running)
         return;
@@ -248,7 +247,7 @@ bool AkVCam::Stream::running()
 
 void AkVCam::Stream::serverStateChanged(IpcBridge::ServerState state)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (state == IpcBridge::ServerStateGone) {
         this->d->m_broadcaster.clear();
@@ -267,9 +266,9 @@ void AkVCam::Stream::serverStateChanged(IpcBridge::ServerState state)
 
 void AkVCam::Stream::frameReady(const AkVCam::VideoFrame &frame)
 {
-    AkObjectLogMethod();
-    AkLoggerLog("Running: ", this->d->m_running);
-    AkLoggerLog("Broadcaster: ", this->d->m_broadcaster);
+    AkLogFunction();
+    AkLogInfo() << "Running: " << this->d->m_running << std::endl;
+    AkLogInfo() << "Broadcaster: " << this->d->m_broadcaster << std::endl;
 
     if (!this->d->m_running)
         return;
@@ -284,7 +283,7 @@ void AkVCam::Stream::frameReady(const AkVCam::VideoFrame &frame)
 
 void AkVCam::Stream::setBroadcasting(const std::string &broadcaster)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (this->d->m_broadcaster == broadcaster)
         return;
@@ -300,7 +299,7 @@ void AkVCam::Stream::setBroadcasting(const std::string &broadcaster)
 
 void AkVCam::Stream::setMirror(bool horizontalMirror, bool verticalMirror)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (this->d->m_horizontalMirror == horizontalMirror
         && this->d->m_verticalMirror == verticalMirror)
@@ -313,7 +312,7 @@ void AkVCam::Stream::setMirror(bool horizontalMirror, bool verticalMirror)
 
 void AkVCam::Stream::setScaling(Scaling scaling)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (this->d->m_scaling == scaling)
         return;
@@ -324,7 +323,7 @@ void AkVCam::Stream::setScaling(Scaling scaling)
 
 void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (this->d->m_aspectRatio == aspectRatio)
         return;
@@ -335,7 +334,7 @@ void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
 
 void AkVCam::Stream::setSwapRgb(bool swap)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     if (this->d->m_swapRgb == swap)
         return;
@@ -348,7 +347,7 @@ OSStatus AkVCam::Stream::copyBufferQueue(CMIODeviceStreamQueueAlteredProc queueA
                                          void *queueAlteredRefCon,
                                          CMSimpleQueueRef *queue)
 {
-    AkObjectLogMethod();
+    AkLogFunction();
 
     this->d->m_queueAltered = queueAlteredProc;
     this->d->m_queueAlteredRefCon = queueAlteredRefCon;
@@ -362,39 +361,35 @@ OSStatus AkVCam::Stream::copyBufferQueue(CMIODeviceStreamQueueAlteredProc queueA
 
 OSStatus AkVCam::Stream::deckPlay()
 {
-    AkObjectLogMethod();
-
-    AkLoggerLog("STUB");
+    AkLogFunction();
+    AkLogDebug() << "STUB" << std::endl;
 
     return kCMIOHardwareUnspecifiedError;
 }
 
 OSStatus AkVCam::Stream::deckStop()
 {
-    AkObjectLogMethod();
-
-    AkLoggerLog("STUB");
+    AkLogFunction();
+    AkLogDebug() << "STUB" << std::endl;
 
     return kCMIOHardwareUnspecifiedError;
 }
 
 OSStatus AkVCam::Stream::deckJog(SInt32 speed)
 {
-    AkObjectLogMethod();
     UNUSED(speed)
-
-    AkLoggerLog("STUB");
+    AkLogFunction();
+    AkLogDebug() << "STUB" << std::endl;
 
     return kCMIOHardwareUnspecifiedError;
 }
 
 OSStatus AkVCam::Stream::deckCueTo(Float64 frameNumber, Boolean playOnCue)
 {
-    AkObjectLogMethod();
     UNUSED(frameNumber)
     UNUSED(playOnCue)
-
-    AkLoggerLog("STUB");
+    AkLogFunction();
+    AkLogDebug() << "STUB" << std::endl;
 
     return kCMIOHardwareUnspecifiedError;
 }
@@ -406,7 +401,7 @@ AkVCam::StreamPrivate::StreamPrivate(AkVCam::Stream *self):
 
 bool AkVCam::StreamPrivate::startTimer()
 {
-    AkLoggerLog("AkVCam::StreamPrivate::startTimer()");
+    AkLogFunction();
 
     if (this->m_timer)
         return false;
@@ -437,7 +432,7 @@ bool AkVCam::StreamPrivate::startTimer()
 
 void AkVCam::StreamPrivate::stopTimer()
 {
-    AkLoggerLog("AkVCam::StreamPrivate::stopTimer()");
+    AkLogFunction();
 
     if (!this->m_timer)
         return;
@@ -452,11 +447,11 @@ void AkVCam::StreamPrivate::stopTimer()
 
 void AkVCam::StreamPrivate::streamLoop(CFRunLoopTimerRef timer, void *info)
 {
-    AkLoggerLog("AkVCam::StreamPrivate::streamLoop()");
     UNUSED(timer)
+    AkLogFunction();
 
     auto self = reinterpret_cast<StreamPrivate *>(info);
-    AkLoggerLog("Running: ", self->m_running);
+    AkLogInfo() << "Running: " << self->m_running << std::endl;
 
     if (!self->m_running)
         return;
@@ -473,7 +468,7 @@ void AkVCam::StreamPrivate::streamLoop(CFRunLoopTimerRef timer, void *info)
 
 void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
 {
-    AkLoggerLog("AkVCam::StreamPrivate::sendFrame()");
+    AkLogFunction();
 
     if (this->m_queue->fullness() >= 1.0f)
         return;
@@ -482,12 +477,13 @@ void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
     int width = frame.format().width();
     int height = frame.format().height();
 
-    AkLoggerLog("Sending Frame: ",
-                enumToString(fourcc),
-                " ",
-                width,
-                "x",
-                height);
+    AkLogInfo() << "Sending Frame: "
+                << enumToString(fourcc)
+                << " "
+                << width
+                << "x"
+                << height
+                << std::endl;
 
     bool resync = false;
     auto hostTime = CFAbsoluteTimeGetCurrent();

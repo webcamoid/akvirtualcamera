@@ -27,7 +27,6 @@ exists(commons.pri) {
 }
 
 include(../dshow.pri)
-include(../../VCamUtils/VCamUtils.pri)
 
 TEMPLATE = app
 CONFIG += console link_prl

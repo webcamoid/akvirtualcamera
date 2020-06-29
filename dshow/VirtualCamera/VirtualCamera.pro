@@ -27,7 +27,6 @@ exists(commons.pri) {
 }
 
 include(../dshow.pri)
-include(../../VCamUtils/VCamUtils.pri)
 
 CONFIG -= qt
 CONFIG += link_prl

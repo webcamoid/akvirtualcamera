@@ -25,8 +25,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "EnumPins"
-
 namespace AkVCam
 {
     class EnumPinsPrivate
@@ -99,7 +97,7 @@ void AkVCam::EnumPins::setBaseFilter(BaseFilter *baseFilter)
 
 HRESULT AkVCam::EnumPins::Next(ULONG cPins, IPin **ppPins, ULONG *pcFetched)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (pcFetched)
         *pcFetched = 0;
@@ -139,8 +137,8 @@ HRESULT AkVCam::EnumPins::Next(ULONG cPins, IPin **ppPins, ULONG *pcFetched)
 
 HRESULT AkVCam::EnumPins::Skip(ULONG cPins)
 {
-    AkLogMethod();
-    AkLoggerLog("Skip ", cPins, " pins");
+    AkLogFunction();
+    AkLogInfo() << "Skip " << cPins << " pins" << std::endl;
 
     if (this->d->m_changed) {
         this->d->m_changed = false;
@@ -160,7 +158,7 @@ HRESULT AkVCam::EnumPins::Skip(ULONG cPins)
 
 HRESULT AkVCam::EnumPins::Reset()
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_position = 0;
 
     return S_OK;
@@ -168,7 +166,7 @@ HRESULT AkVCam::EnumPins::Reset()
 
 HRESULT AkVCam::EnumPins::Clone(IEnumPins **ppEnum)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!ppEnum)
         return E_POINTER;

@@ -24,44 +24,45 @@
 
 #include "../utils.h"
 
-#ifdef QT_DEBUG
-    #define AkLoggerStart(...) AkVCam::Logger::start(__VA_ARGS__)
-    #define AkLoggerLog(...) AkVCam::Logger::log(__VA_ARGS__)
-    #define AkLoggerStop() AkVCam::Logger::stop()
+#define AKVCAM_LOGLEVEL_DEFAULT    -1
+#define AKVCAM_LOGLEVEL_EMERGENCY   0
+#define AKVCAM_LOGLEVEL_FATAL       1
+#define AKVCAM_LOGLEVEL_CRITICAL    2
+#define AKVCAM_LOGLEVEL_ERROR       3
+#define AKVCAM_LOGLEVEL_WARNING     4
+#define AKVCAM_LOGLEVEL_NOTICE      5
+#define AKVCAM_LOGLEVEL_INFO        6
+#define AKVCAM_LOGLEVEL_DEBUG       7
 
-    namespace AkVCam
-    {
-        namespace Logger
-        {
-            AKVCAM_CALLBACK(Log, const char *data, size_t size)
+#define AkLog(level)     AkVCam::Logger::log(level) << AkVCam::Logger::header(level, __FILE__, __LINE__)
+#define AkLogEmergency() AkLog(AKVCAM_LOGLEVEL_EMERGENCY)
+#define AkLogFatal()     AkLog(AKVCAM_LOGLEVEL_FATAL)
+#define AkLogCritical()  AkLog(AKVCAM_LOGLEVEL_CRITICAL)
+#define AkLogError()     AkLog(AKVCAM_LOGLEVEL_ERROR)
+#define AkLogWarning()   AkLog(AKVCAM_LOGLEVEL_WARNING)
+#define AkLogNotice()    AkLog(AKVCAM_LOGLEVEL_NOTICE)
+#define AkLogInfo()      AkLog(AKVCAM_LOGLEVEL_INFO)
+#define AkLogDebug()     AkLog(AKVCAM_LOGLEVEL_DEBUG)
 
-            void start(const std::string &fileName=std::string(),
-                       const std::string &extension=std::string());
-            void start(LogCallback callback);
-            std::string header();
-            std::ostream &out();
-            void log();
-            void tlog();
-            void stop();
-
-            template<typename First, typename... Next>
-            void tlog(const First &first, const Next &... next)
-            {
-                out() << first;
-                tlog(next...);
-            }
-
-            template<typename... Param>
-            void log(const Param &... param)
-            {
-                tlog(header(), " ", param...);
-            }
-        }
-    }
+#if defined(__GNUC__) || defined(__clang__)
+#   define AkLogFunction()  AkLogDebug() << __PRETTY_FUNCTION__ << std::endl
+#elif defined(_MSC_VER)
+#   define AkLogFunction()  AkLogDebug() << __FUNCSIG__ << std::endl
 #else
-    #define AkLoggerStart(...)
-    #define AkLoggerLog(...)
-    #define AkLoggerStop()
+#   define AkLogFunction()  AkLogDebug() << __FUNCTION__ << "()" << std::endl
 #endif
+
+namespace AkVCam
+{
+    namespace Logger
+    {
+        std::string logFile();
+        void setLogFile(const std::string &fileName);
+        int logLevel();
+        void setLogLevel(int logLevel);
+        std::string header(int logLevel, const std::string file, int line);
+        std::ostream &log(int logLevel);
+    }
+}
 
 #endif // AKVCAMUTILS_LOGGER_H

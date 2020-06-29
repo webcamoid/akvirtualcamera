@@ -26,9 +26,14 @@
 
 int main(int argc, char **argv)
 {
+    auto loglevel = AkVCam::regReadInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
+    AkVCam::Logger::setLogLevel(loglevel);
     auto temp = AkVCam::tempPath();
-    AkLoggerStart(std::string(temp.begin(), temp.end())
-                  + "\\" DSHOW_PLUGIN_ASSISTANT_NAME, "log");
+    auto logFile =
+            AkVCam::regReadString("logfile",
+                                  std::string(temp.begin(), temp.end())
+                                  + "\\" DSHOW_PLUGIN_ASSISTANT_NAME ".log");
+    AkVCam::Logger::setLogFile(logFile);
     AkVCam::Service service;
 
     if (argc > 1) {
@@ -49,7 +54,7 @@ int main(int argc, char **argv)
         }
     }
 
-    AkLoggerLog("Setting service dispatcher");
+    AkLogInfo() << "Setting service dispatcher" << std::endl;
 
     WCHAR serviceName[] = TEXT(DSHOW_PLUGIN_ASSISTANT_NAME);
     SERVICE_TABLE_ENTRY serviceTable[] = {
@@ -58,7 +63,7 @@ int main(int argc, char **argv)
     };
 
     if (!StartServiceCtrlDispatcher(serviceTable)) {
-        AkLoggerLog("Service dispatcher failed");
+        AkLogError() << "Service dispatcher failed" << std::endl;
 
         return EXIT_FAILURE;
     }

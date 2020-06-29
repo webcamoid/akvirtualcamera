@@ -26,14 +26,6 @@
 #include "objectproperties.h"
 #include "VCamUtils/src/utils.h"
 
-#define AkObjectLogMethod() \
-    AkLoggerLog(this->m_className, \
-                "(", \
-                this->m_objectID, \
-                ")::", \
-                __FUNCTION__, \
-                "()")
-
 namespace AkVCam
 {
     class ObjectInterface

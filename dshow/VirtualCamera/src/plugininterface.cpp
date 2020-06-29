@@ -26,8 +26,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "PluginInterface"
-
 namespace AkVCam
 {
     class PluginInterfacePrivate
@@ -62,7 +60,7 @@ HINSTANCE &AkVCam::PluginInterface::pluginHinstance()
 bool AkVCam::PluginInterface::registerServer(const std::wstring &deviceId,
                                              const std::wstring &description) const
 {
-    AkLogMethod();
+    AkLogFunction();
 
     // Define the layout in registry of the filter.
 
@@ -70,9 +68,9 @@ bool AkVCam::PluginInterface::registerServer(const std::wstring &deviceId,
     auto fileName = AkVCam::moduleFileNameW(this->d->m_pluginHinstance);
     std::wstring threadingModel = L"Both";
 
-    AkLoggerLog("CLSID: ", std::string(clsid.begin(), clsid.end()));
-    AkLoggerLog("Description: ", std::string(description.begin(), description.end()));
-    AkLoggerLog("Filename: ", std::string(fileName.begin(), fileName.end()));
+    AkLogInfo() << "CLSID: " << std::string(clsid.begin(), clsid.end()) << std::endl;
+    AkLogInfo() << "Description: " << std::string(description.begin(), description.end()) << std::endl;
+    AkLogInfo() << "Filename: " << std::string(fileName.begin(), fileName.end()) << std::endl;
 
     auto subkey = L"CLSID\\" + clsid;
 
@@ -126,31 +124,31 @@ registerServer_failed:
     if (keyCLSID)
         RegCloseKey(keyCLSID);
 
-    AkLoggerLog("Result: ", stringFromResult(result));
+    AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
 
     return ok;
 }
 
 void AkVCam::PluginInterface::unregisterServer(const std::string &deviceId) const
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->unregisterServer(createClsidFromStr(deviceId));
 }
 
 void AkVCam::PluginInterface::unregisterServer(const std::wstring &deviceId) const
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->unregisterServer(createClsidFromStr(deviceId));
 }
 
 void AkVCam::PluginInterface::unregisterServer(const CLSID &clsid) const
 {
-    AkLogMethod();
+    AkLogFunction();
 
     auto clsidStr = stringFromClsid(clsid);
-    AkLoggerLog("CLSID: ", clsidStr);
+    AkLogInfo() << "CLSID: " << clsidStr << std::endl;
     auto subkey = L"CLSID\\" + std::wstring(clsidStr.begin(), clsidStr.end());
 
     this->d->deleteTree(HKEY_CLASSES_ROOT, subkey.c_str());
@@ -159,7 +157,7 @@ void AkVCam::PluginInterface::unregisterServer(const CLSID &clsid) const
 bool AkVCam::PluginInterface::registerFilter(const std::wstring &deviceId,
                                              const std::wstring &description) const
 {
-    AkLogMethod();
+    AkLogFunction();
 
     auto clsid = AkVCam::createClsidFromStr(deviceId);
     IFilterMapper2 *filterMapper = nullptr;
@@ -216,28 +214,28 @@ registerFilter_failed:
 
     CoUninitialize();
 
-    AkLoggerLog("Result: ", stringFromResult(result));
+    AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
 
     return ok;
 }
 
 void AkVCam::PluginInterface::unregisterFilter(const std::string &deviceId) const
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->unregisterFilter(AkVCam::createClsidFromStr(deviceId));
 }
 
 void AkVCam::PluginInterface::unregisterFilter(const std::wstring &deviceId) const
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->unregisterFilter(AkVCam::createClsidFromStr(deviceId));
 }
 
 void AkVCam::PluginInterface::unregisterFilter(const CLSID &clsid) const
 {
-    AkLogMethod();
+    AkLogFunction();
     IFilterMapper2 *filterMapper = nullptr;
     auto result = CoInitialize(nullptr);
 
@@ -263,20 +261,20 @@ unregisterFilter_failed:
         filterMapper->Release();
 
     CoUninitialize();
-    AkLoggerLog("Result: ", stringFromResult(result));
+    AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
 }
 
 bool AkVCam::PluginInterface::setDevicePath(const std::wstring &deviceId) const
 {
-    AkLogMethod();
+    AkLogFunction();
 
     std::wstring subKey =
             L"CLSID\\"
             + wstringFromIid(CLSID_VideoInputDeviceCategory)
             + L"\\Instance\\"
             + createClsidWStrFromStr(deviceId);
-    AkLoggerLog("Key: HKEY_CLASSES_ROOT");
-    AkLoggerLog("SubKey: ", std::string(subKey.begin(), subKey.end()));
+    AkLogInfo() << "Key: HKEY_CLASSES_ROOT" << std::endl;
+    AkLogInfo() << "SubKey: " << std::string(subKey.begin(), subKey.end()) << std::endl;
 
     HKEY hKey = nullptr;
     auto result = RegOpenKeyEx(HKEY_CLASSES_ROOT,
@@ -305,7 +303,7 @@ setDevicePath_failed:
     if (hKey)
         RegCloseKey(hKey);
 
-    AkLoggerLog("Result: ", stringFromResult(result));
+    AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
 
     return ok;
 }
@@ -313,7 +311,7 @@ setDevicePath_failed:
 bool AkVCam::PluginInterface::createDevice(const std::wstring &deviceId,
                                            const std::wstring &description)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!this->registerServer(deviceId, description))
         goto createDevice_failed;
@@ -334,7 +332,7 @@ createDevice_failed:
 
 void AkVCam::PluginInterface::destroyDevice(const std::string &deviceId)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->unregisterFilter(deviceId);
     this->unregisterServer(deviceId);
@@ -342,7 +340,7 @@ void AkVCam::PluginInterface::destroyDevice(const std::string &deviceId)
 
 void AkVCam::PluginInterface::destroyDevice(const std::wstring &deviceId)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->unregisterFilter(deviceId);
     this->unregisterServer(deviceId);
@@ -350,7 +348,7 @@ void AkVCam::PluginInterface::destroyDevice(const std::wstring &deviceId)
 
 void AkVCam::PluginInterface::destroyDevice(const CLSID &clsid)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->unregisterFilter(clsid);
     this->unregisterServer(clsid);

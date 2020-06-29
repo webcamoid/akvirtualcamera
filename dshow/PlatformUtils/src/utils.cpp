@@ -814,6 +814,53 @@ LONG AkVCam::regGetValue(HKEY hkey,
     return result;
 }
 
+std::string AkVCam::regReadString(const std::string &key, const std::string &defaultValue)
+{
+    auto wkey = std::wstring(key.begin(), key.end());
+    WCHAR value[MAX_PATH];
+    memset(value, 0, MAX_PATH * sizeof(WCHAR));
+    DWORD valueSize = MAX_PATH;
+    if (FAILED(regGetValue(HKEY_LOCAL_MACHINE,
+                           L"SOFTWARE\\Webcamoid\\VirtualCamera",
+                           wkey.c_str(),
+                           RRF_RT_REG_SZ,
+                           nullptr,
+                           &value,
+                           &valueSize)))
+        return defaultValue;
+
+    char str[MAX_PATH];
+    char defaultChar = '?';
+    WideCharToMultiByte(CP_ACP,
+                        0,
+                        value,
+                        -1,
+                        str,
+                        MAX_PATH,
+                        &defaultChar,
+                        nullptr);
+
+    return std::string(str);
+}
+
+int AkVCam::regReadInt(const std::string &key, int defaultValue)
+{
+    auto wkey = std::wstring(key.begin(), key.end());
+    DWORD value = 0;
+    DWORD valueSize = sizeof(DWORD);
+
+    if (FAILED(regGetValue(HKEY_LOCAL_MACHINE,
+                           L"SOFTWARE\\Webcamoid\\VirtualCamera",
+                           wkey.c_str(),
+                           RRF_RT_REG_DWORD,
+                           nullptr,
+                           &value,
+                           &valueSize)))
+        return defaultValue;
+
+    return value;
+}
+
 std::vector<CLSID> AkVCam::listRegisteredCameras(HINSTANCE hinstDLL)
 {
     WCHAR *strIID = nullptr;

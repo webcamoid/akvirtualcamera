@@ -24,8 +24,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "MediaFilter"
-
 namespace AkVCam
 {
     typedef std::pair<void *, StateChangedCallbackT> StateChangedCallback;
@@ -64,14 +62,14 @@ AkVCam::MediaFilter::~MediaFilter()
 void AkVCam::MediaFilter::connectStateChanged(void *userData,
                                               StateChangedCallbackT callback)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_stateChanged.push_back({userData, callback});
 }
 
 void AkVCam::MediaFilter::disconnectStateChanged(void *userData,
                                                  StateChangedCallbackT callback)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     for (auto it = this->d->m_stateChanged.begin();
          it != this->d->m_stateChanged.end();
@@ -87,7 +85,7 @@ void AkVCam::MediaFilter::disconnectStateChanged(void *userData,
 
 HRESULT AkVCam::MediaFilter::Stop()
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_state = State_Stopped;
     HRESULT result = S_OK;
 
@@ -105,7 +103,7 @@ HRESULT AkVCam::MediaFilter::Stop()
 
 HRESULT AkVCam::MediaFilter::Pause()
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_state = State_Paused;
     HRESULT result = S_OK;
 
@@ -123,7 +121,7 @@ HRESULT AkVCam::MediaFilter::Pause()
 
 HRESULT AkVCam::MediaFilter::Run(REFERENCE_TIME tStart)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_start = tStart;
     this->d->m_state = State_Running;
     HRESULT result = S_OK;
@@ -144,20 +142,20 @@ HRESULT AkVCam::MediaFilter::GetState(DWORD dwMilliSecsTimeout,
                                       FILTER_STATE *State)
 {
     UNUSED(dwMilliSecsTimeout)
-    AkLogMethod();
+    AkLogFunction();
 
     if (!State)
         return E_POINTER;
 
     *State = this->d->m_state;
-    AkLoggerLog("State: ", *State);
+    AkLogInfo() << "State: " << *State << std::endl;
 
     return S_OK;
 }
 
 HRESULT AkVCam::MediaFilter::SetSyncSource(IReferenceClock *pClock)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (this->d->m_clock)
         this->d->m_clock->Release();
@@ -172,7 +170,7 @@ HRESULT AkVCam::MediaFilter::SetSyncSource(IReferenceClock *pClock)
 
 HRESULT AkVCam::MediaFilter::GetSyncSource(IReferenceClock **pClock)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pClock)
         return E_POINTER;

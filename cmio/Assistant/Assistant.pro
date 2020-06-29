@@ -27,7 +27,6 @@ exists(commons.pri) {
 }
 
 include(../cmio.pri)
-include(../../VCamUtils/VCamUtils.pri)
 
 CONFIG += console link_prl
 CONFIG -= app_bundle
@@ -42,6 +41,7 @@ SOURCES += \
     src/assistant.cpp
 
 LIBS += \
+    -L$${OUT_PWD}/../PlatformUtils/$${BIN_DIR} -lPlatformUtils \
     -L$${OUT_PWD}/../../VCamUtils/$${BIN_DIR} -lVCamUtils \
     -framework CoreFoundation
 
@@ -50,6 +50,7 @@ HEADERS += \
     src/assistant.h
 
 INCLUDEPATH += \
+    .. \
     ../..
 
 INSTALLPATH = $${CMIO_PLUGIN_NAME}.plugin/Contents/Resources

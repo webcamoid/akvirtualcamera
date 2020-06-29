@@ -22,8 +22,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "PersistPropertyBag"
-
 namespace AkVCam
 {
     class PersistPropertyBagPrivate
@@ -50,8 +48,8 @@ AkVCam::PersistPropertyBag::~PersistPropertyBag()
 HRESULT AkVCam::PersistPropertyBag::QueryInterface(const IID &riid,
                                                    void **ppvObject)
 {
-    AkLogMethod();
-    AkLoggerLog("IID: ", AkVCam::stringFromClsid(riid));
+    AkLogFunction();
+    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;
@@ -89,7 +87,7 @@ HRESULT AkVCam::PersistPropertyBag::QueryInterface(const IID &riid,
 
 HRESULT AkVCam::PersistPropertyBag::InitNew()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return S_OK;
 }
@@ -98,7 +96,7 @@ HRESULT AkVCam::PersistPropertyBag::Load(IPropertyBag *pPropBag,
                                          IErrorLog *pErrorLog)
 {
     UNUSED(pErrorLog)
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPropBag)
         return E_POINTER;
@@ -122,7 +120,7 @@ HRESULT AkVCam::PersistPropertyBag::Save(IPropertyBag *pPropBag,
 {
     UNUSED(fClearDirty)
     UNUSED(fSaveAllProperties)
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pPropBag)
         return E_POINTER;

@@ -65,7 +65,6 @@ COMPILER = $$join(COMPILER, _)
 
 CONFIG(debug, debug|release) {
     COMMONS_BUILD_PATH = debug/$${COMPILER}/$${TARGET_ARCH}
-    DEFINES += QT_DEBUG
 } else {
     COMMONS_BUILD_PATH = release/$$COMPILER/$${TARGET_ARCH}
 }

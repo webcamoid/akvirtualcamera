@@ -24,8 +24,6 @@
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "EnumMediaTypes"
-
 namespace AkVCam
 {
     class EnumMediaTypesPrivate
@@ -95,7 +93,7 @@ HRESULT AkVCam::EnumMediaTypes::Next(ULONG cMediaTypes,
                                      AM_MEDIA_TYPE **ppMediaTypes,
                                      ULONG *pcFetched)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (pcFetched)
         *pcFetched = 0;
@@ -134,8 +132,8 @@ HRESULT AkVCam::EnumMediaTypes::Next(ULONG cMediaTypes,
 
 HRESULT AkVCam::EnumMediaTypes::Skip(ULONG cMediaTypes)
 {
-    AkLogMethod();
-    AkLoggerLog("Skip ", cMediaTypes, " media types");
+    AkLogFunction();
+    AkLogInfo() << "Skip " << cMediaTypes << " media types" << std::endl;
 
     if (this->d->m_changed) {
         this->d->m_changed = false;
@@ -155,7 +153,7 @@ HRESULT AkVCam::EnumMediaTypes::Skip(ULONG cMediaTypes)
 
 HRESULT AkVCam::EnumMediaTypes::Reset()
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_position = 0;
 
     return S_OK;
@@ -163,7 +161,7 @@ HRESULT AkVCam::EnumMediaTypes::Reset()
 
 HRESULT AkVCam::EnumMediaTypes::Clone(IEnumMediaTypes **ppEnum)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!ppEnum)
         return E_POINTER;

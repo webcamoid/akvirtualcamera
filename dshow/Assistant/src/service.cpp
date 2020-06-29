@@ -36,12 +36,6 @@
 #include "VCamUtils/src/timer.h"
 #include "VCamUtils/src/logger/logger.h"
 
-#define AkServiceLogMethod() \
-    AkLoggerLog("Service::", __FUNCTION__, "()")
-
-#define AkServicePrivateLogMethod() \
-    AkLoggerLog("ServicePrivate::", __FUNCTION__, "()")
-
 namespace AkVCam
 {
     struct AssistantDevice
@@ -126,11 +120,11 @@ AkVCam::Service::~Service()
 
 BOOL AkVCam::Service::install()
 {
-    AkServiceLogMethod();
+    AkLogFunction();
     WCHAR fileName[MAX_PATH];
 
     if (!GetModuleFileName(nullptr, fileName, MAX_PATH)) {
-        AkLoggerLog("Can't read module file name");
+        AkLogError() << "Can't read module file name" << std::endl;
 
        return false;
     }
@@ -138,7 +132,7 @@ BOOL AkVCam::Service::install()
     auto scManager = OpenSCManager(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
 
     if (!scManager) {
-        AkLoggerLog("Can't open SCManager");
+        AkLogError() << "Can't open SCManager" << std::endl;
 
         return false;
     }
@@ -159,7 +153,7 @@ BOOL AkVCam::Service::install()
                           nullptr);
 
     if (!service) {
-        AkLoggerLog("Can't create service");
+        AkLogError() << "Can't create service" << std::endl;
         CloseServiceHandle(scManager);
 
         return false;
@@ -204,11 +198,11 @@ BOOL AkVCam::Service::install()
 
 void AkVCam::Service::uninstall()
 {
-    AkServiceLogMethod();
+    AkLogFunction();
     auto scManager = OpenSCManager(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
 
     if (!scManager) {
-        AkLoggerLog("Can't open SCManager");
+        AkLogError() << "Can't open SCManager" << std::endl;
 
         return;
     }
@@ -221,7 +215,7 @@ void AkVCam::Service::uninstall()
         if (ControlService(sevice,
                            SERVICE_CONTROL_STOP,
                            &servicePrivate()->m_status)) {
-            AkLoggerLog("Stopping service");
+            AkLogInfo() << "Stopping service" << std::endl;
 
             do {
                 Sleep(1000);
@@ -230,12 +224,12 @@ void AkVCam::Service::uninstall()
         }
 
         if (!DeleteService(sevice)) {
-            AkLoggerLog("Delete service failed");
+            AkLogError() << "Delete service failed" << std::endl;
         }
 
         CloseServiceHandle(sevice);
     } else {
-        AkLoggerLog("Can't open service");
+        AkLogError() << "Can't open service" << std::endl;
     }
 
     CloseServiceHandle(scManager);
@@ -243,14 +237,14 @@ void AkVCam::Service::uninstall()
 
 void AkVCam::Service::debug()
 {
-    AkServiceLogMethod();
+    AkLogFunction();
     SetConsoleCtrlHandler(controlDebugHandler, TRUE);
     servicePrivate()->m_messageServer.start(true);
 }
 
 void AkVCam::Service::showHelp(int argc, char **argv)
 {
-    AkServiceLogMethod();
+    AkLogFunction();
     UNUSED(argc)
 
     auto programName = strrchr(argv[0], '\\');
@@ -277,7 +271,7 @@ void AkVCam::Service::showHelp(int argc, char **argv)
 
 AkVCam::ServicePrivate::ServicePrivate()
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
 
     this->m_status = {
         SERVICE_WIN32_OWN_PROCESS,
@@ -364,7 +358,7 @@ void AkVCam::ServicePrivate::checkPeers(void *userData)
     self->m_peerMutex.unlock();
 
     for (auto &port: removePorts) {
-        AkLoggerLog(port, " died, removing...");
+        AkLogWarning() << port << " died, removing..." << std::endl;
         self->removePortByName(port);
     }
 }
@@ -373,7 +367,7 @@ void AkVCam::ServicePrivate::sendStatus(DWORD currentState,
                                         DWORD exitCode,
                                         DWORD wait)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
 
     this->m_status.dwControlsAccepted =
             currentState == SERVICE_START_PENDING? 0: SERVICE_ACCEPT_STOP;
@@ -398,8 +392,8 @@ uint64_t AkVCam::ServicePrivate::id()
 
 void AkVCam::ServicePrivate::removePortByName(const std::string &portName)
 {
-    AkServicePrivateLogMethod();
-    AkLoggerLog("Port: ", portName);
+    AkLogFunction();
+    AkLogInfo() << "Port: " << portName << std::endl;
 
     this->m_peerMutex.lock();
 
@@ -463,7 +457,7 @@ void AkVCam::ServicePrivate::releaseDevicesFromPeer(const std::string &portName)
 
 void AkVCam::ServicePrivate::requestPort(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
 
     auto data = messageData<MsgRequestPort>(message);
     std::string portName = data->client?
@@ -471,7 +465,7 @@ void AkVCam::ServicePrivate::requestPort(AkVCam::Message *message)
                 AKVCAM_ASSISTANT_SERVER_NAME;
     portName += std::to_string(this->id());
 
-    AkLoggerLog("Returning Port: ", portName);
+    AkLogInfo() << "Returning Port: " << portName << std::endl;
     memcpy(data->port,
            portName.c_str(),
            (std::min<size_t>)(portName.size(), MAX_STRING));
@@ -479,7 +473,7 @@ void AkVCam::ServicePrivate::requestPort(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::addPort(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
 
     auto data = messageData<MsgAddPort>(message);
     std::string portName(data->port);
@@ -502,7 +496,7 @@ void AkVCam::ServicePrivate::addPort(AkVCam::Message *message)
         }
 
     if (ok) {
-        AkLoggerLog("Adding Peer: ", portName);
+        AkLogInfo() << "Adding Peer: " << portName << std::endl;
         (*peers)[portName] = pipeName;
     }
 
@@ -518,7 +512,7 @@ void AkVCam::ServicePrivate::addPort(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::removePort(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
 
     auto data = messageData<MsgRemovePort>(message);
     this->removePortByName(data->port);
@@ -526,7 +520,7 @@ void AkVCam::ServicePrivate::removePort(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::setBroadCasting(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgBroadcasting>(message);
     std::string deviceId(data->device);
     std::string broadcaster(data->broadcaster);
@@ -538,8 +532,8 @@ void AkVCam::ServicePrivate::setBroadCasting(AkVCam::Message *message)
     if (this->m_deviceConfigs[deviceId].broadcaster == broadcaster)
         return;
 
-    AkLoggerLog("Device: ", deviceId);
-    AkLoggerLog("Broadcaster: ", broadcaster);
+    AkLogInfo() << "Device: " << deviceId << std::endl;
+    AkLogInfo() << "Broadcaster: " << broadcaster << std::endl;
     this->m_deviceConfigs[deviceId].broadcaster = broadcaster;
     data->status = true;
 
@@ -555,7 +549,7 @@ void AkVCam::ServicePrivate::setBroadCasting(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::setMirroring(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgMirroring>(message);
     std::string deviceId(data->device);
     data->status = false;
@@ -583,7 +577,7 @@ void AkVCam::ServicePrivate::setMirroring(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::setScaling(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgScaling>(message);
     std::string deviceId(data->device);
     data->status = false;
@@ -609,7 +603,7 @@ void AkVCam::ServicePrivate::setScaling(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::setAspectRatio(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgAspectRatio>(message);
     std::string deviceId(data->device);
     data->status = false;
@@ -635,7 +629,7 @@ void AkVCam::ServicePrivate::setAspectRatio(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::setSwapRgb(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgSwapRgb>(message);
     std::string deviceId(data->device);
     data->status = false;
@@ -661,7 +655,7 @@ void AkVCam::ServicePrivate::setSwapRgb(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::frameReady(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     this->m_peerMutex.lock();
 
     for (auto &client: this->m_clients)
@@ -672,7 +666,7 @@ void AkVCam::ServicePrivate::frameReady(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::listeners(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgListeners>(message);
     std::string deviceId(data->device);
 
@@ -693,7 +687,7 @@ void AkVCam::ServicePrivate::listeners(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::listener(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgListeners>(message);
     std::string deviceId(data->device);
 
@@ -718,7 +712,7 @@ void AkVCam::ServicePrivate::listener(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::broadcasting(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgBroadcasting>(message);
     std::string deviceId(data->device);
 
@@ -734,7 +728,7 @@ void AkVCam::ServicePrivate::broadcasting(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::mirroring(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgMirroring>(message);
     std::string deviceId(data->device);
 
@@ -748,7 +742,7 @@ void AkVCam::ServicePrivate::mirroring(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::scaling(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgScaling>(message);
     std::string deviceId(data->device);
 
@@ -761,7 +755,7 @@ void AkVCam::ServicePrivate::scaling(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::aspectRatio(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgAspectRatio>(message);
     std::string deviceId(data->device);
 
@@ -774,7 +768,7 @@ void AkVCam::ServicePrivate::aspectRatio(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::swapRgb(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgSwapRgb>(message);
     std::string deviceId(data->device);
 
@@ -787,7 +781,7 @@ void AkVCam::ServicePrivate::swapRgb(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::listenerAdd(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgListeners>(message);
     std::string deviceId(data->device);
 
@@ -819,7 +813,7 @@ void AkVCam::ServicePrivate::listenerAdd(AkVCam::Message *message)
 
 void AkVCam::ServicePrivate::listenerRemove(AkVCam::Message *message)
 {
-    AkServicePrivateLogMethod();
+    AkLogFunction();
     auto data = messageData<MsgListeners>(message);
     std::string deviceId(data->device);
 
@@ -857,7 +851,7 @@ DWORD WINAPI controlHandler(DWORD control,
     UNUSED(eventType)
     UNUSED(eventData)
     UNUSED(context)
-    AkLoggerLog("controlHandler()");
+    AkLogFunction();
 
     DWORD result = ERROR_CALL_NOT_IMPLEMENTED;
 
@@ -889,7 +883,7 @@ DWORD WINAPI controlHandler(DWORD control,
 
 BOOL WINAPI controlDebugHandler(DWORD control)
 {
-    AkLoggerLog("controlDebugHandler()");
+    AkLogFunction();
 
     if (control == CTRL_BREAK_EVENT || control == CTRL_C_EVENT) {
         AkVCam::servicePrivate()->m_messageServer.stop();
@@ -904,8 +898,8 @@ void WINAPI serviceMain(DWORD dwArgc, LPTSTR *lpszArgv)
 {
     UNUSED(dwArgc)
     UNUSED(lpszArgv)
-    AkLoggerLog("serviceMain()");
-    AkLoggerLog("Setting service control handler");
+    AkLogFunction();
+    AkLogInfo() << "Setting service control handler" << std::endl;
 
     AkVCam::servicePrivate()->m_statusHandler =
             RegisterServiceCtrlHandlerEx(TEXT(DSHOW_PLUGIN_ASSISTANT_NAME),
@@ -917,7 +911,7 @@ void WINAPI serviceMain(DWORD dwArgc, LPTSTR *lpszArgv)
 
     AkVCam::servicePrivate()->sendStatus(SERVICE_START_PENDING, NO_ERROR, 3000);
 
-    AkLoggerLog("Setting up service");
+    AkLogInfo() << "Setting up service" << std::endl;
     AkVCam::servicePrivate()->m_messageServer
             .connectStateChanged(AkVCam::servicePrivate(),
                                  &AkVCam::ServicePrivate::stateChanged);

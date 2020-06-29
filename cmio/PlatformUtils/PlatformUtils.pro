@@ -16,9 +16,40 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-DEFINES += \
-    QT_NAMESPACE=AkVCam
-
-CONFIG(debug, debug|release) {
-    DEFINES += QT_DEBUG
+exists(commons.pri) {
+    include(commons.pri)
+} else {
+    exists(../../commons.pri) {
+        include(../../commons.pri)
+    } else {
+        error("commons.pri file not found.")
+    }
 }
+
+include(../cmio.pri)
+
+CONFIG += \
+    staticlib \
+    create_prl \
+    no_install_prl
+CONFIG -= qt
+
+DESTDIR = $${OUT_PWD}/$${BIN_DIR}
+
+TARGET = PlatformUtils
+
+TEMPLATE = lib
+
+LIBS = \
+    -L$${OUT_PWD}/../../VCamUtils/$${BIN_DIR} -lVCamUtils \
+    -framework CoreFoundation
+
+SOURCES = \
+    src/preferences.cpp \
+    src/utils.cpp
+
+HEADERS =  \
+    src/preferences.h \
+    src/utils.h
+
+INCLUDEPATH += ../..

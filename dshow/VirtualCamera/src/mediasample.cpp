@@ -23,8 +23,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "MediaSample"
-
 namespace AkVCam
 {
     class MediaSamplePrivate
@@ -91,7 +89,7 @@ ULONG AkVCam::MediaSample::Release()
 
 HRESULT AkVCam::MediaSample::GetPointer(BYTE **ppBuffer)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!ppBuffer)
         return E_POINTER;
@@ -103,7 +101,7 @@ HRESULT AkVCam::MediaSample::GetPointer(BYTE **ppBuffer)
 
 LONG AkVCam::MediaSample::GetSize()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return this->d->m_bufferSize;
 }
@@ -111,7 +109,7 @@ LONG AkVCam::MediaSample::GetSize()
 HRESULT AkVCam::MediaSample::GetTime(REFERENCE_TIME *pTimeStart,
                                      REFERENCE_TIME *pTimeEnd)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pTimeStart || !pTimeEnd)
         return E_POINTER;
@@ -134,7 +132,7 @@ HRESULT AkVCam::MediaSample::GetTime(REFERENCE_TIME *pTimeStart,
 HRESULT AkVCam::MediaSample::SetTime(REFERENCE_TIME *pTimeStart,
                                      REFERENCE_TIME *pTimeEnd)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->d->m_sampleTimeStart = pTimeStart? *pTimeStart: -1;
     this->d->m_sampleTimeEnd = pTimeEnd? *pTimeEnd: -1;
@@ -144,14 +142,14 @@ HRESULT AkVCam::MediaSample::SetTime(REFERENCE_TIME *pTimeStart,
 
 HRESULT AkVCam::MediaSample::IsSyncPoint()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return this->d->m_syncPoint? S_OK: S_FALSE;
 }
 
 HRESULT AkVCam::MediaSample::SetSyncPoint(BOOL bIsSyncPoint)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_syncPoint = bIsSyncPoint;
 
     return S_OK;
@@ -159,14 +157,14 @@ HRESULT AkVCam::MediaSample::SetSyncPoint(BOOL bIsSyncPoint)
 
 HRESULT AkVCam::MediaSample::IsPreroll()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return this->d->m_preroll? S_OK: S_FALSE;
 }
 
 HRESULT AkVCam::MediaSample::SetPreroll(BOOL bIsPreroll)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_preroll = bIsPreroll;
 
     return S_OK;
@@ -174,14 +172,14 @@ HRESULT AkVCam::MediaSample::SetPreroll(BOOL bIsPreroll)
 
 LONG AkVCam::MediaSample::GetActualDataLength()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return this->d->m_dataLength;
 }
 
 HRESULT AkVCam::MediaSample::SetActualDataLength(LONG lLen)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (lLen < 0 || lLen > this->d->m_bufferSize)
         return VFW_E_BUFFER_OVERFLOW;
@@ -193,7 +191,7 @@ HRESULT AkVCam::MediaSample::SetActualDataLength(LONG lLen)
 
 HRESULT AkVCam::MediaSample::GetMediaType(AM_MEDIA_TYPE **ppMediaType)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!ppMediaType)
         return E_POINTER;
@@ -213,7 +211,7 @@ HRESULT AkVCam::MediaSample::GetMediaType(AM_MEDIA_TYPE **ppMediaType)
 
 HRESULT AkVCam::MediaSample::SetMediaType(AM_MEDIA_TYPE *pMediaType)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pMediaType)
         return E_POINTER;
@@ -233,14 +231,14 @@ HRESULT AkVCam::MediaSample::SetMediaType(AM_MEDIA_TYPE *pMediaType)
 
 HRESULT AkVCam::MediaSample::IsDiscontinuity()
 {
-    AkLogMethod();
+    AkLogFunction();
 
     return this->d->m_discontinuity? S_OK: S_FALSE;
 }
 
 HRESULT AkVCam::MediaSample::SetDiscontinuity(BOOL bDiscontinuity)
 {
-    AkLogMethod();
+    AkLogFunction();
     this->d->m_discontinuity = bDiscontinuity;
 
     return S_OK;
@@ -249,7 +247,7 @@ HRESULT AkVCam::MediaSample::SetDiscontinuity(BOOL bDiscontinuity)
 HRESULT AkVCam::MediaSample::GetMediaTime(LONGLONG *pTimeStart,
                                           LONGLONG *pTimeEnd)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!pTimeStart || !pTimeEnd)
         return E_POINTER;
@@ -266,7 +264,7 @@ HRESULT AkVCam::MediaSample::GetMediaTime(LONGLONG *pTimeStart,
 HRESULT AkVCam::MediaSample::SetMediaTime(LONGLONG *pTimeStart,
                                           LONGLONG *pTimeEnd)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     this->d->m_mediaTimeStart = pTimeStart? *pTimeStart: -1;
     this->d->m_mediaTimeEnd = pTimeEnd? *pTimeEnd: -1;

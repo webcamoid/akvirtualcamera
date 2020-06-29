@@ -28,7 +28,6 @@ exists(commons.pri) {
 
 win32: include(../dshow/dshow.pri)
 macx: include(../cmio/cmio.pri)
-include(../VCamUtils/VCamUtils.pri)
 
 TEMPLATE = app
 CONFIG += console link_prl

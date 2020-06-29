@@ -26,8 +26,6 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#define AK_CUR_INTERFACE "Latency"
-
 namespace AkVCam
 {
     class LatencyPrivate
@@ -51,7 +49,7 @@ AkVCam::Latency::~Latency()
 
 HRESULT AkVCam::Latency::GetLatency(REFERENCE_TIME *prtLatency)
 {
-    AkLogMethod();
+    AkLogFunction();
 
     if (!prtLatency)
         return E_POINTER;
