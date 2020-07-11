@@ -79,7 +79,8 @@ namespace AkVCam
                                        const std::string &deviceId);
             bool createDevice(const std::string &deviceId,
                               const std::wstring &description,
-                              const std::vector<VideoFormat> &formats);
+                              const std::vector<VideoFormat> &formats,
+                              IpcBridge::DeviceType type);
             void destroyDevice(const std::string &deviceId);
 
         friend struct PluginInterfacePrivate;

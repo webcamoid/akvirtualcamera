@@ -30,6 +30,7 @@
 #include <libproc.h>
 
 #include "Assistant/src/assistantglobals.h"
+#include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/image/videoframe.h"
 #include "VCamUtils/src/ipcbridge.h"
@@ -52,8 +53,6 @@ namespace AkVCam
             std::vector<std::string> m_broadcasting;
             std::map<std::string, std::string> m_options;
             std::wstring m_error;
-            bool m_asClient;
-            bool m_uninstall;
 
             IpcBridgePrivate(IpcBridge *self=nullptr);
             ~IpcBridgePrivate();
@@ -86,15 +85,7 @@ namespace AkVCam
             std::wstring fileName(const std::wstring &path) const;
             bool mkpath(const std::string &path) const;
             bool rm(const std::string &path) const;
-            bool createDaemonPlist(const std::string &fileName) const;
-            bool loadDaemon();
-            void unloadDaemon() const;
-            bool checkDaemon();
-            void uninstallPlugin();
             std::wstring locateDriverPath() const;
-
-            // Execute commands with elevated privileges.
-            int sudo(const std::vector<std::string> &parameters);
 
         private:
             std::vector<IpcBridge *> m_bridges;
@@ -113,6 +104,7 @@ AkVCam::IpcBridge::IpcBridge()
     AkLogFunction();
     this->d = new IpcBridgePrivate(this);
     ipcBridgePrivate().add(this);
+    this->registerPeer();
 }
 
 AkVCam::IpcBridge::~IpcBridge()
@@ -181,33 +173,29 @@ bool AkVCam::IpcBridge::setRootMethod(const std::string &rootMethod)
     return rootMethod == "osascript";
 }
 
-void AkVCam::IpcBridge::connectService(bool asClient)
+void AkVCam::IpcBridge::connectService()
 {
     AkLogFunction();
-    this->d->m_asClient = asClient;
-    this->registerPeer(asClient);
+    this->registerPeer();
 }
 
 void AkVCam::IpcBridge::disconnectService()
 {
     AkLogFunction();
     this->unregisterPeer();
-    this->d->m_asClient = false;
 }
 
-bool AkVCam::IpcBridge::registerPeer(bool asClient)
+bool AkVCam::IpcBridge::registerPeer()
 {
     AkLogFunction();
 
-    if (!asClient) {
-        std::string plistFile =
-                CMIO_DAEMONS_PATH "/" CMIO_ASSISTANT_NAME ".plist";
+    std::string plistFile =
+            CMIO_DAEMONS_PATH "/" CMIO_ASSISTANT_NAME ".plist";
 
-        auto daemon = replace(plistFile, "~", this->d->homePath());
+    auto daemon = replace(plistFile, "~", this->d->homePath());
 
-        if (!this->d->fileExists(daemon))
-            return false;
-    }
+    if (!this->d->fileExists(daemon))
+        return false;
 
     if (this->d->m_serverMessagePort)
         return true;
@@ -236,7 +224,6 @@ bool AkVCam::IpcBridge::registerPeer(bool asClient)
 
     dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
     xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_REQUEST_PORT);
-    xpc_dictionary_set_bool(dictionary, "client", asClient);
     reply = xpc_connection_send_message_with_reply_sync(serverMessagePort,
                                                         dictionary);
     xpc_release(dictionary);
@@ -705,33 +692,18 @@ std::string AkVCam::IpcBridge::clientExe(uint64_t pid) const
     return {path};
 }
 
-bool AkVCam::IpcBridge::needsRestart(Operation operation) const
+AkVCam::IpcBridge::DeviceType AkVCam::IpcBridge::deviceType(const std::string &deviceId)
 {
-    return operation == OperationDestroyAll
-            || ((operation == OperationDestroy || operation == OperationEdit)
-                && this->listDevices().size() == 1);
-}
-
-bool AkVCam::IpcBridge::canApply(AkVCam::IpcBridge::Operation operation) const
-{
-    return this->clientsPids().empty() && !this->needsRestart(operation);
+    return Preferences::cameraIsInput(deviceId)?
+                DeviceTypeInput:
+                DeviceTypeOutput;
 }
 
 std::string AkVCam::IpcBridge::deviceCreate(const std::wstring &description,
-                                            const std::vector<VideoFormat> &formats)
+                                            const std::vector<VideoFormat> &formats,
+                                            DeviceType type)
 {
     AkLogFunction();
-
-    if (!this->canApply(OperationCreate)) {
-        this->d->m_error = L"The driver is in use";
-
-        return {};
-    }
-
-    if (!this->d->checkDaemon())
-        return {};
-
-    this->registerPeer(false);
 
     if (!this->d->m_serverMessagePort || !this->d->m_messagePort) {
         this->d->m_error = L"Can't register peer";
@@ -746,6 +718,7 @@ std::string AkVCam::IpcBridge::deviceCreate(const std::wstring &description,
                             "description",
                             description.c_str(),
                             description.size() * sizeof(wchar_t));
+    xpc_dictionary_set_bool(dictionary, "isinput", type == DeviceTypeInput);
     auto formatsList = xpc_array_create(nullptr, 0);
 
     for (auto &format: formats) {
@@ -783,20 +756,14 @@ bool AkVCam::IpcBridge::deviceEdit(const std::string &deviceId,
 {
     AkLogFunction();
 
-    if (!this->canApply(OperationEdit)) {
-        this->d->m_error = L"The driver is in use";
-
-        return false;
-    }
-
-    this->d->m_uninstall = false;
+    auto type = this->deviceType(deviceId);
     this->deviceDestroy(deviceId);
-    this->d->m_uninstall = true;
 
     if (this->deviceCreate(description.empty()?
                                L"AvKys Virtual Camera":
                                description,
-                           formats).empty())
+                           formats,
+                           type).empty())
         return false;
 
     return true;
@@ -807,25 +774,19 @@ bool AkVCam::IpcBridge::changeDescription(const std::string &deviceId,
 {
     AkLogFunction();
 
-    if (!this->canApply(OperationEdit)) {
-        this->d->m_error = L"The driver is in use";
-
-        return false;
-    }
-
     auto formats = this->formats(deviceId);
 
     if (formats.empty())
         return false;
 
-    this->d->m_uninstall = false;
+    auto type = this->deviceType(deviceId);
     this->deviceDestroy(deviceId);
-    this->d->m_uninstall = true;
 
     if (this->deviceCreate(description.empty()?
                                L"AvKys Virtual Camera":
                                description,
-                           formats).empty())
+                           formats,
+                           type).empty())
         return false;
 
     return true;
@@ -834,12 +795,6 @@ bool AkVCam::IpcBridge::changeDescription(const std::string &deviceId,
 bool AkVCam::IpcBridge::deviceDestroy(const std::string &deviceId)
 {
     AkLogFunction();
-
-    if (!this->canApply(OperationDestroy)) {
-        this->d->m_error = L"The driver is in use";
-
-        return false;
-    }
 
     if (!this->d->m_serverMessagePort)
         return false;
@@ -851,22 +806,12 @@ bool AkVCam::IpcBridge::deviceDestroy(const std::string &deviceId)
                                 dictionary);
     xpc_release(dictionary);
 
-    // If no devices are registered
-    if (this->d->m_uninstall && listDevices().empty())
-        this->d->uninstallPlugin();
-
     return true;
 }
 
 bool AkVCam::IpcBridge::destroyAllDevices()
 {
     AkLogFunction();
-
-    if (!this->canApply(OperationDestroyAll)) {
-        this->d->m_error = L"The driver is in use";
-
-        return false;
-    }
 
     for (auto &device: this->listDevices())
         this->deviceDestroy(device);
@@ -1141,9 +1086,7 @@ bool AkVCam::IpcBridge::removeListener(const std::string &deviceId)
 AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
     self(self),
     m_messagePort(nullptr),
-    m_serverMessagePort(nullptr),
-    m_asClient(false),
-    m_uninstall(true)
+    m_serverMessagePort(nullptr)
 {
     this->m_messageHandlers = {
         {AKVCAM_ASSISTANT_MSG_ISALIVE               , AKVCAM_BIND_FUNC(IpcBridgePrivate::isAlive)        },
@@ -1393,7 +1336,7 @@ void AkVCam::IpcBridgePrivate::connectionInterrupted()
 
     // Restart service
     for (auto bridge: this->m_bridges)
-        if (bridge->registerPeer(bridge->d->m_asClient)) {
+        if (bridge->registerPeer()) {
             AKVCAM_EMIT(bridge,
                         ServerStateChanged,
                         IpcBridge::ServerStateAvailable)
@@ -1484,186 +1427,6 @@ bool AkVCam::IpcBridgePrivate::rm(const std::string &path) const
     return ok;
 }
 
-bool AkVCam::IpcBridgePrivate::createDaemonPlist(const std::string &fileName) const
-{
-    AkLogFunction();
-    std::fstream plistFile;
-    plistFile.open(fileName, std::ios_base::out);
-
-    if (!plistFile.is_open())
-        return false;
-
-    plistFile << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl
-              << "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
-              << "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">"
-              << std::endl
-              << "<plist version=\"1.0\">" << std::endl
-              << "    <dict>" << std::endl
-              << "        <key>Label</key>" << std::endl
-              << "        <string>" << CMIO_ASSISTANT_NAME
-                                    << "</string>" << std::endl
-              << "        <key>ProgramArguments</key>" << std::endl
-              << "        <array>" << std::endl
-              << "            <string>" << CMIO_PLUGINS_DAL_PATH
-                                        << "/"
-                                        << CMIO_PLUGIN_NAME
-                                        << ".plugin/Contents/Resources/"
-                                        << CMIO_PLUGIN_ASSISTANT_NAME
-                                        << "</string>" << std::endl
-              << "            <string>--timeout</string>" << std::endl
-              << "            <string>300.0</string>" << std::endl
-              << "        </array>" << std::endl
-              << "        <key>MachServices</key>" << std::endl
-              << "        <dict>" << std::endl
-              << "            <key>" << CMIO_ASSISTANT_NAME
-                                     << "</key>" << std::endl
-              << "            <true/>" << std::endl
-              << "        </dict>" << std::endl
-              << "    </dict>" << std::endl
-              << "</plist>" << std::endl;
-
-    return true;
-}
-
-bool AkVCam::IpcBridgePrivate::loadDaemon()
-{
-    AkLogFunction();
-    auto launchctl = popen("launchctl list " CMIO_ASSISTANT_NAME, "r");
-
-    if (launchctl && !pclose(launchctl))
-        return true;
-
-    auto daemonsPath = replace(CMIO_DAEMONS_PATH, "~", this->homePath());
-    auto dstDaemonsPath = daemonsPath + "/" CMIO_ASSISTANT_NAME ".plist";
-
-    if (!this->fileExists(dstDaemonsPath)) {
-        this->m_error = L"Daemon plist does not exists";
-
-        return false;
-    }
-
-    launchctl = popen(("launchctl load -w '" + dstDaemonsPath + "'").c_str(),
-                       "r");
-
-    bool result = launchctl && !pclose(launchctl);
-
-    if (!result)
-        this->m_error = L"Can't launch daemon";
-
-    return result;
-}
-
-void AkVCam::IpcBridgePrivate::unloadDaemon() const
-{
-    AkLogFunction();
-    std::string daemonPlist = CMIO_ASSISTANT_NAME ".plist";
-    auto daemonsPath = replace(CMIO_DAEMONS_PATH, "~", this->homePath());
-    auto dstDaemonsPath = daemonsPath + "/" + daemonPlist;
-
-    if (!this->fileExists(dstDaemonsPath))
-        return;
-
-    auto launchctl =
-            popen(("launchctl unload -w '" + dstDaemonsPath + "'").c_str(),
-                   "r");
-    pclose(launchctl);
-}
-
-bool AkVCam::IpcBridgePrivate::checkDaemon()
-{
-    AkLogFunction();
-    auto driverPath = this->locateDriverPath();
-
-    if (driverPath.empty()) {
-        this->m_error = L"Driver not found";
-
-        return false;
-    }
-
-    auto plugin = this->fileName(driverPath);
-    std::wstring dstPath = CMIO_PLUGINS_DAL_PATH_L;
-    std::wstring pluginInstallPath = dstPath + L'/' + plugin;
-
-    if (!this->fileExists(pluginInstallPath)) {
-        const std::string cmdFileName = "/tmp/akvcam_exec.sh";
-
-        std::wfstream cmds;
-        cmds.open(cmdFileName, std::ios_base::out);
-
-        if (!cmds.is_open()) {
-            this->m_error = L"Can't create script";
-
-            return false;
-        }
-
-        cmds << L"mkdir -p "
-             << pluginInstallPath
-             << std::endl
-             << L"cp -rvf '"
-             << driverPath << L"'/* "
-             << pluginInstallPath << L"/"
-             << std::endl
-             << L"chmod +x "
-             << pluginInstallPath << L"/Contents/Resources/" CMIO_PLUGIN_ASSISTANT_NAME_L
-             << std::endl;
-        cmds.close();
-        chmod(cmdFileName.c_str(), S_IRWXU | S_IRGRP | S_IROTH);
-
-        if (this->sudo({"sh", cmdFileName})) {
-            this->rm(cmdFileName);
-
-            return false;
-        }
-
-        this->rm(cmdFileName);
-    }
-
-    auto daemonsPath = replace(CMIO_DAEMONS_PATH, "~", this->homePath());
-    auto dstDaemonsPath = daemonsPath + "/" + CMIO_ASSISTANT_NAME + ".plist";
-
-    if (!this->fileExists(dstDaemonsPath)) {
-        if (!this->mkpath(daemonsPath)) {
-            this->m_error = L"Can't create daemon path";
-
-            return false;
-        }
-
-        if (!this->createDaemonPlist(dstDaemonsPath)) {
-            this->m_error = L"Can't create daemon plist";
-
-            return false;
-        }
-    }
-
-    return this->loadDaemon();
-}
-
-void AkVCam::IpcBridgePrivate::uninstallPlugin()
-{
-    AkLogFunction();
-
-    // Stop the daemon
-    this->unloadDaemon();
-
-    // Remove the agent plist
-    auto daemonsPath =
-            replace(CMIO_DAEMONS_PATH, "~", this->homePath());
-    this->rm(daemonsPath + "/" CMIO_ASSISTANT_NAME ".plist");
-
-    // Remove the plugin
-    auto driverPath = this->locateDriverPath();
-
-    if (driverPath.empty())
-        return;
-
-    auto plugin = this->fileName(driverPath);
-    std::wstring dstPath = CMIO_PLUGINS_DAL_PATH_L;
-    this->sudo({"rm", "-rvf",
-                std::string(dstPath.begin(), dstPath.end())
-                + '/'
-                + std::string(plugin.begin(), plugin.end())});
-}
-
 std::wstring AkVCam::IpcBridgePrivate::locateDriverPath() const
 {
     AkLogFunction();
@@ -1692,39 +1455,4 @@ std::wstring AkVCam::IpcBridgePrivate::locateDriverPath() const
     }
 
     return driverPath;
-}
-
-int AkVCam::IpcBridgePrivate::sudo(const std::vector<std::string> &parameters)
-{
-    AkLogFunction();
-    std::stringstream ss;
-    ss << "osascript -e \"do shell script \\\"";
-
-    for (auto param: parameters) {
-        if (param.find(' ') == std::string::npos)
-            ss << param;
-        else
-            ss << "'" << param << "'";
-
-        ss << ' ';
-    }
-
-    ss << "\\\" with administrator privileges\" 2>&1";
-    auto sudo = popen(ss.str().c_str(), "r");
-
-    if (!sudo)
-        return -1;
-
-    std::string output;
-    char buffer[1024];
-
-    while (fgets(buffer, 1024, sudo))
-        output += std::string(buffer);
-
-    auto result = pclose(sudo);
-
-    if (result)
-        AkLogInfo() << output << std::endl;
-
-    return result;
 }

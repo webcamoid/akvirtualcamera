@@ -191,6 +191,34 @@ double AkVCam::Preferences::readDouble(const std::string &key,
     return value;
 }
 
+bool AkVCam::Preferences::readBool(const std::string &key, bool defaultValue)
+{
+    AkLogFunction();
+    auto cfKey = cfTypeFromStd(key);
+    auto cfValue =
+            CFBooleanRef(CFPreferencesCopyAppValue(CFStringRef(*cfKey),
+                                                   PREFERENCES_ID));
+    auto value = defaultValue;
+
+    if (cfValue) {
+        value = CFBooleanGetValue(cfValue);
+        CFRelease(cfValue);
+    }
+
+    return value;
+}
+
+std::vector<std::string> AkVCam::Preferences::readStringList(const std::string &key,
+                                                             const std::vector<std::string> &defaultValue)
+{
+    auto value = defaultValue;
+
+    for (auto &str: split(readString(key), ','))
+        value.push_back(trimmed(str));
+
+    return value;
+}
+
 void AkVCam::Preferences::deleteKey(const std::string &key)
 {
     AkLogFunction();
@@ -248,14 +276,16 @@ void AkVCam::Preferences::sync()
 }
 
 std::string AkVCam::Preferences::addCamera(const std::wstring &description,
-                                           const std::vector<VideoFormat> &formats)
+                                           const std::vector<VideoFormat> &formats,
+                                           IpcBridge::DeviceType type)
 {
-    return addCamera("", description, formats);
+    return addCamera("", description, formats, type);
 }
 
 std::string AkVCam::Preferences::addCamera(const std::string &path,
                                            const std::wstring &description,
-                                           const std::vector<VideoFormat> &formats)
+                                           const std::vector<VideoFormat> &formats,
+                                           IpcBridge::DeviceType type)
 {
     AkLogFunction();
 
@@ -265,11 +295,14 @@ std::string AkVCam::Preferences::addCamera(const std::string &path,
     auto path_ = path.empty()? createDevicePath(): path;
     int cameraIndex = readInt("cameras");
     write("cameras", cameraIndex + 1);
-
     write("cameras."
           + std::to_string(cameraIndex)
           + ".description",
           description);
+    write("cameras."
+          + std::to_string(cameraIndex)
+          + ".isinput",
+          type == IpcBridge::DeviceTypeInput);
     write("cameras."
           + std::to_string(cameraIndex)
           + ".path",
@@ -376,6 +409,21 @@ bool AkVCam::Preferences::cameraExists(const std::string &path)
     return false;
 }
 
+bool AkVCam::Preferences::cameraIsInput(size_t cameraIndex)
+{
+    return readBool("cameras." + std::to_string(cameraIndex) + ".isinput");
+}
+
+bool AkVCam::Preferences::cameraIsInput(const std::string &path)
+{
+    auto cameraIndex = cameraFromPath(path);
+
+    if (cameraIndex < 0)
+        return {};
+
+    return cameraIsInput(cameraIndex);
+}
+
 std::wstring AkVCam::Preferences::cameraDescription(size_t cameraIndex)
 {
     return readWString("cameras."
@@ -427,4 +475,37 @@ std::vector<AkVCam::VideoFormat> AkVCam::Preferences::cameraFormats(size_t camer
     }
 
     return formats;
+}
+
+std::vector<std::string> AkVCam::Preferences::cameraConnections(size_t cameraIndex)
+{
+    AkLogFunction();
+
+    if (cameraIndex < 0 || !cameraIsInput(cameraIndex))
+        return {};
+
+    std::vector<std::string> cameraConnections;
+    auto connections = readStringList("cameras."
+                                      + std::to_string(cameraIndex)
+                                      + ".connections");
+
+    for (auto &connection: connections) {
+        if (connection.empty())
+            continue;
+
+        size_t pos = 0;
+        auto outputIndex = std::stoi(connection, &pos);
+
+        if (pos == connection.size())
+            cameraConnections.push_back(cameraPath(outputIndex));
+    }
+
+    return cameraConnections;
+}
+
+std::vector<std::string> AkVCam::Preferences::cameraConnections(const std::string &path)
+{
+    AkLogFunction();
+
+    return cameraConnections(cameraFromPath(path));
 }

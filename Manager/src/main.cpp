@@ -17,9 +17,9 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#include <VCamUtils/src/ipcbridge.h>
+#include "cmdparser.h"
 
 int main(int argc, char **argv)
 {
-    return 0;
+    return AkVCam::CmdParser().parse(argc, argv);
 }

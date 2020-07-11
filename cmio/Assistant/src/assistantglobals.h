@@ -24,7 +24,6 @@
 #include <xpc/xpc.h>
 
 #define AKVCAM_ASSISTANT_CLIENT_NAME "org.webcamoid.cmio.AkVCam.Client"
-#define AKVCAM_ASSISTANT_SERVER_NAME "org.webcamoid.cmio.AkVCam.Server"
 
 // General messages
 #define AKVCAM_ASSISTANT_MSG_ISALIVE                0x000
@@ -59,6 +58,11 @@
 #define AKVCAM_ASSISTANT_MSG_DEVICE_SETASPECTRATIO  0x407
 #define AKVCAM_ASSISTANT_MSG_DEVICE_SWAPRGB         0x408
 #define AKVCAM_ASSISTANT_MSG_DEVICE_SETSWAPRGB      0x409
+
+// Connections
+#define AKVCAM_ASSISTANT_MSG_CONNECTIONS            0x500
+#define AKVCAM_ASSISTANT_MSG_SETCONNECTIONS         0x501
+
 
 namespace AkVCam
 {

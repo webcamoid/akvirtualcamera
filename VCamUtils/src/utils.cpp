@@ -156,3 +156,25 @@ std::wstring AkVCam::trimmed(const std::wstring &str)
 
     return str.substr(size_t(left), strippedLen);
 }
+
+std::vector<std::string> AkVCam::split(const std::string &str, char separator)
+{
+    if (str.empty())
+        return {};
+
+    std::vector<std::string> elements;
+    std::string subStr;
+
+    for (auto &c: str)
+        if (c == separator) {
+            elements.push_back(subStr);
+            subStr.clear();
+        } else {
+            subStr += c;
+        }
+
+    if (!subStr.empty() || *str.rbegin() == separator)
+        elements.push_back(subStr);
+
+    return elements;
+}

@@ -24,6 +24,8 @@
 #include <vector>
 #include <CoreFoundation/CoreFoundation.h>
 
+#include "VCamUtils/src/ipcbridge.h"
+
 namespace AkVCam
 {
     class VideoFormat;
@@ -44,26 +46,35 @@ namespace AkVCam
                                  const std::wstring &defaultValue={});
         int readInt(const std::string &key, int defaultValue=0);
         double readDouble(const std::string &key, double defaultValue=0.0);
+        bool readBool(const std::string &key, bool defaultValue=false);
+        std::vector<std::string> readStringList(const std::string &key,
+                                                const std::vector<std::string> &defaultValue={});
         void deleteKey(const std::string &key);
         void deleteAllKeys(const std::string &key);
         void move(const std::string &keyFrom, const std::string &keyTo);
         void moveAll(const std::string &keyFrom, const std::string &keyTo);
         void sync();
         std::string addCamera(const std::wstring &description,
-                              const std::vector<VideoFormat> &formats);
+                              const std::vector<VideoFormat> &formats,
+                              IpcBridge::DeviceType type);
         std::string addCamera(const std::string &path,
                               const std::wstring &description,
-                              const std::vector<VideoFormat> &formats);
+                              const std::vector<VideoFormat> &formats,
+                              IpcBridge::DeviceType type);
         void removeCamera(const std::string &path);
         size_t camerasCount();
         std::string createDevicePath();
         int cameraFromPath(const std::string &path);
         bool cameraExists(const std::string &path);
+        bool cameraIsInput(size_t cameraIndex);
+        bool cameraIsInput(const std::string &path);
         std::wstring cameraDescription(size_t cameraIndex);
         std::string cameraPath(size_t cameraIndex);
         size_t formatsCount(size_t cameraIndex);
         VideoFormat cameraFormat(size_t cameraIndex, size_t formatIndex);
         std::vector<VideoFormat> cameraFormats(size_t cameraIndex);
+        std::vector<std::string> cameraConnections(size_t cameraIndex);
+        std::vector<std::string> cameraConnections(const std::string &path);
     }
 }
 

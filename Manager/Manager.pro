@@ -36,8 +36,12 @@ CONFIG -= qt
 
 TARGET = AkVCamManager
 
+HEADERS = \
+    src/cmdparser.h
+
 SOURCES = \
-    src/main.cpp
+    src/main.cpp \
+    src/cmdparser.cpp
 
 INCLUDEPATH += \
     .. \

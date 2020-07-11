@@ -658,7 +658,8 @@ bool AkVCam::IpcBridge::canApply(AkVCam::IpcBridge::Operation operation) const
 }
 
 std::string AkVCam::IpcBridge::deviceCreate(const std::wstring &description,
-                                            const std::vector<VideoFormat> &formats)
+                                            const std::vector<VideoFormat> &formats,
+                                            DeviceType type)
 {
     AkLogFunction();
 

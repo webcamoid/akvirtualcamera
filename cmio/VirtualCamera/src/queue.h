@@ -55,7 +55,7 @@ namespace AkVCam
 
             T dequeue()
             {
-                return CMSimpleQueueDequeue(this->m_queue);
+                return T(CMSimpleQueueDequeue(this->m_queue));
             }
 
             void clear()

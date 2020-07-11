@@ -25,6 +25,7 @@
 #include "plugininterface.h"
 #include "utils.h"
 #include "Assistant/src/assistantglobals.h"
+#include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/logger/logger.h"
@@ -168,7 +169,7 @@ AkVCam::PluginInterface::PluginInterface():
     struct stat fileInfo;
 
     if (stat(daemon.c_str(), &fileInfo) == 0)
-        this->d->m_ipcBridge.connectService(true);
+        this->d->m_ipcBridge.connectService();
 
     this->d->m_ipcBridge.connectServerStateChanged(this, &PluginInterface::serverStateChanged);
     this->d->m_ipcBridge.connectDeviceAdded(this, &PluginInterface::deviceAdded);
@@ -280,8 +281,9 @@ void AkVCam::PluginInterface::deviceAdded(void *userData,
     auto self = reinterpret_cast<PluginInterface *>(userData);
     auto description = self->d->m_ipcBridge.description(deviceId);
     auto formats = self->d->m_ipcBridge.formats(deviceId);
+    auto type = self->d->m_ipcBridge.deviceType(deviceId);
 
-    self->createDevice(deviceId, description, formats);
+    self->createDevice(deviceId, description, formats, type);
 }
 
 void AkVCam::PluginInterface::deviceRemoved(void *userData,
@@ -300,9 +302,12 @@ void AkVCam::PluginInterface::frameReady(void *userData,
 {
     AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
+    auto connections = Preferences::cameraConnections(deviceId);
 
     for (auto device: self->m_devices)
-        if (device->deviceId() == deviceId)
+        if (std::find(connections.begin(),
+                      connections.end(),
+                      device->deviceId()) != connections.end())
             device->frameReady(frame);
 }
 
@@ -387,14 +392,15 @@ void AkVCam::PluginInterface::removeListener(void *userData,
 
 bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
                                            const std::wstring &description,
-                                           const std::vector<VideoFormat> &formats)
+                                           const std::vector<VideoFormat> &formats,
+                                           IpcBridge::DeviceType type)
 {
     AkLogFunction();
     StreamPtr stream;
 
     // Create one device.
     auto pluginRef = reinterpret_cast<CMIOHardwarePlugInRef>(this->d);
-    auto device = std::make_shared<Device>(pluginRef);
+    auto device = std::make_shared<Device>(pluginRef, false);
     device->setDeviceId(deviceId);
     device->connectAddListener(this, &PluginInterface::addListener);
     device->connectRemoveListener(this, &PluginInterface::removeListener);
@@ -402,7 +408,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
 
     // Define device properties.
     device->properties().setProperty(kCMIOObjectPropertyName,
-                                     description.c_str());
+                                     description);
     device->properties().setProperty(kCMIOObjectPropertyManufacturer,
                                      CMIO_PLUGIN_VENDOR);
     device->properties().setProperty(kCMIODevicePropertyModelUID,
@@ -423,7 +429,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
     device->properties().setProperty(kCMIODevicePropertyDeviceIsAlive,
                                      UInt32(1));
     device->properties().setProperty(kCMIODevicePropertyDeviceUID,
-                                     deviceId.c_str());
+                                     deviceId);
     device->properties().setProperty(kCMIODevicePropertyTransportType,
                                      UInt32(kIOAudioDeviceTransportTypePCI));
     device->properties().setProperty(kCMIODevicePropertyDeviceIsRunningSomewhere,
@@ -438,8 +444,12 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
     if (!stream)
         goto createDevice_failed;
 
+    stream->setBridge(&this->d->m_ipcBridge);
     stream->setFormats(formats);
-    stream->properties().setProperty(kCMIOStreamPropertyDirection, UInt32(0));
+    stream->properties().setProperty(kCMIOStreamPropertyDirection,
+                                     UInt32(type == IpcBridge::DeviceTypeOutput?
+                                                Stream::Output:
+                                                Stream::Input));
 
     if (device->registerStreams() != kCMIOHardwareNoError) {
         device->registerStreams(false);

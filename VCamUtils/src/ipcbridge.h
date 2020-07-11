@@ -42,12 +42,10 @@ namespace AkVCam
                 ServerStateGone
             };
 
-            enum Operation
+            enum DeviceType
             {
-                OperationCreate,
-                OperationEdit,
-                OperationDestroy,
-                OperationDestroyAll
+                DeviceTypeOutput,
+                DeviceTypeInput
             };
 
             AKVCAM_SIGNAL(ServerStateChanged,
@@ -112,11 +110,11 @@ namespace AkVCam
             bool setRootMethod(const std::string &rootMethod);
 
             // Manage main service connection.
-            void connectService(bool asClient);
+            void connectService();
             void disconnectService();
 
             // Register the peer to the global server.
-            bool registerPeer(bool asClient);
+            bool registerPeer();
 
             // Unregister the peer to the global server.
             void unregisterPeer();
@@ -163,18 +161,14 @@ namespace AkVCam
             // Returns client executable from PID.
             std::string clientExe(uint64_t pid) const;
 
-            // Returns 'true' if the application needs to be restarted before
-            // creating, editing, or removing the virtual devices.
-            bool needsRestart(Operation operation) const;
-
-            // Can create, edit, or remove virtual devices?
-            bool canApply(Operation operation) const;
-
             /* Server */
+
+            DeviceType deviceType(const std::string &deviceId);
 
             // Create a device definition.
             std::string deviceCreate(const std::wstring &description,
-                                     const std::vector<VideoFormat> &formats);
+                                     const std::vector<VideoFormat> &formats,
+                                     DeviceType type);
 
             // Edit a device definition.
             bool deviceEdit(const std::string &deviceId,
