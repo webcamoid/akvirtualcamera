@@ -54,6 +54,8 @@ namespace AkVCam
         void move(const std::string &keyFrom, const std::string &keyTo);
         void moveAll(const std::string &keyFrom, const std::string &keyTo);
         void sync();
+        std::string addDevice(const std::wstring &description,
+                              IpcBridge::DeviceType type);
         std::string addCamera(const std::wstring &description,
                               const std::vector<VideoFormat> &formats,
                               IpcBridge::DeviceType type);
@@ -73,6 +75,10 @@ namespace AkVCam
         size_t formatsCount(size_t cameraIndex);
         VideoFormat cameraFormat(size_t cameraIndex, size_t formatIndex);
         std::vector<VideoFormat> cameraFormats(size_t cameraIndex);
+        void cameraAddFormat(size_t cameraIndex,
+                             const VideoFormat &format,
+                             int index);
+        void cameraRemoveFormat(size_t cameraIndex, int index);
         std::vector<std::string> cameraConnections(size_t cameraIndex);
         std::vector<std::string> cameraConnections(const std::string &path);
     }

@@ -157,23 +157,11 @@ AkVCam::PluginInterface::PluginInterface():
     this->d->m_ref = 0;
     this->d->m_reserved = 0;
 
-    auto homePath = std::string("/Users/") + getenv("USER");
-
-    std::stringstream ss;
-    ss << CMIO_DAEMONS_PATH << "/" << CMIO_ASSISTANT_NAME << ".plist";
-    auto daemon = ss.str();
-
-    if (daemon[0] == '~')
-        daemon.replace(0, 1, homePath);
-
-    struct stat fileInfo;
-
-    if (stat(daemon.c_str(), &fileInfo) == 0)
-        this->d->m_ipcBridge.connectService();
-
+    this->d->m_ipcBridge.connectService();
     this->d->m_ipcBridge.connectServerStateChanged(this, &PluginInterface::serverStateChanged);
     this->d->m_ipcBridge.connectDeviceAdded(this, &PluginInterface::deviceAdded);
     this->d->m_ipcBridge.connectDeviceRemoved(this, &PluginInterface::deviceRemoved);
+    this->d->m_ipcBridge.connectDevicesUpdated(this, &PluginInterface::devicesUpdated);
     this->d->m_ipcBridge.connectFrameReady(this, &PluginInterface::frameReady);
     this->d->m_ipcBridge.connectBroadcastingChanged(this, &PluginInterface::setBroadcasting);
     this->d->m_ipcBridge.connectMirrorChanged(this, &PluginInterface::setMirror);
@@ -294,6 +282,31 @@ void AkVCam::PluginInterface::deviceRemoved(void *userData,
 
     auto self = reinterpret_cast<PluginInterface *>(userData);
     self->destroyDevice(deviceId);
+}
+
+void AkVCam::PluginInterface::devicesUpdated(void *userData, void *unused)
+{
+    UNUSED(unused);
+    AkLogFunction();
+    auto self = reinterpret_cast<PluginInterface *>(userData);
+    std::vector<std::string> devices;
+
+    for (auto &device: self->m_devices) {
+        std::string deviceId;
+        device->properties().getProperty(kCMIODevicePropertyDeviceUID,
+                                         &deviceId);
+        devices.push_back(deviceId);
+    }
+
+    for (auto &deviceId: devices)
+        self->destroyDevice(deviceId);
+
+    for (auto &deviceId: self->d->m_ipcBridge.listDevices()) {
+        auto description = self->d->m_ipcBridge.description(deviceId);
+        auto formats = self->d->m_ipcBridge.formats(deviceId);
+        auto type = self->d->m_ipcBridge.deviceType(deviceId);
+        self->createDevice(deviceId, description, formats, type);
+    }
 }
 
 void AkVCam::PluginInterface::frameReady(void *userData,

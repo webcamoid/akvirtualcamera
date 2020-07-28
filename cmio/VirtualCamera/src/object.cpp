@@ -86,7 +86,7 @@ OSStatus AkVCam::Object::createObject()
 
 OSStatus AkVCam::Object::registerObject(bool regist)
 {
-    UNUSED(regist)
+    UNUSED(regist);
 
     return kCMIOHardwareNoError;
 }

@@ -26,7 +26,7 @@
 extern "C" void *akPluginMain(CFAllocatorRef allocator,
                               CFUUIDRef requestedTypeUUID)
 {
-    UNUSED(allocator)
+    UNUSED(allocator);
     auto logLevel =
             AkVCam::Preferences::readInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
     AkVCam::Logger::setLogLevel(logLevel);

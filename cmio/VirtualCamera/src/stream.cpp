@@ -410,7 +410,7 @@ OSStatus AkVCam::Stream::deckStop()
 
 OSStatus AkVCam::Stream::deckJog(SInt32 speed)
 {
-    UNUSED(speed)
+    UNUSED(speed);
     AkLogFunction();
     AkLogDebug() << "STUB" << std::endl;
 
@@ -419,8 +419,8 @@ OSStatus AkVCam::Stream::deckJog(SInt32 speed)
 
 OSStatus AkVCam::Stream::deckCueTo(Float64 frameNumber, Boolean playOnCue)
 {
-    UNUSED(frameNumber)
-    UNUSED(playOnCue)
+    UNUSED(frameNumber);
+    UNUSED(playOnCue);
     AkLogFunction();
     AkLogDebug() << "STUB" << std::endl;
 
@@ -480,7 +480,7 @@ void AkVCam::StreamPrivate::stopTimer()
 
 void AkVCam::StreamPrivate::streamLoop(CFRunLoopTimerRef timer, void *info)
 {
-    UNUSED(timer)
+    UNUSED(timer);
     AkLogFunction();
 
     auto self = reinterpret_cast<StreamPrivate *>(info);

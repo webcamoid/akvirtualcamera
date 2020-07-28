@@ -580,13 +580,13 @@ bool AkVCam::ObjectProperties::getProperty(UInt32 property,
                     memset(&callbacks, 0, sizeof(CFArrayCallBacks));
                     callbacks.retain = [] (CFAllocatorRef allocator,
                                            const void *value) -> const void * {
-                        UNUSED(allocator)
+                        UNUSED(allocator);
 
                         return CFRetain(CMFormatDescriptionRef(value));
                     };
                     callbacks.release = [] (CFAllocatorRef allocator,
                                             const void *value) {
-                        UNUSED(allocator)
+                        UNUSED(allocator);
 
                         CFRelease(CMFormatDescriptionRef(value));
                     };

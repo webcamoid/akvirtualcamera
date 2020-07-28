@@ -275,6 +275,30 @@ void AkVCam::Preferences::sync()
     CFPreferencesAppSynchronize(PREFERENCES_ID);
 }
 
+std::string AkVCam::Preferences::addDevice(const std::wstring &description,
+                                           AkVCam::IpcBridge::DeviceType type)
+{
+    AkLogFunction();
+    auto path = createDevicePath();
+    int cameraIndex = readInt("cameras");
+    write("cameras", cameraIndex + 1);
+    write("cameras."
+          + std::to_string(cameraIndex)
+          + ".description",
+          description);
+    write("cameras."
+          + std::to_string(cameraIndex)
+          + ".isinput",
+          type == IpcBridge::DeviceTypeInput);
+    write("cameras."
+          + std::to_string(cameraIndex)
+          + ".path",
+          path);
+    sync();
+
+    return path;
+}
+
 std::string AkVCam::Preferences::addCamera(const std::wstring &description,
                                            const std::vector<VideoFormat> &formats,
                                            IpcBridge::DeviceType type)
@@ -475,6 +499,73 @@ std::vector<AkVCam::VideoFormat> AkVCam::Preferences::cameraFormats(size_t camer
     }
 
     return formats;
+}
+
+void AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
+                                          const AkVCam::VideoFormat &format,
+                                          int index)
+{
+    AkLogFunction();
+    auto formats = cameraFormats(cameraIndex);
+
+    if (index < 0 || index > int(formats.size()))
+        index = formats.size();
+
+    formats.insert(formats.begin() + index, format);
+    write("cameras."
+          + std::to_string(cameraIndex)
+          + ".formats",
+          int(formats.size()));
+
+    for (size_t i = 0; i < formats.size(); i++) {
+        auto &format = formats[i];
+        auto prefix = "cameras."
+                    + std::to_string(cameraIndex)
+                    + ".formats."
+                    + std::to_string(i);
+        auto formatStr = VideoFormat::stringFromFourcc(format.fourcc());
+        write(prefix + ".format", formatStr);
+        write(prefix + ".width", format.width());
+        write(prefix + ".height", format.height());
+        write(prefix + ".fps", format.minimumFrameRate().toString());
+    }
+
+    sync();
+}
+
+void AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
+{
+    AkLogFunction();
+
+    if (cameraIndex < 0 || !cameraIsInput(cameraIndex))
+        return;
+
+    auto formats = cameraFormats(cameraIndex);
+
+    if (index < 0 || index >= int(formats.size()))
+        return;
+
+    formats.erase(formats.begin() + index);
+
+    write("cameras."
+          + std::to_string(cameraIndex)
+          + ".formats",
+          int(formats.size()));
+
+    for (size_t i = 0; i < formats.size(); i++) {
+        auto &format = formats[i];
+        auto prefix = "cameras."
+                    + std::to_string(cameraIndex)
+                    + ".formats."
+                    + std::to_string(i);
+        auto formatStr = VideoFormat::stringFromFourcc(format.fourcc());
+        write(prefix + ".format", formatStr);
+        write(prefix + ".width", format.width());
+        write(prefix + ".height", format.height());
+        write(prefix + ".fps", format.minimumFrameRate().toString());
+    }
+
+    sync();
 }
 
 std::vector<std::string> AkVCam::Preferences::cameraConnections(size_t cameraIndex)

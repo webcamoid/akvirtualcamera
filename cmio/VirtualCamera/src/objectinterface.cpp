@@ -171,12 +171,12 @@ OSStatus AkVCam::ObjectInterface::setPropertyData(const CMIOObjectPropertyAddres
                                                   UInt32 dataSize,
                                                   const void *data)
 {
+    UNUSED(qualifierDataSize);
+    UNUSED(qualifierData);
     AkLogFunction();
     AkLogInfo() << "Setting property "
                 << enumToString(address->mSelector)
                 << std::endl;
-    UNUSED(qualifierDataSize)
-    UNUSED(qualifierData)
 
     if (!this->m_properties.setProperty(address->mSelector,
                                         dataSize,

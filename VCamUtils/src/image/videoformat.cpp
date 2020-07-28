@@ -424,7 +424,7 @@ size_t AkVCam::VideoFormatGlobals::offsetNV(size_t plane, size_t width, size_t h
 
 size_t AkVCam::VideoFormatGlobals::byplNV(size_t plane, size_t width)
 {
-    UNUSED(plane)
+    UNUSED(plane);
 
     return align32(size_t(width));
 }

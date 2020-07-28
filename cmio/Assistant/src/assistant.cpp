@@ -84,6 +84,7 @@ namespace AkVCam
             void deviceCreate(xpc_connection_t client, xpc_object_t event);
             void deviceDestroyById(const std::string &deviceId);
             void deviceDestroy(xpc_connection_t client, xpc_object_t event);
+            void deviceUpdate(xpc_connection_t client, xpc_object_t event);
             void setBroadcasting(xpc_connection_t client, xpc_object_t event);
             void setMirroring(xpc_connection_t client, xpc_object_t event);
             void setScaling(xpc_connection_t client, xpc_object_t event);
@@ -156,6 +157,7 @@ AkVCam::AssistantPrivate::AssistantPrivate()
         {AKVCAM_ASSISTANT_MSG_DEVICES               , AKVCAM_BIND_FUNC(AssistantPrivate::devices)        },
         {AKVCAM_ASSISTANT_MSG_DEVICE_DESCRIPTION    , AKVCAM_BIND_FUNC(AssistantPrivate::description)    },
         {AKVCAM_ASSISTANT_MSG_DEVICE_FORMATS        , AKVCAM_BIND_FUNC(AssistantPrivate::formats)        },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE         , AKVCAM_BIND_FUNC(AssistantPrivate::deviceUpdate)   },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD   , AKVCAM_BIND_FUNC(AssistantPrivate::listenerAdd)    },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE, AKVCAM_BIND_FUNC(AssistantPrivate::listenerRemove) },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENERS      , AKVCAM_BIND_FUNC(AssistantPrivate::listeners)      },
@@ -244,8 +246,8 @@ void AkVCam::AssistantPrivate::stopTimer()
 
 void AkVCam::AssistantPrivate::timerTimeout(CFRunLoopTimerRef timer, void *info)
 {
-    UNUSED(timer)
-    UNUSED(info)
+    UNUSED(timer);
+    UNUSED(info);
     AkLogFunction();
 
     CFRunLoopStop(CFRunLoopGetMain());
@@ -388,7 +390,7 @@ void AkVCam::AssistantPrivate::removePortByName(const std::string &portName)
 void AkVCam::AssistantPrivate::removePort(xpc_connection_t client,
                                           xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     this->removePortByName(xpc_dictionary_get_string(event, "port"));
@@ -463,12 +465,25 @@ void AkVCam::AssistantPrivate::deviceDestroyById(const std::string &deviceId)
 void AkVCam::AssistantPrivate::deviceDestroy(xpc_connection_t client,
                                              xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     std::string deviceId = xpc_dictionary_get_string(event, "device");
     this->deviceDestroyById(deviceId);
     Preferences::removeCamera(deviceId);
+}
+
+void AkVCam::AssistantPrivate::deviceUpdate(xpc_connection_t client,
+                                            xpc_object_t event)
+{
+    UNUSED(client);
+    AkLogFunction();
+    auto notification = xpc_copy(event);
+
+    for (auto &client: this->m_clients)
+        xpc_connection_send_message(client.second, notification);
+
+    xpc_release(notification);
 }
 
 void AkVCam::AssistantPrivate::setBroadcasting(xpc_connection_t client,
@@ -609,8 +624,9 @@ void AkVCam::AssistantPrivate::setSwapRgb(xpc_connection_t client,
 void AkVCam::AssistantPrivate::frameReady(xpc_connection_t client,
                                           xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
+
     auto reply = xpc_dictionary_create_reply(event);
     bool ok = true;
 

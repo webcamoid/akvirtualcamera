@@ -57,6 +57,7 @@ namespace AkVCam
                           const std::string &deviceId)
             AKVCAM_SIGNAL(DeviceRemoved,
                           const std::string &deviceId)
+            AKVCAM_SIGNAL(DevicesUpdated, void *unused)
             AKVCAM_SIGNAL(ListenerAdded,
                           const std::string &deviceId,
                           const std::string &listener)
@@ -126,10 +127,10 @@ namespace AkVCam
             std::wstring description(const std::string &deviceId) const;
 
             // Output pixel formats supported by the driver.
-            std::vector<PixelFormat> supportedOutputPixelFormats() const;
+            std::vector<PixelFormat> supportedPixelFormats(DeviceType type) const;
 
             // Default output pixel format of the driver.
-            PixelFormat defaultOutputPixelFormat() const;
+            PixelFormat defaultPixelFormat(DeviceType type) const;
 
             // Return supported formats for the device.
             std::vector<VideoFormat> formats(const std::string &deviceId) const;
@@ -164,6 +165,13 @@ namespace AkVCam
             /* Server */
 
             DeviceType deviceType(const std::string &deviceId);
+            std::string addDevice(const std::wstring &description,
+                                  DeviceType type);
+            void removeDevice(const std::string &deviceId);
+            void addFormat(const std::string &deviceId,
+                           const VideoFormat &format,
+                           int index=-1);
+            void removeFormat(const std::string &deviceId, int index);
 
             // Create a device definition.
             std::string deviceCreate(const std::wstring &description,
@@ -184,6 +192,8 @@ namespace AkVCam
 
             // Remove all device definitions.
             bool destroyAllDevices();
+
+            void updateDevices();
 
             // Start frame transfer to the device.
             bool deviceStart(const std::string &deviceId,

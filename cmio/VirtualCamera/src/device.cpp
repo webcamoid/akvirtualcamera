@@ -308,7 +308,7 @@ OSStatus AkVCam::Device::stopStream(CMIOStreamID stream)
 
 OSStatus AkVCam::Device::processAVCCommand(CMIODeviceAVCCommand *ioAVCCommand)
 {
-    UNUSED(ioAVCCommand)
+    UNUSED(ioAVCCommand);
     AkLogFunction();
     AkLogDebug() << "STUB" << std::endl;
 
@@ -317,7 +317,7 @@ OSStatus AkVCam::Device::processAVCCommand(CMIODeviceAVCCommand *ioAVCCommand)
 
 OSStatus AkVCam::Device::processRS422Command(CMIODeviceRS422Command *ioRS422Command)
 {
-    UNUSED(ioRS422Command)
+    UNUSED(ioRS422Command);
     AkLogFunction();
     AkLogDebug() << "STUB" << std::endl;
 

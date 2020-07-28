@@ -66,6 +66,7 @@ namespace AkVCam
             void isAlive(xpc_connection_t client, xpc_object_t event);
             void deviceCreate(xpc_connection_t client, xpc_object_t event);
             void deviceDestroy(xpc_connection_t client, xpc_object_t event);
+            void deviceUpdate(xpc_connection_t client, xpc_object_t event);
             void frameReady(xpc_connection_t client, xpc_object_t event);
             void setBroadcasting(xpc_connection_t client,
                                      xpc_object_t event);
@@ -389,8 +390,10 @@ std::wstring AkVCam::IpcBridge::description(const std::string &deviceId) const
     return description;
 }
 
-std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedOutputPixelFormats() const
+std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats(DeviceType type) const
 {
+    UNUSED(type);
+
     return {
         PixelFormatRGB32,
         PixelFormatRGB24,
@@ -399,8 +402,10 @@ std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedOutputPixelFormats(
     };
 }
 
-AkVCam::PixelFormat AkVCam::IpcBridge::defaultOutputPixelFormat() const
+AkVCam::PixelFormat AkVCam::IpcBridge::defaultPixelFormat(DeviceType type) const
 {
+    UNUSED(type);
+
     return PixelFormatYUY2;
 }
 
@@ -699,6 +704,34 @@ AkVCam::IpcBridge::DeviceType AkVCam::IpcBridge::deviceType(const std::string &d
                 DeviceTypeOutput;
 }
 
+std::string AkVCam::IpcBridge::addDevice(const std::wstring &description,
+                                         DeviceType type)
+{
+    return Preferences::addDevice(description, type);
+}
+
+void AkVCam::IpcBridge::removeDevice(const std::string &deviceId)
+{
+    Preferences::removeCamera(deviceId);
+}
+
+void AkVCam::IpcBridge::addFormat(const std::string &deviceId,
+                                  const AkVCam::VideoFormat &format,
+                                  int index)
+{
+    AkLogFunction();
+    Preferences::cameraAddFormat(Preferences::cameraFromPath(deviceId),
+                                 format,
+                                 index);
+}
+
+void AkVCam::IpcBridge::removeFormat(const std::string &deviceId, int index)
+{
+    AkLogFunction();
+    Preferences::cameraRemoveFormat(Preferences::cameraFromPath(deviceId),
+                                    index);
+}
+
 std::string AkVCam::IpcBridge::deviceCreate(const std::wstring &description,
                                             const std::vector<VideoFormat> &formats,
                                             DeviceType type)
@@ -819,10 +852,24 @@ bool AkVCam::IpcBridge::destroyAllDevices()
     return true;
 }
 
+void AkVCam::IpcBridge::updateDevices()
+{
+    AkLogFunction();
+
+    if (!this->d->m_serverMessagePort)
+        return;
+
+    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
+    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE);
+    xpc_connection_send_message(this->d->m_serverMessagePort, dictionary);
+    xpc_release(dictionary);
+
+}
+
 bool AkVCam::IpcBridge::deviceStart(const std::string &deviceId,
                                     const VideoFormat &format)
 {
-    UNUSED(format)
+    UNUSED(format);
     AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
@@ -1093,6 +1140,7 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
         {AKVCAM_ASSISTANT_MSG_FRAME_READY           , AKVCAM_BIND_FUNC(IpcBridgePrivate::frameReady)     },
         {AKVCAM_ASSISTANT_MSG_DEVICE_CREATE         , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceCreate)   },
         {AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY        , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceDestroy)  },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE         , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceUpdate)   },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD   , AKVCAM_BIND_FUNC(IpcBridgePrivate::listenerAdd)    },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE, AKVCAM_BIND_FUNC(IpcBridgePrivate::listenerRemove) },
         {AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING, AKVCAM_BIND_FUNC(IpcBridgePrivate::setBroadcasting)},
@@ -1149,7 +1197,7 @@ void AkVCam::IpcBridgePrivate::isAlive(xpc_connection_t client,
 void AkVCam::IpcBridgePrivate::deviceCreate(xpc_connection_t client,
                                             xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
     std::string device = xpc_dictionary_get_string(event, "device");
 
@@ -1160,7 +1208,7 @@ void AkVCam::IpcBridgePrivate::deviceCreate(xpc_connection_t client,
 void AkVCam::IpcBridgePrivate::deviceDestroy(xpc_connection_t client,
                                              xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     std::string device = xpc_dictionary_get_string(event, "device");
@@ -1169,10 +1217,21 @@ void AkVCam::IpcBridgePrivate::deviceDestroy(xpc_connection_t client,
         AKVCAM_EMIT(bridge, DeviceRemoved, device)
 }
 
+void AkVCam::IpcBridgePrivate::deviceUpdate(xpc_connection_t client,
+                                            xpc_object_t event)
+{
+    UNUSED(client);
+    UNUSED(event);
+    AkLogFunction();
+
+    for (auto bridge: this->m_bridges)
+        AKVCAM_EMIT(bridge, DevicesUpdated, nullptr)
+}
+
 void AkVCam::IpcBridgePrivate::frameReady(xpc_connection_t client,
                                           xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     std::string deviceId =
@@ -1207,7 +1266,7 @@ void AkVCam::IpcBridgePrivate::frameReady(xpc_connection_t client,
 void AkVCam::IpcBridgePrivate::setBroadcasting(xpc_connection_t client,
                                                xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     std::string deviceId =
@@ -1222,7 +1281,7 @@ void AkVCam::IpcBridgePrivate::setBroadcasting(xpc_connection_t client,
 void AkVCam::IpcBridgePrivate::setMirror(xpc_connection_t client,
                                          xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     std::string deviceId =
@@ -1243,7 +1302,7 @@ void AkVCam::IpcBridgePrivate::setMirror(xpc_connection_t client,
 void AkVCam::IpcBridgePrivate::setScaling(xpc_connection_t client,
                                           xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     std::string deviceId =
@@ -1258,7 +1317,7 @@ void AkVCam::IpcBridgePrivate::setScaling(xpc_connection_t client,
 void AkVCam::IpcBridgePrivate::setAspectRatio(xpc_connection_t client,
                                               xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     std::string deviceId =
@@ -1273,7 +1332,7 @@ void AkVCam::IpcBridgePrivate::setAspectRatio(xpc_connection_t client,
 void AkVCam::IpcBridgePrivate::setSwapRgb(xpc_connection_t client,
                                           xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     std::string deviceId =
@@ -1287,7 +1346,7 @@ void AkVCam::IpcBridgePrivate::setSwapRgb(xpc_connection_t client,
 void AkVCam::IpcBridgePrivate::listenerAdd(xpc_connection_t client,
                                            xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     std::string deviceId = xpc_dictionary_get_string(event, "device");
@@ -1300,7 +1359,7 @@ void AkVCam::IpcBridgePrivate::listenerAdd(xpc_connection_t client,
 void AkVCam::IpcBridgePrivate::listenerRemove(xpc_connection_t client,
                                               xpc_object_t event)
 {
-    UNUSED(client)
+    UNUSED(client);
     AkLogFunction();
 
     std::string deviceId = xpc_dictionary_get_string(event, "device");

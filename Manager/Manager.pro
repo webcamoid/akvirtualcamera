@@ -59,6 +59,7 @@ win32: LIBS += \
     -lshell32
 macx: LIBS += \
     -L$${OUT_PWD}/../cmio/VCamIPC/$${BIN_DIR} -lVCamIPC \
+    -L$${OUT_PWD}/../cmio/PlatformUtils/$${BIN_DIR} -lPlatformUtils \
     -framework CoreFoundation \
     -framework CoreMedia \
     -framework CoreMediaIO \

@@ -54,6 +54,7 @@ namespace AkVCam
                                     const std::string &deviceId);
             static void deviceRemoved(void *userData,
                                       const std::string &deviceId);
+            static void devicesUpdated(void *userData, void *unused);
             static void frameReady(void *userData,
                                    const std::string &deviceId,
                                    const VideoFrame &frame);

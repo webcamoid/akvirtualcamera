@@ -335,7 +335,7 @@ std::wstring AkVCam::IpcBridge::description(const std::string &deviceId) const
     return {};
 }
 
-std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedOutputPixelFormats() const
+std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats() const
 {
     return {
         PixelFormatRGB32,
@@ -348,7 +348,7 @@ std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedOutputPixelFormats(
     };
 }
 
-AkVCam::PixelFormat AkVCam::IpcBridge::defaultOutputPixelFormat() const
+AkVCam::PixelFormat AkVCam::IpcBridge::defaultPixelFormat() const
 {
     return PixelFormatYUY2;
 }

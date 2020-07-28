@@ -967,7 +967,7 @@ uint8_t AkVCam::VideoFramePrivate::rgb_v(int r, int g, int b)
 
 uint8_t AkVCam::VideoFramePrivate::yuv_r(int y, int u, int v)
 {
-    UNUSED(u)
+    UNUSED(u);
     int r = (298 * (y - 16) + 409 * (v - 128) + 128) >> 8;
 
     return uint8_t(bound(0, r, 255));
@@ -982,7 +982,7 @@ uint8_t AkVCam::VideoFramePrivate::yuv_g(int y, int u, int v)
 
 uint8_t AkVCam::VideoFramePrivate::yuv_b(int y, int u, int v)
 {
-    UNUSED(v)
+    UNUSED(v);
     int b = (298 * (y - 16) + 516 * (u - 128) + 128) >> 8;
 
     return uint8_t(bound(0, b, 255));

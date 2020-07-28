@@ -18,12 +18,14 @@
  */
 
 #include <algorithm>
+#include <codecvt>
 #include <iostream>
 #include <functional>
 #include <sstream>
-#include <VCamUtils/src/ipcbridge.h>
 
 #include "cmdparser.h"
+#include "VCamUtils/src/ipcbridge.h"
+#include "VCamUtils/src/image/videoformat.h"
 
 #define AKVCAM_BIND_FUNC(member) \
     std::bind(&member, this->d, std::placeholders::_1, std::placeholders::_2)
@@ -49,6 +51,8 @@ namespace AkVCam {
     {
         public:
             std::vector<CmdParserCommand> m_commands;
+            IpcBridge m_ipcBridge;
+            bool m_parseable {false};
 
             std::string basename(const std::string &path);
             void printFlags(const std::vector<CmdParserFlags> &cmdFlags,
@@ -57,7 +61,10 @@ namespace AkVCam {
             size_t maxArgumentsLength();
             size_t maxFlagsLength(const std::vector<CmdParserFlags> &flags);
             size_t maxFlagsValueLength(const std::vector<CmdParserFlags> &flags);
+            size_t maxStringLength(const StringVector &strings);
+            size_t maxStringLength(const WStringVector &strings);
             std::string fill(const std::string &str, size_t maxSize);
+            std::wstring fill(const std::wstring &str, size_t maxSize);
             std::string join(const StringVector &strings,
                              const std::string &separator);
             CmdParserCommand *parserCommand(const std::string &command);
@@ -66,6 +73,9 @@ namespace AkVCam {
             bool containsFlag(const StringMap &flags,
                               const std::string &command,
                               const std::string &flagAlias);
+            std::string flagValue(const StringMap &flags,
+                                  const std::string &command,
+                                  const std::string &flagAlias);
             int defaultHandler(const StringMap &flags,
                                const StringVector &args);
             int showHelp(const StringMap &flags, const StringVector &args);
@@ -82,6 +92,7 @@ namespace AkVCam {
             int addFormat(const StringMap &flags, const StringVector &args);
             int removeFormat(const StringMap &flags, const StringVector &args);
             int update(const StringMap &flags, const StringVector &args);
+            int loadSettings(const StringMap &flags, const StringVector &args);
             int showConnections(const StringMap &flags,
                                 const StringVector &args);
             int connectDevices(const StringMap &flags,
@@ -93,6 +104,8 @@ namespace AkVCam {
             int writeOption(const StringMap &flags, const StringVector &args);
             int showClients(const StringMap &flags, const StringVector &args);
     };
+
+    std::string operator *(const std::string &str, size_t n);
 }
 
 AkVCam::CmdParser::CmdParser()
@@ -155,13 +168,17 @@ AkVCam::CmdParser::CmdParser()
                    "INDEX",
                    "Add format at INDEX.");
     this->addCommand("remove-format",
-                     "INDEX",
+                     "DEVICE INDEX",
                      "Remove device format.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::removeFormat));
     this->addCommand("update",
                      "",
                      "Update devices.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::update));
+    this->addCommand("load",
+                     "SETTINGS.INI",
+                     "Create devices from a setting file.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::loadSettings));
     this->addCommand("connections",
                      "[DEVICE]",
                      "Show device connections.",
@@ -190,10 +207,12 @@ AkVCam::CmdParser::CmdParser()
                      "",
                      "Show clients using the camera.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::showClients));
+    this->d->m_ipcBridge.connectService();
 }
 
 AkVCam::CmdParser::~CmdParser()
 {
+    this->d->m_ipcBridge.disconnectService();
     delete this->d;
 }
 
@@ -416,12 +435,41 @@ size_t AkVCam::CmdParserPrivate::maxFlagsValueLength(const std::vector<CmdParser
     return length;
 }
 
+size_t AkVCam::CmdParserPrivate::maxStringLength(const StringVector &strings)
+{
+    size_t length = 0;
+
+    for (auto &str: strings)
+        length = std::max(str.size(), length);
+
+    return length;
+}
+
+size_t AkVCam::CmdParserPrivate::maxStringLength(const WStringVector &strings)
+{
+    size_t length = 0;
+
+    for (auto &str: strings)
+        length = std::max(str.size(), length);
+
+    return length;
+}
+
 std::string AkVCam::CmdParserPrivate::fill(const std::string &str,
                                            size_t maxSize)
 {
     std::stringstream ss;
     std::vector<char> spaces(maxSize, ' ');
     ss << str << std::string(spaces.data(), maxSize - str.size());
+
+    return ss.str();
+}
+
+std::wstring AkVCam::CmdParserPrivate::fill(const std::wstring &str, size_t maxSize)
+{
+    std::wstringstream ss;
+    std::vector<wchar_t> spaces(maxSize, ' ');
+    ss << str << std::wstring(spaces.data(), maxSize - str.size());
 
     return ss.str();
 }
@@ -491,11 +539,41 @@ bool AkVCam::CmdParserPrivate::containsFlag(const StringMap &flags,
     return false;
 }
 
+std::string AkVCam::CmdParserPrivate::flagValue(const AkVCam::StringMap &flags,
+                                                const std::string &command,
+                                                const std::string &flagAlias)
+{
+    for (auto &cmd: this->m_commands)
+        if (cmd.command == command) {
+            for (auto &flag: cmd.flags) {
+                auto it = std::find(flag.flags.begin(),
+                                    flag.flags.end(),
+                                    flagAlias);
+
+                if (it != flag.flags.end()) {
+                    for (auto &f1: flags)
+                        for (auto &f2: flag.flags)
+                            if (f1.first == f2)
+                                return f1.second;
+
+                    return {};
+                }
+            }
+
+            return {};
+        }
+
+    return {};
+}
+
 int AkVCam::CmdParserPrivate::defaultHandler(const StringMap &flags,
                                              const StringVector &args)
 {
     if (flags.empty() || this->containsFlag(flags, "", "-h"))
         return this->showHelp(flags, args);
+
+    if (this->containsFlag(flags, "", "-p"))
+        this->m_parseable = true;
 
     return 0;
 }
@@ -503,7 +581,7 @@ int AkVCam::CmdParserPrivate::defaultHandler(const StringMap &flags,
 int AkVCam::CmdParserPrivate::showHelp(const StringMap &flags,
                                        const StringVector &args)
 {
-    UNUSED(flags)
+    UNUSED(flags);
 
     std::cout << args[0]
             << " [OPTIONS...] COMMAND [COMMAND_OPTIONS...] ..."
@@ -547,59 +625,389 @@ int AkVCam::CmdParserPrivate::showHelp(const StringMap &flags,
 int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,
                                           const StringVector &args)
 {
+    UNUSED(flags);
+    UNUSED(args);
+
+    if (this->m_parseable) {
+        for (auto &device: this->m_ipcBridge.listDevices())
+            std::cout << device << std::endl;
+    } else {
+        StringVector devicesColumn;
+        StringVector typesColumn;
+        WStringVector descriptionsColumn;
+
+        devicesColumn.push_back("Device");
+        typesColumn.push_back("Type");
+        descriptionsColumn.push_back(L"Description");
+
+        for (auto &device: this->m_ipcBridge.listDevices()) {
+            devicesColumn.push_back(device);
+            typesColumn.push_back(this->m_ipcBridge.deviceType(device) == IpcBridge::DeviceTypeInput?
+                                      "Input":
+                                      "Output");
+            descriptionsColumn.push_back(this->m_ipcBridge.description(device));
+        }
+
+        auto devicesColumnSize = this->maxStringLength(devicesColumn);
+        auto typesColumnSize = this->maxStringLength(typesColumn);
+        auto descriptionsColumnSize = this->maxStringLength(descriptionsColumn);
+
+        std::cout << this->fill("Device", devicesColumnSize)
+                  << " | "
+                  << this->fill("Type", typesColumnSize)
+                  << " | "
+                  << this->fill("Description", descriptionsColumnSize)
+                  << std::endl;
+        std::cout << std::string("-")
+                     * (devicesColumnSize
+                        + typesColumnSize
+                        + descriptionsColumnSize
+                        + 6) << std::endl;
+
+        for (auto &device: this->m_ipcBridge.listDevices()) {
+            std::string type =
+                    this->m_ipcBridge.deviceType(device) == IpcBridge::DeviceTypeInput?
+                        "Input":
+                        "Output";
+            std::cout << this->fill(device, devicesColumnSize)
+                      << " | "
+                      << this->fill(type, typesColumnSize)
+                      << " | ";
+            std::wcout << this->fill(this->m_ipcBridge.description(device),
+                                     descriptionsColumnSize)
+                       << std::endl;
+        }
+    }
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::addDevice(const StringMap &flags,
                                         const StringVector &args)
 {
+    if (args.size() < 2) {
+        std::cerr << "Device description not provided." << std::endl;
+
+        return -1;
+    }
+
+    IpcBridge::DeviceType type =
+            this->containsFlag(flags, "add-device", "-i")?
+                IpcBridge::DeviceTypeInput:
+                IpcBridge::DeviceTypeOutput;
+
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
+    auto deviceId = this->m_ipcBridge.addDevice(cv.from_bytes(args[1]), type);
+
+    if (deviceId.empty()) {
+        std::cerr << "Failed to create device." << std::endl;
+
+        return -1;
+    }
+
+    if (this->m_parseable)
+        std::cout << deviceId << std::endl;
+    else
+        std::cout << "Device created as " << deviceId << std::endl;
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::removeDevice(const StringMap &flags,
                                            const StringVector &args)
 {
+    UNUSED(flags);
+
+    if (args.size() < 2) {
+        std::cerr << "Device not provided." << std::endl;
+
+        return -1;
+    }
+
+    auto devices = this->m_ipcBridge.listDevices();
+    auto it = std::find(devices.begin(), devices.end(), args[1]);
+
+    if (it == devices.end()) {
+        std::cerr << "Device not doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    this->m_ipcBridge.removeDevice(args[1]);
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::showDeviceType(const StringMap &flags,
                                              const StringVector &args)
 {
+    UNUSED(flags);
+
+    if (args.size() < 2) {
+        std::cerr << "Device not provided." << std::endl;
+
+        return -1;
+    }
+
+    auto devices = this->m_ipcBridge.listDevices();
+    auto it = std::find(devices.begin(), devices.end(), args[1]);
+
+    if (it == devices.end()) {
+        std::cerr << "Device not doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    if (this->m_ipcBridge.deviceType(args[1]) == IpcBridge::DeviceTypeInput)
+        std::cout << "Input" << std::endl;
+    else
+        std::cout << "Output" << std::endl;
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::showDeviceDescription(const StringMap &flags,
                                                     const StringVector &args)
 {
+    UNUSED(flags);
+
+    if (args.size() < 2) {
+        std::cerr << "Device not provided." << std::endl;
+
+        return -1;
+    }
+
+    auto devices = this->m_ipcBridge.listDevices();
+    auto it = std::find(devices.begin(), devices.end(), args[1]);
+
+    if (it == devices.end()) {
+        std::cerr << "Device not doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    std::wcout << this->m_ipcBridge.description(args[1]) << std::endl;
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::showSupportedFormats(const StringMap &flags,
                                                    const StringVector &args)
 {
+    UNUSED(args);
+
+    auto type =
+            this->containsFlag(flags, "supported-formats", "-i")?
+                IpcBridge::DeviceTypeInput:
+                IpcBridge::DeviceTypeOutput;
+    auto formats = this->m_ipcBridge.supportedPixelFormats(type);
+
+    if (!this->m_parseable) {
+        if (type == IpcBridge::DeviceTypeInput)
+            std::cout << "Input formats:" << std::endl;
+        else
+            std::cout << "Output formats:" << std::endl;
+
+        std::cout << std::endl;
+    }
+
+    for (auto &format: formats)
+        std::cout << VideoFormat::stringFromFourcc(format) << std::endl;
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::showFormats(const StringMap &flags,
                                           const StringVector &args)
 {
+    UNUSED(flags);
+
+    if (args.size() < 2) {
+        std::cerr << "Device not provided." << std::endl;
+
+        return -1;
+    }
+
+    auto devices = this->m_ipcBridge.listDevices();
+    auto it = std::find(devices.begin(), devices.end(), args[1]);
+
+    if (it == devices.end()) {
+        std::cerr << "Device not doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    if (this->m_parseable) {
+        for  (auto &format: this->m_ipcBridge.formats(args[1]))
+            std::cout << VideoFormat::stringFromFourcc(format.fourcc())
+                      << ' '
+                      << format.width()
+                      << ' '
+                      << format.height()
+                      << ' '
+                      << format.minimumFrameRate().num()
+                      << ' '
+                      << format.minimumFrameRate().den()
+                      << std::endl;
+    } else {
+        int i = 0;
+
+        for  (auto &format: this->m_ipcBridge.formats(args[1])) {
+            std::cout << i
+                      << ": "
+                      << VideoFormat::stringFromFourcc(format.fourcc())
+                      << ' '
+                      << format.width()
+                      << 'x'
+                      << format.height()
+                      << ' '
+                      << format.minimumFrameRate().num()
+                      << '/'
+                      << format.minimumFrameRate().den()
+                      << " FPS"
+                      << std::endl;
+            i++;
+        }
+    }
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
                                         const StringVector &args)
 {
+    if (args.size() < 6) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    auto deviceId = args[1];
+    auto devices = this->m_ipcBridge.listDevices();
+    auto dit = std::find(devices.begin(), devices.end(), args[1]);
+
+    if (dit == devices.end()) {
+        std::cerr << "Device not doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    auto format = VideoFormat::fourccFromString(args[2]);
+
+    if (!format) {
+        std::cerr << "Invalid pixel format." << std::endl;
+
+        return -1;
+    }
+
+    auto type = this->m_ipcBridge.deviceType(deviceId);
+    auto formats = this->m_ipcBridge.supportedPixelFormats(type);
+    auto fit = std::find(formats.begin(), formats.end(), format);
+
+    if (fit == formats.end()) {
+        if (type == IpcBridge::DeviceTypeInput)
+            std::cerr << "Input format not supported." << std::endl;
+        else
+            std::cerr << "Output format not supported." << std::endl;
+
+        return -1;
+    }
+
+    char *p = nullptr;
+    auto width = strtoul(args[3].c_str(), &p, 10);
+
+    if (*p) {
+        std::cerr << "Width must be an unsigned integer." << std::endl;
+
+        return -1;
+    }
+
+    p = nullptr;
+    auto height = strtoul(args[4].c_str(), &p, 10);
+
+    if (*p) {
+        std::cerr << "Height must be an unsigned integer." << std::endl;
+
+        return -1;
+    }
+
+    Fraction fps(args[5]);
+
+    if (fps.num() < 1 || fps.den() < 1) {
+        std::cerr << "Invalid frame rate." << std::endl;
+
+        return -1;
+    }
+
+    auto indexStr = this->flagValue(flags, "add-format", "-i");
+    int index = -1;
+
+    if (!indexStr.empty()) {
+        p = nullptr;
+        index = strtoul(indexStr.c_str(), &p, 10);
+
+        if (*p) {
+            std::cerr << "Index must be an unsigned integer." << std::endl;
+
+            return -1;
+        }
+    }
+
+    VideoFormat fmt(format, width, height, {fps});
+    this->m_ipcBridge.addFormat(deviceId, fmt, index);
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
                                            const StringVector &args)
 {
+    if (args.size() < 3) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    auto deviceId = args[1];
+    auto devices = this->m_ipcBridge.listDevices();
+    auto dit = std::find(devices.begin(), devices.end(), args[1]);
+
+    if (dit == devices.end()) {
+        std::cerr << "Device not doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    char *p = nullptr;
+    auto index = strtoul(args[2].c_str(), &p, 10);
+
+    if (*p) {
+        std::cerr << "Index must be an unsigned integer." << std::endl;
+
+        return -1;
+    }
+
+    auto formats = this->m_ipcBridge.formats(deviceId);
+
+    if (index >= formats.size()) {
+        std::cerr << "Index is out of range." << std::endl;
+
+        return -1;
+    }
+
+    this->m_ipcBridge.removeFormat(deviceId, index);
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::update(const StringMap &flags,
                                      const StringVector &args)
+{
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::loadSettings(const AkVCam::StringMap &flags,
+                                           const AkVCam::StringVector &args)
 {
     return 0;
 }
@@ -644,4 +1052,14 @@ int AkVCam::CmdParserPrivate::showClients(const StringMap &flags,
                                           const StringVector &args)
 {
     return 0;
+}
+
+std::string AkVCam::operator *(const std::string &str, size_t n)
+{
+    std::stringstream ss;
+
+    for (size_t i = 0; i < n; i++)
+        ss << str;
+
+    return ss.str();
 }

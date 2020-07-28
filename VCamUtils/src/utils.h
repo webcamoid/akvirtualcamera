@@ -25,7 +25,7 @@
 #include <vector>
 
 #ifndef UNUSED
-    #define UNUSED(x) (void)(x);
+    #define UNUSED(x) (void)(x)
 #endif
 
 #define GLOBAL_STATIC(type, variableName) \
