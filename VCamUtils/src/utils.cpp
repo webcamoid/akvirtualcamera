@@ -20,6 +20,7 @@
 #include <cstring>
 #include <ctime>
 #include <fstream>
+#include <sstream>
 
 #include "utils.h"
 
@@ -155,6 +156,39 @@ std::wstring AkVCam::trimmed(const std::wstring &str)
     }
 
     return str.substr(size_t(left), strippedLen);
+}
+
+std::string AkVCam::fill(const std::string &str, size_t maxSize)
+{
+    std::stringstream ss;
+    std::vector<char> spaces(maxSize, ' ');
+    ss << str << std::string(spaces.data(), maxSize - str.size());
+
+    return ss.str();
+}
+
+std::wstring AkVCam::fill(const std::wstring &str, size_t maxSize)
+{
+    std::wstringstream ss;
+    std::vector<wchar_t> spaces(maxSize, ' ');
+    ss << str << std::wstring(spaces.data(), maxSize - str.size());
+
+    return ss.str();
+}
+
+std::string AkVCam::join(const std::vector<std::string> &strs,
+                         const std::string &separator)
+{
+    std::stringstream ss;
+
+    for (size_t i = 0; i < strs.size(); i++) {
+        if (i > 0)
+            ss << separator;
+
+        ss << strs[i];
+    }
+
+    return ss.str();
 }
 
 std::vector<std::string> AkVCam::split(const std::string &str, char separator)

@@ -153,6 +153,10 @@ namespace AkVCam
     bool isEqualFile(const std::wstring &file1, const std::wstring &file2);
     std::string trimmed(const std::string &str);
     std::wstring trimmed(const std::wstring &str);
+    std::string fill(const std::string &str, size_t maxSize);
+    std::wstring fill(const std::wstring &str, size_t maxSize);
+    std::string join(const std::vector<std::string> &strs,
+                     const std::string &separator);
     std::vector<std::string> split(const std::string &str, char separator);
 }
 

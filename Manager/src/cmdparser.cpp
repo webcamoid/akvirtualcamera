@@ -63,10 +63,6 @@ namespace AkVCam {
             size_t maxFlagsValueLength(const std::vector<CmdParserFlags> &flags);
             size_t maxStringLength(const StringVector &strings);
             size_t maxStringLength(const WStringVector &strings);
-            std::string fill(const std::string &str, size_t maxSize);
-            std::wstring fill(const std::wstring &str, size_t maxSize);
-            std::string join(const StringVector &strings,
-                             const std::string &separator);
             CmdParserCommand *parserCommand(const std::string &command);
             const CmdParserFlags *parserFlag(const std::vector<CmdParserFlags> &cmdFlags,
                                              const std::string &flag);
@@ -86,6 +82,8 @@ namespace AkVCam {
                                const StringVector &args);
             int showDeviceDescription(const StringMap &flags,
                                       const StringVector &args);
+            int setDeviceDescription(const StringMap &flags,
+                                     const StringVector &args);
             int showSupportedFormats(const StringMap &flags,
                                      const StringVector &args);
             int showFormats(const StringMap &flags, const StringVector &args);
@@ -137,14 +135,18 @@ AkVCam::CmdParser::CmdParser()
                      "DEVICE",
                      "Remove a device.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::removeDevice));
-    this->addCommand("device-type",
+    this->addCommand("type",
                      "DEVICE",
                      "Show device type.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::showDeviceType));
-    this->addCommand("device-description",
+    this->addCommand("description",
                      "DEVICE",
                      "Show device description.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::showDeviceDescription));
+    this->addCommand("set-description",
+                     "DEVICE DESCRIPTION",
+                     "Set device description.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::setDeviceDescription));
     this->addCommand("supported-formats",
                      "",
                      "Show supported formats.",
@@ -180,15 +182,15 @@ AkVCam::CmdParser::CmdParser()
                      "Create devices from a setting file.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::loadSettings));
     this->addCommand("connections",
-                     "[DEVICE]",
+                     "DEVICE",
                      "Show device connections.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::showConnections));
     this->addCommand("connect",
-                     "OUTPUT_DEVICE INPUTDEVICE [INPUT_DEVICE ...]",
+                     "INPUT_DEVICE OUTPUTDEVICE [OUTPUT_DEVICE ...]",
                      "Connect devices.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::connectDevices));
     this->addCommand("disconnect",
-                     "OUTPUT_DEVICE INPUTDEVICE",
+                     "INPUT_DEVICE OUTPUTDEVICE",
                      "Disconnect devices.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::disconnectDevices));
     this->addCommand("options",
@@ -380,13 +382,13 @@ void AkVCam::CmdParserPrivate::printFlags(const std::vector<CmdParserFlags> &cmd
     auto maxFlagsValueLen = this->maxFlagsValueLength(cmdFlags);
 
     for (auto &flag: cmdFlags) {
-        auto allFlags = this->join(flag.flags, ", ");
+        auto allFlags = join(flag.flags, ", ");
         std::cout << std::string(spaces.data(), indent)
-                  << this->fill(allFlags, maxFlagsLen);
+                  << fill(allFlags, maxFlagsLen);
 
         if (maxFlagsValueLen > 0) {
             std::cout << " "
-                      << this->fill(flag.value, maxFlagsValueLen);
+                      << fill(flag.value, maxFlagsValueLen);
         }
 
         std::cout << "    "
@@ -420,7 +422,7 @@ size_t AkVCam::CmdParserPrivate::maxFlagsLength(const std::vector<CmdParserFlags
     size_t length = 0;
 
     for (auto &flag: flags)
-        length = std::max(this->join(flag.flags, ", ").size(), length);
+        length = std::max(join(flag.flags, ", ").size(), length);
 
     return length;
 }
@@ -453,43 +455,6 @@ size_t AkVCam::CmdParserPrivate::maxStringLength(const WStringVector &strings)
         length = std::max(str.size(), length);
 
     return length;
-}
-
-std::string AkVCam::CmdParserPrivate::fill(const std::string &str,
-                                           size_t maxSize)
-{
-    std::stringstream ss;
-    std::vector<char> spaces(maxSize, ' ');
-    ss << str << std::string(spaces.data(), maxSize - str.size());
-
-    return ss.str();
-}
-
-std::wstring AkVCam::CmdParserPrivate::fill(const std::wstring &str, size_t maxSize)
-{
-    std::wstringstream ss;
-    std::vector<wchar_t> spaces(maxSize, ' ');
-    ss << str << std::wstring(spaces.data(), maxSize - str.size());
-
-    return ss.str();
-}
-
-std::string AkVCam::CmdParserPrivate::join(const StringVector &strings,
-                                           const std::string &separator)
-{
-    std::stringstream ss;
-    bool append = false;
-
-    for (auto &str: strings) {
-        if (append)
-            ss << separator;
-        else
-            append = true;
-
-        ss << str;
-    }
-
-    return ss.str();
 }
 
 AkVCam::CmdParserCommand *AkVCam::CmdParserPrivate::parserCommand(const std::string &command)
@@ -604,9 +569,9 @@ int AkVCam::CmdParserPrivate::showHelp(const StringMap &flags,
             continue;
 
         std::cout << "    "
-                  << this->fill(cmd.command, maxCmdLen)
+                  << fill(cmd.command, maxCmdLen)
                   << " "
-                  << this->fill(cmd.arguments, maxArgsLen)
+                  << fill(cmd.arguments, maxArgsLen)
                   << "    "
                   << cmd.helpString << std::endl;
 
@@ -628,8 +593,13 @@ int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,
     UNUSED(flags);
     UNUSED(args);
 
+    auto devices = this->m_ipcBridge.devices();
+
+    if (devices.empty())
+        return 0;
+
     if (this->m_parseable) {
-        for (auto &device: this->m_ipcBridge.listDevices())
+        for (auto &device: devices)
             std::cout << device << std::endl;
     } else {
         StringVector devicesColumn;
@@ -640,7 +610,7 @@ int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,
         typesColumn.push_back("Type");
         descriptionsColumn.push_back(L"Description");
 
-        for (auto &device: this->m_ipcBridge.listDevices()) {
+        for (auto &device: devices) {
             devicesColumn.push_back(device);
             typesColumn.push_back(this->m_ipcBridge.deviceType(device) == IpcBridge::DeviceTypeInput?
                                       "Input":
@@ -652,11 +622,11 @@ int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,
         auto typesColumnSize = this->maxStringLength(typesColumn);
         auto descriptionsColumnSize = this->maxStringLength(descriptionsColumn);
 
-        std::cout << this->fill("Device", devicesColumnSize)
+        std::cout << fill("Device", devicesColumnSize)
                   << " | "
-                  << this->fill("Type", typesColumnSize)
+                  << fill("Type", typesColumnSize)
                   << " | "
-                  << this->fill("Description", descriptionsColumnSize)
+                  << fill("Description", descriptionsColumnSize)
                   << std::endl;
         std::cout << std::string("-")
                      * (devicesColumnSize
@@ -664,17 +634,17 @@ int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,
                         + descriptionsColumnSize
                         + 6) << std::endl;
 
-        for (auto &device: this->m_ipcBridge.listDevices()) {
+        for (auto &device: devices) {
             std::string type =
                     this->m_ipcBridge.deviceType(device) == IpcBridge::DeviceTypeInput?
                         "Input":
                         "Output";
-            std::cout << this->fill(device, devicesColumnSize)
+            std::cout << fill(device, devicesColumnSize)
                       << " | "
-                      << this->fill(type, typesColumnSize)
+                      << fill(type, typesColumnSize)
                       << " | ";
-            std::wcout << this->fill(this->m_ipcBridge.description(device),
-                                     descriptionsColumnSize)
+            std::wcout << fill(this->m_ipcBridge.description(device),
+                               descriptionsColumnSize)
                        << std::endl;
         }
     }
@@ -724,11 +694,11 @@ int AkVCam::CmdParserPrivate::removeDevice(const StringMap &flags,
         return -1;
     }
 
-    auto devices = this->m_ipcBridge.listDevices();
+    auto devices = this->m_ipcBridge.devices();
     auto it = std::find(devices.begin(), devices.end(), args[1]);
 
     if (it == devices.end()) {
-        std::cerr << "Device not doesn't exists." << std::endl;
+        std::cerr << "Device doesn't exists." << std::endl;
 
         return -1;
     }
@@ -749,11 +719,11 @@ int AkVCam::CmdParserPrivate::showDeviceType(const StringMap &flags,
         return -1;
     }
 
-    auto devices = this->m_ipcBridge.listDevices();
+    auto devices = this->m_ipcBridge.devices();
     auto it = std::find(devices.begin(), devices.end(), args[1]);
 
     if (it == devices.end()) {
-        std::cerr << "Device not doesn't exists." << std::endl;
+        std::cerr << "device doesn't exists." << std::endl;
 
         return -1;
     }
@@ -777,16 +747,43 @@ int AkVCam::CmdParserPrivate::showDeviceDescription(const StringMap &flags,
         return -1;
     }
 
-    auto devices = this->m_ipcBridge.listDevices();
+    auto devices = this->m_ipcBridge.devices();
     auto it = std::find(devices.begin(), devices.end(), args[1]);
 
     if (it == devices.end()) {
-        std::cerr << "Device not doesn't exists." << std::endl;
+        std::cerr << "Device doesn't exists." << std::endl;
 
         return -1;
     }
 
     std::wcout << this->m_ipcBridge.description(args[1]) << std::endl;
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::setDeviceDescription(const AkVCam::StringMap &flags,
+                                                   const AkVCam::StringVector &args)
+{
+    UNUSED(flags);
+
+    if (args.size() < 3) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    auto deviceId = args[1];
+    auto devices = this->m_ipcBridge.devices();
+    auto dit = std::find(devices.begin(), devices.end(), args[1]);
+
+    if (dit == devices.end()) {
+        std::cerr << "device doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
+    this->m_ipcBridge.setDescription(deviceId, cv.from_bytes(args[2]));
 
     return 0;
 }
@@ -828,11 +825,11 @@ int AkVCam::CmdParserPrivate::showFormats(const StringMap &flags,
         return -1;
     }
 
-    auto devices = this->m_ipcBridge.listDevices();
+    auto devices = this->m_ipcBridge.devices();
     auto it = std::find(devices.begin(), devices.end(), args[1]);
 
     if (it == devices.end()) {
-        std::cerr << "Device not doesn't exists." << std::endl;
+        std::cerr << "device doesn't exists." << std::endl;
 
         return -1;
     }
@@ -883,11 +880,11 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
     }
 
     auto deviceId = args[1];
-    auto devices = this->m_ipcBridge.listDevices();
+    auto devices = this->m_ipcBridge.devices();
     auto dit = std::find(devices.begin(), devices.end(), args[1]);
 
     if (dit == devices.end()) {
-        std::cerr << "Device not doesn't exists." << std::endl;
+        std::cerr << "device doesn't exists." << std::endl;
 
         return -1;
     }
@@ -962,6 +959,8 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
 int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
                                            const StringVector &args)
 {
+    UNUSED(flags);
+
     if (args.size() < 3) {
         std::cerr << "Not enough arguments." << std::endl;
 
@@ -969,11 +968,11 @@ int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
     }
 
     auto deviceId = args[1];
-    auto devices = this->m_ipcBridge.listDevices();
+    auto devices = this->m_ipcBridge.devices();
     auto dit = std::find(devices.begin(), devices.end(), args[1]);
 
     if (dit == devices.end()) {
-        std::cerr << "Device not doesn't exists." << std::endl;
+        std::cerr << "device doesn't exists." << std::endl;
 
         return -1;
     }
@@ -1003,6 +1002,10 @@ int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
 int AkVCam::CmdParserPrivate::update(const StringMap &flags,
                                      const StringVector &args)
 {
+    UNUSED(flags);
+    UNUSED(args);
+    this->m_ipcBridge.update();
+
     return 0;
 }
 
@@ -1015,18 +1018,140 @@ int AkVCam::CmdParserPrivate::loadSettings(const AkVCam::StringMap &flags,
 int AkVCam::CmdParserPrivate::showConnections(const StringMap &flags,
                                               const StringVector &args)
 {
+    UNUSED(flags);
+
+    if (args.size() < 2) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    auto deviceId = args[1];
+    auto devices = this->m_ipcBridge.devices();
+    auto dit = std::find(devices.begin(), devices.end(), args[1]);
+
+    if (dit == devices.end()) {
+        std::cerr << "device doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    for (auto &connectedDevice: this->m_ipcBridge.connections(deviceId))
+        std::cout << connectedDevice << std::endl;
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::connectDevices(const StringMap &flags,
                                              const StringVector &args)
 {
+    UNUSED(flags);
+
+    if (args.size() < 3) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    auto inputDevice = args[1];
+    auto devices = this->m_ipcBridge.devices();
+    auto it = std::find(devices.begin(), devices.end(), inputDevice);
+
+    if (it == devices.end()) {
+        std::cerr << inputDevice << " doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    if (this->m_ipcBridge.deviceType(inputDevice) != IpcBridge::DeviceTypeInput) {
+        std::cerr << inputDevice << " is not an input." << std::endl;
+
+        return -1;
+    }
+
+    auto outputDevices = this->m_ipcBridge.connections(inputDevice);
+
+    for (size_t i = 2; i < args.size(); i++) {
+        auto &outputDevice = args[i];
+        auto it = std::find(devices.begin(), devices.end(), outputDevice);
+
+        if (it == devices.end()) {
+            std::cerr << outputDevice << " doesn't exists." << std::endl;
+
+            return -1;
+        }
+
+        if (this->m_ipcBridge.deviceType(outputDevice) != IpcBridge::DeviceTypeOutput) {
+            std::cerr << outputDevice << " is not an output." << std::endl;
+
+            return -1;
+        }
+
+        auto cit = std::find(outputDevices.begin(),
+                             outputDevices.end(),
+                             outputDevice);
+
+        if (cit == outputDevices.end())
+            outputDevices.push_back(outputDevice);
+    }
+
+    this->m_ipcBridge.setConnections(inputDevice, outputDevices);
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::disconnectDevices(const StringMap &flags,
                                                 const StringVector &args)
 {
+    UNUSED(flags);
+
+    if (args.size() < 3) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    auto inputDevice = args[1];
+    auto devices = this->m_ipcBridge.devices();
+    auto it = std::find(devices.begin(), devices.end(), inputDevice);
+
+    if (it == devices.end()) {
+        std::cerr << inputDevice << " doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    if (this->m_ipcBridge.deviceType(inputDevice) != IpcBridge::DeviceTypeInput) {
+        std::cerr << inputDevice << " is not an input." << std::endl;
+
+        return -1;
+    }
+
+    auto outputDevices = this->m_ipcBridge.connections(inputDevice);
+    auto &outputDevice = args[2];
+    auto dit = std::find(devices.begin(), devices.end(), outputDevice);
+
+    if (dit == devices.end()) {
+        std::cerr << outputDevice << " doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    if (this->m_ipcBridge.deviceType(outputDevice) != IpcBridge::DeviceTypeOutput) {
+        std::cerr << outputDevice << " is not an output." << std::endl;
+
+        return -1;
+    }
+
+    auto cit = std::find(outputDevices.begin(),
+                         outputDevices.end(),
+                         outputDevice);
+
+    if (cit == outputDevices.end())
+        outputDevices.push_back(outputDevice);
+
+    this->m_ipcBridge.setConnections(inputDevice, outputDevices);
+
     return 0;
 }
 
@@ -1051,6 +1176,50 @@ int AkVCam::CmdParserPrivate::writeOption(const StringMap &flags,
 int AkVCam::CmdParserPrivate::showClients(const StringMap &flags,
                                           const StringVector &args)
 {
+    UNUSED(flags);
+    UNUSED(args);
+
+    auto clients = this->m_ipcBridge.clientsPids();
+
+    if (clients.empty())
+        return 0;
+
+    if (this->m_parseable) {
+        for (auto &pid: clients)
+            std::cout << pid
+                      << " "
+                      << this->m_ipcBridge.clientExe(pid)
+                      << std::endl;
+    } else {
+        StringVector pidsColumn;
+        StringVector exesColumn;
+
+        pidsColumn.push_back("Pid");
+        exesColumn.push_back("Executable");
+
+        for (auto &pid: clients) {
+            pidsColumn.push_back(std::to_string(pid));
+            exesColumn.push_back(this->m_ipcBridge.clientExe(pid));
+        }
+
+        auto pidsColumnSize = this->maxStringLength(pidsColumn);
+        auto exesColumnSize = this->maxStringLength(exesColumn);
+
+        std::cout << fill("Pid", pidsColumnSize)
+                  << " | "
+                  << fill("Executable", exesColumnSize)
+                  << std::endl;
+        std::cout << std::string("-")
+                     * (pidsColumnSize + exesColumnSize + 4)
+                  << std::endl;
+
+        for (auto &pid: clients)
+            std::cout << fill(std::to_string(pid), pidsColumnSize)
+                      << " | "
+                      << fill(this->m_ipcBridge.clientExe(pid), exesColumnSize)
+                      << std::endl;
+    }
+
     return 0;
 }
 

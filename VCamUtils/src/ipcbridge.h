@@ -121,10 +121,12 @@ namespace AkVCam
             void unregisterPeer();
 
             // List available devices.
-            std::vector<std::string> listDevices() const;
+            std::vector<std::string> devices() const;
 
             // Return human readable description of the device.
             std::wstring description(const std::string &deviceId) const;
+            void setDescription(const std::string &deviceId,
+                                const std::wstring &description);
 
             // Output pixel formats supported by the driver.
             std::vector<PixelFormat> supportedPixelFormats(DeviceType type) const;
@@ -172,26 +174,10 @@ namespace AkVCam
                            const VideoFormat &format,
                            int index=-1);
             void removeFormat(const std::string &deviceId, int index);
-
-            // Create a device definition.
-            std::string deviceCreate(const std::wstring &description,
-                                     const std::vector<VideoFormat> &formats,
-                                     DeviceType type);
-
-            // Edit a device definition.
-            bool deviceEdit(const std::string &deviceId,
-                            const std::wstring &description,
-                            const std::vector<VideoFormat> &formats);
-
-            // Change device description.
-            bool changeDescription(const std::string &deviceId,
-                                   const std::wstring &description);
-
-            // Remove a device definition.
-            bool deviceDestroy(const std::string &deviceId);
-
-            // Remove all device definitions.
-            bool destroyAllDevices();
+            void update();
+            std::vector<std::string> connections(const std::string &deviceId);
+            void setConnections(const std::string &deviceId,
+                                const std::vector<std::string> &connectedDevices);
 
             void updateDevices();
 

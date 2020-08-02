@@ -23,6 +23,15 @@ Component.prototype.createOperations = function()
                                            "rm",
                                            "-rf",
                                            "/Library/CoreMediaIO/Plug-Ins/DAL/@Name@.plugin");
+
+        component.addElevatedOperation("Execute",
+                                       "chmod",
+                                       "+x",
+                                       "@TargetDir@/@Name@.plugin/Contents/Resources/AkVCamAssistant");
+        component.addElevatedOperation("Execute",
+                                       "chmod",
+                                       "+x",
+                                       "@TargetDir@/@Name@.plugin/Contents/Resources/AkVCamManager");
     }
 
     // Create a symlink to the plugin.

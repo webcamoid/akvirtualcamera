@@ -103,6 +103,13 @@ void AkVCam::Preferences::write(const std::string &key, double value)
     CFPreferencesSetAppValue(CFStringRef(*cfKey), *cfValue, PREFERENCES_ID);
 }
 
+void AkVCam::Preferences::write(const std::string &key,
+                                std::vector<std::string> &value)
+{
+    AkLogFunction();
+    write(key, join(value, ","));
+}
+
 std::shared_ptr<CFTypeRef> AkVCam::Preferences::read(const std::string &key)
 {
     AkLogFunction();
@@ -418,7 +425,7 @@ std::string AkVCam::Preferences::createDevicePath()
 int AkVCam::Preferences::cameraFromPath(const std::string &path)
 {
     for (size_t i = 0; i < camerasCount(); i++)
-        if (cameraPath(i) == path && !cameraFormats(i).empty())
+        if (cameraPath(i) == path)
             return int(i);
 
     return -1;
@@ -438,21 +445,24 @@ bool AkVCam::Preferences::cameraIsInput(size_t cameraIndex)
     return readBool("cameras." + std::to_string(cameraIndex) + ".isinput");
 }
 
-bool AkVCam::Preferences::cameraIsInput(const std::string &path)
-{
-    auto cameraIndex = cameraFromPath(path);
-
-    if (cameraIndex < 0)
-        return {};
-
-    return cameraIsInput(cameraIndex);
-}
-
 std::wstring AkVCam::Preferences::cameraDescription(size_t cameraIndex)
 {
+    if (cameraIndex >= camerasCount())
+        return {};
+
     return readWString("cameras."
                        + std::to_string(cameraIndex)
                        + ".description");
+}
+
+void AkVCam::Preferences::cameraSetDescription(size_t cameraIndex,
+                                               const std::wstring &description)
+{
+    if (cameraIndex >= camerasCount())
+        return;
+
+    write("cameras." + std::to_string(cameraIndex) + ".description",
+          description);
 }
 
 std::string AkVCam::Preferences::cameraPath(size_t cameraIndex)
@@ -537,7 +547,7 @@ void AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
 {
     AkLogFunction();
 
-    if (cameraIndex < 0 || !cameraIsInput(cameraIndex))
+    if (!cameraIsInput(cameraIndex))
         return;
 
     auto formats = cameraFormats(cameraIndex);
@@ -571,32 +581,71 @@ void AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
 std::vector<std::string> AkVCam::Preferences::cameraConnections(size_t cameraIndex)
 {
     AkLogFunction();
-
-    if (cameraIndex < 0 || !cameraIsInput(cameraIndex))
-        return {};
-
     std::vector<std::string> cameraConnections;
-    auto connections = readStringList("cameras."
-                                      + std::to_string(cameraIndex)
-                                      + ".connections");
 
-    for (auto &connection: connections) {
-        if (connection.empty())
-            continue;
+    if (cameraIsInput(cameraIndex)) {
+        auto connections = readStringList("cameras."
+                                          + std::to_string(cameraIndex)
+                                          + ".connections");
 
-        size_t pos = 0;
-        auto outputIndex = std::stoi(connection, &pos);
+        for (auto &connection: connections) {
+            if (connection.empty())
+                continue;
 
-        if (pos == connection.size())
-            cameraConnections.push_back(cameraPath(outputIndex));
+            size_t pos = 0;
+            auto outputIndex = std::stoi(connection, &pos);
+
+            if (pos == connection.size())
+                cameraConnections.push_back(cameraPath(outputIndex));
+        }
+    } else {
+        for (size_t i = 0; i < camerasCount(); i++)
+            if (cameraIsInput(i)) {
+                auto connections = readStringList("cameras."
+                                                  + std::to_string(i)
+                                                  + ".connections");
+
+                for (auto &connection: connections) {
+                    if (connection.empty())
+                        continue;
+
+                    size_t pos = 0;
+                    auto outputIndex = std::stoi(connection, &pos);
+
+                    if (pos == connection.size() && size_t(outputIndex) == cameraIndex)
+                        cameraConnections.push_back(cameraPath(i));
+                }
+            }
     }
 
     return cameraConnections;
 }
 
-std::vector<std::string> AkVCam::Preferences::cameraConnections(const std::string &path)
+void AkVCam::Preferences::cameraSetConnections(size_t cameraIndex,
+                                               const std::vector<std::string> &connectedDevices)
 {
     AkLogFunction();
 
-    return cameraConnections(cameraFromPath(path));
+    if (!cameraIsInput(cameraIndex))
+        return;
+
+    std::vector<std::string> connections;
+
+    for (auto &connection: connectedDevices) {
+        if (connection.empty())
+            continue;
+
+        auto outputIndex = cameraFromPath(connection);
+
+        if (outputIndex < 0)
+            continue;
+
+        if (cameraIsInput(outputIndex))
+            continue;
+
+        connections.push_back(std::to_string(outputIndex));
+    }
+
+    write("cameras." + std::to_string(cameraIndex) + ".connections",
+          connections);
 }

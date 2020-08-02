@@ -19,7 +19,7 @@
 isEmpty(CMIO_PLUGINS_DAL_PATH):
     CMIO_PLUGINS_DAL_PATH = /Library/CoreMediaIO/Plug-Ins/DAL
 isEmpty(CMIO_DAEMONS_PATH):
-    CMIO_DAEMONS_PATH = ~/Library/LaunchAgents
+    CMIO_DAEMONS_PATH = /Library/LaunchAgents
 isEmpty(CMIO_PLUGIN_NAME):
     CMIO_PLUGIN_NAME = AkVirtualCamera
 isEmpty(CMIO_PLUGIN_ASSISTANT_NAME):

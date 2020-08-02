@@ -33,6 +33,7 @@ int main(int argc, char **argv)
     auto loglevel =
             AkVCam::Preferences::readInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
     AkVCam::Logger::setLogLevel(loglevel);
+    AkLogDebug() << "Creating Service: " << CMIO_ASSISTANT_NAME << std::endl;
     auto server =
             xpc_connection_create_mach_service(CMIO_ASSISTANT_NAME,
                                                NULL,
@@ -49,6 +50,8 @@ int main(int argc, char **argv)
 
             break;
         }
+
+    AkLogDebug() << "Setting up handler" << std::endl;
 
     xpc_connection_set_event_handler(server, ^(xpc_object_t event) {
         auto type = xpc_get_type(event);
@@ -70,7 +73,9 @@ int main(int argc, char **argv)
         xpc_connection_resume(client);
     });
 
+    AkLogDebug() << "Resuming connection" << std::endl;
     xpc_connection_resume(server);
+    AkLogDebug() << "Running loop" << std::endl;
     CFRunLoopRun();
     xpc_release(server);
 
