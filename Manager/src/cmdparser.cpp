@@ -91,7 +91,7 @@ namespace AkVCam {
             int addFormat(const StringMap &flags, const StringVector &args);
             int removeFormat(const StringMap &flags, const StringVector &args);
             int removeFormats(const StringMap &flags, const StringVector &args);
-            int update(const StringMap &flags, const StringVector &args);            
+            int update(const StringMap &flags, const StringVector &args);
             int loadSettings(const StringMap &flags, const StringVector &args);
             int showConnections(const StringMap &flags,
                                 const StringVector &args);
