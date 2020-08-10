@@ -323,38 +323,18 @@ void AkVCam::IpcBridge::unregisterPeer()
     this->d->m_portName.clear();
 }
 
-std::vector<std::string> AkVCam::IpcBridge::listDevices() const
+std::vector<std::string> AkVCam::IpcBridge::devices() const
 {
     AkLogFunction();
-
-    if (!this->d->m_serverMessagePort)
-        return {};
-
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICES);
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    auto replyType = xpc_get_type(reply);
-
-    if (replyType != XPC_TYPE_DICTIONARY) {
-        xpc_release(reply);
-
-        return {};
-    }
-
-    auto devicesList = xpc_dictionary_get_array(reply, "devices");
+    auto nCameras = Preferences::camerasCount();
     std::vector<std::string> devices;
-
-    for (size_t i = 0; i < xpc_array_get_count(devicesList); i++)
-        devices.push_back(xpc_array_get_string(devicesList, i));
-
-    xpc_release(reply);
-
     AkLogInfo() << "Devices:" << std::endl;
 
-    for (auto &device: devices)
-        AkLogInfo() << "    " << device << std::endl;
+    for (size_t i = 0; i < nCameras; i++) {
+        auto deviceId = Preferences::cameraPath(i);
+        devices.push_back(deviceId);
+        AkLogInfo() << "    " << deviceId << std::endl;
+    }
 
     return devices;
 }
@@ -362,37 +342,24 @@ std::vector<std::string> AkVCam::IpcBridge::listDevices() const
 std::wstring AkVCam::IpcBridge::description(const std::string &deviceId) const
 {
     AkLogFunction();
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
-    if (!this->d->m_serverMessagePort)
-        return {};
+    return Preferences::cameraDescription(cameraIndex);
+}
 
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_DESCRIPTION);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    auto replyType = xpc_get_type(reply);
+void AkVCam::IpcBridge::setDescription(const std::string &deviceId,
+                                       const std::wstring &description)
+{
+    AkLogFunction();
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
-    if (replyType != XPC_TYPE_DICTIONARY) {
-        xpc_release(reply);
-
-        return {};
-    }
-
-    size_t len = 0;
-    auto data = reinterpret_cast<const wchar_t *>(xpc_dictionary_get_data(reply,
-                                                                          "description",
-                                                                          &len));
-    std::wstring description(data, len / sizeof(wchar_t));
-    xpc_release(reply);
-
-    return description;
+    return Preferences::cameraSetDescription(cameraIndex, description);
 }
 
 std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats(DeviceType type) const
 {
-    UNUSED(type);
+    if (type == DeviceTypeInput)
+        return {PixelFormatRGB24};
 
     return {
         PixelFormatRGB32,
@@ -404,48 +371,25 @@ std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats(Device
 
 AkVCam::PixelFormat AkVCam::IpcBridge::defaultPixelFormat(DeviceType type) const
 {
-    UNUSED(type);
-
-    return PixelFormatYUY2;
+    return type == DeviceTypeInput?
+                PixelFormatRGB24:
+                PixelFormatYUY2;
 }
 
 std::vector<AkVCam::VideoFormat> AkVCam::IpcBridge::formats(const std::string &deviceId) const
 {
     AkLogFunction();
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
-    if (!this->d->m_serverMessagePort)
-        return {};
+    return Preferences::cameraFormats(cameraIndex);
+}
 
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_FORMATS);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    auto replyType = xpc_get_type(reply);
+void AkVCam::IpcBridge::setFormats(const std::string &deviceId,
+                                   const std::vector<VideoFormat> &formats)
+{
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
-    if (replyType != XPC_TYPE_DICTIONARY) {
-        xpc_release(reply);
-
-        return {};
-    }
-
-    auto formatsList = xpc_dictionary_get_array(reply, "formats");
-    std::vector<VideoFormat> formats;
-
-    for (size_t i = 0; i < xpc_array_get_count(formatsList); i++) {
-        auto format = xpc_array_get_dictionary(formatsList, i);
-        auto fourcc = FourCC(xpc_dictionary_get_uint64(format, "fourcc"));
-        auto width = int(xpc_dictionary_get_int64(format, "width"));
-        auto height = int(xpc_dictionary_get_int64(format, "height"));
-        auto fps = Fraction(xpc_dictionary_get_string(format, "fps"));
-
-        formats.push_back(VideoFormat(fourcc, width, height, {fps}));
-    }
-
-    xpc_release(reply);
-
-    return formats;
+    return Preferences::cameraSetFormats(cameraIndex, formats);
 }
 
 std::string AkVCam::IpcBridge::broadcaster(const std::string &deviceId) const
@@ -699,7 +643,9 @@ std::string AkVCam::IpcBridge::clientExe(uint64_t pid) const
 
 AkVCam::IpcBridge::DeviceType AkVCam::IpcBridge::deviceType(const std::string &deviceId)
 {
-    return Preferences::cameraIsInput(deviceId)?
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+
+    return Preferences::cameraIsInput(cameraIndex)?
                 DeviceTypeInput:
                 DeviceTypeOutput;
 }
@@ -732,124 +678,31 @@ void AkVCam::IpcBridge::removeFormat(const std::string &deviceId, int index)
                                     index);
 }
 
-std::string AkVCam::IpcBridge::deviceCreate(const std::wstring &description,
-                                            const std::vector<VideoFormat> &formats,
-                                            DeviceType type)
-{
-    AkLogFunction();
-
-    if (!this->d->m_serverMessagePort || !this->d->m_messagePort) {
-        this->d->m_error = L"Can't register peer";
-
-        return {};
-    }
-
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_CREATE);
-    xpc_dictionary_set_string(dictionary, "port", this->d->m_portName.c_str());
-    xpc_dictionary_set_data(dictionary,
-                            "description",
-                            description.c_str(),
-                            description.size() * sizeof(wchar_t));
-    xpc_dictionary_set_bool(dictionary, "isinput", type == DeviceTypeInput);
-    auto formatsList = xpc_array_create(nullptr, 0);
-
-    for (auto &format: formats) {
-        auto dictFormat = xpc_dictionary_create(nullptr, nullptr, 0);
-        xpc_dictionary_set_uint64(dictFormat, "fourcc", format.fourcc());
-        xpc_dictionary_set_int64(dictFormat, "width", format.width());
-        xpc_dictionary_set_int64(dictFormat, "height", format.height());
-        xpc_dictionary_set_string(dictFormat, "fps", format.minimumFrameRate().toString().c_str());
-        xpc_array_append_value(formatsList, dictFormat);
-    }
-
-    xpc_dictionary_set_value(dictionary, "formats", formatsList);
-
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    auto replyType = xpc_get_type(reply);
-
-    if (replyType != XPC_TYPE_DICTIONARY) {
-        this->d->m_error = L"Can't set virtual camera formats";
-        xpc_release(reply);
-
-        return {};
-    }
-
-    std::string deviceId(xpc_dictionary_get_string(reply, "device"));
-    xpc_release(reply);
-
-    return deviceId;
-}
-
-bool AkVCam::IpcBridge::deviceEdit(const std::string &deviceId,
-                                   const std::wstring &description,
-                                   const std::vector<VideoFormat> &formats)
-{
-    AkLogFunction();
-
-    auto type = this->deviceType(deviceId);
-    this->deviceDestroy(deviceId);
-
-    if (this->deviceCreate(description.empty()?
-                               L"AvKys Virtual Camera":
-                               description,
-                           formats,
-                           type).empty())
-        return false;
-
-    return true;
-}
-
-bool AkVCam::IpcBridge::changeDescription(const std::string &deviceId,
-                                          const std::wstring &description)
-{
-    AkLogFunction();
-
-    auto formats = this->formats(deviceId);
-
-    if (formats.empty())
-        return false;
-
-    auto type = this->deviceType(deviceId);
-    this->deviceDestroy(deviceId);
-
-    if (this->deviceCreate(description.empty()?
-                               L"AvKys Virtual Camera":
-                               description,
-                           formats,
-                           type).empty())
-        return false;
-
-    return true;
-}
-
-bool AkVCam::IpcBridge::deviceDestroy(const std::string &deviceId)
+void AkVCam::IpcBridge::update()
 {
     AkLogFunction();
 
     if (!this->d->m_serverMessagePort)
-        return false;
+        return;
 
     auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    xpc_connection_send_message(this->d->m_serverMessagePort,
-                                dictionary);
+    xpc_dictionary_set_int64(dictionary,
+                             "message",
+                             AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE);
+    xpc_connection_send_message(this->d->m_serverMessagePort, dictionary);
     xpc_release(dictionary);
-
-    return true;
 }
 
-bool AkVCam::IpcBridge::destroyAllDevices()
+std::vector<std::string> AkVCam::IpcBridge::connections(const std::string &deviceId)
 {
-    AkLogFunction();
+    return Preferences::cameraConnections(Preferences::cameraFromPath(deviceId));
+}
 
-    for (auto &device: this->listDevices())
-        this->deviceDestroy(device);
-
-    return true;
+void AkVCam::IpcBridge::setConnections(const std::string &deviceId,
+                                       const std::vector<std::string> &connectedDevices)
+{
+    Preferences::cameraSetConnections(Preferences::cameraFromPath(deviceId),
+                                      connectedDevices);
 }
 
 void AkVCam::IpcBridge::updateDevices()

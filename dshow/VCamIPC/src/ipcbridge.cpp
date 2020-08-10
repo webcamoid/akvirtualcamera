@@ -303,7 +303,7 @@ void AkVCam::IpcBridge::unregisterPeer()
     this->d->m_portName.clear();
 }
 
-std::vector<std::string> AkVCam::IpcBridge::listDevices() const
+std::vector<std::string> AkVCam::IpcBridge::devices() const
 {
     AkLogFunction();
     std::vector<std::string> devices;
@@ -649,7 +649,7 @@ bool AkVCam::IpcBridge::needsRestart(Operation operation) const
 {
     return operation == OperationDestroyAll
             || (operation == OperationDestroy
-                && this->listDevices().size() == 1);
+                && this->devices().size() == 1);
 }
 
 bool AkVCam::IpcBridge::canApply(AkVCam::IpcBridge::Operation operation) const

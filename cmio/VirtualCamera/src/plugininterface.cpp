@@ -234,7 +234,7 @@ OSStatus AkVCam::PluginInterface::InitializeWithObjectID(CMIOObjectID objectID)
 
     this->m_objectID = objectID;
 
-    for (auto deviceId: this->d->m_ipcBridge.listDevices())
+    for (auto &deviceId: this->d->m_ipcBridge.devices())
         this->deviceAdded(this, deviceId);
 
     return kCMIOHardwareNoError;
@@ -301,7 +301,7 @@ void AkVCam::PluginInterface::devicesUpdated(void *userData, void *unused)
     for (auto &deviceId: devices)
         self->destroyDevice(deviceId);
 
-    for (auto &deviceId: self->d->m_ipcBridge.listDevices()) {
+    for (auto &deviceId: self->d->m_ipcBridge.devices()) {
         auto description = self->d->m_ipcBridge.description(deviceId);
         auto formats = self->d->m_ipcBridge.formats(deviceId);
         auto type = self->d->m_ipcBridge.deviceType(deviceId);
@@ -315,7 +315,8 @@ void AkVCam::PluginInterface::frameReady(void *userData,
 {
     AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
-    auto connections = Preferences::cameraConnections(deviceId);
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto connections = Preferences::cameraConnections(cameraIndex);
 
     for (auto device: self->m_devices)
         if (std::find(connections.begin(),

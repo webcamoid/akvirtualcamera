@@ -39,6 +39,7 @@ namespace AkVCam
         void write(const std::string &key, const std::wstring &value);
         void write(const std::string &key, int value);
         void write(const std::string &key, double value);
+        void write(const std::string &key, std::vector<std::string> &value);
         std::shared_ptr<CFTypeRef> read(const std::string &key);
         std::string readString(const std::string &key,
                                const std::string &defaultValue={});
@@ -69,18 +70,24 @@ namespace AkVCam
         int cameraFromPath(const std::string &path);
         bool cameraExists(const std::string &path);
         bool cameraIsInput(size_t cameraIndex);
-        bool cameraIsInput(const std::string &path);
         std::wstring cameraDescription(size_t cameraIndex);
+        void cameraSetDescription(size_t cameraIndex,
+                                  const std::wstring &description);
         std::string cameraPath(size_t cameraIndex);
         size_t formatsCount(size_t cameraIndex);
         VideoFormat cameraFormat(size_t cameraIndex, size_t formatIndex);
         std::vector<VideoFormat> cameraFormats(size_t cameraIndex);
+        void cameraSetFormats(size_t cameraIndex,
+                              const std::vector<VideoFormat> &formats);
+        void cameraFormats(size_t cameraIndex,
+                           const std::vector<VideoFormat> &formats);
         void cameraAddFormat(size_t cameraIndex,
                              const VideoFormat &format,
                              int index);
         void cameraRemoveFormat(size_t cameraIndex, int index);
         std::vector<std::string> cameraConnections(size_t cameraIndex);
-        std::vector<std::string> cameraConnections(const std::string &path);
+        void cameraSetConnections(size_t cameraIndex,
+                                  const std::vector<std::string> &connectedDevices);
     }
 }
 

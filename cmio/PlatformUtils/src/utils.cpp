@@ -82,11 +82,20 @@ std::string AkVCam::stringFromCFType(CFTypeRef cfType)
     if (data)
         return std::string(data, len);
 
-    auto cstr = new char[len];
-    CFStringGetCString(CFStringRef(cfType),
-                       cstr,
-                       CFIndex(len),
-                       kCFStringEncodingUTF8);
+    auto maxLen =
+            CFStringGetMaximumSizeForEncoding(len, kCFStringEncodingUTF8)  + 1;
+    auto cstr = new char[maxLen];
+    memset(cstr, 0, maxLen);
+
+    if (!CFStringGetCString(CFStringRef(cfType),
+                            cstr,
+                            maxLen,
+                            kCFStringEncodingUTF8)) {
+        delete [] cstr;
+
+        return {};
+    }
+
     std::string str(cstr, len);
     delete [] cstr;
 
