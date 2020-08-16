@@ -26,11 +26,11 @@ Component.prototype.createOperations = function()
 
         component.addElevatedOperation("Execute",
                                        "chmod",
-                                       "+x",
+                                       "a+x",
                                        "@TargetDir@/@Name@.plugin/Contents/Resources/AkVCamAssistant");
         component.addElevatedOperation("Execute",
                                        "chmod",
-                                       "+x",
+                                       "a+x",
                                        "@TargetDir@/@Name@.plugin/Contents/Resources/AkVCamManager");
     }
 

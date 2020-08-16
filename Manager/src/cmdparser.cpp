@@ -710,11 +710,12 @@ int AkVCam::CmdParserPrivate::removeDevice(const StringMap &flags,
         return -1;
     }
 
+    auto deviceId = args[1];
     auto devices = this->m_ipcBridge.devices();
-    auto it = std::find(devices.begin(), devices.end(), args[1]);
+    auto it = std::find(devices.begin(), devices.end(), deviceId);
 
     if (it == devices.end()) {
-        std::cerr << "Device doesn't exists." << std::endl;
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
         return -1;
     }
@@ -748,11 +749,12 @@ int AkVCam::CmdParserPrivate::showDeviceType(const StringMap &flags,
         return -1;
     }
 
+    auto deviceId = args[1];
     auto devices = this->m_ipcBridge.devices();
-    auto it = std::find(devices.begin(), devices.end(), args[1]);
+    auto it = std::find(devices.begin(), devices.end(), deviceId);
 
     if (it == devices.end()) {
-        std::cerr << "device doesn't exists." << std::endl;
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
         return -1;
     }
@@ -776,11 +778,12 @@ int AkVCam::CmdParserPrivate::showDeviceDescription(const StringMap &flags,
         return -1;
     }
 
+    auto deviceId = args[1];
     auto devices = this->m_ipcBridge.devices();
-    auto it = std::find(devices.begin(), devices.end(), args[1]);
+    auto it = std::find(devices.begin(), devices.end(), deviceId);
 
     if (it == devices.end()) {
-        std::cerr << "Device doesn't exists." << std::endl;
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
         return -1;
     }
@@ -803,10 +806,10 @@ int AkVCam::CmdParserPrivate::setDeviceDescription(const AkVCam::StringMap &flag
 
     auto deviceId = args[1];
     auto devices = this->m_ipcBridge.devices();
-    auto dit = std::find(devices.begin(), devices.end(), args[1]);
+    auto dit = std::find(devices.begin(), devices.end(), deviceId);
 
     if (dit == devices.end()) {
-        std::cerr << "device doesn't exists." << std::endl;
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
         return -1;
     }
@@ -854,11 +857,12 @@ int AkVCam::CmdParserPrivate::showFormats(const StringMap &flags,
         return -1;
     }
 
+    auto deviceId = args[1];
     auto devices = this->m_ipcBridge.devices();
-    auto it = std::find(devices.begin(), devices.end(), args[1]);
+    auto it = std::find(devices.begin(), devices.end(), deviceId);
 
     if (it == devices.end()) {
-        std::cerr << "device doesn't exists." << std::endl;
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
         return -1;
     }
@@ -910,10 +914,10 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
 
     auto deviceId = args[1];
     auto devices = this->m_ipcBridge.devices();
-    auto dit = std::find(devices.begin(), devices.end(), args[1]);
+    auto dit = std::find(devices.begin(), devices.end(), deviceId);
 
     if (dit == devices.end()) {
-        std::cerr << "device doesn't exists." << std::endl;
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
         return -1;
     }
@@ -998,10 +1002,10 @@ int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
 
     auto deviceId = args[1];
     auto devices = this->m_ipcBridge.devices();
-    auto dit = std::find(devices.begin(), devices.end(), args[1]);
+    auto dit = std::find(devices.begin(), devices.end(), deviceId);
 
     if (dit == devices.end()) {
-        std::cerr << "device doesn't exists." << std::endl;
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
         return -1;
     }
@@ -1041,10 +1045,10 @@ int AkVCam::CmdParserPrivate::removeFormats(const AkVCam::StringMap &flags,
 
     auto deviceId = args[1];
     auto devices = this->m_ipcBridge.devices();
-    auto dit = std::find(devices.begin(), devices.end(), args[1]);
+    auto dit = std::find(devices.begin(), devices.end(), deviceId);
 
     if (dit == devices.end()) {
-        std::cerr << "device doesn't exists." << std::endl;
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
         return -1;
     }
@@ -1083,10 +1087,10 @@ int AkVCam::CmdParserPrivate::showConnections(const StringMap &flags,
 
     auto deviceId = args[1];
     auto devices = this->m_ipcBridge.devices();
-    auto dit = std::find(devices.begin(), devices.end(), args[1]);
+    auto dit = std::find(devices.begin(), devices.end(), deviceId);
 
     if (dit == devices.end()) {
-        std::cerr << "device doesn't exists." << std::endl;
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
         return -1;
     }

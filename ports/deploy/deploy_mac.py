@@ -73,6 +73,8 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
                                                self.binaryInstallDir)
         print('\nWritting build system information\n')
         self.writeBuildInfo()
+        print('\nSigning bundle\n')
+        self.signPackage(self.appBundleDir)
 
     def commitHash(self):
         try:
@@ -188,6 +190,16 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
                     size += os.path.getsize(fpath)
 
         return size
+    
+    def signPackage(self, package):
+        process = subprocess.Popen(['codesign', # nosec
+                                    '--force',
+                                    '--sign',
+                                    '-',
+                                    package],
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+        process.communicate()
 
     def createAppInstaller(self, mutex):
         packagePath = self.createInstaller()

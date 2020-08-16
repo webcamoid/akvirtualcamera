@@ -370,6 +370,8 @@ void AkVCam::Preferences::removeCamera(const std::string &path)
     if (cameraIndex < 0)
         return;
 
+    cameraSetFormats(cameraIndex, {});
+
     auto nCameras = camerasCount();
     deleteAllKeys("cameras." + std::to_string(cameraIndex));
 
