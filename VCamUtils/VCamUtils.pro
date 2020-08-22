@@ -43,6 +43,7 @@ SOURCES += \
     src/image/videoformat.cpp \
     src/image/videoframe.cpp \
     src/logger/logger.cpp \
+    src/settings.cpp \
     src/timer.cpp \
     src/utils.cpp
 
@@ -55,6 +56,7 @@ HEADERS += \
     src/image/videoformattypes.h \
     src/ipcbridge.h \
     src/logger/logger.h \
+    src/settings.h \
     src/timer.h \
     src/utils.h
 
