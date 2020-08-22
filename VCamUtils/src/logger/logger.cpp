@@ -37,7 +37,7 @@ namespace AkVCam
             int logLevel {AKVCAM_LOGLEVEL_DEFAULT};
             std::fstream stream;
 
-            static std::string logLevelString(int logLevel)
+            static const std::map<int, std::string> &logLevelStrMap()
             {
                 static std::map<int, std::string> llsMap {
                     {AKVCAM_LOGLEVEL_DEFAULT  , "default"  },
@@ -51,10 +51,7 @@ namespace AkVCam
                     {AKVCAM_LOGLEVEL_DEBUG    , "debug"    },
                 };
 
-                if (llsMap.count(logLevel) < 1)
-                    return {};
-
-                return llsMap[logLevel];
+                return llsMap;
             }
     };
 
@@ -115,7 +112,7 @@ std::string AkVCam::Logger::header(int logLevel, const std::string file, int lin
        << " ("
        << line
        << ")] "
-       << LoggerPrivate::logLevelString(logLevel) << ": ";
+       << levelToString(logLevel) << ": ";
 
     return ss.str();
 }
@@ -138,4 +135,26 @@ std::ostream &AkVCam::Logger::log(int logLevel)
         return std::cout;
 
     return loggerPrivate()->stream;
+}
+
+int AkVCam::Logger::levelFromString(const std::string &level)
+{
+    auto &llsMap = LoggerPrivate::logLevelStrMap();
+
+    for (auto it = llsMap.begin(); it != llsMap.end(); it++)
+        if (it->second == level)
+            return it->first;
+
+    return AKVCAM_LOGLEVEL_DEFAULT;
+}
+
+std::string AkVCam::Logger::levelToString(int level)
+{
+    auto &llsMap = LoggerPrivate::logLevelStrMap();
+
+    for (auto it = llsMap.begin(); it != llsMap.end(); it++)
+        if (it->first == level)
+            return it->second;
+
+    return {};
 }

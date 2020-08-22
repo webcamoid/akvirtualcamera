@@ -104,6 +104,8 @@ AkVCam::IpcBridge::IpcBridge()
 {
     AkLogFunction();
     this->d = new IpcBridgePrivate(this);
+    auto loglevel = AkVCam::Preferences::logLevel();
+    AkVCam::Logger::setLogLevel(loglevel);
     ipcBridgePrivate().add(this);
     this->registerPeer();
 }
@@ -157,6 +159,28 @@ std::string AkVCam::IpcBridge::driver() const
 bool AkVCam::IpcBridge::setDriver(const std::string &driver)
 {
     return driver == "AkVirtualCamera";
+}
+
+
+std::wstring AkVCam::IpcBridge::picture() const
+{
+    return Preferences::picture();
+}
+
+void AkVCam::IpcBridge::setPicture(const std::wstring &picture)
+{
+    Preferences::setPicture(picture);
+}
+
+int AkVCam::IpcBridge::logLevel() const
+{
+    return Preferences::logLevel();
+}
+
+void AkVCam::IpcBridge::setLogLevel(int logLevel)
+{
+    Preferences::setLogLevel(logLevel);
+    Logger::setLogLevel(logLevel);
 }
 
 std::vector<std::string> AkVCam::IpcBridge::availableRootMethods() const
@@ -356,9 +380,9 @@ void AkVCam::IpcBridge::setDescription(const std::string &deviceId,
     return Preferences::cameraSetDescription(cameraIndex, description);
 }
 
-std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats(DeviceType type) const
+std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats(StreamType type) const
 {
-    if (type == DeviceTypeInput)
+    if (type == StreamTypeInput)
         return {PixelFormatRGB24};
 
     return {
@@ -369,9 +393,9 @@ std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats(Device
     };
 }
 
-AkVCam::PixelFormat AkVCam::IpcBridge::defaultPixelFormat(DeviceType type) const
+AkVCam::PixelFormat AkVCam::IpcBridge::defaultPixelFormat(StreamType type) const
 {
-    return type == DeviceTypeInput?
+    return type == StreamTypeInput?
                 PixelFormatRGB24:
                 PixelFormatYUY2;
 }
@@ -641,19 +665,9 @@ std::string AkVCam::IpcBridge::clientExe(uint64_t pid) const
     return {path};
 }
 
-AkVCam::IpcBridge::DeviceType AkVCam::IpcBridge::deviceType(const std::string &deviceId)
+std::string AkVCam::IpcBridge::addDevice(const std::wstring &description)
 {
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
-
-    return Preferences::cameraIsInput(cameraIndex)?
-                DeviceTypeInput:
-                DeviceTypeOutput;
-}
-
-std::string AkVCam::IpcBridge::addDevice(const std::wstring &description,
-                                         DeviceType type)
-{
-    return Preferences::addDevice(description, type);
+    return Preferences::addDevice(description);
 }
 
 void AkVCam::IpcBridge::removeDevice(const std::string &deviceId)
@@ -691,18 +705,6 @@ void AkVCam::IpcBridge::update()
                              AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE);
     xpc_connection_send_message(this->d->m_serverMessagePort, dictionary);
     xpc_release(dictionary);
-}
-
-std::vector<std::string> AkVCam::IpcBridge::connections(const std::string &deviceId)
-{
-    return Preferences::cameraConnections(Preferences::cameraFromPath(deviceId));
-}
-
-void AkVCam::IpcBridge::setConnections(const std::string &deviceId,
-                                       const std::vector<std::string> &connectedDevices)
-{
-    Preferences::cameraSetConnections(Preferences::cameraFromPath(deviceId),
-                                      connectedDevices);
 }
 
 void AkVCam::IpcBridge::updateDevices()

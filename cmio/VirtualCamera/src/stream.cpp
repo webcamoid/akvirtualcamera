@@ -17,6 +17,7 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <codecvt>
 #include <thread>
 #include <random>
 #include <CoreMediaIO/CMIOSampleBuffer.h>
@@ -24,6 +25,7 @@
 #include "stream.h"
 #include "clock.h"
 #include "utils.h"
+#include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/image/videoframe.h"
 #include "VCamUtils/src/logger/logger.h"
@@ -59,7 +61,6 @@ namespace AkVCam
             void stopTimer();
             static void streamLoop(CFRunLoopTimerRef timer, void *info);
             void sendFrame(const VideoFrame &frame);
-            void requestFrame();
             void updateTestFrame();
             VideoFrame applyAdjusts(const VideoFrame &frame);
             VideoFrame randomFrame();
@@ -73,10 +74,12 @@ AkVCam::Stream::Stream(bool registerObject,
     this->d = new StreamPrivate(this);
     this->m_className = "Stream";
     this->m_classID = kCMIOStreamClassID;
-    this->d->m_testFrame.load(CMIO_PLUGINS_DAL_PATH
-                              "/"
-                              CMIO_PLUGIN_NAME
-                              ".plugin/Contents/Resources/TestFrame.bmp");
+    auto picture = Preferences::picture();
+
+    if (!picture.empty()) {
+        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
+        this->d->m_testFrame.load(cv.to_bytes(picture));
+    }
 
     this->d->m_clock =
             std::make_shared<Clock>("CMIO::VirtualCamera::Stream",
@@ -224,28 +227,12 @@ bool AkVCam::Stream::start()
     if (this->d->m_running)
         return false;
 
-    UInt32 direction = 0;
-    this->properties().getProperty(kCMIOStreamPropertyDirection, &direction);
-
-    if (Direction(direction) == Output) {
-        this->d->updateTestFrame();
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-    }
-
+    this->d->updateTestFrame();
+    this->d->m_currentFrame = this->d->m_testFrameAdapted;
     this->d->m_sequence = 0;
     memset(&this->d->m_pts, 0, sizeof(CMTime));
     this->d->m_running = this->d->startTimer();
     AkLogInfo() << "Running: " << this->d->m_running << std::endl;
-
-    if (Direction(direction) == Input) {
-        std::string deviceId;
-        this->m_parent->properties().getProperty(kCMIODevicePropertyDeviceUID,
-                                                 &deviceId);
-        VideoFormat format;
-        this->m_properties.getProperty(kCMIOStreamPropertyFormatDescription,
-                                       &format);
-        this->d->m_bridge->deviceStart(deviceId, format);
-    }
 
     return this->d->m_running;
 }
@@ -256,16 +243,6 @@ void AkVCam::Stream::stop()
 
     if (!this->d->m_running)
         return;
-
-    UInt32 direction = 0;
-    this->properties().getProperty(kCMIOStreamPropertyDirection, &direction);
-
-    if (Direction(direction) == Input) {
-        std::string deviceId;
-        this->m_parent->properties().getProperty(kCMIODevicePropertyDeviceUID,
-                                                 &deviceId);
-        this->d->m_bridge->deviceStop(deviceId);
-    }
 
     this->d->m_running = false;
     this->d->stopTimer();
@@ -491,17 +468,10 @@ void AkVCam::StreamPrivate::streamLoop(CFRunLoopTimerRef timer, void *info)
 
     self->m_mutex.lock();
 
-    UInt32 direction = 0;
-    self->self->m_properties.getProperty(kCMIOStreamPropertyDirection, &direction);
-
-    if (Stream::Direction(direction) == Stream::Output) {
-        if (self->m_currentFrame.format().size() < 1)
-            self->sendFrame(self->randomFrame());
-        else
-            self->sendFrame(self->m_currentFrame);
-    } else {
-        self->requestFrame();
-    }
+    if (self->m_currentFrame.format().size() < 1)
+        self->sendFrame(self->randomFrame());
+    else
+        self->sendFrame(self->m_currentFrame);
 
     self->m_mutex.unlock();
 }
@@ -597,97 +567,6 @@ void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
         this->m_queueAltered(this->self->m_objectID,
                              buffer,
                              this->m_queueAlteredRefCon);
-}
-
-void AkVCam::StreamPrivate::requestFrame()
-{
-    AkLogFunction();
-
-    if (this->m_queue->fullness() >= 1.0f)
-        return;
-
-    bool resync = false;
-    auto hostTime = CFAbsoluteTimeGetCurrent();
-    auto pts = CMTimeMake(int64_t(hostTime), 1e9);
-    auto ptsDiff = CMTimeGetSeconds(CMTimeSubtract(this->m_pts, pts));
-
-    if (CMTimeCompare(pts, this->m_pts) == 0)
-        return;
-
-    Float64 fps = 0;
-    this->self->m_properties.getProperty(kCMIOStreamPropertyFrameRate, &fps);
-
-    if (CMTIME_IS_INVALID(this->m_pts)
-        || ptsDiff < 0
-        || ptsDiff > 2. / fps) {
-        this->m_pts = pts;
-        resync = true;
-    }
-
-    CMIOStreamClockPostTimingEvent(this->m_pts,
-                                   UInt64(hostTime),
-                                   resync,
-                                   this->m_clock->ref());
-
-    if (!this->m_queueAltered)
-        return;
-
-    this->m_queueAltered(this->self->m_objectID,
-                         nullptr,
-                         this->m_queueAlteredRefCon);
-
-    for (;;) {
-        auto videoBuffer = this->m_queue->dequeue();
-
-        if (!videoBuffer)
-            break;
-
-        // Read frame data.
-        auto imageBuffer = CMSampleBufferGetImageBuffer(videoBuffer);
-        auto dataBuffer = CMSampleBufferGetDataBuffer(videoBuffer);
-        auto formatDesc = CMSampleBufferGetFormatDescription(videoBuffer);
-        auto fourCC = CMFormatDescriptionGetMediaSubType(formatDesc);
-        auto size = CMVideoFormatDescriptionGetDimensions(formatDesc);
-        Float64 fps = 0;
-        this->self->m_properties.getProperty(kCMIOStreamPropertyFrameRate, &fps);
-        VideoFormat videoFormat(formatFromCM(fourCC),
-                                size.width,
-                                size.height,
-                                {{int64_t(std::round(fps)), 1}});
-        VideoFrame videoFrame(videoFormat);
-
-        if (imageBuffer) {
-            size_t dataSize = CVPixelBufferGetDataSize(imageBuffer);
-            CVPixelBufferLockBaseAddress(imageBuffer, 0);
-            void *data = CVPixelBufferGetBaseAddress(imageBuffer);
-            memcpy(videoFrame.data().data(),
-                   data,
-                   std::min(videoFrame.data().size(), dataSize));
-            CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-        } else if (dataBuffer) {
-            size_t lengthAtOffset = 0;
-            size_t dataSize = 0;
-            char *data = nullptr;
-            CMBlockBufferGetDataPointer(dataBuffer,
-                                        0,
-                                        &lengthAtOffset,
-                                        &dataSize,
-                                        &data);
-            memcpy(videoFrame.data().data(),
-                   data,
-                   std::min(videoFrame.data().size(), dataSize));
-        }
-
-        CFRelease(videoBuffer);
-
-        std::string deviceId;
-        this->self->properties().getProperty(kCMIODevicePropertyDeviceUID,
-                                             &deviceId);
-        this->m_bridge->write(deviceId, videoFrame);
-    }
-
-    auto duration = CMTimeMake(1e3, int32_t(1e3 * fps));
-    this->m_pts = CMTimeAdd(this->m_pts, duration);
 }
 
 void AkVCam::StreamPrivate::updateTestFrame()

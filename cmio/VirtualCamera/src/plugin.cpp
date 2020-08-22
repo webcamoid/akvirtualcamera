@@ -27,9 +27,8 @@ extern "C" void *akPluginMain(CFAllocatorRef allocator,
                               CFUUIDRef requestedTypeUUID)
 {
     UNUSED(allocator);
-    auto logLevel =
-            AkVCam::Preferences::readInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
-    AkVCam::Logger::setLogLevel(logLevel);
+    auto loglevel = AkVCam::Preferences::logLevel();
+    AkVCam::Logger::setLogLevel(loglevel);
 
     if (AkVCam::Logger::logLevel() > AKVCAM_LOGLEVEL_DEFAULT) {
         // Turn on lights

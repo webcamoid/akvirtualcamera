@@ -38,12 +38,6 @@ namespace AkVCam
     class Stream: public Object
     {
         public:
-            enum Direction
-            {
-                Output,
-                Input
-            };
-
             Stream(bool registerObject=false, Object *m_parent=nullptr);
             Stream(const Stream &other) = delete;
             ~Stream();

@@ -24,8 +24,6 @@
 #include <vector>
 #include <CoreFoundation/CoreFoundation.h>
 
-#include "VCamUtils/src/ipcbridge.h"
-
 namespace AkVCam
 {
     class VideoFormat;
@@ -55,21 +53,17 @@ namespace AkVCam
         void move(const std::string &keyFrom, const std::string &keyTo);
         void moveAll(const std::string &keyFrom, const std::string &keyTo);
         void sync();
-        std::string addDevice(const std::wstring &description,
-                              IpcBridge::DeviceType type);
+        std::string addDevice(const std::wstring &description);
         std::string addCamera(const std::wstring &description,
-                              const std::vector<VideoFormat> &formats,
-                              IpcBridge::DeviceType type);
+                              const std::vector<VideoFormat> &formats);
         std::string addCamera(const std::string &path,
                               const std::wstring &description,
-                              const std::vector<VideoFormat> &formats,
-                              IpcBridge::DeviceType type);
+                              const std::vector<VideoFormat> &formats);
         void removeCamera(const std::string &path);
         size_t camerasCount();
         std::string createDevicePath();
         int cameraFromPath(const std::string &path);
         bool cameraExists(const std::string &path);
-        bool cameraIsInput(size_t cameraIndex);
         std::wstring cameraDescription(size_t cameraIndex);
         void cameraSetDescription(size_t cameraIndex,
                                   const std::wstring &description);
@@ -85,9 +79,10 @@ namespace AkVCam
                              const VideoFormat &format,
                              int index);
         void cameraRemoveFormat(size_t cameraIndex, int index);
-        std::vector<std::string> cameraConnections(size_t cameraIndex);
-        void cameraSetConnections(size_t cameraIndex,
-                                  const std::vector<std::string> &connectedDevices);
+        std::wstring picture();
+        void setPicture(const std::wstring &picture);
+        int logLevel();
+        void setLogLevel(int logLevel);
     }
 }
 

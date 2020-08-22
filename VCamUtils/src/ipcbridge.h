@@ -42,10 +42,10 @@ namespace AkVCam
                 ServerStateGone
             };
 
-            enum DeviceType
+            enum StreamType
             {
-                DeviceTypeOutput,
-                DeviceTypeInput
+                StreamTypeOutput,
+                StreamTypeInput
             };
 
             AKVCAM_SIGNAL(ServerStateChanged,
@@ -104,6 +104,11 @@ namespace AkVCam
             std::string driver() const;
             bool setDriver(const std::string &driver);
 
+            std::wstring picture() const;
+            void setPicture(const std::wstring &picture);
+            int logLevel() const;
+            void setLogLevel(int logLevel);
+
             // Configure method to be used for executing commands with elevated
             // privileges.
             std::vector<std::string> availableRootMethods() const;
@@ -129,10 +134,10 @@ namespace AkVCam
                                 const std::wstring &description);
 
             // Output pixel formats supported by the driver.
-            std::vector<PixelFormat> supportedPixelFormats(DeviceType type) const;
+            std::vector<PixelFormat> supportedPixelFormats(StreamType type) const;
 
             // Default output pixel format of the driver.
-            PixelFormat defaultPixelFormat(DeviceType type) const;
+            PixelFormat defaultPixelFormat(StreamType type) const;
 
             // Return supported formats for the device.
             std::vector<VideoFormat> formats(const std::string &deviceId) const;
@@ -168,19 +173,13 @@ namespace AkVCam
 
             /* Server */
 
-            DeviceType deviceType(const std::string &deviceId);
-            std::string addDevice(const std::wstring &description,
-                                  DeviceType type);
+            std::string addDevice(const std::wstring &description);
             void removeDevice(const std::string &deviceId);
             void addFormat(const std::string &deviceId,
                            const VideoFormat &format,
                            int index=-1);
             void removeFormat(const std::string &deviceId, int index);
             void update();
-            std::vector<std::string> connections(const std::string &deviceId);
-            void setConnections(const std::string &deviceId,
-                                const std::vector<std::string> &connectedDevices);
-
             void updateDevices();
 
             // Start frame transfer to the device.
