@@ -17,6 +17,7 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <algorithm>
 #include <map>
 #include <sstream>
 #include <CoreFoundation/CoreFoundation.h>
@@ -45,11 +46,6 @@ namespace AkVCam
         std::vector<VideoFormat> formats;
         std::string broadcaster;
         std::vector<std::string> listeners;
-        bool horizontalMirror {false};
-        bool verticalMirror {false};
-        Scaling scaling {ScalingFast};
-        AspectRatio aspectRatio {AspectRatioIgnore};
-        bool swapRgb {false};
     };
 
     using AssistantPeers = std::map<std::string, xpc_connection_t>;
@@ -82,21 +78,15 @@ namespace AkVCam
             void deviceDestroy(xpc_connection_t client, xpc_object_t event);
             void deviceUpdate(xpc_connection_t client, xpc_object_t event);
             void setBroadcasting(xpc_connection_t client, xpc_object_t event);
-            void setMirroring(xpc_connection_t client, xpc_object_t event);
-            void setScaling(xpc_connection_t client, xpc_object_t event);
-            void setAspectRatio(xpc_connection_t client, xpc_object_t event);
-            void setSwapRgb(xpc_connection_t client, xpc_object_t event);
             void frameReady(xpc_connection_t client, xpc_object_t event);
+            void pictureUpdated(xpc_connection_t client, xpc_object_t event);
             void listeners(xpc_connection_t client, xpc_object_t event);
             void listener(xpc_connection_t client, xpc_object_t event);
             void devices(xpc_connection_t client, xpc_object_t event);
             void description(xpc_connection_t client, xpc_object_t event);
             void formats(xpc_connection_t client, xpc_object_t event);
             void broadcasting(xpc_connection_t client, xpc_object_t event);
-            void mirroring(xpc_connection_t client, xpc_object_t event);
-            void scaling(xpc_connection_t client, xpc_object_t event);
-            void aspectRatio(xpc_connection_t client, xpc_object_t event);
-            void swapRgb(xpc_connection_t client, xpc_object_t event);
+            void controlsUpdated(xpc_connection_t client, xpc_object_t event);
             void listenerAdd(xpc_connection_t client, xpc_object_t event);
             void listenerRemove(xpc_connection_t client, xpc_object_t event);
     };
@@ -142,30 +132,24 @@ void AkVCam::Assistant::messageReceived(xpc_connection_t client,
 AkVCam::AssistantPrivate::AssistantPrivate()
 {
     this->m_messageHandlers = {
-        {AKVCAM_ASSISTANT_MSG_FRAME_READY           , AKVCAM_BIND_FUNC(AssistantPrivate::frameReady)     },
-        {AKVCAM_ASSISTANT_MSG_REQUEST_PORT          , AKVCAM_BIND_FUNC(AssistantPrivate::requestPort)    },
-        {AKVCAM_ASSISTANT_MSG_ADD_PORT              , AKVCAM_BIND_FUNC(AssistantPrivate::addPort)        },
-        {AKVCAM_ASSISTANT_MSG_REMOVE_PORT           , AKVCAM_BIND_FUNC(AssistantPrivate::removePort)     },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_CREATE         , AKVCAM_BIND_FUNC(AssistantPrivate::deviceCreate)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY        , AKVCAM_BIND_FUNC(AssistantPrivate::deviceDestroy)  },
-        {AKVCAM_ASSISTANT_MSG_DEVICES               , AKVCAM_BIND_FUNC(AssistantPrivate::devices)        },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_DESCRIPTION    , AKVCAM_BIND_FUNC(AssistantPrivate::description)    },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_FORMATS        , AKVCAM_BIND_FUNC(AssistantPrivate::formats)        },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE         , AKVCAM_BIND_FUNC(AssistantPrivate::deviceUpdate)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD   , AKVCAM_BIND_FUNC(AssistantPrivate::listenerAdd)    },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE, AKVCAM_BIND_FUNC(AssistantPrivate::listenerRemove) },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENERS      , AKVCAM_BIND_FUNC(AssistantPrivate::listeners)      },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER       , AKVCAM_BIND_FUNC(AssistantPrivate::listener)       },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_BROADCASTING   , AKVCAM_BIND_FUNC(AssistantPrivate::broadcasting)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING, AKVCAM_BIND_FUNC(AssistantPrivate::setBroadcasting)},
-        {AKVCAM_ASSISTANT_MSG_DEVICE_MIRRORING      , AKVCAM_BIND_FUNC(AssistantPrivate::mirroring)      },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETMIRRORING   , AKVCAM_BIND_FUNC(AssistantPrivate::setMirroring)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SCALING        , AKVCAM_BIND_FUNC(AssistantPrivate::scaling)        },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETSCALING     , AKVCAM_BIND_FUNC(AssistantPrivate::setScaling)     },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_ASPECTRATIO    , AKVCAM_BIND_FUNC(AssistantPrivate::aspectRatio)    },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETASPECTRATIO , AKVCAM_BIND_FUNC(AssistantPrivate::setAspectRatio) },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SWAPRGB        , AKVCAM_BIND_FUNC(AssistantPrivate::swapRgb)        },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETSWAPRGB     , AKVCAM_BIND_FUNC(AssistantPrivate::setSwapRgb)     },
+        {AKVCAM_ASSISTANT_MSG_FRAME_READY            , AKVCAM_BIND_FUNC(AssistantPrivate::frameReady)     },
+        {AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED        , AKVCAM_BIND_FUNC(AssistantPrivate::pictureUpdated) },
+        {AKVCAM_ASSISTANT_MSG_REQUEST_PORT           , AKVCAM_BIND_FUNC(AssistantPrivate::requestPort)    },
+        {AKVCAM_ASSISTANT_MSG_ADD_PORT               , AKVCAM_BIND_FUNC(AssistantPrivate::addPort)        },
+        {AKVCAM_ASSISTANT_MSG_REMOVE_PORT            , AKVCAM_BIND_FUNC(AssistantPrivate::removePort)     },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_CREATE          , AKVCAM_BIND_FUNC(AssistantPrivate::deviceCreate)   },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY         , AKVCAM_BIND_FUNC(AssistantPrivate::deviceDestroy)  },
+        {AKVCAM_ASSISTANT_MSG_DEVICES                , AKVCAM_BIND_FUNC(AssistantPrivate::devices)        },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_DESCRIPTION     , AKVCAM_BIND_FUNC(AssistantPrivate::description)    },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_FORMATS         , AKVCAM_BIND_FUNC(AssistantPrivate::formats)        },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE          , AKVCAM_BIND_FUNC(AssistantPrivate::deviceUpdate)   },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD    , AKVCAM_BIND_FUNC(AssistantPrivate::listenerAdd)    },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE , AKVCAM_BIND_FUNC(AssistantPrivate::listenerRemove) },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENERS       , AKVCAM_BIND_FUNC(AssistantPrivate::listeners)      },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER        , AKVCAM_BIND_FUNC(AssistantPrivate::listener)       },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_BROADCASTING    , AKVCAM_BIND_FUNC(AssistantPrivate::broadcasting)   },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING , AKVCAM_BIND_FUNC(AssistantPrivate::setBroadcasting)},
+        {AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED, AKVCAM_BIND_FUNC(AssistantPrivate::controlsUpdated)},
     };
 
     this->loadCameras();
@@ -500,119 +484,38 @@ void AkVCam::AssistantPrivate::setBroadcasting(xpc_connection_t client,
     xpc_release(reply);
 }
 
-void AkVCam::AssistantPrivate::setMirroring(xpc_connection_t client,
-                                            xpc_object_t event)
-{
-    AkLogFunction();
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-    bool horizontalMirror = xpc_dictionary_get_bool(event, "hmirror");
-    bool verticalMirror = xpc_dictionary_get_bool(event, "vmirror");
-    bool ok = false;
-
-    if (this->m_deviceConfigs.count(deviceId) > 0)
-        if (this->m_deviceConfigs[deviceId].horizontalMirror != horizontalMirror
-            || this->m_deviceConfigs[deviceId].verticalMirror != verticalMirror) {
-            this->m_deviceConfigs[deviceId].horizontalMirror = horizontalMirror;
-            this->m_deviceConfigs[deviceId].verticalMirror = verticalMirror;
-            auto notification = xpc_copy(event);
-
-            for (auto &client: this->m_clients)
-                xpc_connection_send_message(client.second, notification);
-
-            xpc_release(notification);
-            ok = true;
-        }
-
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_bool(reply, "status", ok);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
-void AkVCam::AssistantPrivate::setScaling(xpc_connection_t client,
-                                          xpc_object_t event)
-{
-    AkLogFunction();
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-    auto scaling = Scaling(xpc_dictionary_get_int64(event, "scaling"));
-    bool ok = false;
-
-    if (this->m_deviceConfigs.count(deviceId) > 0)
-        if (this->m_deviceConfigs[deviceId].scaling != scaling) {
-            this->m_deviceConfigs[deviceId].scaling = scaling;
-            auto notification = xpc_copy(event);
-
-            for (auto &client: this->m_clients)
-                xpc_connection_send_message(client.second, notification);
-
-            xpc_release(notification);
-            ok = true;
-        }
-
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_bool(reply, "status", ok);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
-void AkVCam::AssistantPrivate::setAspectRatio(xpc_connection_t client,
-                                              xpc_object_t event)
-{
-    AkLogFunction();
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-    auto aspectRatio = AspectRatio(xpc_dictionary_get_int64(event, "aspect"));
-    bool ok = false;
-
-    if (this->m_deviceConfigs.count(deviceId) > 0)
-        if (this->m_deviceConfigs[deviceId].aspectRatio != aspectRatio) {
-            this->m_deviceConfigs[deviceId].aspectRatio = aspectRatio;
-            auto notification = xpc_copy(event);
-
-            for (auto &client: this->m_clients)
-                xpc_connection_send_message(client.second, notification);
-
-            xpc_release(notification);
-            ok = true;
-        }
-
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_bool(reply, "status", ok);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
-void AkVCam::AssistantPrivate::setSwapRgb(xpc_connection_t client,
-                                          xpc_object_t event)
-{
-    AkLogFunction();
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-    auto swapRgb = xpc_dictionary_get_bool(event, "swap");
-    bool ok = false;
-
-    if (this->m_deviceConfigs.count(deviceId) > 0)
-        if (this->m_deviceConfigs[deviceId].swapRgb != swapRgb) {
-            this->m_deviceConfigs[deviceId].swapRgb = swapRgb;
-            auto notification = xpc_copy(event);
-
-            for (auto &client: this->m_clients)
-                xpc_connection_send_message(client.second, notification);
-
-            xpc_release(notification);
-            ok = true;
-        }
-
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_bool(reply, "status", ok);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
 void AkVCam::AssistantPrivate::frameReady(xpc_connection_t client,
                                           xpc_object_t event)
 {
     UNUSED(client);
     AkLogFunction();
 
+    auto reply = xpc_dictionary_create_reply(event);
+    bool ok = true;
+
+    for (auto &client: this->m_clients) {
+        auto reply = xpc_connection_send_message_with_reply_sync(client.second,
+                                                                 event);
+        auto replyType = xpc_get_type(reply);
+        bool isOk = false;
+
+        if (replyType == XPC_TYPE_DICTIONARY)
+            isOk = xpc_dictionary_get_bool(reply, "status");
+
+        ok &= isOk;
+        xpc_release(reply);
+    }
+
+    xpc_dictionary_set_bool(reply, "status", ok);
+    xpc_connection_send_message(client, reply);
+    xpc_release(reply);
+}
+
+void AkVCam::AssistantPrivate::pictureUpdated(xpc_connection_t client,
+                                              xpc_object_t event)
+{
+    UNUSED(client);
+    AkLogFunction();
     auto reply = xpc_dictionary_create_reply(event);
     bool ok = true;
 
@@ -761,78 +664,24 @@ void AkVCam::AssistantPrivate::broadcasting(xpc_connection_t client,
     xpc_release(reply);
 }
 
-void AkVCam::AssistantPrivate::mirroring(xpc_connection_t client,
-                                         xpc_object_t event)
+void AkVCam::AssistantPrivate::controlsUpdated(xpc_connection_t client, xpc_object_t event)
 {
     AkLogFunction();
     std::string deviceId = xpc_dictionary_get_string(event, "device");
-    bool horizontalMirror = false;
-    bool verticalMirror = false;
+    bool ok = false;
 
     if (this->m_deviceConfigs.count(deviceId) > 0) {
-        horizontalMirror = this->m_deviceConfigs[deviceId].horizontalMirror;
-        verticalMirror = this->m_deviceConfigs[deviceId].verticalMirror;
+        auto notification = xpc_copy(event);
+
+        for (auto &client: this->m_clients)
+            xpc_connection_send_message(client.second, notification);
+
+        xpc_release(notification);
+        ok = true;
     }
 
-    AkLogInfo() << "Device: " << deviceId << std::endl;
-    AkLogInfo() << "Horizontal mirror: " << horizontalMirror << std::endl;
-    AkLogInfo() << "Vertical mirror: " << verticalMirror << std::endl;
     auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_bool(reply, "hmirror", horizontalMirror);
-    xpc_dictionary_set_bool(reply, "vmirror", verticalMirror);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
-void AkVCam::AssistantPrivate::scaling(xpc_connection_t client, xpc_object_t event)
-{
-    AkLogFunction();
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-    Scaling scaling = ScalingFast;
-
-    if (this->m_deviceConfigs.count(deviceId) > 0)
-        scaling = this->m_deviceConfigs[deviceId].scaling;
-
-    AkLogInfo() << "Device: " << deviceId << std::endl;
-    AkLogInfo() << "Scaling: " << scaling << std::endl;
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_int64(reply, "scaling", scaling);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
-void AkVCam::AssistantPrivate::aspectRatio(xpc_connection_t client,
-                                           xpc_object_t event)
-{
-    AkLogFunction();
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-    AspectRatio aspectRatio = AspectRatioIgnore;
-
-    if (this->m_deviceConfigs.count(deviceId) > 0)
-        aspectRatio = this->m_deviceConfigs[deviceId].aspectRatio;
-
-    AkLogInfo() << "Device: " << deviceId << std::endl;
-    AkLogInfo() << "Aspect ratio: " << aspectRatio << std::endl;
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_int64(reply, "aspect", aspectRatio);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
-void AkVCam::AssistantPrivate::swapRgb(xpc_connection_t client,
-                                       xpc_object_t event)
-{
-    AkLogFunction();
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-    bool swapRgb = false;
-
-    if (this->m_deviceConfigs.count(deviceId) > 0)
-        swapRgb = this->m_deviceConfigs[deviceId].swapRgb;
-
-    AkLogInfo() << "Device: " << deviceId << std::endl;
-    AkLogInfo() << "Swap RGB: " << swapRgb << std::endl;
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_bool(reply, "swap", swapRgb);
+    xpc_dictionary_set_bool(reply, "status", ok);
     xpc_connection_send_message(client, reply);
     xpc_release(reply);
 }

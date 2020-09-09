@@ -125,14 +125,14 @@ std::ostream &AkVCam::Logger::log(int logLevel)
         return dummy;
 
     if (loggerPrivate()->fileName.empty())
-        return std::cout;
+        return std::cerr;
 
     if (!loggerPrivate()->stream.is_open())
         loggerPrivate()->stream.open(loggerPrivate()->fileName,
                                      std::ios_base::out | std::ios_base::app);
 
     if (!loggerPrivate()->stream.is_open())
-        return std::cout;
+        return std::cerr;
 
     return loggerPrivate()->stream;
 }

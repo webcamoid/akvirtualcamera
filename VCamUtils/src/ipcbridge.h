@@ -33,6 +33,26 @@ namespace AkVCam
     class VideoFormat;
     class VideoFrame;
 
+    enum ControlType
+    {
+        ControlTypeInteger,
+        ControlTypeBoolean,
+        ControlTypeMenu,
+    };
+
+    struct DeviceControl
+    {
+        std::string id;
+        std::string description;
+        ControlType type;
+        int minimum;
+        int maximum;
+        int step;
+        int defaultValue;
+        int value;
+        std::vector<std::string> menu;
+    };
+
     class IpcBridge
     {
         public:
@@ -53,6 +73,8 @@ namespace AkVCam
             AKVCAM_SIGNAL(FrameReady,
                           const std::string &deviceId,
                           const VideoFrame &frame)
+            AKVCAM_SIGNAL(PictureChanged,
+                          const std::string &picture)
             AKVCAM_SIGNAL(DeviceAdded,
                           const std::string &deviceId)
             AKVCAM_SIGNAL(DeviceRemoved,
@@ -67,19 +89,9 @@ namespace AkVCam
             AKVCAM_SIGNAL(BroadcastingChanged,
                           const std::string &deviceId,
                           const std::string &broadcaster)
-            AKVCAM_SIGNAL(MirrorChanged,
+            AKVCAM_SIGNAL(ControlsChanged,
                           const std::string &deviceId,
-                          bool horizontalMirror,
-                          bool verticalMirror)
-            AKVCAM_SIGNAL(ScalingChanged,
-                          const std::string &deviceId,
-                          Scaling scaling)
-            AKVCAM_SIGNAL(AspectRatioChanged,
-                          const std::string &deviceId,
-                          AspectRatio aspectRatio)
-            AKVCAM_SIGNAL(SwapRgbChanged,
-                          const std::string &deviceId,
-                          bool swap)
+                          const std::map<std::string, int> &controls)
 
         public:
             IpcBridge();
@@ -147,20 +159,9 @@ namespace AkVCam
             // Return return the status of the device.
             std::string broadcaster(const std::string &deviceId) const;
 
-            // Device is horizontal mirrored,
-            bool isHorizontalMirrored(const std::string &deviceId);
-
-            // Device is vertical mirrored,
-            bool isVerticalMirrored(const std::string &deviceId);
-
-            // Scaling mode for frames shown in clients.
-            Scaling scalingMode(const std::string &deviceId);
-
-            // Aspect ratio mode for frames shown in clients.
-            AspectRatio aspectRatioMode(const std::string &deviceId);
-
-            // Check if red and blue channels are swapped.
-            bool swapRgb(const std::string &deviceId);
+            std::vector<DeviceControl> controls(const std::string &deviceId);
+            void setControls(const std::string &deviceId,
+                             const std::map<std::string, int> &controls);
 
             // Returns the clients that are capturing from a virtual camera.
             std::vector<std::string> listeners(const std::string &deviceId);
@@ -179,7 +180,6 @@ namespace AkVCam
                            const VideoFormat &format,
                            int index=-1);
             void removeFormat(const std::string &deviceId, int index);
-            void update();
             void updateDevices();
 
             // Start frame transfer to the device.
@@ -192,22 +192,6 @@ namespace AkVCam
             // Transfer a frame to the device.
             bool write(const std::string &deviceId,
                        const VideoFrame &frame);
-
-            // Set mirroring options for device,
-            void setMirroring(const std::string &deviceId,
-                              bool horizontalMirrored,
-                              bool verticalMirrored);
-
-            // Set scaling options for device.
-            void setScaling(const std::string &deviceId,
-                            Scaling scaling);
-
-            // Set aspect ratio options for device.
-            void setAspectRatio(const std::string &deviceId,
-                                AspectRatio aspectRatio);
-
-            // Swap red and blue channels.
-            void setSwapRgb(const std::string &deviceId, bool swap);
 
             /* Client */
 

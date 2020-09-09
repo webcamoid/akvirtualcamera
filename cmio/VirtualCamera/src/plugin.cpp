@@ -18,8 +18,8 @@
  */
 
 #include "plugin.h"
-#include "utils.h"
 #include "PlatformUtils/src/preferences.h"
+#include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/logger/logger.h"
 

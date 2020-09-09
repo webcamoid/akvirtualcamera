@@ -158,6 +158,8 @@ namespace AkVCam
     std::string join(const std::vector<std::string> &strs,
                      const std::string &separator);
     std::vector<std::string> split(const std::string &str, char separator);
+    std::pair<std::string, std::string> splitOnce(const std::string &str,
+                                                  const std::string &separator);
 }
 
 #endif // AKVCAMUTILS_UTILS_H

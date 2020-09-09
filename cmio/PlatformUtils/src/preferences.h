@@ -20,6 +20,7 @@
 #ifndef PREFERENCES_H
 #define PREFERENCES_H
 
+#include <memory>
 #include <string>
 #include <vector>
 #include <CoreFoundation/CoreFoundation.h>
@@ -79,6 +80,11 @@ namespace AkVCam
                              const VideoFormat &format,
                              int index);
         void cameraRemoveFormat(size_t cameraIndex, int index);
+        int cameraControlValue(size_t cameraIndex,
+                               const std::string &key);
+        void cameraSetControlValue(size_t cameraIndex,
+                                   const std::string &key,
+                                   int value);
         std::wstring picture();
         void setPicture(const std::wstring &picture);
         int logLevel();

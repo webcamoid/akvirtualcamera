@@ -17,6 +17,7 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <cstring>
 #include <CoreFoundation/CFRunLoop.h>
 #include <xpc/xpc.h>
 #include <xpc/connection.h>

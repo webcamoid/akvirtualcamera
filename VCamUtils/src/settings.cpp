@@ -270,7 +270,7 @@ int32_t AkVCam::Settings::valueInt32(const std::string &key) const
     auto value = this->value(key);
 
     if (value.empty())
-        return false;
+        return 0;
 
     char *p = nullptr;
 
@@ -282,7 +282,7 @@ uint32_t AkVCam::Settings::valueUInt32(const std::string &key) const
     auto value = this->value(key);
 
     if (value.empty())
-        return false;
+        return 0;
 
     char *p = nullptr;
 
@@ -297,17 +297,22 @@ std::vector<std::string> AkVCam::Settings::valueList(const std::string &key,
     if (value.empty())
         return {};
 
-    char *valuePtr = const_cast<char *>(value.c_str());
     std::vector<std::string> result;
+    size_t pos = 0;
 
-    for (;;) {
-        auto element = strsep(&valuePtr, separators.c_str());
+   do {
+        auto index = value.size();
 
-        if (!element)
-            break;
+        for (auto &separator: separators) {
+            auto it = std::find(value.begin() + pos, value.end(), separator);
 
-        result.push_back(trimmed(element));
-    }
+            if (size_t(it - value.begin()) < index)
+                index = it - value.begin();
+        }
+
+        result.push_back(trimmed(value.substr(pos, index - pos)));
+        pos = index + 1;
+    } while (pos < value.size());
 
     return result;
 }
@@ -374,16 +379,15 @@ AkVCam::SettingsElement AkVCam::SettingsPrivate::parse(const std::string &line, 
         return element;
     }
 
-    auto pairSep = strchr(line.c_str(), '=');
-
-    if (!pairSep) {
+    if (line.find('=') == std::string::npos) {
         if (ok)
             *ok = false;
 
         return {};
     }
 
-    element.key = trimmed(line.substr(0, (size_t) (pairSep - line.c_str())));
+    auto pair = splitOnce(line, "=");
+    element.key = trimmed(pair.first);
     std::replace(element.key.begin(), element.key.end(), '\\', '/');
 
     if (element.key.empty()) {
@@ -393,8 +397,7 @@ AkVCam::SettingsElement AkVCam::SettingsPrivate::parse(const std::string &line, 
         return {};
     }
 
-    auto offset = (size_t) (pairSep - line.c_str() + 1);
-    element.value = trimmed(line.substr(offset, line.size() - offset));
+    element.value = trimmed(pair.second);
     element.value = this->parseString(element.value);
 
     if (ok)

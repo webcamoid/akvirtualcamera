@@ -58,22 +58,14 @@ namespace AkVCam
             static void frameReady(void *userData,
                                    const std::string &deviceId,
                                    const VideoFrame &frame);
+            static void pictureChanged(void *userData,
+                                       const std::string &picture);
             static void setBroadcasting(void *userData,
                                         const std::string &deviceId,
                                         const std::string &broadcaster);
-            static void setMirror(void *userData,
-                                  const std::string &deviceId,
-                                  bool horizontalMirror,
-                                  bool verticalMirror);
-            static void setScaling(void *userData,
-                                   const std::string &deviceId,
-                                   Scaling scaling);
-            static void setAspectRatio(void *userData,
-                                       const std::string &deviceId,
-                                       AspectRatio aspectRatio);
-            static void setSwapRgb(void *userData,
-                                   const std::string &deviceId,
-                                   bool swap);
+            static void controlsChanged(void *userData,
+                                        const std::string &deviceId,
+                                        const std::map<std::string, int> &controls);
             static void addListener(void *userData,
                                     const std::string &deviceId);
             static void removeListener(void *userData,

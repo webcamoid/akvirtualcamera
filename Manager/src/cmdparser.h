@@ -20,8 +20,9 @@
 #ifndef CMDPARSER_H
 #define CMDPARSER_H
 
-#include <string>
+#include <functional>
 #include <map>
+#include <string>
 #include <vector>
 
 namespace AkVCam {

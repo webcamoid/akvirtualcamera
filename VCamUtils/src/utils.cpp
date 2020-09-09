@@ -212,3 +212,17 @@ std::vector<std::string> AkVCam::split(const std::string &str, char separator)
 
     return elements;
 }
+
+std::pair<std::string, std::string> AkVCam::splitOnce(const std::string &str,
+                                                      const std::string &separator)
+{
+    auto pos = str.find(separator);
+
+    if (pos == std::string::npos)
+        return {str, ""};
+
+    auto first = str.substr(0, pos);
+    auto second = pos + 1 < str.size()? str.substr(pos + 1): "";
+
+    return {first, second};
+}

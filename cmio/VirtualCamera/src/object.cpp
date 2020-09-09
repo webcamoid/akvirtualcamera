@@ -18,7 +18,7 @@
  */
 
 #include "object.h"
-#include "utils.h"
+#include "PlatformUtils/src/utils.h"
 
 AkVCam::Object::Object(CMIOHardwarePlugInRef pluginInterface,
                        Object *parent):

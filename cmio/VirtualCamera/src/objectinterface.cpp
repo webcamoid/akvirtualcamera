@@ -18,7 +18,7 @@
  */
 
 #include "objectinterface.h"
-#include "utils.h"
+#include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/logger/logger.h"
 
 AkVCam::ObjectInterface::ObjectInterface():

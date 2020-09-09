@@ -20,7 +20,7 @@
 #include <map>
 
 #include "object.h"
-#include "utils.h"
+#include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
 
 namespace AkVCam

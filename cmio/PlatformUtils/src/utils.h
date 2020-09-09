@@ -20,19 +20,29 @@
 #ifndef PLATFORM_UTILS_H
 #define PLATFORM_UTILS_H
 
+#include <memory>
 #include <string>
-#include <CoreFoundation/CoreFoundation.h>
+#include <CoreMediaIO/CMIOHardwarePlugIn.h>
+#include <CoreMedia/CMFormatDescription.h>
+
+#include "VCamUtils/src/image/videoformattypes.h"
 
 namespace AkVCam
 {
-    class VideoFormat;
+    class VideoFrame;
 
+    bool uuidEqual(const REFIID &uuid1, const CFUUIDRef uuid2);
+    std::string enumToString(UInt32 value);
+    FourCharCode formatToCM(PixelFormat format);
+    PixelFormat formatFromCM(FourCharCode format);
     std::shared_ptr<CFTypeRef> cfTypeFromStd(const std::string &str);
     std::shared_ptr<CFTypeRef> cfTypeFromStd(const std::wstring &str);
     std::shared_ptr<CFTypeRef> cfTypeFromStd(int num);
     std::shared_ptr<CFTypeRef> cfTypeFromStd(double num);
     std::string stringFromCFType(CFTypeRef cfType);
     std::wstring wstringFromCFType(CFTypeRef cfType);
+    std::string realPath(const std::string &path);
+    VideoFrame loadPicture(const std::string &fileName);
 }
 
 #endif // PLATFORM_UTILS_H

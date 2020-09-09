@@ -17,15 +17,18 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <algorithm>
 #include <codecvt>
-#include <thread>
+#include <locale>
+#include <mutex>
 #include <random>
+#include <thread>
 #include <CoreMediaIO/CMIOSampleBuffer.h>
 
 #include "stream.h"
 #include "clock.h"
-#include "utils.h"
 #include "PlatformUtils/src/preferences.h"
+#include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/image/videoframe.h"
 #include "VCamUtils/src/logger/logger.h"
@@ -78,7 +81,7 @@ AkVCam::Stream::Stream(bool registerObject,
 
     if (!picture.empty()) {
         std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
-        this->d->m_testFrame.load(cv.to_bytes(picture));
+        this->d->m_testFrame = loadPicture(cv.to_bytes(picture));
     }
 
     this->d->m_clock =
@@ -156,6 +159,20 @@ OSStatus AkVCam::Stream::registerObject(bool regist)
     }
 
     return status;
+}
+
+void AkVCam::Stream::setPicture(const std::string &picture)
+{
+    AkLogFunction();
+    AkLogDebug() << "Picture: " << picture;
+    this->d->m_testFrame = loadPicture(picture);
+    this->d->updateTestFrame();
+    this->d->m_mutex.lock();
+
+    if (this->d->m_broadcaster.empty())
+        this->d->m_currentFrame = this->d->m_testFrameAdapted;
+
+    this->d->m_mutex.unlock();
 }
 
 void AkVCam::Stream::setBridge(IpcBridge *bridge)
@@ -307,15 +324,24 @@ void AkVCam::Stream::setBroadcasting(const std::string &broadcaster)
     this->d->m_mutex.unlock();
 }
 
-void AkVCam::Stream::setMirror(bool horizontalMirror, bool verticalMirror)
+void AkVCam::Stream::setHorizontalMirror(bool horizontalMirror)
 {
     AkLogFunction();
 
-    if (this->d->m_horizontalMirror == horizontalMirror
-        && this->d->m_verticalMirror == verticalMirror)
+    if (this->d->m_horizontalMirror == horizontalMirror)
         return;
 
     this->d->m_horizontalMirror = horizontalMirror;
+    this->d->updateTestFrame();
+}
+
+void AkVCam::Stream::setVerticalMirror(bool verticalMirror)
+{
+    AkLogFunction();
+
+    if (this->d->m_verticalMirror == verticalMirror)
+        return;
+
     this->d->m_verticalMirror = verticalMirror;
     this->d->updateTestFrame();
 }

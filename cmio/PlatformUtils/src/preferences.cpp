@@ -17,6 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <algorithm>
+
 #include "preferences.h"
 #include "utils.h"
 #include "VCamUtils/src/image/videoformat.h"
@@ -608,4 +610,17 @@ int AkVCam::Preferences::logLevel()
 void AkVCam::Preferences::setLogLevel(int logLevel)
 {
     write("loglevel", logLevel);
+}
+
+int AkVCam::Preferences::cameraControlValue(size_t cameraIndex,
+                                            const std::string &key)
+{
+    return readInt("cameras." + std::to_string(cameraIndex) + ".controls." + key);
+}
+
+void AkVCam::Preferences::cameraSetControlValue(size_t cameraIndex,
+                                                const std::string &key,
+                                                int value)
+{
+    write("cameras." + std::to_string(cameraIndex) + ".controls." + key, value);
 }

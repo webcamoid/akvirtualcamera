@@ -44,6 +44,7 @@ LIBS = \
     -L$${OUT_PWD}/../../VCamUtils/$${BIN_DIR} -lVCamUtils \
     -L$${OUT_PWD}/../VCamIPC/$${BIN_DIR} -lVCamIPC \
     -framework CoreFoundation \
+    -framework CoreGraphics \
     -framework CoreMedia \
     -framework CoreMediaIO \
     -framework CoreVideo \
@@ -57,7 +58,6 @@ TEMPLATE = lib
 HEADERS += \
     src/plugin.h \
     src/plugininterface.h \
-    src/utils.h \
     src/device.h \
     src/object.h \
     src/stream.h \
@@ -69,7 +69,6 @@ HEADERS += \
 SOURCES += \
     src/plugin.cpp \
     src/plugininterface.cpp \
-    src/utils.cpp \
     src/device.cpp \
     src/object.cpp \
     src/stream.cpp \
@@ -88,8 +87,7 @@ RESOURCESPATH = $${CONTENTSPATH}/Resources
 
 INSTALLS += \
     targetLib \
-    infoPlist \
-    resources
+    infoPlist
 
 targetLib.files = $$shell_path($${OUT_PWD}/../../$${MACBINPATH}/$${CMIO_PLUGIN_NAME})
 targetLib.path = $${PREFIX}/$${MACBINPATH}
@@ -99,12 +97,7 @@ infoPlist.files = $$shell_path($${OUT_PWD}/Info.plist)
 infoPlist.path = $${PREFIX}/$${CONTENTSPATH}
 infoPlist.CONFIG += no_check_exist
 
-resources.files = ../../share/TestFrame/TestFrame.bmp
-resources.path = $${PREFIX}/$${RESOURCESPATH}
-
 QMAKE_POST_LINK = \
     $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/../../$${MACBINPATH})) $${CMD_SEP} \
-    $$sprintf($$QMAKE_MKDIR_CMD, $$shell_path($${OUT_PWD}/../../$${RESOURCESPATH})) $${CMD_SEP} \
     $(COPY) $$shell_path($${OUT_PWD}/Info.plist) $$shell_path($${OUT_PWD}/../../$${CONTENTSPATH}) $${CMD_SEP} \
-    $(COPY) $$shell_path($${OUT_PWD}/$${BIN_DIR}/lib$${CMIO_PLUGIN_NAME}.$${QMAKE_EXTENSION_SHLIB}) $$shell_path($${OUT_PWD}/../../$${MACBINPATH}/$${CMIO_PLUGIN_NAME}) $${CMD_SEP} \
-    $(COPY) $$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp) $$shell_path($${OUT_PWD}/../../$${RESOURCESPATH})
+    $(COPY) $$shell_path($${OUT_PWD}/$${BIN_DIR}/lib$${CMIO_PLUGIN_NAME}.$${QMAKE_EXTENSION_SHLIB}) $$shell_path($${OUT_PWD}/../../$${MACBINPATH}/$${CMIO_PLUGIN_NAME}) $${CMD_SEP}

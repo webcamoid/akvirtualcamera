@@ -17,12 +17,16 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <algorithm>
+#include <codecvt>
 #include <fstream>
+#include <locale>
 #include <map>
 #include <sstream>
-#include <algorithm>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <dlfcn.h>
+#include <libgen.h>
 #include <Foundation/Foundation.h>
 #include <IOSurface/IOSurface.h>
 #include <CoreMedia/CMFormatDescription.h>
@@ -31,6 +35,7 @@
 
 #include "Assistant/src/assistantglobals.h"
 #include "PlatformUtils/src/preferences.h"
+#include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/image/videoframe.h"
 #include "VCamUtils/src/ipcbridge.h"
@@ -61,6 +66,7 @@ namespace AkVCam
             inline void add(IpcBridge *bridge);
             void remove(IpcBridge *bridge);
             inline std::vector<IpcBridge *> &bridges();
+            inline const std::vector<DeviceControl> &controls() const;
 
             // Message handling methods
             void isAlive(xpc_connection_t client, xpc_object_t event);
@@ -68,12 +74,9 @@ namespace AkVCam
             void deviceDestroy(xpc_connection_t client, xpc_object_t event);
             void deviceUpdate(xpc_connection_t client, xpc_object_t event);
             void frameReady(xpc_connection_t client, xpc_object_t event);
-            void setBroadcasting(xpc_connection_t client,
-                                     xpc_object_t event);
-            void setMirror(xpc_connection_t client, xpc_object_t event);
-            void setScaling(xpc_connection_t client, xpc_object_t event);
-            void setAspectRatio(xpc_connection_t client, xpc_object_t event);
-            void setSwapRgb(xpc_connection_t client, xpc_object_t event);
+            void pictureUpdated(xpc_connection_t client, xpc_object_t event);
+            void setBroadcasting(xpc_connection_t client, xpc_object_t event);
+            void controlsUpdated(xpc_connection_t client, xpc_object_t event);
             void listenerAdd(xpc_connection_t client, xpc_object_t event);
             void listenerRemove(xpc_connection_t client, xpc_object_t event);
             void messageReceived(xpc_connection_t client, xpc_object_t event);
@@ -83,10 +86,9 @@ namespace AkVCam
             std::string homePath() const;
             bool fileExists(const std::wstring &path) const;
             bool fileExists(const std::string &path) const;
-            std::wstring fileName(const std::wstring &path) const;
             bool mkpath(const std::string &path) const;
             bool rm(const std::string &path) const;
-            std::wstring locateDriverPath() const;
+            static std::string locatePluginPath();
 
         private:
             std::vector<IpcBridge *> m_bridges;
@@ -169,7 +171,18 @@ std::wstring AkVCam::IpcBridge::picture() const
 
 void AkVCam::IpcBridge::setPicture(const std::wstring &picture)
 {
+    AkLogFunction();
     Preferences::setPicture(picture);
+
+    if (!this->d->m_serverMessagePort)
+        return;
+
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
+    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
+    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED);
+    xpc_dictionary_set_string(dictionary, "picture", cv.to_bytes(picture).c_str());
+    xpc_connection_send_message(this->d->m_serverMessagePort, dictionary);
+    xpc_release(dictionary);
 }
 
 int AkVCam::IpcBridge::logLevel() const
@@ -446,139 +459,62 @@ std::string AkVCam::IpcBridge::broadcaster(const std::string &deviceId) const
     return broadcaster;
 }
 
-bool AkVCam::IpcBridge::isHorizontalMirrored(const std::string &deviceId)
+std::vector<AkVCam::DeviceControl> AkVCam::IpcBridge::controls(const std::string &deviceId)
 {
     AkLogFunction();
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
-    if (!this->d->m_serverMessagePort)
-        return false;
+    if (cameraIndex < 0)
+        return {};
 
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_MIRRORING);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    auto replyType = xpc_get_type(reply);
+    std::vector<DeviceControl> controls;
 
-    if (replyType != XPC_TYPE_DICTIONARY) {
-        xpc_release(reply);
-
-        return false;
+    for (auto &control: this->d->controls()) {
+        controls.push_back(control);
+        controls.back().value =
+                Preferences::cameraControlValue(cameraIndex, control.id);
     }
 
-    bool horizontalMirror = xpc_dictionary_get_bool(reply, "hmirror");
-    xpc_release(reply);
-
-    return horizontalMirror;
+    return controls;
 }
 
-bool AkVCam::IpcBridge::isVerticalMirrored(const std::string &deviceId)
+void AkVCam::IpcBridge::setControls(const std::string &deviceId,
+                                    const std::map<std::string, int> &controls)
 {
     AkLogFunction();
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
-    if (!this->d->m_serverMessagePort)
-        return false;
+    if (cameraIndex < 0)
+        return;
+
+    bool updated = false;
+
+    for (auto &control: this->d->controls()) {
+        auto oldValue =
+                Preferences::cameraControlValue(cameraIndex, control.id);
+
+        if (controls.count(control.id)) {
+            auto newValue = controls.at(control.id);
+
+            if (newValue != oldValue) {
+                Preferences::cameraSetControlValue(cameraIndex,
+                                                   control.id,
+                                                   newValue);
+                updated = true;
+            }
+        }
+    }
+
+    if (!this->d->m_serverMessagePort || !updated)
+        return;
 
     auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_MIRRORING);
+    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED);
     xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
     auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
                                                              dictionary);
     xpc_release(dictionary);
-    auto replyType = xpc_get_type(reply);
-
-    if (replyType != XPC_TYPE_DICTIONARY) {
-        xpc_release(reply);
-
-        return false;
-    }
-
-    bool verticalMirror = xpc_dictionary_get_bool(reply, "vmirror");
     xpc_release(reply);
-
-    return verticalMirror;
-}
-
-AkVCam::Scaling AkVCam::IpcBridge::scalingMode(const std::string &deviceId)
-{
-    AkLogFunction();
-
-    if (!this->d->m_serverMessagePort)
-        return ScalingFast;
-
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_SCALING);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    auto replyType = xpc_get_type(reply);
-
-    if (replyType != XPC_TYPE_DICTIONARY) {
-        xpc_release(reply);
-
-        return ScalingFast;
-    }
-
-    auto scaling = Scaling(xpc_dictionary_get_int64(reply, "scaling"));
-    xpc_release(reply);
-
-    return scaling;
-}
-
-AkVCam::AspectRatio AkVCam::IpcBridge::aspectRatioMode(const std::string &deviceId)
-{
-    AkLogFunction();
-
-    if (!this->d->m_serverMessagePort)
-        return AspectRatioIgnore;
-
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_ASPECTRATIO);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    auto replyType = xpc_get_type(reply);
-
-    if (replyType != XPC_TYPE_DICTIONARY) {
-        xpc_release(reply);
-
-        return AspectRatioIgnore;
-    }
-
-    auto aspectRatio = AspectRatio(xpc_dictionary_get_int64(reply, "aspect"));
-    xpc_release(reply);
-
-    return aspectRatio;
-}
-
-bool AkVCam::IpcBridge::swapRgb(const std::string &deviceId)
-{
-    AkLogFunction();
-
-    if (!this->d->m_serverMessagePort)
-        return false;
-
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_SWAPRGB);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    auto replyType = xpc_get_type(reply);
-
-    if (replyType != XPC_TYPE_DICTIONARY) {
-        xpc_release(reply);
-
-        return false;
-    }
-
-    auto swap = xpc_dictionary_get_bool(reply, "swap");
-    xpc_release(reply);
-
-    return swap;
 }
 
 std::vector<std::string> AkVCam::IpcBridge::listeners(const std::string &deviceId)
@@ -618,17 +554,19 @@ std::vector<std::string> AkVCam::IpcBridge::listeners(const std::string &deviceI
 
 std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
 {
-    auto driverPath = this->d->locateDriverPath();
+    AkLogFunction();
+    auto driverPath = this->d->locatePluginPath();
+    AkLogDebug() << "Plugin path: " << driverPath << std::endl;
 
     if (driverPath.empty())
         return {};
 
-    auto plugin = this->d->fileName(driverPath);
-    std::wstring pluginPath =
-            CMIO_PLUGINS_DAL_PATH_L L"/"
-            + plugin
-            + L"/Contents/MacOS/" CMIO_PLUGIN_NAME_L;
-    std::string path(pluginPath.begin(), pluginPath.end());
+    auto path = driverPath + "/Contents/MacOS/" CMIO_PLUGIN_NAME;
+    AkLogDebug() << "Plugin binary: " << path << std::endl;
+
+    if (!this->d->fileExists(path))
+        return {};
+
     auto npids = proc_listpidspath(PROC_ALL_PIDS,
                                    0,
                                    path.c_str(),
@@ -692,7 +630,7 @@ void AkVCam::IpcBridge::removeFormat(const std::string &deviceId, int index)
                                     index);
 }
 
-void AkVCam::IpcBridge::update()
+void AkVCam::IpcBridge::updateDevices()
 {
     AkLogFunction();
 
@@ -703,19 +641,6 @@ void AkVCam::IpcBridge::update()
     xpc_dictionary_set_int64(dictionary,
                              "message",
                              AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE);
-    xpc_connection_send_message(this->d->m_serverMessagePort, dictionary);
-    xpc_release(dictionary);
-}
-
-void AkVCam::IpcBridge::updateDevices()
-{
-    AkLogFunction();
-
-    if (!this->d->m_serverMessagePort)
-        return;
-
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE);
     xpc_connection_send_message(this->d->m_serverMessagePort, dictionary);
     xpc_release(dictionary);
 
@@ -856,79 +781,6 @@ bool AkVCam::IpcBridge::write(const std::string &deviceId,
     return true;
 }
 
-void AkVCam::IpcBridge::setMirroring(const std::string &deviceId,
-                                     bool horizontalMirrored,
-                                     bool verticalMirrored)
-{
-    AkLogFunction();
-
-    if (!this->d->m_serverMessagePort)
-        return;
-
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_SETMIRRORING);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    xpc_dictionary_set_bool(dictionary, "hmirror", horizontalMirrored);
-    xpc_dictionary_set_bool(dictionary, "vmirror", verticalMirrored);
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    xpc_release(reply);
-}
-
-void AkVCam::IpcBridge::setScaling(const std::string &deviceId,
-                                   Scaling scaling)
-{
-    AkLogFunction();
-
-    if (!this->d->m_serverMessagePort)
-        return;
-
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_SETSCALING);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    xpc_dictionary_set_int64(dictionary, "scaling", scaling);
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    xpc_release(reply);
-}
-
-void AkVCam::IpcBridge::setAspectRatio(const std::string &deviceId,
-                                       AspectRatio aspectRatio)
-{
-    AkLogFunction();
-
-    if (!this->d->m_serverMessagePort)
-        return;
-
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_SETASPECTRATIO);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    xpc_dictionary_set_int64(dictionary, "aspect", aspectRatio);
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    xpc_release(reply);
-}
-
-void AkVCam::IpcBridge::setSwapRgb(const std::string &deviceId, bool swap)
-{
-    AkLogFunction();
-
-    if (!this->d->m_serverMessagePort)
-        return;
-
-    auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-    xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_SETSWAPRGB);
-    xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    xpc_dictionary_set_bool(dictionary, "swap", swap);
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
-    xpc_release(dictionary);
-    xpc_release(reply);
-}
-
 bool AkVCam::IpcBridge::addListener(const std::string &deviceId)
 {
     AkLogFunction();
@@ -991,18 +843,16 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
     m_serverMessagePort(nullptr)
 {
     this->m_messageHandlers = {
-        {AKVCAM_ASSISTANT_MSG_ISALIVE               , AKVCAM_BIND_FUNC(IpcBridgePrivate::isAlive)        },
-        {AKVCAM_ASSISTANT_MSG_FRAME_READY           , AKVCAM_BIND_FUNC(IpcBridgePrivate::frameReady)     },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_CREATE         , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceCreate)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY        , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceDestroy)  },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE         , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceUpdate)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD   , AKVCAM_BIND_FUNC(IpcBridgePrivate::listenerAdd)    },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE, AKVCAM_BIND_FUNC(IpcBridgePrivate::listenerRemove) },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING, AKVCAM_BIND_FUNC(IpcBridgePrivate::setBroadcasting)},
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETMIRRORING   , AKVCAM_BIND_FUNC(IpcBridgePrivate::setMirror)      },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETSCALING     , AKVCAM_BIND_FUNC(IpcBridgePrivate::setScaling)     },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETASPECTRATIO , AKVCAM_BIND_FUNC(IpcBridgePrivate::setAspectRatio) },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETSWAPRGB     , AKVCAM_BIND_FUNC(IpcBridgePrivate::setSwapRgb)     },
+        {AKVCAM_ASSISTANT_MSG_ISALIVE                , AKVCAM_BIND_FUNC(IpcBridgePrivate::isAlive)        },
+        {AKVCAM_ASSISTANT_MSG_FRAME_READY            , AKVCAM_BIND_FUNC(IpcBridgePrivate::frameReady)     },
+        {AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED        , AKVCAM_BIND_FUNC(IpcBridgePrivate::pictureUpdated) },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_CREATE          , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceCreate)   },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY         , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceDestroy)  },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE          , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceUpdate)   },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD    , AKVCAM_BIND_FUNC(IpcBridgePrivate::listenerAdd)    },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE , AKVCAM_BIND_FUNC(IpcBridgePrivate::listenerRemove) },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING , AKVCAM_BIND_FUNC(IpcBridgePrivate::setBroadcasting)},
+        {AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED, AKVCAM_BIND_FUNC(IpcBridgePrivate::controlsUpdated)},
     };
 }
 
@@ -1036,6 +886,31 @@ void AkVCam::IpcBridgePrivate::remove(IpcBridge *bridge)
 std::vector<AkVCam::IpcBridge *> &AkVCam::IpcBridgePrivate::bridges()
 {
     return this->m_bridges;
+}
+
+const std::vector<AkVCam::DeviceControl> &AkVCam::IpcBridgePrivate::controls() const
+{
+    static const std::vector<std::string> scalingMenu {
+        "Fast",
+        "Linear"
+    };
+    static const std::vector<std::string> aspectRatioMenu {
+        "Ignore",
+        "Keep",
+        "Expanding"
+    };
+    static const auto scalingMax = int(scalingMenu.size()) - 1;
+    static const auto aspectRatioMax = int(aspectRatioMenu.size()) - 1;
+
+    static const std::vector<DeviceControl> controls {
+        {"hflip"       , "Horizontal Mirror", ControlTypeBoolean, 0, 1             , 1, 0, 0, {}             },
+        {"vflip"       , "Vertical Mirror"  , ControlTypeBoolean, 0, 1             , 1, 0, 0, {}             },
+        {"scaling"     , "Scaling"          , ControlTypeMenu   , 0, scalingMax    , 1, 0, 0, scalingMenu    },
+        {"aspect_ratio", "Aspect Ratio"     , ControlTypeMenu   , 0, aspectRatioMax, 1, 0, 0, aspectRatioMenu},
+        {"swap_rgb"    , "Swap RGB"         , ControlTypeBoolean, 0, 1             , 1, 0, 0, {}             },
+    };
+
+    return controls;
 }
 
 void AkVCam::IpcBridgePrivate::isAlive(xpc_connection_t client,
@@ -1118,6 +993,18 @@ void AkVCam::IpcBridgePrivate::frameReady(xpc_connection_t client,
     xpc_release(reply);
 }
 
+void AkVCam::IpcBridgePrivate::pictureUpdated(xpc_connection_t client,
+                                              xpc_object_t event)
+{
+    UNUSED(client);
+    AkLogFunction();
+
+    std::string picture = xpc_dictionary_get_string(event, "picture");
+
+    for (auto bridge: this->m_bridges)
+        AKVCAM_EMIT(bridge, PictureChanged, picture)
+}
+
 void AkVCam::IpcBridgePrivate::setBroadcasting(xpc_connection_t client,
                                                xpc_object_t event)
 {
@@ -1133,69 +1020,31 @@ void AkVCam::IpcBridgePrivate::setBroadcasting(xpc_connection_t client,
         AKVCAM_EMIT(bridge, BroadcastingChanged, deviceId, broadcaster)
 }
 
-void AkVCam::IpcBridgePrivate::setMirror(xpc_connection_t client,
-                                         xpc_object_t event)
+void AkVCam::IpcBridgePrivate::controlsUpdated(xpc_connection_t client,
+                                               xpc_object_t event)
 {
     UNUSED(client);
     AkLogFunction();
 
     std::string deviceId =
             xpc_dictionary_get_string(event, "device");
-    bool horizontalMirror =
-            xpc_dictionary_get_bool(event, "hmirror");
-    bool verticalMirror =
-            xpc_dictionary_get_bool(event, "vmirror");
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    std::map<std::string, int> controls;
+
+    for (auto &control: this->controls())
+        controls[control.id] =
+                Preferences::cameraControlValue(cameraIndex, control.id);
 
     for (auto bridge: this->m_bridges)
         AKVCAM_EMIT(bridge,
-                    MirrorChanged,
+                    ControlsChanged,
                     deviceId,
-                    horizontalMirror,
-                    verticalMirror)
-}
+                    controls)
 
-void AkVCam::IpcBridgePrivate::setScaling(xpc_connection_t client,
-                                          xpc_object_t event)
-{
-    UNUSED(client);
-    AkLogFunction();
-
-    std::string deviceId =
-            xpc_dictionary_get_string(event, "device");
-    auto scaling =
-            Scaling(xpc_dictionary_get_int64(event, "scaling"));
-
-    for (auto bridge: this->m_bridges)
-        AKVCAM_EMIT(bridge, ScalingChanged, deviceId, scaling)
-}
-
-void AkVCam::IpcBridgePrivate::setAspectRatio(xpc_connection_t client,
-                                              xpc_object_t event)
-{
-    UNUSED(client);
-    AkLogFunction();
-
-    std::string deviceId =
-            xpc_dictionary_get_string(event, "device");
-    auto aspectRatio =
-            AspectRatio(xpc_dictionary_get_int64(event, "aspect"));
-
-    for (auto bridge: this->m_bridges)
-        AKVCAM_EMIT(bridge, AspectRatioChanged, deviceId, aspectRatio)
-}
-
-void AkVCam::IpcBridgePrivate::setSwapRgb(xpc_connection_t client,
-                                          xpc_object_t event)
-{
-    UNUSED(client);
-    AkLogFunction();
-
-    std::string deviceId =
-            xpc_dictionary_get_string(event, "device");
-    auto swap = xpc_dictionary_get_bool(event, "swap");
-
-    for (auto bridge: this->m_bridges)
-        AKVCAM_EMIT(bridge, SwapRgbChanged, deviceId, swap)
+    auto reply = xpc_dictionary_create_reply(event);
+    xpc_dictionary_set_bool(reply, "status", cameraIndex >= 0);
+    xpc_connection_send_message(client, reply);
+    xpc_release(reply);
 }
 
 void AkVCam::IpcBridgePrivate::listenerAdd(xpc_connection_t client,
@@ -1280,11 +1129,6 @@ bool AkVCam::IpcBridgePrivate::fileExists(const std::string &path) const
     return stat(path.c_str(), &stats) == 0;
 }
 
-std::wstring AkVCam::IpcBridgePrivate::fileName(const std::wstring &path) const
-{
-    return path.substr(path.rfind(L'/') + 1);
-}
-
 bool AkVCam::IpcBridgePrivate::mkpath(const std::string &path) const
 {
     if (path.empty())
@@ -1341,32 +1185,14 @@ bool AkVCam::IpcBridgePrivate::rm(const std::string &path) const
     return ok;
 }
 
-std::wstring AkVCam::IpcBridgePrivate::locateDriverPath() const
+std::string AkVCam::IpcBridgePrivate::locatePluginPath()
 {
     AkLogFunction();
-    std::wstring driverPath;
+    Dl_info info;
+    memset(&info, 0, sizeof(Dl_info));
+    dladdr(reinterpret_cast<void *>(&AkVCam::IpcBridgePrivate::locatePluginPath),
+           &info);
+    std::string dirName = dirname(const_cast<char *>(info.dli_fname));
 
-    for (auto it = this->driverPaths()->rbegin();
-         it != this->driverPaths()->rend();
-         it++) {
-        auto path = *it;
-        path = replace(path, L"\\", L"/");
-
-        if (path.back() != L'/')
-            path += L'/';
-
-        path += CMIO_PLUGIN_NAME_L L".plugin";
-
-        if (!this->fileExists(path + L"/Contents/MacOS/" CMIO_PLUGIN_NAME_L))
-            continue;
-
-        if (!this->fileExists(path + L"/Contents/Resources/" CMIO_PLUGIN_ASSISTANT_NAME_L))
-            continue;
-
-        driverPath = path;
-
-        break;
-    }
-
-    return driverPath;
+    return realPath(dirName + "/../..");
 }

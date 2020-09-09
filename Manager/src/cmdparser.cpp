@@ -21,10 +21,12 @@
 #include <codecvt>
 #include <iostream>
 #include <functional>
+#include <locale>
 #include <sstream>
 
 #include "cmdparser.h"
 #include "VCamUtils/src/ipcbridge.h"
+#include "VCamUtils/src/settings.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/image/videoframe.h"
 #include "VCamUtils/src/logger/logger.h"
@@ -33,6 +35,9 @@
     std::bind(&member, this->d, std::placeholders::_1, std::placeholders::_2)
 
 namespace AkVCam {
+    using StringMatrix = std::vector<StringVector>;
+    using VideoFormatMatrix = std::vector<std::vector<VideoFormat>>;
+
     struct CmdParserFlags
     {
         StringVector flags;
@@ -56,6 +61,7 @@ namespace AkVCam {
             IpcBridge m_ipcBridge;
             bool m_parseable {false};
 
+            static const std::map<ControlType, std::string> &typeStrMap();
             std::string basename(const std::string &path);
             void printFlags(const std::vector<CmdParserFlags> &cmdFlags,
                             size_t indent);
@@ -63,8 +69,13 @@ namespace AkVCam {
             size_t maxArgumentsLength();
             size_t maxFlagsLength(const std::vector<CmdParserFlags> &flags);
             size_t maxFlagsValueLength(const std::vector<CmdParserFlags> &flags);
-            size_t maxStringLength(const StringVector &strings);
-            size_t maxStringLength(const WStringVector &strings);
+            size_t maxColumnLength(const StringVector &table,
+                                   size_t width,
+                                   size_t column);
+            std::vector<size_t> maxColumnsLength(const StringVector &table,
+                                                 size_t width);
+            void drawTableHLine(const std::vector<size_t> &columnsLength);
+            void drawTable(const StringVector &table, size_t width);
             CmdParserCommand *parserCommand(const std::string &command);
             const CmdParserFlags *parserFlag(const std::vector<CmdParserFlags> &cmdFlags,
                                              const std::string &flag);
@@ -96,12 +107,26 @@ namespace AkVCam {
             int stream(const StringMap &flags, const StringVector &args);
             int showControls(const StringMap &flags, const StringVector &args);
             int readControl(const StringMap &flags, const StringVector &args);
-            int writeControl(const StringMap &flags, const StringVector &args);
+            int writeControls(const StringMap &flags, const StringVector &args);
             int picture(const StringMap &flags, const StringVector &args);
             int setPicture(const StringMap &flags, const StringVector &args);
             int logLevel(const StringMap &flags, const StringVector &args);
             int setLogLevel(const StringMap &flags, const StringVector &args);
             int showClients(const StringMap &flags, const StringVector &args);
+            void loadGenerals(Settings &settings);
+            VideoFormatMatrix readFormats(Settings &settings);
+            std::vector<VideoFormat> readFormat(Settings &settings);
+            StringMatrix matrixCombine(const StringMatrix &matrix);
+            void matrixCombineP(const StringMatrix &matrix,
+                                size_t index,
+                                StringVector combined,
+                                StringMatrix &combinations);
+            void createDevices(Settings &settings,
+                               const VideoFormatMatrix &availableFormats);
+            void createDevice(Settings &settings,
+                              const VideoFormatMatrix &availableFormats);
+            std::vector<VideoFormat> readDeviceFormats(Settings &settings,
+                                                       const VideoFormatMatrix &availableFormats);
     };
 
     std::string operator *(const std::string &str, size_t n);
@@ -192,10 +217,31 @@ AkVCam::CmdParser::CmdParser()
                      "DEVICE CONTROL",
                      "Read device control.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::readControl));
-    this->addCommand("set-control",
-                     "DEVICE CONTROL VALUE",
-                     "Write device control value.",
-                     AKVCAM_BIND_FUNC(CmdParserPrivate::writeControl));
+    this->addFlags("get-control",
+                   {"-c", "--description"},
+                   "Show control description.");
+    this->addFlags("get-control",
+                   {"-t", "--type"},
+                   "Show control type.");
+    this->addFlags("get-control",
+                   {"-m", "--min"},
+                   "Show minimum value for the control.");
+    this->addFlags("get-control",
+                   {"-M", "--max"},
+                   "Show maximum value for the control.");
+    this->addFlags("get-control",
+                   {"-s", "--step"},
+                   "Show increment/decrement step for the control.");
+    this->addFlags("get-control",
+                   {"-d", "--default"},
+                   "Show default value for the control.");
+    this->addFlags("get-control",
+                   {"-l", "--menu"},
+                   "Show options of a memu type control.");
+    this->addCommand("set-controls",
+                     "DEVICE CONTROL_1=VALUE CONTROL_2=VALUE...",
+                     "Write device controls values.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::writeControls));
     this->addCommand("picture",
                      "",
                      "Placeholder picture to show when no streaming.",
@@ -352,6 +398,17 @@ void AkVCam::CmdParser::addFlags(const std::string &command,
     this->addFlags(command, flags, "", helpString);
 }
 
+const std::map<AkVCam::ControlType, std::string> &AkVCam::CmdParserPrivate::typeStrMap()
+{
+    static const std::map<ControlType, std::string> typeStr {
+        {ControlTypeInteger, "Integer"},
+        {ControlTypeBoolean, "Boolean"},
+        {ControlTypeMenu   , "Menu"   },
+    };
+
+    return typeStr;
+}
+
 std::string AkVCam::CmdParserPrivate::basename(const std::string &path)
 {
     auto rit =
@@ -393,10 +450,8 @@ void AkVCam::CmdParserPrivate::printFlags(const std::vector<CmdParserFlags> &cmd
         std::cout << std::string(spaces.data(), indent)
                   << fill(allFlags, maxFlagsLen);
 
-        if (maxFlagsValueLen > 0) {
-            std::cout << " "
-                      << fill(flag.value, maxFlagsValueLen);
-        }
+        if (maxFlagsValueLen > 0)
+            std::cout << " " << fill(flag.value, maxFlagsValueLen);
 
         std::cout << "    "
                   << flag.helpString
@@ -444,24 +499,64 @@ size_t AkVCam::CmdParserPrivate::maxFlagsValueLength(const std::vector<CmdParser
     return length;
 }
 
-size_t AkVCam::CmdParserPrivate::maxStringLength(const StringVector &strings)
+size_t AkVCam::CmdParserPrivate::maxColumnLength(const AkVCam::StringVector &table,
+                                                 size_t width,
+                                                 size_t column)
 {
     size_t length = 0;
+    size_t height = table.size() / width;
 
-    for (auto &str: strings)
+    for (size_t y = 0; y < height; y++) {
+        auto &str = table[y * width + column];
         length = std::max(str.size(), length);
+    }
 
     return length;
 }
 
-size_t AkVCam::CmdParserPrivate::maxStringLength(const WStringVector &strings)
+std::vector<size_t> AkVCam::CmdParserPrivate::maxColumnsLength(const AkVCam::StringVector &table,
+                                                               size_t width)
 {
-    size_t length = 0;
+    std::vector<size_t> lengths;
 
-    for (auto &str: strings)
-        length = std::max(str.size(), length);
+    for (size_t x = 0; x < width; x++)
+        lengths.push_back(this->maxColumnLength(table, width, x));
 
-    return length;
+    return lengths;
+}
+
+void AkVCam::CmdParserPrivate::drawTableHLine(const std::vector<size_t> &columnsLength)
+{
+    std::cout << '+';
+
+    for (auto &len: columnsLength)
+        std::cout << std::string("-") * (len + 2) << '+';
+
+    std::cout << std::endl;
+}
+
+void AkVCam::CmdParserPrivate::drawTable(const AkVCam::StringVector &table,
+                                         size_t width)
+{
+    size_t height = table.size() / width;
+    auto columnsLength = this->maxColumnsLength(table, width);
+    this->drawTableHLine(columnsLength);
+
+    for (size_t y = 0; y < height; y++) {
+        std::cout << "|";
+
+        for (size_t x = 0; x < width; x++) {
+            auto &element = table[x + y * width];
+            std::cout << " " << fill(element, columnsLength[x]) << " |";
+        }
+
+        std::cout << std::endl;
+
+        if (y == 0 && height > 1)
+            this->drawTableHLine(columnsLength);
+    }
+
+    this->drawTableHLine(columnsLength);
 }
 
 AkVCam::CmdParserCommand *AkVCam::CmdParserPrivate::parserCommand(const std::string &command)
@@ -556,8 +651,8 @@ int AkVCam::CmdParserPrivate::showHelp(const StringMap &flags,
     UNUSED(flags);
 
     std::cout << args[0]
-            << " [OPTIONS...] COMMAND [COMMAND_OPTIONS...] ..."
-            << std::endl;
+              << " [OPTIONS...] COMMAND [COMMAND_OPTIONS...] ..."
+              << std::endl;
     std::cout << std::endl;
     std::cout << "AkVirtualCamera virtual device manager." << std::endl;
     std::cout << std::endl;
@@ -609,36 +704,21 @@ int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,
         for (auto &device: devices)
             std::cout << device << std::endl;
     } else {
-        StringVector devicesColumn;
-        WStringVector descriptionsColumn;
-
-        devicesColumn.push_back("Device");
-        descriptionsColumn.push_back(L"Description");
-
-        for (auto &device: devices) {
-            devicesColumn.push_back(device);
-            descriptionsColumn.push_back(this->m_ipcBridge.description(device));
-        }
-
-        auto devicesColumnSize = this->maxStringLength(devicesColumn);
-        auto descriptionsColumnSize = this->maxStringLength(descriptionsColumn);
-
-        std::cout << fill("Device", devicesColumnSize)
-                  << " | "
-                  << fill("Description", descriptionsColumnSize)
-                  << std::endl;
-        std::cout << std::string("-")
-                     * (devicesColumnSize
-                        + descriptionsColumnSize
-                        + 4) << std::endl;
+        std::vector<std::string> table {
+            "Device",
+            "Description"
+        };
+        auto columns = table.size();
+        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
 
         for (auto &device: devices) {
-            std::cout << fill(device, devicesColumnSize)
-                      << " | ";
-            std::wcout << fill(this->m_ipcBridge.description(device),
-                               descriptionsColumnSize)
-                       << std::endl;
+            table.push_back(device);
+            auto description =
+                    cv.to_bytes(this->m_ipcBridge.description(device));
+            table.push_back(description);
         }
+
+        this->drawTable(table, columns);
     }
 
     return 0;
@@ -1003,7 +1083,7 @@ int AkVCam::CmdParserPrivate::update(const StringMap &flags,
 {
     UNUSED(flags);
     UNUSED(args);
-    this->m_ipcBridge.update();
+    this->m_ipcBridge.updateDevices();
 
     return 0;
 }
@@ -1011,6 +1091,30 @@ int AkVCam::CmdParserPrivate::update(const StringMap &flags,
 int AkVCam::CmdParserPrivate::loadSettings(const AkVCam::StringMap &flags,
                                            const AkVCam::StringVector &args)
 {
+    UNUSED(flags);
+
+    if (args.size() < 2) {
+        std::cerr << "Settings file not provided." << std::endl;
+
+        return -1;
+    }
+
+    Settings settings;
+
+    if (!settings.load(args[1])) {
+        std::cerr << "Settings file not valid." << std::endl;
+
+        return -1;
+    }
+
+    this->loadGenerals(settings);
+    auto devices = this->m_ipcBridge.devices();
+
+    for (auto &device: devices)
+        this->m_ipcBridge.removeDevice(device);
+
+    this->createDevices(settings, this->readFormats(settings));
+
     return 0;
 }
 
@@ -1106,20 +1210,281 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
 }
 
 int AkVCam::CmdParserPrivate::showControls(const StringMap &flags,
-                                          const StringVector &args)
+                                           const StringVector &args)
 {
+    UNUSED(flags);
+
+    if (args.size() < 2) {
+        std::cerr << "Device not provided." << std::endl;
+
+        return -1;
+    }
+
+    auto deviceId = args[1];
+    auto devices = this->m_ipcBridge.devices();
+    auto dit = std::find(devices.begin(), devices.end(), deviceId);
+
+    if (dit == devices.end()) {
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    if (this->m_parseable) {
+        for (auto &control: this->m_ipcBridge.controls(deviceId))
+            std::cout << control.id << std::endl;
+    } else {
+        auto typeStr = typeStrMap();
+
+        std::vector<std::string> table {
+            "Control",
+            "Description",
+            "Type",
+            "Minimum",
+            "Maximum",
+            "Step",
+            "Default",
+            "Value"
+        };
+        auto columns = table.size();
+
+        for (auto &control: this->m_ipcBridge.controls(deviceId)) {
+            table.push_back(control.id);
+            table.push_back(control.description);
+            table.push_back(typeStr[control.type]);
+            table.push_back(std::to_string(control.minimum));
+            table.push_back(std::to_string(control.maximum));
+            table.push_back(std::to_string(control.step));
+            table.push_back(std::to_string(control.defaultValue));
+            table.push_back(std::to_string(control.value));
+        }
+
+        this->drawTable(table, columns);
+    }
+
     return 0;
 }
 
 int AkVCam::CmdParserPrivate::readControl(const StringMap &flags,
-                                         const StringVector &args)
-{
-    return 0;
-}
-
-int AkVCam::CmdParserPrivate::writeControl(const StringMap &flags,
                                           const StringVector &args)
 {
+    UNUSED(flags);
+
+    if (args.size() < 3) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    auto deviceId = args[1];
+    auto devices = this->m_ipcBridge.devices();
+    auto dit = std::find(devices.begin(), devices.end(), deviceId);
+
+    if (dit == devices.end()) {
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    for (auto &control: this->m_ipcBridge.controls(deviceId))
+        if (control.description == args[2]) {
+            if (flags.empty()) {
+                std::cout << control.value << std::endl;
+            } else {
+                if (this->containsFlag(flags, "get-control", "-c")) {
+                    auto typeStr = typeStrMap();
+                    std::cout << control.description << std::endl;
+                }
+                if (this->containsFlag(flags, "get-control", "-t")) {
+                    auto typeStr = typeStrMap();
+                    std::cout << typeStr[control.type] << std::endl;
+                }
+
+                if (this->containsFlag(flags, "get-control", "-m")) {
+                    std::cout << control.minimum << std::endl;
+                }
+
+                if (this->containsFlag(flags, "get-control", "-M")) {
+                    std::cout << control.maximum << std::endl;
+                }
+
+                if (this->containsFlag(flags, "get-control", "-s")) {
+                    std::cout << control.step << std::endl;
+                }
+
+                if (this->containsFlag(flags, "get-control", "-d")) {
+                    std::cout << control.defaultValue << std::endl;
+                }
+
+                if (this->containsFlag(flags, "get-control", "-l")) {
+                    for (size_t i = 0; i< control.menu.size(); i++)
+                        if (this->m_parseable)
+                            std::cout << control.menu[i] << std::endl;
+                        else
+                            std::cout << i << ": " << control.menu[i] << std::endl;
+                }
+            }
+
+            return 0;
+        }
+
+    std::cerr << "'" << args[2] << "' control not available." << std::endl;
+
+    return -1;
+}
+
+int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
+                                            const StringVector &args)
+{
+    UNUSED(flags);
+
+    if (args.size() < 3) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    auto deviceId = args[1];
+    auto devices = this->m_ipcBridge.devices();
+    auto dit = std::find(devices.begin(), devices.end(), deviceId);
+
+    if (dit == devices.end()) {
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
+
+        return -1;
+    }
+
+    std::map<std::string, int> controls;
+
+    for (size_t i = 2; i < args.size(); i++) {
+        if (args[i].find('=') == std::string::npos) {
+            std::cerr << "Argumment "
+                      << i
+                      << " is not in the form KEY=VALUE."
+                      << std::endl;
+
+            return -1;
+        }
+
+        auto pair = splitOnce(args[i], "=");
+
+        if (pair.first.empty()) {
+            std::cerr << "Key for argumment "
+                      << i
+                      << " is emty."
+                      << std::endl;
+
+            return -1;
+        }
+
+        auto key = trimmed(pair.first);
+        auto value = trimmed(pair.second);
+        bool found = false;
+
+        for (auto &control: this->m_ipcBridge.controls(deviceId))
+                if (control.id == key) {
+                    switch (control.type) {
+                    case ControlTypeInteger: {
+                        char *p = nullptr;
+                        auto val = strtol(value.c_str(), &p, 10);
+
+                        if (*p) {
+                            std::cerr << "Value at argument "
+                                      << i
+                                      << " must be an integer."
+                                      << std::endl;
+
+                            return -1;
+                        }
+
+                        controls[key] = val;
+
+                        break;
+                    }
+
+                    case ControlTypeBoolean: {
+                        std::locale loc;
+                        std::transform(value.begin(),
+                                       value.end(),
+                                       value.begin(),
+                                       [&loc](char c) {
+                            return std::tolower(c, loc);
+                        });
+
+                        if (value == "0" || value == "false") {
+                            controls[key] = 0;
+                        } else if (value == "1" || value == "true") {
+                            controls[key] = 1;
+                        } else {
+                            std::cerr << "Value at argument "
+                                      << i
+                                      << " must be a boolean."
+                                      << std::endl;
+
+                            return -1;
+                        }
+
+                        break;
+                    }
+
+                    case ControlTypeMenu: {
+                        char *p = nullptr;
+                        auto val = strtoul(value.c_str(), &p, 10);
+
+                        if (*p) {
+                            auto it = std::find(control.menu.begin(),
+                                                control.menu.end(),
+                                                value);
+
+                            if (it == control.menu.end()) {
+                                std::cerr << "Value at argument "
+                                          << i
+                                          << " is not valid."
+                                          << std::endl;
+
+                                return -1;
+                            }
+
+                            controls[key] = it - control.menu.begin();
+                        } else {
+                            if (val >= control.menu.size()) {
+                                std::cerr << "Value at argument "
+                                          << i
+                                          << " is out of range."
+                                          << std::endl;
+
+                                return -1;
+                            }
+
+                            controls[key] = val;
+                        }
+
+                        break;
+                    }
+
+                    default:
+                        break;
+                    }
+
+                    found = true;
+
+                    break;
+                }
+
+        if (!found) {
+            std::cerr << "No such '"
+                      << key
+                      << "' control in argument "
+                      << i
+                      << "."
+                      << std::endl;
+
+            return -1;
+        }
+    }
+
+    this->m_ipcBridge.setControls(deviceId, controls);
+
     return 0;
 }
 
@@ -1195,7 +1560,6 @@ int AkVCam::CmdParserPrivate::showClients(const StringMap &flags,
 {
     UNUSED(flags);
     UNUSED(args);
-
     auto clients = this->m_ipcBridge.clientsPids();
 
     if (clients.empty())
@@ -1208,36 +1572,215 @@ int AkVCam::CmdParserPrivate::showClients(const StringMap &flags,
                       << this->m_ipcBridge.clientExe(pid)
                       << std::endl;
     } else {
-        StringVector pidsColumn;
-        StringVector exesColumn;
-
-        pidsColumn.push_back("Pid");
-        exesColumn.push_back("Executable");
+        std::vector<std::string> table {
+            "Pid",
+            "Executable"
+        };
+        auto columns = table.size();
 
         for (auto &pid: clients) {
-            pidsColumn.push_back(std::to_string(pid));
-            exesColumn.push_back(this->m_ipcBridge.clientExe(pid));
+            table.push_back(std::to_string(pid));
+            table.push_back(this->m_ipcBridge.clientExe(pid));
         }
 
-        auto pidsColumnSize = this->maxStringLength(pidsColumn);
-        auto exesColumnSize = this->maxStringLength(exesColumn);
-
-        std::cout << fill("Pid", pidsColumnSize)
-                  << " | "
-                  << fill("Executable", exesColumnSize)
-                  << std::endl;
-        std::cout << std::string("-")
-                     * (pidsColumnSize + exesColumnSize + 4)
-                  << std::endl;
-
-        for (auto &pid: clients)
-            std::cout << fill(std::to_string(pid), pidsColumnSize)
-                      << " | "
-                      << fill(this->m_ipcBridge.clientExe(pid), exesColumnSize)
-                      << std::endl;
+        this->drawTable(table, columns);
     }
 
     return 0;
+}
+
+void AkVCam::CmdParserPrivate::loadGenerals(Settings &settings)
+{
+    settings.beginGroup("General");
+
+    if (settings.contains("default_frame")) {
+        auto defaultFrame = settings.value("default_frame");
+        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
+        this->m_ipcBridge.setPicture(cv.from_bytes(defaultFrame));
+    }
+
+    if (settings.contains("loglevel")) {
+        auto logLevel= settings.value("loglevel");
+        char *p = nullptr;
+        auto level = strtol(logLevel.c_str(), &p, 10);
+
+        if (*p)
+            level = AkVCam::Logger::levelFromString(logLevel);
+
+        this->m_ipcBridge.setLogLevel(level);
+    }
+
+    settings.endGroup();
+}
+
+AkVCam::VideoFormatMatrix AkVCam::CmdParserPrivate::readFormats(Settings &settings)
+{
+    VideoFormatMatrix formatsMatrix;
+    settings.beginGroup("Formats");
+    auto nFormats = settings.beginArray("formats");
+
+    for (size_t i = 0; i < nFormats; i++) {
+        settings.setArrayIndex(i);
+        formatsMatrix.push_back(this->readFormat(settings));
+    }
+
+    settings.endArray();
+    settings.endGroup();
+
+    return formatsMatrix;
+}
+
+std::vector<AkVCam::VideoFormat> AkVCam::CmdParserPrivate::readFormat(Settings &settings)
+{
+    std::vector<AkVCam::VideoFormat> formats;
+
+    auto pixFormats = settings.valueList("format", ",");
+    auto widths = settings.valueList("width", ",");
+    auto heights = settings.valueList("height", ",");
+    auto frameRates = settings.valueList("fps", ",");
+
+    if (pixFormats.empty()
+        || widths.empty()
+        || heights.empty()
+        || frameRates.empty()) {
+        std::cerr << "Error reading formats." << std::endl;
+
+        return {};
+    }
+
+    StringMatrix formatMatrix;
+    formatMatrix.push_back(pixFormats);
+    formatMatrix.push_back(widths);
+    formatMatrix.push_back(heights);
+    formatMatrix.push_back(frameRates);
+
+    for (auto &format_list: this->matrixCombine(formatMatrix)) {
+        auto pixFormat = VideoFormat::fourccFromString(format_list[0]);
+        char *p = nullptr;
+        auto width = strtol(format_list[1].c_str(), &p, 10);
+        p = nullptr;
+        auto height = strtol(format_list[2].c_str(), &p, 10);
+        Fraction frame_rate(format_list[3]);
+        VideoFormat format(pixFormat,
+                           width,
+                           height,
+        {frame_rate});
+
+        if (format.isValid())
+            formats.push_back(format);
+    }
+
+    return formats;
+}
+
+AkVCam::StringMatrix AkVCam::CmdParserPrivate::matrixCombine(const StringMatrix &matrix)
+{
+    StringVector combined;
+    StringMatrix combinations;
+    this->matrixCombineP(matrix, 0, combined, combinations);
+
+    return combinations;
+}
+
+/* A matrix is a list of lists where each element in the main list is a row,
+ * and each element in a row is a column. We combine each element in a row with
+ * each element in the next rows.
+ */
+void AkVCam::CmdParserPrivate::matrixCombineP(const StringMatrix &matrix,
+                                              size_t index,
+                                              StringVector combined,
+                                              StringMatrix &combinations)
+{
+    if (index >= matrix.size()) {
+        combinations.push_back(combined);
+
+        return;
+    }
+
+    for (auto &data: matrix[index]) {
+        auto combinedP1 = combined;
+        combinedP1.push_back(data);
+        this->matrixCombineP(matrix, index + 1, combinedP1, combinations);
+    }
+}
+
+void AkVCam::CmdParserPrivate::createDevices(Settings &settings,
+                                             const VideoFormatMatrix &availableFormats)
+{
+    auto devices = this->m_ipcBridge.devices();
+
+    for (auto &device: devices)
+        this->m_ipcBridge.removeDevice(device);
+
+    settings.beginGroup("Cameras");
+    size_t nCameras = settings.beginArray("cameras");
+
+    for (size_t i = 0; i < nCameras; i++) {
+        settings.setArrayIndex(i);
+        this->createDevice(settings, availableFormats);
+    }
+
+    settings.endArray();
+    settings.endGroup();
+    this->m_ipcBridge.updateDevices();
+}
+
+void AkVCam::CmdParserPrivate::createDevice(Settings &settings,
+                                            const VideoFormatMatrix &availableFormats)
+{
+    auto description = settings.value("description");
+
+    if (description.empty()) {
+        std::cerr << "Device description is empty" << std::endl;
+
+        return;
+    }
+
+    auto formats = this->readDeviceFormats(settings, availableFormats);
+
+    if (formats.empty()) {
+        std::cerr << "Can't read device formats" << std::endl;
+
+        return;
+    }
+
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
+    auto deviceId = this->m_ipcBridge.addDevice(cv.from_bytes(description));
+    auto supportedFormats = this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeOutput);
+
+    for (auto &format: formats) {
+        auto it = std::find(supportedFormats.begin(),
+                            supportedFormats.end(),
+                            format.fourcc());
+
+        if (it != supportedFormats.end())
+            this->m_ipcBridge.addFormat(deviceId, format, -1);
+    }
+}
+
+std::vector<AkVCam::VideoFormat> AkVCam::CmdParserPrivate::readDeviceFormats(Settings &settings,
+                                                                             const VideoFormatMatrix &availableFormats)
+{
+    std::vector<AkVCam::VideoFormat> formats;
+    auto formatsIndex = settings.valueList("formats", ",");
+
+    for (auto &indexStr: formatsIndex) {
+        char *p = nullptr;
+        auto index = strtoul(indexStr.c_str(), &p, 10);
+
+        if (*p)
+            continue;
+
+        index--;
+
+        if (index >= availableFormats.size())
+            continue;
+
+        for (auto &format: availableFormats[index])
+            formats.push_back(format);
+    }
+
+    return formats;
 }
 
 std::string AkVCam::operator *(const std::string &str, size_t n)

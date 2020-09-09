@@ -18,7 +18,7 @@
  */
 
 #include "device.h"
-#include "utils.h"
+#include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/logger/logger.h"
 
 AkVCam::Device::Device(CMIOHardwarePlugInRef pluginInterface,
@@ -194,16 +194,28 @@ void AkVCam::Device::frameReady(const AkVCam::VideoFrame &frame)
         stream.second->frameReady(frame);
 }
 
+void AkVCam::Device::setPicture(const std::string &picture)
+{
+    for (auto &stream: this->m_streams)
+        stream.second->setPicture(picture);
+}
+
 void AkVCam::Device::setBroadcasting(const std::string &broadcaster)
 {
     for (auto &stream: this->m_streams)
         stream.second->setBroadcasting(broadcaster);
 }
 
-void AkVCam::Device::setMirror(bool horizontalMirror, bool verticalMirror)
+void AkVCam::Device::setHorizontalMirror(bool horizontalMirror)
 {
     for (auto &stream: this->m_streams)
-        stream.second->setMirror(horizontalMirror, verticalMirror);
+        stream.second->setHorizontalMirror(horizontalMirror);
+}
+
+void AkVCam::Device::setVerticalMirror(bool verticalMirror)
+{
+    for (auto &stream: this->m_streams)
+        stream.second->setVerticalMirror(verticalMirror);
 }
 
 void AkVCam::Device::setScaling(Scaling scaling)

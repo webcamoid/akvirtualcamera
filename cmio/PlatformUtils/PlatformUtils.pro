@@ -42,7 +42,8 @@ TEMPLATE = lib
 
 LIBS = \
     -L$${OUT_PWD}/../../VCamUtils/$${BIN_DIR} -lVCamUtils \
-    -framework CoreFoundation
+    -framework CoreFoundation \
+    -framework CoreGraphics
 
 SOURCES = \
     src/preferences.cpp \
