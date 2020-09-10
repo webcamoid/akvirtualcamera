@@ -99,33 +99,10 @@ namespace AkVCam
 
             /* Server & Client */
 
-            // Get the last error message.
-            std::wstring errorMessage() const;
-
-            // Pass extra options to the bridge.
-            void setOption(const std::string &key, const std::string &value);
-
-            // Driver search paths.
-            std::vector<std::wstring> driverPaths() const;
-
-            // Set driver search paths.
-            void setDriverPaths(const std::vector<std::wstring> &driverPaths);
-
-            // Driver configuration.
-            std::vector<std::string> availableDrivers() const;
-            std::string driver() const;
-            bool setDriver(const std::string &driver);
-
             std::wstring picture() const;
             void setPicture(const std::wstring &picture);
             int logLevel() const;
             void setLogLevel(int logLevel);
-
-            // Configure method to be used for executing commands with elevated
-            // privileges.
-            std::vector<std::string> availableRootMethods() const;
-            std::string rootMethod() const;
-            bool setRootMethod(const std::string &rootMethod);
 
             // Manage main service connection.
             void connectService();

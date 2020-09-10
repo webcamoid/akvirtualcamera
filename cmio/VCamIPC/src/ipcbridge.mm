@@ -56,13 +56,10 @@ namespace AkVCam
             xpc_connection_t m_serverMessagePort;
             std::map<int64_t, XpcMessage> m_messageHandlers;
             std::vector<std::string> m_broadcasting;
-            std::map<std::string, std::string> m_options;
-            std::wstring m_error;
 
             IpcBridgePrivate(IpcBridge *self=nullptr);
             ~IpcBridgePrivate();
 
-            static inline std::vector<std::wstring> *driverPaths();
             inline void add(IpcBridge *bridge);
             void remove(IpcBridge *bridge);
             inline std::vector<IpcBridge *> &bridges();
@@ -119,51 +116,6 @@ AkVCam::IpcBridge::~IpcBridge()
     delete this->d;
 }
 
-std::wstring AkVCam::IpcBridge::errorMessage() const
-{
-    return this->d->m_error;
-}
-
-void AkVCam::IpcBridge::setOption(const std::string &key,
-                                  const std::string &value)
-{
-    AkLogFunction();
-
-    if (value.empty())
-        this->d->m_options.erase(key);
-    else
-        this->d->m_options[key] = value;
-}
-
-std::vector<std::wstring> AkVCam::IpcBridge::driverPaths() const
-{
-    AkLogFunction();
-
-    return *this->d->driverPaths();
-}
-
-void AkVCam::IpcBridge::setDriverPaths(const std::vector<std::wstring> &driverPaths)
-{
-    AkLogFunction();
-    *this->d->driverPaths() = driverPaths;
-}
-
-std::vector<std::string> AkVCam::IpcBridge::availableDrivers() const
-{
-    return {"AkVirtualCamera"};
-}
-
-std::string AkVCam::IpcBridge::driver() const
-{
-    return {"AkVirtualCamera"};
-}
-
-bool AkVCam::IpcBridge::setDriver(const std::string &driver)
-{
-    return driver == "AkVirtualCamera";
-}
-
-
 std::wstring AkVCam::IpcBridge::picture() const
 {
     return Preferences::picture();
@@ -194,21 +146,6 @@ void AkVCam::IpcBridge::setLogLevel(int logLevel)
 {
     Preferences::setLogLevel(logLevel);
     Logger::setLogLevel(logLevel);
-}
-
-std::vector<std::string> AkVCam::IpcBridge::availableRootMethods() const
-{
-    return {"osascript"};
-}
-
-std::string AkVCam::IpcBridge::rootMethod() const
-{
-    return {"osascript"};
-}
-
-bool AkVCam::IpcBridge::setRootMethod(const std::string &rootMethod)
-{
-    return rootMethod == "osascript";
 }
 
 void AkVCam::IpcBridge::connectService()
@@ -857,13 +794,6 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
 AkVCam::IpcBridgePrivate::~IpcBridgePrivate()
 {
 
-}
-
-std::vector<std::wstring> *AkVCam::IpcBridgePrivate::driverPaths()
-{
-    static std::vector<std::wstring> paths;
-
-    return &paths;
 }
 
 void AkVCam::IpcBridgePrivate::add(IpcBridge *bridge)
