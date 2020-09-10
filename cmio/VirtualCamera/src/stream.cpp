@@ -333,6 +333,12 @@ void AkVCam::Stream::setHorizontalMirror(bool horizontalMirror)
 
     this->d->m_horizontalMirror = horizontalMirror;
     this->d->updateTestFrame();
+    this->d->m_mutex.lock();
+
+    if (this->d->m_broadcaster.empty())
+        this->d->m_currentFrame = this->d->m_testFrameAdapted;
+
+    this->d->m_mutex.unlock();
 }
 
 void AkVCam::Stream::setVerticalMirror(bool verticalMirror)
@@ -344,6 +350,12 @@ void AkVCam::Stream::setVerticalMirror(bool verticalMirror)
 
     this->d->m_verticalMirror = verticalMirror;
     this->d->updateTestFrame();
+    this->d->m_mutex.lock();
+
+    if (this->d->m_broadcaster.empty())
+        this->d->m_currentFrame = this->d->m_testFrameAdapted;
+
+    this->d->m_mutex.unlock();
 }
 
 void AkVCam::Stream::setScaling(Scaling scaling)
@@ -355,6 +367,12 @@ void AkVCam::Stream::setScaling(Scaling scaling)
 
     this->d->m_scaling = scaling;
     this->d->updateTestFrame();
+    this->d->m_mutex.lock();
+
+    if (this->d->m_broadcaster.empty())
+        this->d->m_currentFrame = this->d->m_testFrameAdapted;
+
+    this->d->m_mutex.unlock();
 }
 
 void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
@@ -366,6 +384,12 @@ void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
 
     this->d->m_aspectRatio = aspectRatio;
     this->d->updateTestFrame();
+    this->d->m_mutex.lock();
+
+    if (this->d->m_broadcaster.empty())
+        this->d->m_currentFrame = this->d->m_testFrameAdapted;
+
+    this->d->m_mutex.unlock();
 }
 
 void AkVCam::Stream::setSwapRgb(bool swap)
@@ -377,6 +401,12 @@ void AkVCam::Stream::setSwapRgb(bool swap)
 
     this->d->m_swapRgb = swap;
     this->d->updateTestFrame();
+    this->d->m_mutex.lock();
+
+    if (this->d->m_broadcaster.empty())
+        this->d->m_currentFrame = this->d->m_testFrameAdapted;
+
+    this->d->m_mutex.unlock();
 }
 
 OSStatus AkVCam::Stream::copyBufferQueue(CMIODeviceStreamQueueAlteredProc queueAlteredProc,

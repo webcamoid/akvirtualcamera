@@ -511,10 +511,8 @@ void AkVCam::IpcBridge::setControls(const std::string &deviceId,
     auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
     xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED);
     xpc_dictionary_set_string(dictionary, "device", deviceId.c_str());
-    auto reply = xpc_connection_send_message_with_reply_sync(this->d->m_serverMessagePort,
-                                                             dictionary);
+    xpc_connection_send_message(this->d->m_serverMessagePort, dictionary);
     xpc_release(dictionary);
-    xpc_release(reply);
 }
 
 std::vector<std::string> AkVCam::IpcBridge::listeners(const std::string &deviceId)
@@ -1040,11 +1038,6 @@ void AkVCam::IpcBridgePrivate::controlsUpdated(xpc_connection_t client,
                     ControlsChanged,
                     deviceId,
                     controls)
-
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_bool(reply, "status", cameraIndex >= 0);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
 }
 
 void AkVCam::IpcBridgePrivate::listenerAdd(xpc_connection_t client,

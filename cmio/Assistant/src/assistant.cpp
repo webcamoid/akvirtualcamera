@@ -666,9 +666,9 @@ void AkVCam::AssistantPrivate::broadcasting(xpc_connection_t client,
 
 void AkVCam::AssistantPrivate::controlsUpdated(xpc_connection_t client, xpc_object_t event)
 {
+    UNUSED(client);
     AkLogFunction();
     std::string deviceId = xpc_dictionary_get_string(event, "device");
-    bool ok = false;
 
     if (this->m_deviceConfigs.count(deviceId) > 0) {
         auto notification = xpc_copy(event);
@@ -677,13 +677,7 @@ void AkVCam::AssistantPrivate::controlsUpdated(xpc_connection_t client, xpc_obje
             xpc_connection_send_message(client.second, notification);
 
         xpc_release(notification);
-        ok = true;
     }
-
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_bool(reply, "status", ok);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
 }
 
 void AkVCam::AssistantPrivate::listenerAdd(xpc_connection_t client,

@@ -1287,7 +1287,7 @@ int AkVCam::CmdParserPrivate::readControl(const StringMap &flags,
     }
 
     for (auto &control: this->m_ipcBridge.controls(deviceId))
-        if (control.description == args[2]) {
+        if (control.id == args[2]) {
             if (flags.empty()) {
                 std::cout << control.value << std::endl;
             } else {

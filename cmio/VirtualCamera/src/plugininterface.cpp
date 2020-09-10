@@ -354,7 +354,7 @@ void AkVCam::PluginInterface::controlsChanged(void *userData,
                 device->setHorizontalMirror(controls.at("hflip"));
 
             if (controls.count("vflip"))
-                device->setHorizontalMirror(controls.at("vflip"));
+                device->setVerticalMirror(controls.at("vflip"));
 
             if (controls.count("scaling"))
                 device->setScaling(Scaling(controls.at("scaling")));
