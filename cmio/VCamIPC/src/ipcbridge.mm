@@ -577,15 +577,21 @@ bool AkVCam::IpcBridge::deviceStart(const std::string &deviceId,
     UNUSED(format);
     AkLogFunction();
 
-    if (!this->d->m_serverMessagePort)
+    if (!this->d->m_serverMessagePort) {
+        AkLogError() << "Service not ready." << std::endl;
+
         return false;
+    }
 
     auto it = std::find(this->d->m_broadcasting.begin(),
                         this->d->m_broadcasting.end(),
                         deviceId);
 
-    if (it != this->d->m_broadcasting.end())
+    if (it != this->d->m_broadcasting.end()) {
+        AkLogError() << '\'' << deviceId << "' is busy." << std::endl;
+
         return false;
+    }
 
     auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
     xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING);
@@ -597,6 +603,7 @@ bool AkVCam::IpcBridge::deviceStart(const std::string &deviceId,
     auto replyType = xpc_get_type(reply);
 
     if (replyType != XPC_TYPE_DICTIONARY) {
+        AkLogError() << "Invalid reply received." << std::endl;
         xpc_release(reply);
 
         return false;

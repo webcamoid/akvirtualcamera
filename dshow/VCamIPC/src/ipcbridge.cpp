@@ -598,8 +598,11 @@ bool AkVCam::IpcBridge::deviceStart(const std::string &deviceId,
                         this->d->m_broadcasting.end(),
                         deviceId);
 
-    if (it != this->d->m_broadcasting.end())
+    if (it != this->d->m_broadcasting.end()) {
+        AkLogError() << '\'' << deviceId << "' is busy." << std::endl;
+
         return false;
+    }
 
     std::wstring portName(this->d->m_portName.begin(),
                           this->d->m_portName.end());
@@ -607,8 +610,11 @@ bool AkVCam::IpcBridge::deviceStart(const std::string &deviceId,
     this->d->m_globalMutex = Mutex(portName + L".mutex");
 
     if (!this->d->m_sharedMemory.open(maxBufferSize,
-                                      SharedMemory::OpenModeWrite))
+                                      SharedMemory::OpenModeWrite)) {
+        AkLogError() << "Can't open shared memory for writing." << std::endl;
+
         return false;
+    }
 
     Message message;
     message.messageId = AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING;
@@ -622,6 +628,7 @@ bool AkVCam::IpcBridge::deviceStart(const std::string &deviceId,
            (std::min<size_t>)(this->d->m_portName.size(), MAX_STRING));
 
     if (!this->d->m_mainServer.sendMessage(&message)) {
+        AkLogError() << "Error sending message." << std::endl;
         this->d->m_sharedMemory.close();
 
         return false;
