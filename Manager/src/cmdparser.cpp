@@ -262,12 +262,10 @@ AkVCam::CmdParser::CmdParser()
                      "",
                      "Show clients using the camera.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::showClients));
-    this->d->m_ipcBridge.connectService();
 }
 
 AkVCam::CmdParser::~CmdParser()
 {
-    this->d->m_ipcBridge.disconnectService();
     delete this->d;
 }
 

@@ -34,7 +34,7 @@ namespace AkVCam
     class VideoFormat;
 
     BOOL isWow64();
-    std::wstring tempPath();
+    std::string tempPath();
     std::wstring programFilesPath();
     std::wstring moduleFileNameW(HINSTANCE hinstDLL);
     std::string moduleFileName(HINSTANCE hinstDLL);
@@ -69,29 +69,6 @@ namespace AkVCam
     std::string stringFromFormatType(const GUID &formatType);
     std::string stringFromMediaType(const AM_MEDIA_TYPE *mediaType);
     std::string stringFromMediaSample(IMediaSample *mediaSample);
-    LONG regGetValue(HKEY hkey,
-                     LPCWSTR lpSubKey,
-                     LPCWSTR lpValue,
-                     DWORD dwFlags,
-                     LPDWORD pdwType,
-                     PVOID pvData,
-                     LPDWORD pcbData);
-    std::string regReadString(const std::string &key,
-                              const std::string &defaultValue={});
-    int regReadInt(const std::string &key, int defaultValue=0);
-    std::vector<CLSID> listRegisteredCameras(HINSTANCE hinstDLL);
-    DWORD camerasCount();
-    std::wstring createDevicePath();
-    int cameraFromId(const std::wstring &path);
-    int cameraFromId(const CLSID &clsid);
-    bool cameraExists(const std::string &path);
-    bool cameraExists(const std::wstring &path);
-    std::wstring cameraDescription(DWORD cameraIndex);
-    std::wstring cameraPath(DWORD cameraIndex);
-    std::wstring cameraPath(const CLSID &clsid);
-    DWORD formatsCount(DWORD cameraIndex);
-    VideoFormat cameraFormat(DWORD cameraIndex, DWORD formatIndex);
-    std::vector<VideoFormat> cameraFormats(DWORD cameraIndex);
 }
 
 #endif // PLATFORM_UTILS_H

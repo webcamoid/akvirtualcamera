@@ -50,6 +50,7 @@ LIBS = \
 SOURCES = \
     src/messageserver.cpp \
     src/mutex.cpp \
+    src/preferences.cpp \
     src/utils.cpp \
     src/sharedmemory.cpp
 
@@ -57,6 +58,7 @@ HEADERS =  \
     src/messagecommons.h \
     src/messageserver.h \
     src/mutex.h \
+    src/preferences.h \
     src/utils.h \
     src/sharedmemory.h
 

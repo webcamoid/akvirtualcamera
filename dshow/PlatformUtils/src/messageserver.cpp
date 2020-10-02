@@ -375,7 +375,7 @@ void AkVCam::MessageServerPrivate::checkLoop()
                                        this->m_pipeName.end())
                         << std::endl;
             this->m_pipeState = AkVCam::MessageServer::PipeStateAvailable;
-            AKVCAM_EMIT(this->self, PipeStateChanged, this->m_pipeState);
+            AKVCAM_EMIT(this->self, PipeStateChanged, this->m_pipeState)
         } else if (!result
                    && this->m_pipeState != AkVCam::MessageServer::PipeStateGone
                    && GetLastError() != ERROR_SEM_TIMEOUT) {
@@ -384,7 +384,7 @@ void AkVCam::MessageServerPrivate::checkLoop()
                                        this->m_pipeName.end())
                         << std::endl;
             this->m_pipeState = AkVCam::MessageServer::PipeStateGone;
-            AKVCAM_EMIT(this->self, PipeStateChanged, this->m_pipeState);
+            AKVCAM_EMIT(this->self, PipeStateChanged, this->m_pipeState)
         }
 
         if (!this->m_running)

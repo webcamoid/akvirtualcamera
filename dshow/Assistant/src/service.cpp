@@ -42,20 +42,6 @@ namespace AkVCam
     {
         std::string broadcaster;
         std::vector<std::string> listeners;
-        bool horizontalMirror;
-        bool verticalMirror;
-        Scaling scaling;
-        AspectRatio aspectRatio;
-        bool swapRgb;
-
-        AssistantDevice():
-            horizontalMirror(false),
-            verticalMirror(false),
-            scaling(ScalingFast),
-            aspectRatio(AspectRatioIgnore),
-            swapRgb(false)
-        {
-        }
     };
 
     typedef std::map<std::string, std::string> AssistantPeers;
@@ -85,20 +71,15 @@ namespace AkVCam
             void addPort(Message *message);
             void removePort(Message *message);
             void setBroadCasting(Message *message);
-            void setMirroring(Message *message);
-            void setScaling(Message *message);
-            void setAspectRatio(Message *message);
-            void setSwapRgb(Message *message);
             void frameReady(Message *message);
+            void pictureUpdated(Message *message);
+            void deviceUpdate(Message *message);
             void listeners(Message *message);
             void listener(Message *message);
             void broadcasting(Message *message);
-            void mirroring(Message *message);
-            void scaling(Message *message);
-            void aspectRatio(Message *message);
-            void swapRgb(Message *message);
             void listenerAdd(Message *message);
             void listenerRemove(Message *message);
+            void controlsUpdated(Message *message);
     };
 
     GLOBAL_STATIC(ServicePrivate, servicePrivate)
@@ -245,7 +226,7 @@ void AkVCam::Service::debug()
 void AkVCam::Service::showHelp(int argc, char **argv)
 {
     AkLogFunction();
-    UNUSED(argc)
+    UNUSED(argc);
 
     auto programName = strrchr(argv[0], '\\');
 
@@ -285,24 +266,19 @@ AkVCam::ServicePrivate::ServicePrivate()
     this->m_statusHandler = nullptr;
     this->m_messageServer.setPipeName(L"\\\\.\\pipe\\" DSHOW_PLUGIN_ASSISTANT_NAME_L);
     this->m_messageServer.setHandlers({
-        {AKVCAM_ASSISTANT_MSG_FRAME_READY           , AKVCAM_BIND_FUNC(ServicePrivate::frameReady)     },
-        {AKVCAM_ASSISTANT_MSG_REQUEST_PORT          , AKVCAM_BIND_FUNC(ServicePrivate::requestPort)    },
-        {AKVCAM_ASSISTANT_MSG_ADD_PORT              , AKVCAM_BIND_FUNC(ServicePrivate::addPort)        },
-        {AKVCAM_ASSISTANT_MSG_REMOVE_PORT           , AKVCAM_BIND_FUNC(ServicePrivate::removePort)     },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD   , AKVCAM_BIND_FUNC(ServicePrivate::listenerAdd)    },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE, AKVCAM_BIND_FUNC(ServicePrivate::listenerRemove) },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENERS      , AKVCAM_BIND_FUNC(ServicePrivate::listeners)      },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER       , AKVCAM_BIND_FUNC(ServicePrivate::listener)       },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_BROADCASTING   , AKVCAM_BIND_FUNC(ServicePrivate::broadcasting)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING, AKVCAM_BIND_FUNC(ServicePrivate::setBroadCasting)},
-        {AKVCAM_ASSISTANT_MSG_DEVICE_MIRRORING      , AKVCAM_BIND_FUNC(ServicePrivate::mirroring)      },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETMIRRORING   , AKVCAM_BIND_FUNC(ServicePrivate::setMirroring)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SCALING        , AKVCAM_BIND_FUNC(ServicePrivate::scaling)        },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETSCALING     , AKVCAM_BIND_FUNC(ServicePrivate::setScaling)     },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_ASPECTRATIO    , AKVCAM_BIND_FUNC(ServicePrivate::aspectRatio)    },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETASPECTRATIO , AKVCAM_BIND_FUNC(ServicePrivate::setAspectRatio) },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SWAPRGB        , AKVCAM_BIND_FUNC(ServicePrivate::swapRgb)        },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETSWAPRGB     , AKVCAM_BIND_FUNC(ServicePrivate::setSwapRgb)     },
+        {AKVCAM_ASSISTANT_MSG_FRAME_READY            , AKVCAM_BIND_FUNC(ServicePrivate::frameReady)     },
+        {AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED        , AKVCAM_BIND_FUNC(ServicePrivate::pictureUpdated) },
+        {AKVCAM_ASSISTANT_MSG_REQUEST_PORT           , AKVCAM_BIND_FUNC(ServicePrivate::requestPort)    },
+        {AKVCAM_ASSISTANT_MSG_ADD_PORT               , AKVCAM_BIND_FUNC(ServicePrivate::addPort)        },
+        {AKVCAM_ASSISTANT_MSG_REMOVE_PORT            , AKVCAM_BIND_FUNC(ServicePrivate::removePort)     },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE          , AKVCAM_BIND_FUNC(ServicePrivate::deviceUpdate)   },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD    , AKVCAM_BIND_FUNC(ServicePrivate::listenerAdd)    },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE , AKVCAM_BIND_FUNC(ServicePrivate::listenerRemove) },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENERS       , AKVCAM_BIND_FUNC(ServicePrivate::listeners)      },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER        , AKVCAM_BIND_FUNC(ServicePrivate::listener)       },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_BROADCASTING    , AKVCAM_BIND_FUNC(ServicePrivate::broadcasting)   },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING , AKVCAM_BIND_FUNC(ServicePrivate::setBroadCasting)},
+        {AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED, AKVCAM_BIND_FUNC(ServicePrivate::controlsUpdated)},
     });
     this->m_timer.setInterval(60000);
     this->m_timer.connectTimeout(this, &ServicePrivate::checkPeers);
@@ -311,7 +287,7 @@ AkVCam::ServicePrivate::ServicePrivate()
 void AkVCam::ServicePrivate::stateChanged(void *userData,
                                           MessageServer::State state)
 {
-    UNUSED(userData)
+    UNUSED(userData);
 
     switch (state) {
     case MessageServer::StateAboutToStart:
@@ -368,7 +344,6 @@ void AkVCam::ServicePrivate::sendStatus(DWORD currentState,
                                         DWORD wait)
 {
     AkLogFunction();
-
     this->m_status.dwControlsAccepted =
             currentState == SERVICE_START_PENDING? 0: SERVICE_ACCEPT_STOP;
     this->m_status.dwCurrentState = currentState;
@@ -460,11 +435,8 @@ void AkVCam::ServicePrivate::requestPort(AkVCam::Message *message)
     AkLogFunction();
 
     auto data = messageData<MsgRequestPort>(message);
-    std::string portName = data->client?
-                AKVCAM_ASSISTANT_CLIENT_NAME:
-                AKVCAM_ASSISTANT_SERVER_NAME;
+    std::string portName = AKVCAM_ASSISTANT_CLIENT_NAME;
     portName += std::to_string(this->id());
-
     AkLogInfo() << "Returning Port: " << portName << std::endl;
     memcpy(data->port,
            portName.c_str(),
@@ -547,113 +519,29 @@ void AkVCam::ServicePrivate::setBroadCasting(AkVCam::Message *message)
     this->m_peerMutex.unlock();
 }
 
-void AkVCam::ServicePrivate::setMirroring(AkVCam::Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgMirroring>(message);
-    std::string deviceId(data->device);
-    data->status = false;
-
-    if (this->m_deviceConfigs.count(deviceId) < 1)
-        this->m_deviceConfigs[deviceId] = {};
-
-    if (this->m_deviceConfigs[deviceId].horizontalMirror == data->hmirror
-        && this->m_deviceConfigs[deviceId].verticalMirror == data->vmirror)
-        return;
-
-    this->m_deviceConfigs[deviceId].horizontalMirror = data->hmirror;
-    this->m_deviceConfigs[deviceId].verticalMirror = data->vmirror;
-    data->status = true;
-
-    this->m_peerMutex.lock();
-
-    for (auto &client: this->m_clients) {
-        Message msg(message);
-        MessageServer::sendMessage(client.second, &msg);
-    }
-
-    this->m_peerMutex.unlock();
-}
-
-void AkVCam::ServicePrivate::setScaling(AkVCam::Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgScaling>(message);
-    std::string deviceId(data->device);
-    data->status = false;
-
-    if (this->m_deviceConfigs.count(deviceId) < 1)
-        this->m_deviceConfigs[deviceId] = {};
-
-    if (this->m_deviceConfigs[deviceId].scaling == data->scaling)
-        return;
-
-    this->m_deviceConfigs[deviceId].scaling = data->scaling;
-    data->status = true;
-
-    this->m_peerMutex.lock();
-
-    for (auto &client: this->m_clients) {
-        Message msg(message);
-        MessageServer::sendMessage(client.second, &msg);
-    }
-
-    this->m_peerMutex.unlock();
-}
-
-void AkVCam::ServicePrivate::setAspectRatio(AkVCam::Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgAspectRatio>(message);
-    std::string deviceId(data->device);
-    data->status = false;
-
-    if (this->m_deviceConfigs.count(deviceId) < 1)
-        this->m_deviceConfigs[deviceId] = {};
-
-    if (this->m_deviceConfigs[deviceId].aspectRatio == data->aspect)
-        return;
-
-    this->m_deviceConfigs[deviceId].aspectRatio = data->aspect;
-    data->status = true;
-
-    this->m_peerMutex.lock();
-
-    for (auto &client: this->m_clients) {
-        Message msg(message);
-        MessageServer::sendMessage(client.second, &msg);
-    }
-
-    this->m_peerMutex.unlock();
-}
-
-void AkVCam::ServicePrivate::setSwapRgb(AkVCam::Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgSwapRgb>(message);
-    std::string deviceId(data->device);
-    data->status = false;
-
-    if (this->m_deviceConfigs.count(deviceId) < 1)
-        this->m_deviceConfigs[deviceId] = {};
-
-    if (this->m_deviceConfigs[deviceId].swapRgb == data->swap)
-        return;
-
-    this->m_deviceConfigs[deviceId].swapRgb = data->swap;
-    data->status = true;
-
-    this->m_peerMutex.lock();
-
-    for (auto &client: this->m_clients) {
-        Message msg(message);
-        MessageServer::sendMessage(client.second, &msg);
-    }
-
-    this->m_peerMutex.unlock();
-}
-
 void AkVCam::ServicePrivate::frameReady(AkVCam::Message *message)
+{
+    AkLogFunction();
+    this->m_peerMutex.lock();
+
+    for (auto &client: this->m_clients)
+        MessageServer::sendMessage(client.second, message);
+
+    this->m_peerMutex.unlock();
+}
+
+void AkVCam::ServicePrivate::pictureUpdated(AkVCam::Message *message)
+{
+    AkLogFunction();
+    this->m_peerMutex.lock();
+
+    for (auto &client: this->m_clients)
+        MessageServer::sendMessage(client.second, message);
+
+    this->m_peerMutex.unlock();
+}
+
+void AkVCam::ServicePrivate::deviceUpdate(AkVCam::Message *message)
 {
     AkLogFunction();
     this->m_peerMutex.lock();
@@ -726,59 +614,6 @@ void AkVCam::ServicePrivate::broadcasting(AkVCam::Message *message)
     data->status = true;
 }
 
-void AkVCam::ServicePrivate::mirroring(AkVCam::Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgMirroring>(message);
-    std::string deviceId(data->device);
-
-    if (this->m_deviceConfigs.count(deviceId) < 1)
-        this->m_deviceConfigs[deviceId] = {};
-
-    data->hmirror = this->m_deviceConfigs[deviceId].horizontalMirror;
-    data->vmirror = this->m_deviceConfigs[deviceId].verticalMirror;
-    data->status = true;
-}
-
-void AkVCam::ServicePrivate::scaling(AkVCam::Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgScaling>(message);
-    std::string deviceId(data->device);
-
-    if (this->m_deviceConfigs.count(deviceId) < 1)
-        this->m_deviceConfigs[deviceId] = {};
-
-    data->scaling = this->m_deviceConfigs[deviceId].scaling;
-    data->status = true;
-}
-
-void AkVCam::ServicePrivate::aspectRatio(AkVCam::Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgAspectRatio>(message);
-    std::string deviceId(data->device);
-
-    if (this->m_deviceConfigs.count(deviceId) < 1)
-        this->m_deviceConfigs[deviceId] = {};
-
-    data->aspect = this->m_deviceConfigs[deviceId].aspectRatio;
-    data->status = true;
-}
-
-void AkVCam::ServicePrivate::swapRgb(AkVCam::Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgSwapRgb>(message);
-    std::string deviceId(data->device);
-
-    if (this->m_deviceConfigs.count(deviceId) < 1)
-        this->m_deviceConfigs[deviceId] = {};
-
-    data->swap = this->m_deviceConfigs[deviceId].swapRgb;
-    data->status = true;
-}
-
 void AkVCam::ServicePrivate::listenerAdd(AkVCam::Message *message)
 {
     AkLogFunction();
@@ -843,14 +678,25 @@ void AkVCam::ServicePrivate::listenerRemove(AkVCam::Message *message)
     }
 }
 
+void AkVCam::ServicePrivate::controlsUpdated(AkVCam::Message *message)
+{
+    AkLogFunction();
+    this->m_peerMutex.lock();
+
+    for (auto &client: this->m_clients)
+        MessageServer::sendMessage(client.second, message);
+
+    this->m_peerMutex.unlock();
+}
+
 DWORD WINAPI controlHandler(DWORD control,
                             DWORD  eventType,
                             LPVOID eventData,
                             LPVOID context)
 {
-    UNUSED(eventType)
-    UNUSED(eventData)
-    UNUSED(context)
+    UNUSED(eventType);
+    UNUSED(eventData);
+    UNUSED(context);
     AkLogFunction();
 
     DWORD result = ERROR_CALL_NOT_IMPLEMENTED;
@@ -896,8 +742,8 @@ BOOL WINAPI controlDebugHandler(DWORD control)
 
 void WINAPI serviceMain(DWORD dwArgc, LPTSTR *lpszArgv)
 {
-    UNUSED(dwArgc)
-    UNUSED(lpszArgv)
+    UNUSED(dwArgc);
+    UNUSED(lpszArgv);
     AkLogFunction();
     AkLogInfo() << "Setting service control handler" << std::endl;
 

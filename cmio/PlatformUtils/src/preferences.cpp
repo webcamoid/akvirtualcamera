@@ -361,7 +361,7 @@ void AkVCam::Preferences::removeCamera(const std::string &path)
     if (cameraIndex < 0)
         return;
 
-    cameraSetFormats(cameraIndex, {});
+    cameraSetFormats(size_t(cameraIndex), {});
 
     auto nCameras = camerasCount();
     deleteAllKeys("cameras." + std::to_string(cameraIndex));
@@ -451,6 +451,7 @@ void AkVCam::Preferences::cameraSetDescription(size_t cameraIndex,
 
     write("cameras." + std::to_string(cameraIndex) + ".description",
           description);
+    sync();
 }
 
 std::string AkVCam::Preferences::cameraPath(size_t cameraIndex)
@@ -536,7 +537,7 @@ void AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
     auto formats = cameraFormats(cameraIndex);
 
     if (index < 0 || index > int(formats.size()))
-        index = formats.size();
+        index = int(formats.size());
 
     formats.insert(formats.begin() + index, format);
     write("cameras."
@@ -563,7 +564,6 @@ void AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
 void AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
 {
     AkLogFunction();
-
     auto formats = cameraFormats(cameraIndex);
 
     if (index < 0 || index >= int(formats.size()))
@@ -592,26 +592,6 @@ void AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
     sync();
 }
 
-std::wstring AkVCam::Preferences::picture()
-{
-    return readWString("picture");
-}
-
-void AkVCam::Preferences::setPicture(const std::wstring &picture)
-{
-    write("picture", picture);
-}
-
-int AkVCam::Preferences::logLevel()
-{
-    return readInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
-}
-
-void AkVCam::Preferences::setLogLevel(int logLevel)
-{
-    write("loglevel", logLevel);
-}
-
 int AkVCam::Preferences::cameraControlValue(size_t cameraIndex,
                                             const std::string &key)
 {
@@ -623,4 +603,27 @@ void AkVCam::Preferences::cameraSetControlValue(size_t cameraIndex,
                                                 int value)
 {
     write("cameras." + std::to_string(cameraIndex) + ".controls." + key, value);
+    sync();
+}
+
+std::wstring AkVCam::Preferences::picture()
+{
+    return readWString("picture");
+}
+
+void AkVCam::Preferences::setPicture(const std::wstring &picture)
+{
+    write("picture", picture);
+    sync();
+}
+
+int AkVCam::Preferences::logLevel()
+{
+    return readInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
+}
+
+void AkVCam::Preferences::setLogLevel(int logLevel)
+{
+    write("loglevel", logLevel);
+    sync();
 }

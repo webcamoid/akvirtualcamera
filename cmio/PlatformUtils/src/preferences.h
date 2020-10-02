@@ -74,8 +74,6 @@ namespace AkVCam
         std::vector<VideoFormat> cameraFormats(size_t cameraIndex);
         void cameraSetFormats(size_t cameraIndex,
                               const std::vector<VideoFormat> &formats);
-        void cameraFormats(size_t cameraIndex,
-                           const std::vector<VideoFormat> &formats);
         void cameraAddFormat(size_t cameraIndex,
                              const VideoFormat &format,
                              int index);

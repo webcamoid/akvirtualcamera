@@ -30,38 +30,33 @@
 #define AKVCAM_ASSISTANT_SERVER_NAME "AkVCam_Server"
 
 // General messages
-#define AKVCAM_ASSISTANT_MSG_ISALIVE                0x000
-#define AKVCAM_ASSISTANT_MSG_FRAME_READY            0x001
+#define AKVCAM_ASSISTANT_MSG_ISALIVE                 0x000
+#define AKVCAM_ASSISTANT_MSG_FRAME_READY             0x001
+#define AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED         0x002
 
 // Assistant messages
-#define AKVCAM_ASSISTANT_MSG_REQUEST_PORT           0x100
-#define AKVCAM_ASSISTANT_MSG_ADD_PORT               0x101
-#define AKVCAM_ASSISTANT_MSG_REMOVE_PORT            0x102
+#define AKVCAM_ASSISTANT_MSG_REQUEST_PORT            0x100
+#define AKVCAM_ASSISTANT_MSG_ADD_PORT                0x101
+#define AKVCAM_ASSISTANT_MSG_REMOVE_PORT             0x102
 
 // Device control and information
-#define AKVCAM_ASSISTANT_MSG_DEVICES                0x200
-#define AKVCAM_ASSISTANT_MSG_DEVICE_CREATE          0x201
-#define AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY         0x202
-#define AKVCAM_ASSISTANT_MSG_DEVICE_DESCRIPTION     0x203
-#define AKVCAM_ASSISTANT_MSG_DEVICE_FORMATS         0x204
+#define AKVCAM_ASSISTANT_MSG_DEVICES                 0x200
+#define AKVCAM_ASSISTANT_MSG_DEVICE_CREATE           0x201
+#define AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY          0x202
+#define AKVCAM_ASSISTANT_MSG_DEVICE_DESCRIPTION      0x203
+#define AKVCAM_ASSISTANT_MSG_DEVICE_FORMATS          0x204
+#define AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE           0x205
 
 // Device listeners controls
-#define AKVCAM_ASSISTANT_MSG_DEVICE_LISTENERS       0x300
-#define AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER        0x301
-#define AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD    0x302
-#define AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE 0x303
+#define AKVCAM_ASSISTANT_MSG_DEVICE_LISTENERS        0x300
+#define AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER         0x301
+#define AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD     0x302
+#define AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE  0x303
 
 // Device dynamic properties
-#define AKVCAM_ASSISTANT_MSG_DEVICE_BROADCASTING    0x400
-#define AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING 0x401
-#define AKVCAM_ASSISTANT_MSG_DEVICE_MIRRORING       0x402
-#define AKVCAM_ASSISTANT_MSG_DEVICE_SETMIRRORING    0x403
-#define AKVCAM_ASSISTANT_MSG_DEVICE_SCALING         0x404
-#define AKVCAM_ASSISTANT_MSG_DEVICE_SETSCALING      0x405
-#define AKVCAM_ASSISTANT_MSG_DEVICE_ASPECTRATIO     0x406
-#define AKVCAM_ASSISTANT_MSG_DEVICE_SETASPECTRATIO  0x407
-#define AKVCAM_ASSISTANT_MSG_DEVICE_SWAPRGB         0x408
-#define AKVCAM_ASSISTANT_MSG_DEVICE_SETSWAPRGB      0x409
+#define AKVCAM_ASSISTANT_MSG_DEVICE_BROADCASTING     0x400
+#define AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING  0x401
+#define AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED 0x402
 
 #define MSG_BUFFER_SIZE 4096
 #define MAX_STRING 1024
@@ -136,7 +131,6 @@ namespace AkVCam
 
     struct MsgRequestPort
     {
-        bool client;
         char port[MAX_STRING];
     };
 
@@ -152,39 +146,20 @@ namespace AkVCam
         char port[MAX_STRING];
     };
 
+    struct MsgDeviceAdded
+    {
+        char device[MAX_STRING];
+    };
+
+    struct MsgDeviceRemoved
+    {
+        char device[MAX_STRING];
+    };
+
     struct MsgBroadcasting
     {
         char device[MAX_STRING];
         char broadcaster[MAX_STRING];
-        bool status;
-    };
-
-    struct MsgMirroring
-    {
-        char device[MAX_STRING];
-        bool hmirror;
-        bool vmirror;
-        bool status;
-    };
-
-    struct MsgScaling
-    {
-        char device[MAX_STRING];
-        Scaling scaling;
-        bool status;
-    };
-
-    struct MsgAspectRatio
-    {
-        char device[MAX_STRING];
-        AspectRatio aspect;
-        bool status;
-    };
-
-    struct MsgSwapRgb
-    {
-        char device[MAX_STRING];
-        bool swap;
         bool status;
     };
 
@@ -205,6 +180,16 @@ namespace AkVCam
     {
         char device[MAX_STRING];
         char port[MAX_STRING];
+    };
+
+    struct MsgPictureUpdated
+    {
+        char picture[MAX_STRING];
+    };
+
+    struct MsgControlsUpdated
+    {
+        char device[MAX_STRING];
     };
 }
 

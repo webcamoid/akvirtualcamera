@@ -113,15 +113,11 @@ void AkVCam::BaseFilter::addPin(const std::vector<AkVCam::VideoFormat> &formats,
 {
     AkLogFunction();
     this->d->m_pins->addPin(new Pin(this, formats, pinName), changed);
-
-    if (this->d->m_pins->count() == 1)
-        this->d->m_ipcBridge.connectService(true);
 }
 
 void AkVCam::BaseFilter::removePin(IPin *pin, bool changed)
 {
     AkLogFunction();
-    this->d->m_ipcBridge.disconnectService();
     this->d->m_pins->removePin(pin, changed);
 }
 

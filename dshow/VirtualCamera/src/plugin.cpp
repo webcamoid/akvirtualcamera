@@ -20,6 +20,7 @@
 #include "plugin.h"
 #include "plugininterface.h"
 #include "classfactory.h"
+#include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
@@ -33,24 +34,20 @@ inline AkVCam::PluginInterface *pluginInterface()
 // Filter entry point
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
-    UNUSED(lpvReserved)
-    AkLogFunction();
-    auto logLevel =
-            AkVCam::regReadInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
-    AkVCam::Logger::setLogLevel(logLevel);
+    UNUSED(lpvReserved);
+    AkLogFunction();    
+    auto loglevel = AkVCam::Preferences::logLevel();
+    AkVCam::Logger::setLogLevel(loglevel);
 
-    if (AkVCam::Logger::logLevel() > AKVCAM_LOGLEVEL_DEFAULT) {
+    if (loglevel > AKVCAM_LOGLEVEL_DEFAULT) {
         // Turn on lights
         freopen("CONOUT$", "a", stdout);
         freopen("CONOUT$", "a", stderr);
         setbuf(stdout, nullptr);
     }
 
-    auto temp = AkVCam::tempPath();
-    auto logFile =
-            AkVCam::regReadString("logfile",
-                                  std::string(temp.begin(), temp.end())
-                                  + "\\" DSHOW_PLUGIN_NAME ".log");
+    auto defaultLogFile = AkVCam::tempPath() + "\\" DSHOW_PLUGIN_NAME ".log";
+    auto logFile = AkVCam::Preferences::readString("logfile", defaultLogFile);
     AkVCam::Logger::setLogFile(logFile);
 
     switch (fdwReason) {

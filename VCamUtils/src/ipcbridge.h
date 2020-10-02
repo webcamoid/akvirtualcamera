@@ -104,10 +104,6 @@ namespace AkVCam
             int logLevel() const;
             void setLogLevel(int logLevel);
 
-            // Manage main service connection.
-            void connectService();
-            void disconnectService();
-
             // Register the peer to the global server.
             bool registerPeer();
 

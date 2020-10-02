@@ -80,11 +80,7 @@ namespace AkVCam
             void connectionInterrupted();
 
             // Utility methods
-            std::string homePath() const;
-            bool fileExists(const std::wstring &path) const;
             bool fileExists(const std::string &path) const;
-            bool mkpath(const std::string &path) const;
-            bool rm(const std::string &path) const;
             static std::string locatePluginPath();
 
         private:
@@ -148,29 +144,9 @@ void AkVCam::IpcBridge::setLogLevel(int logLevel)
     Logger::setLogLevel(logLevel);
 }
 
-void AkVCam::IpcBridge::connectService()
-{
-    AkLogFunction();
-    this->registerPeer();
-}
-
-void AkVCam::IpcBridge::disconnectService()
-{
-    AkLogFunction();
-    this->unregisterPeer();
-}
-
 bool AkVCam::IpcBridge::registerPeer()
 {
     AkLogFunction();
-
-    std::string plistFile =
-            CMIO_DAEMONS_PATH "/" CMIO_ASSISTANT_NAME ".plist";
-
-    auto daemon = replace(plistFile, "~", this->d->homePath());
-
-    if (!this->d->fileExists(daemon))
-        return false;
 
     if (this->d->m_serverMessagePort)
         return true;
@@ -318,7 +294,10 @@ std::wstring AkVCam::IpcBridge::description(const std::string &deviceId) const
     AkLogFunction();
     auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
-    return Preferences::cameraDescription(cameraIndex);
+    if (cameraIndex < 0)
+        return {};
+
+    return Preferences::cameraDescription(size_t(cameraIndex));
 }
 
 void AkVCam::IpcBridge::setDescription(const std::string &deviceId,
@@ -327,7 +306,8 @@ void AkVCam::IpcBridge::setDescription(const std::string &deviceId,
     AkLogFunction();
     auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
-    return Preferences::cameraSetDescription(cameraIndex, description);
+    if (cameraIndex >= 0)
+        Preferences::cameraSetDescription(size_t(cameraIndex), description);
 }
 
 std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats(StreamType type) const
@@ -355,7 +335,10 @@ std::vector<AkVCam::VideoFormat> AkVCam::IpcBridge::formats(const std::string &d
     AkLogFunction();
     auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
-    return Preferences::cameraFormats(cameraIndex);
+    if (cameraIndex < 0)
+        return {};
+
+    return Preferences::cameraFormats(size_t(cameraIndex));
 }
 
 void AkVCam::IpcBridge::setFormats(const std::string &deviceId,
@@ -363,7 +346,8 @@ void AkVCam::IpcBridge::setFormats(const std::string &deviceId,
 {
     auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
-    return Preferences::cameraSetFormats(cameraIndex, formats);
+    if (cameraIndex >= 0)
+        Preferences::cameraSetFormats(size_t(cameraIndex), formats);
 }
 
 std::string AkVCam::IpcBridge::broadcaster(const std::string &deviceId) const
@@ -409,7 +393,7 @@ std::vector<AkVCam::DeviceControl> AkVCam::IpcBridge::controls(const std::string
     for (auto &control: this->d->controls()) {
         controls.push_back(control);
         controls.back().value =
-                Preferences::cameraControlValue(cameraIndex, control.id);
+                Preferences::cameraControlValue(size_t(cameraIndex), control.id);
     }
 
     return controls;
@@ -428,13 +412,14 @@ void AkVCam::IpcBridge::setControls(const std::string &deviceId,
 
     for (auto &control: this->d->controls()) {
         auto oldValue =
-                Preferences::cameraControlValue(cameraIndex, control.id);
+                Preferences::cameraControlValue(size_t(cameraIndex),
+                                                control.id);
 
         if (controls.count(control.id)) {
             auto newValue = controls.at(control.id);
 
             if (newValue != oldValue) {
-                Preferences::cameraSetControlValue(cameraIndex,
+                Preferences::cameraSetControlValue(size_t(cameraIndex),
                                                    control.id,
                                                    newValue);
                 updated = true;
@@ -490,13 +475,13 @@ std::vector<std::string> AkVCam::IpcBridge::listeners(const std::string &deviceI
 std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
 {
     AkLogFunction();
-    auto driverPath = this->d->locatePluginPath();
-    AkLogDebug() << "Plugin path: " << driverPath << std::endl;
+    auto pluginPath = this->d->locatePluginPath();
+    AkLogDebug() << "Plugin path: " << pluginPath << std::endl;
 
-    if (driverPath.empty())
+    if (pluginPath.empty())
         return {};
 
-    auto path = driverPath + "/Contents/MacOS/" CMIO_PLUGIN_NAME;
+    auto path = pluginPath + "/Contents/MacOS/" CMIO_PLUGIN_NAME;
     AkLogDebug() << "Plugin binary: " << path << std::endl;
 
     if (!this->d->fileExists(path))
@@ -553,16 +538,22 @@ void AkVCam::IpcBridge::addFormat(const std::string &deviceId,
                                   int index)
 {
     AkLogFunction();
-    Preferences::cameraAddFormat(Preferences::cameraFromPath(deviceId),
-                                 format,
-                                 index);
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+
+    if (cameraIndex >= 0)
+        Preferences::cameraAddFormat(size_t(cameraIndex),
+                                     format,
+                                     index);
 }
 
 void AkVCam::IpcBridge::removeFormat(const std::string &deviceId, int index)
 {
     AkLogFunction();
-    Preferences::cameraRemoveFormat(Preferences::cameraFromPath(deviceId),
-                                    index);
+    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+
+    if (cameraIndex >= 0)
+        Preferences::cameraRemoveFormat(size_t(cameraIndex),
+                                        index);
 }
 
 void AkVCam::IpcBridge::updateDevices()
@@ -578,7 +569,6 @@ void AkVCam::IpcBridge::updateDevices()
                              AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE);
     xpc_connection_send_message(this->d->m_serverMessagePort, dictionary);
     xpc_release(dictionary);
-
 }
 
 bool AkVCam::IpcBridge::deviceStart(const std::string &deviceId,
@@ -957,11 +947,15 @@ void AkVCam::IpcBridgePrivate::controlsUpdated(xpc_connection_t client,
     std::string deviceId =
             xpc_dictionary_get_string(event, "device");
     auto cameraIndex = Preferences::cameraFromPath(deviceId);
+
+    if (cameraIndex < 0)
+        return;
+
     std::map<std::string, int> controls;
 
     for (auto &control: this->controls())
         controls[control.id] =
-                Preferences::cameraControlValue(cameraIndex, control.id);
+                Preferences::cameraControlValue(size_t(cameraIndex), control.id);
 
     for (auto bridge: this->m_bridges)
         AKVCAM_EMIT(bridge,
@@ -1029,83 +1023,12 @@ void AkVCam::IpcBridgePrivate::connectionInterrupted()
         }
 }
 
-std::string AkVCam::IpcBridgePrivate::homePath() const
-{
-    auto homePath = NSHomeDirectory();
-
-    if (!homePath)
-        return {};
-
-    return std::string(homePath.UTF8String);
-}
-
-bool AkVCam::IpcBridgePrivate::fileExists(const std::wstring &path) const
-{
-    return this->fileExists(std::string(path.begin(), path.end()));
-}
-
 bool AkVCam::IpcBridgePrivate::fileExists(const std::string &path) const
 {
     struct stat stats;
     memset(&stats, 0, sizeof(struct stat));
 
     return stat(path.c_str(), &stats) == 0;
-}
-
-bool AkVCam::IpcBridgePrivate::mkpath(const std::string &path) const
-{
-    if (path.empty())
-        return false;
-
-    if (this->fileExists(path))
-        return true;
-
-    // Create parent folders
-    for (auto pos = path.find('/');
-         pos != std::string::npos;
-         pos = path.find('/', pos + 1)) {
-        auto path_ = path.substr(0, pos);
-
-        if (path_.empty() || this->fileExists(path_))
-            continue;
-
-        if (mkdir(path_.c_str(),
-                  S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
-            return false;
-    }
-
-    return !mkdir(path.c_str(),
-                  S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-}
-
-bool AkVCam::IpcBridgePrivate::rm(const std::string &path) const
-{
-    if (path.empty())
-        return false;
-
-    struct stat stats;
-    memset(&stats, 0, sizeof(struct stat));
-
-    if (stat(path.c_str(), &stats))
-        return false;
-
-    bool ok = true;
-
-    if (S_ISDIR(stats.st_mode)) {
-        auto dir = opendir(path.c_str());
-
-        while (auto entry = readdir(dir))
-            if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, ".."))
-                this->rm(entry->d_name);
-
-        closedir(dir);
-
-        ok &= !rmdir(path.c_str());
-    } else {
-        ok &= !::remove(path.c_str());
-    }
-
-    return ok;
 }
 
 std::string AkVCam::IpcBridgePrivate::locatePluginPath()

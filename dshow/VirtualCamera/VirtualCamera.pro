@@ -52,7 +52,6 @@ LIBS += \
     -lwinmm
 
 TARGET = $${DSHOW_PLUGIN_NAME}
-
 TEMPLATE = lib
 
 HEADERS += \

@@ -54,10 +54,6 @@
 #define AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING  0x401
 #define AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED 0x402
 
-// Connections
-#define AKVCAM_ASSISTANT_MSG_CONNECTIONS             0x500
-#define AKVCAM_ASSISTANT_MSG_SETCONNECTIONS          0x501
-
 namespace AkVCam
 {
     using XpcMessage = std::function<void (xpc_connection_t, xpc_object_t)>;

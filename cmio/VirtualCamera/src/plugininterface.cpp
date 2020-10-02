@@ -157,7 +157,6 @@ AkVCam::PluginInterface::PluginInterface():
     this->d->m_ref = 0;
     this->d->m_reserved = 0;
 
-    this->d->m_ipcBridge.connectService();
     this->d->m_ipcBridge.connectServerStateChanged(this, &PluginInterface::serverStateChanged);
     this->d->m_ipcBridge.connectDeviceAdded(this, &PluginInterface::deviceAdded);
     this->d->m_ipcBridge.connectDeviceRemoved(this, &PluginInterface::deviceRemoved);
@@ -170,7 +169,6 @@ AkVCam::PluginInterface::PluginInterface():
 
 AkVCam::PluginInterface::~PluginInterface()
 {
-    this->d->m_ipcBridge.disconnectService();
     delete this->d->pluginInterface;
     delete this->d;
 }

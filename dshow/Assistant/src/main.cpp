@@ -21,18 +21,17 @@
 #include <windows.h>
 
 #include "service.h"
+#include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/logger/logger.h"
 
 int main(int argc, char **argv)
 {
-    auto loglevel = AkVCam::regReadInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
+    auto loglevel = AkVCam::Preferences::logLevel();
     AkVCam::Logger::setLogLevel(loglevel);
-    auto temp = AkVCam::tempPath();
-    auto logFile =
-            AkVCam::regReadString("logfile",
-                                  std::string(temp.begin(), temp.end())
-                                  + "\\" DSHOW_PLUGIN_ASSISTANT_NAME ".log");
+    auto defaultLogFile = AkVCam::tempPath()
+                          + "\\" DSHOW_PLUGIN_ASSISTANT_NAME ".log";
+    auto logFile = AkVCam::Preferences::readString("logfile", defaultLogFile);
     AkVCam::Logger::setLogFile(logFile);
     AkVCam::Service service;
 
