@@ -28,7 +28,7 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/ipcbridge.h"
-#include "VCamUtils/src/logger/logger.h"
+#include "VCamUtils/src/logger.h"
 
 namespace AkVCam
 {

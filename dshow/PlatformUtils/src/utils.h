@@ -24,7 +24,7 @@
 #include <strmif.h>
 
 #include "VCamUtils/src/image/videoformattypes.h"
-#include "VCamUtils/src/logger/logger.h"
+#include "VCamUtils/src/logger.h"
 
 #define AkLogInterface(interface, instance) \
     AkLogInfo() << "Returning " << #interface << "(" << instance << ")" << std::endl

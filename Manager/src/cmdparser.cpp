@@ -29,7 +29,7 @@
 #include "VCamUtils/src/settings.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/image/videoframe.h"
-#include "VCamUtils/src/logger/logger.h"
+#include "VCamUtils/src/logger.h"
 
 #define AKVCAM_BIND_FUNC(member) \
     std::bind(&member, this->d, std::placeholders::_1, std::placeholders::_2)

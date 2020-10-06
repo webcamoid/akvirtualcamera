@@ -31,7 +31,7 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/image/videoframe.h"
-#include "VCamUtils/src/logger/logger.h"
+#include "VCamUtils/src/logger.h"
 
 namespace AkVCam
 {

@@ -24,7 +24,7 @@
 
 #include "settings.h"
 #include "fraction.h"
-#include "logger/logger.h"
+#include "logger.h"
 
 namespace AkVCam
 {

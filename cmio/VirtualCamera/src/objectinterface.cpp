@@ -19,7 +19,7 @@
 
 #include "objectinterface.h"
 #include "PlatformUtils/src/utils.h"
-#include "VCamUtils/src/logger/logger.h"
+#include "VCamUtils/src/logger.h"
 
 AkVCam::ObjectInterface::ObjectInterface():
     m_objectID(0),

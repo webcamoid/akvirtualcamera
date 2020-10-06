@@ -19,7 +19,7 @@
 
 #include "device.h"
 #include "PlatformUtils/src/utils.h"
-#include "VCamUtils/src/logger/logger.h"
+#include "VCamUtils/src/logger.h"
 
 AkVCam::Device::Device(CMIOHardwarePlugInRef pluginInterface,
                        bool registerObject):

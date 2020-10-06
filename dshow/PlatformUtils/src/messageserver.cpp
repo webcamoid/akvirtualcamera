@@ -26,7 +26,7 @@
 
 #include "messageserver.h"
 #include "utils.h"
-#include "VCamUtils/src/logger/logger.h"
+#include "VCamUtils/src/logger.h"
 
 namespace AkVCam
 {

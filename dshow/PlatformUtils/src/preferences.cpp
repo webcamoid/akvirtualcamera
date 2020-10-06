@@ -28,7 +28,7 @@
 #include "preferences.h"
 #include "utils.h"
 #include "VCamUtils/src/image/videoformat.h"
-#include "VCamUtils/src/logger/logger.h"
+#include "VCamUtils/src/logger.h"
 
 #define REG_PREFIX "SOFTWARE\\Webcamoid\\VirtualCamera\\"
 
