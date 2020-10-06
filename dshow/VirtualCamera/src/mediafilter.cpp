@@ -141,7 +141,7 @@ HRESULT AkVCam::MediaFilter::Run(REFERENCE_TIME tStart)
 HRESULT AkVCam::MediaFilter::GetState(DWORD dwMilliSecsTimeout,
                                       FILTER_STATE *State)
 {
-    UNUSED(dwMilliSecsTimeout)
+    UNUSED(dwMilliSecsTimeout);
     AkLogFunction();
 
     if (!State)
@@ -185,5 +185,5 @@ HRESULT AkVCam::MediaFilter::GetSyncSource(IReferenceClock **pClock)
 
 void AkVCam::MediaFilter::stateChanged(FILTER_STATE state)
 {
-    UNUSED(state)
+    UNUSED(state);
 }

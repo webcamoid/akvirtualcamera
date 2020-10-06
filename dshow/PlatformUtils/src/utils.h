@@ -69,6 +69,8 @@ namespace AkVCam
     std::string stringFromFormatType(const GUID &formatType);
     std::string stringFromMediaType(const AM_MEDIA_TYPE *mediaType);
     std::string stringFromMediaSample(IMediaSample *mediaSample);
+    LSTATUS deleteTree(HKEY key, LPCSTR subkey, REGSAM samFlags);
+    LSTATUS copyTree(HKEY src, LPCSTR subkey, HKEY dst, REGSAM samFlags);
 }
 
 #endif // PLATFORM_UTILS_H

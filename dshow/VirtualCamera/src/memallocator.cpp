@@ -220,7 +220,7 @@ HRESULT AkVCam::MemAllocator::GetBuffer(IMediaSample **ppBuffer,
 
 HRESULT AkVCam::MemAllocator::ReleaseBuffer(IMediaSample *pBuffer)
 {
-    UNUSED(pBuffer)
+    UNUSED(pBuffer);
     AkLogFunction();
 
     this->d->m_mutex.lock();

@@ -75,11 +75,8 @@ namespace AkVCam
                           const VideoFrame &frame)
             AKVCAM_SIGNAL(PictureChanged,
                           const std::string &picture)
-            AKVCAM_SIGNAL(DeviceAdded,
-                          const std::string &deviceId)
-            AKVCAM_SIGNAL(DeviceRemoved,
-                          const std::string &deviceId)
-            AKVCAM_SIGNAL(DevicesUpdated, void *unused)
+            AKVCAM_SIGNAL(DevicesChanged,
+                          const std::vector<std::string> &devices)
             AKVCAM_SIGNAL(ListenerAdded,
                           const std::string &deviceId,
                           const std::string &listener)

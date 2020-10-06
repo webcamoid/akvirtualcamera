@@ -792,3 +792,210 @@ std::string AkVCam::stringFromMediaSample(IMediaSample *mediaSample)
 
     return ss.str();
 }
+
+LSTATUS AkVCam::deleteTree(HKEY key, LPCSTR subkey, REGSAM samFlags)
+{
+    HKEY mainKey = key;
+    LONG result = ERROR_SUCCESS;
+
+    // Open subkey
+    if (subkey) {
+        result = RegOpenKeyExA(key,
+                               subkey,
+                               0,
+                               KEY_ALL_ACCESS | samFlags,
+                               &mainKey);
+
+        if (result != ERROR_SUCCESS)
+            return result;
+    }
+
+    // list subkeys and values.
+    DWORD subKeys = 0;
+    DWORD maxSubKeyLen = 0;
+    DWORD values = 0;
+    DWORD maxValueNameLen = 0;
+    result = RegQueryInfoKey(mainKey,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             &subKeys,
+                             &maxSubKeyLen,
+                             nullptr,
+                             &values,
+                             &maxValueNameLen,
+                             nullptr,
+                             nullptr,
+                             nullptr);
+
+    if (result != ERROR_SUCCESS) {
+        RegCloseKey(mainKey);
+
+        return result;
+    }
+
+    // Delete subkeys
+    for (DWORD i = 0; i < subKeys; i++) {
+        auto len = maxSubKeyLen + 1;
+        CHAR *name = new CHAR[len];
+        memset(name, 0, len * sizeof(CCHAR));
+        DWORD nameLen = len;
+        result = RegEnumKeyExA(mainKey,
+                               i,
+                               name,
+                               &nameLen,
+                               nullptr,
+                               nullptr,
+                               nullptr,
+                               nullptr);
+
+        if (result == ERROR_SUCCESS)
+            deleteTree(mainKey, name, samFlags);
+
+        delete [] name;
+    }
+
+    // Delete values
+    for (DWORD i = 0; i < values; i++) {
+        auto len = maxValueNameLen + 1;
+        TCHAR *name = new TCHAR[len];
+        memset(name, 0, len * sizeof(TCHAR));
+        DWORD nameLen = len;
+        result = RegEnumValue(mainKey,
+                              i,
+                              name,
+                              &nameLen,
+                              0,
+                              nullptr,
+                              nullptr,
+                              nullptr);
+
+        if (result == ERROR_SUCCESS)
+            RegDeleteValue(mainKey, name);
+
+        delete [] name;
+    }
+
+    // Delete this key
+    if (subkey) {
+        result = RegDeleteKeyExA(key, subkey, samFlags, 0);
+        RegCloseKey(mainKey);
+    }
+
+    return result;
+}
+
+LSTATUS AkVCam::copyTree(HKEY src, LPCSTR subkey, HKEY dst, REGSAM samFlags)
+{
+    HKEY hkeyFrom = src;
+    LONG result = ERROR_SUCCESS;
+
+    // Open source subkey
+    if (subkey) {
+        result = RegOpenKeyExA(src,
+                               subkey,
+                               0,
+                               KEY_READ | samFlags,
+                               &hkeyFrom);
+
+        if (result != ERROR_SUCCESS)
+            return result;
+    }
+
+    // list subkeys and values.
+    DWORD subKeys = 0;
+    DWORD maxSubKeyLen = 0;
+    DWORD values = 0;
+    DWORD maxValueNameLen = 0;
+    DWORD maxValueLen = 0;
+    result = RegQueryInfoKey(hkeyFrom,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             &subKeys,
+                             &maxSubKeyLen,
+                             nullptr,
+                             &values,
+                             &maxValueNameLen,
+                             &maxValueLen,
+                             nullptr,
+                             nullptr);
+
+    if (result != ERROR_SUCCESS) {
+        if (subkey)
+            RegCloseKey(hkeyFrom);
+
+        return result;
+    }
+
+    // Copy subkeys
+    for (DWORD i = 0; i < subKeys; i++) {
+        auto len = maxSubKeyLen + 1;
+        CHAR *name = new CHAR[len];
+        memset(name, 0, len * sizeof(CCHAR));
+        DWORD nameLen = len;
+        result = RegEnumKeyExA(hkeyFrom,
+                               i,
+                               name,
+                               &nameLen,
+                               nullptr,
+                               nullptr,
+                               nullptr,
+                               nullptr);
+
+        if (result == ERROR_SUCCESS) {
+            HKEY subkeyTo = nullptr;
+            result = RegCreateKeyExA(dst,
+                                     name,
+                                     0,
+                                     nullptr,
+                                     REG_OPTION_NON_VOLATILE,
+                                     KEY_WRITE | samFlags,
+                                     nullptr,
+                                     &subkeyTo,
+                                     nullptr);
+
+            if (result == ERROR_SUCCESS) {
+                copyTree(hkeyFrom, name, subkeyTo, samFlags);
+                RegCloseKey(subkeyTo);
+            }
+        }
+
+        delete [] name;
+    }
+
+    // Copy values
+    for (DWORD i = 0; i < values; i++) {
+        auto len = maxValueNameLen + 1;
+        TCHAR *name = new TCHAR[len];
+        memset(name, 0, len * sizeof(TCHAR));
+        DWORD nameLen = len;
+        DWORD dataType = 0;
+        BYTE *data = new BYTE[maxValueLen];
+        DWORD dataSize = 0;
+        result = RegEnumValue(hkeyFrom,
+                              i,
+                              name,
+                              &nameLen,
+                              0,
+                              &dataType,
+                              data,
+                              &dataSize);
+
+        if (result == ERROR_SUCCESS)
+            RegSetValueEx(dst,
+                          name,
+                          0,
+                          dataType,
+                          data,
+                          dataSize);
+
+        delete [] data;
+        delete [] name;
+    }
+
+    if (subkey)
+        RegCloseKey(hkeyFrom);
+
+    return result;
+}

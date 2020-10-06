@@ -261,22 +261,22 @@ void AkVCam::Preferences::deleteKey(const std::string &key)
     std::string subKey;
     std::string val;
     splitSubKey(key, subKey, val);
-    HKEY hkey = nullptr;
-    auto result = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
-                                subKey.c_str(),
-                                0,
-                                KEY_ALL_ACCESS | KEY_WOW64_64KEY,
-                                &hkey);
 
-    if (result != ERROR_SUCCESS)
-        return;
+    if (val.empty()) {
+        deleteTree(HKEY_LOCAL_MACHINE, subKey.c_str(), KEY_WOW64_64KEY);
+    } else {
+        HKEY hkey = nullptr;
+        auto result = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+                                    subKey.c_str(),
+                                    0,
+                                    KEY_ALL_ACCESS | KEY_WOW64_64KEY,
+                                    &hkey);
 
-    if (val.empty())
-        RegDeleteTreeA(hkey, nullptr);
-    else
-        RegDeleteValueA(hkey, val.c_str());
-
-    RegCloseKey(hkey);
+        if (result == ERROR_SUCCESS) {
+            RegDeleteValueA(hkey, val.c_str());
+            RegCloseKey(hkey);
+        }
+    }
 }
 
 void AkVCam::Preferences::move(const std::string &keyFrom,
@@ -308,7 +308,7 @@ void AkVCam::Preferences::move(const std::string &keyFrom,
                                  nullptr);
 
         if (result == ERROR_SUCCESS) {
-            result = RegCopyTree(hkeyFrom, nullptr, hkeyTo);
+            result = copyTree(hkeyFrom, nullptr, hkeyTo, KEY_WOW64_64KEY);
 
             if (result == ERROR_SUCCESS)
                 deleteKey(keyFrom);
@@ -439,6 +439,18 @@ std::string AkVCam::Preferences::createDevicePath()
     }
 
     return {};
+}
+
+int AkVCam::Preferences::cameraFromCLSID(const CLSID &clsid)
+{
+    for (DWORD i = 0; i < camerasCount(); i++) {
+        auto cameraClsid = createClsidFromStr(cameraPath(i));
+
+        if (IsEqualCLSID(cameraClsid, clsid))
+            return int(i);
+    }
+
+    return -1;
 }
 
 int AkVCam::Preferences::cameraFromPath(const std::string &path)

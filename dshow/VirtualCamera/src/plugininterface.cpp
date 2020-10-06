@@ -32,8 +32,6 @@ namespace AkVCam
     {
         public:
             HINSTANCE m_pluginHinstance {nullptr};
-
-            LONG deleteTree(HKEY hKey, LPCTSTR lpSubKey);
     };
 }
 
@@ -57,7 +55,7 @@ HINSTANCE &AkVCam::PluginInterface::pluginHinstance()
     return this->d->m_pluginHinstance;
 }
 
-bool AkVCam::PluginInterface::registerServer(const std::wstring &deviceId,
+bool AkVCam::PluginInterface::registerServer(const std::string &deviceId,
                                              const std::wstring &description) const
 {
     AkLogFunction();
@@ -149,12 +147,11 @@ void AkVCam::PluginInterface::unregisterServer(const CLSID &clsid) const
 
     auto clsidStr = stringFromClsid(clsid);
     AkLogInfo() << "CLSID: " << clsidStr << std::endl;
-    auto subkey = L"CLSID\\" + std::wstring(clsidStr.begin(), clsidStr.end());
-
-    this->d->deleteTree(HKEY_CLASSES_ROOT, subkey.c_str());
+    auto subkey = "CLSID\\" + clsidStr;
+    deleteTree(HKEY_CLASSES_ROOT, subkey.c_str(), 0);
 }
 
-bool AkVCam::PluginInterface::registerFilter(const std::wstring &deviceId,
+bool AkVCam::PluginInterface::registerFilter(const std::string &deviceId,
                                              const std::wstring &description) const
 {
     AkLogFunction();
@@ -264,7 +261,7 @@ unregisterFilter_failed:
     AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
 }
 
-bool AkVCam::PluginInterface::setDevicePath(const std::wstring &deviceId) const
+bool AkVCam::PluginInterface::setDevicePath(const std::string &deviceId) const
 {
     AkLogFunction();
 
@@ -287,12 +284,12 @@ bool AkVCam::PluginInterface::setDevicePath(const std::wstring &deviceId) const
     if (result != ERROR_SUCCESS)
         goto setDevicePath_failed;
 
-    result = RegSetValueEx(hKey,
-                           TEXT("DevicePath"),
-                           0,
-                           REG_SZ,
-                           reinterpret_cast<const BYTE *>(deviceId.c_str()),
-                           DWORD((deviceId.size() + 1) * sizeof(wchar_t)));
+    result = RegSetValueExA(hKey,
+                            "DevicePath",
+                            0,
+                            REG_SZ,
+                            reinterpret_cast<const BYTE *>(deviceId.c_str()),
+                            DWORD((deviceId.size() + 1) * sizeof(wchar_t)));
 
     if (result != ERROR_SUCCESS)
         goto setDevicePath_failed;
@@ -308,7 +305,7 @@ setDevicePath_failed:
     return ok;
 }
 
-bool AkVCam::PluginInterface::createDevice(const std::wstring &deviceId,
+bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
                                            const std::wstring &description)
 {
     AkLogFunction();
@@ -352,33 +349,4 @@ void AkVCam::PluginInterface::destroyDevice(const CLSID &clsid)
 
     this->unregisterFilter(clsid);
     this->unregisterServer(clsid);
-}
-
-LONG AkVCam::PluginInterfacePrivate::deleteTree(HKEY hKey, LPCTSTR lpSubKey)
-{
-    HKEY key = nullptr;
-    auto result = RegOpenKeyEx(hKey, lpSubKey, 0, MAXIMUM_ALLOWED, &key);
-
-    if (result != ERROR_SUCCESS)
-        return result;
-
-    TCHAR subKey[MAX_PATH];
-    DWORD subKeyLen = MAX_PATH;
-    FILETIME lastWrite;
-
-    while (RegEnumKeyEx(key,
-                        0,
-                        subKey,
-                        &subKeyLen,
-                        nullptr,
-                        nullptr,
-                        nullptr,
-                        &lastWrite) == ERROR_SUCCESS) {
-        this->deleteTree(key, subKey);
-    }
-
-    RegCloseKey(key);
-    RegDeleteKey(hKey, lpSubKey);
-
-    return ERROR_SUCCESS;
 }

@@ -79,8 +79,6 @@ namespace AkVCam
             void isAlive(Message *message);
             void frameReady(Message *message);
             void pictureUpdated(Message *message);
-            void deviceCreate(Message *message);
-            void deviceDestroy(Message *message);
             void deviceUpdate(Message *message);
             void listenerAdd(Message *message);
             void listenerRemove (Message *message);
@@ -767,8 +765,6 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
         {AKVCAM_ASSISTANT_MSG_ISALIVE                , AKVCAM_BIND_FUNC(IpcBridgePrivate::isAlive)        },
         {AKVCAM_ASSISTANT_MSG_FRAME_READY            , AKVCAM_BIND_FUNC(IpcBridgePrivate::frameReady)     },
         {AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED        , AKVCAM_BIND_FUNC(IpcBridgePrivate::pictureUpdated) },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_CREATE          , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceCreate)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY         , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceDestroy)  },
         {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE          , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceUpdate)   },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD    , AKVCAM_BIND_FUNC(IpcBridgePrivate::listenerAdd)    },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE , AKVCAM_BIND_FUNC(IpcBridgePrivate::listenerRemove) },
@@ -945,25 +941,17 @@ void AkVCam::IpcBridgePrivate::pictureUpdated(Message *message)
                 std::string(data->picture))
 }
 
-void AkVCam::IpcBridgePrivate::deviceCreate(Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgDeviceAdded>(message);
-    AKVCAM_EMIT(this->self, DeviceAdded, std::string(data->device))
-}
-
-void AkVCam::IpcBridgePrivate::deviceDestroy(Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgDeviceRemoved>(message);
-    AKVCAM_EMIT(this->self, DeviceAdded, std::string(data->device))
-}
-
 void AkVCam::IpcBridgePrivate::deviceUpdate(Message *message)
 {
     UNUSED(message);
     AkLogFunction();
-    AKVCAM_EMIT(this->self, DevicesUpdated, nullptr)
+    std::vector<std::string> devices;
+    auto nCameras = Preferences::camerasCount();
+
+    for (size_t i = 0; i < nCameras; i++)
+        devices.push_back(Preferences::cameraPath(i));
+
+    AKVCAM_EMIT(this->self, DevicesChanged, devices)
 }
 
 void AkVCam::IpcBridgePrivate::listenerAdd(Message *message)

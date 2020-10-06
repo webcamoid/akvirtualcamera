@@ -50,11 +50,8 @@ namespace AkVCam
 
             static void serverStateChanged(void *userData,
                                            IpcBridge::ServerState state);
-            static void deviceAdded(void *userData,
-                                    const std::string &deviceId);
-            static void deviceRemoved(void *userData,
-                                      const std::string &deviceId);
-            static void devicesUpdated(void *userData, void *unused);
+            static void devicesChanged(void *userData,
+                                       const std::vector<std::string> &devices);
             static void frameReady(void *userData,
                                    const std::string &deviceId,
                                    const VideoFrame &frame);

@@ -41,12 +41,12 @@ HRESULT AkVCam::PropertySet::Set(const GUID &guidPropSet,
                                  LPVOID pPropData,
                                  DWORD cbPropData)
 {
-    UNUSED(guidPropSet)
-    UNUSED(dwPropID)
-    UNUSED(pInstanceData)
-    UNUSED(cbInstanceData)
-    UNUSED(pPropData)
-    UNUSED(cbPropData)
+    UNUSED(guidPropSet);
+    UNUSED(dwPropID);
+    UNUSED(pInstanceData);
+    UNUSED(cbInstanceData);
+    UNUSED(pPropData);
+    UNUSED(cbPropData);
     AkLogFunction();
 
     return E_NOTIMPL;
@@ -60,8 +60,8 @@ HRESULT AkVCam::PropertySet::Get(const GUID &guidPropSet,
                                  DWORD cbPropData,
                                  DWORD *pcbReturned)
 {
-    UNUSED(pInstanceData)
-    UNUSED(cbInstanceData)
+    UNUSED(pInstanceData);
+    UNUSED(cbInstanceData);
     AkLogFunction();
 
     if (!IsEqualGUID(guidPropSet, AMPROPSETID_Pin))

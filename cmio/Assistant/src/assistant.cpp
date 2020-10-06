@@ -42,8 +42,6 @@ namespace AkVCam
 {
     struct AssistantDevice
     {
-        std::wstring description;
-        std::vector<VideoFormat> formats;
         std::string broadcaster;
         std::vector<std::string> listeners;
     };
@@ -61,30 +59,22 @@ namespace AkVCam
             double m_timeout {0.0};
 
             AssistantPrivate();
-            ~AssistantPrivate();
             inline static uint64_t id();
             bool startTimer();
             void stopTimer();
             static void timerTimeout(CFRunLoopTimerRef timer, void *info);
-            void loadCameras();
             void releaseDevicesFromPeer(const std::string &portName);
             void peerDied();
             void requestPort(xpc_connection_t client, xpc_object_t event);
             void addPort(xpc_connection_t client, xpc_object_t event);
             void removePortByName(const std::string &portName);
             void removePort(xpc_connection_t client, xpc_object_t event);
-            void deviceCreate(xpc_connection_t client, xpc_object_t event);
-            void deviceDestroyById(const std::string &deviceId);
-            void deviceDestroy(xpc_connection_t client, xpc_object_t event);
-            void deviceUpdate(xpc_connection_t client, xpc_object_t event);
+            void devicesUpdate(xpc_connection_t client, xpc_object_t event);
             void setBroadcasting(xpc_connection_t client, xpc_object_t event);
             void frameReady(xpc_connection_t client, xpc_object_t event);
             void pictureUpdated(xpc_connection_t client, xpc_object_t event);
             void listeners(xpc_connection_t client, xpc_object_t event);
             void listener(xpc_connection_t client, xpc_object_t event);
-            void devices(xpc_connection_t client, xpc_object_t event);
-            void description(xpc_connection_t client, xpc_object_t event);
-            void formats(xpc_connection_t client, xpc_object_t event);
             void broadcasting(xpc_connection_t client, xpc_object_t event);
             void controlsUpdated(xpc_connection_t client, xpc_object_t event);
             void listenerAdd(xpc_connection_t client, xpc_object_t event);
@@ -137,12 +127,7 @@ AkVCam::AssistantPrivate::AssistantPrivate()
         {AKVCAM_ASSISTANT_MSG_REQUEST_PORT           , AKVCAM_BIND_FUNC(AssistantPrivate::requestPort)    },
         {AKVCAM_ASSISTANT_MSG_ADD_PORT               , AKVCAM_BIND_FUNC(AssistantPrivate::addPort)        },
         {AKVCAM_ASSISTANT_MSG_REMOVE_PORT            , AKVCAM_BIND_FUNC(AssistantPrivate::removePort)     },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_CREATE          , AKVCAM_BIND_FUNC(AssistantPrivate::deviceCreate)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY         , AKVCAM_BIND_FUNC(AssistantPrivate::deviceDestroy)  },
-        {AKVCAM_ASSISTANT_MSG_DEVICES                , AKVCAM_BIND_FUNC(AssistantPrivate::devices)        },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_DESCRIPTION     , AKVCAM_BIND_FUNC(AssistantPrivate::description)    },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_FORMATS         , AKVCAM_BIND_FUNC(AssistantPrivate::formats)        },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE          , AKVCAM_BIND_FUNC(AssistantPrivate::deviceUpdate)   },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE          , AKVCAM_BIND_FUNC(AssistantPrivate::devicesUpdate)  },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD    , AKVCAM_BIND_FUNC(AssistantPrivate::listenerAdd)    },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE , AKVCAM_BIND_FUNC(AssistantPrivate::listenerRemove) },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENERS       , AKVCAM_BIND_FUNC(AssistantPrivate::listeners)      },
@@ -152,22 +137,7 @@ AkVCam::AssistantPrivate::AssistantPrivate()
         {AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED, AKVCAM_BIND_FUNC(AssistantPrivate::controlsUpdated)},
     };
 
-    this->loadCameras();
     this->startTimer();
-}
-
-AkVCam::AssistantPrivate::~AssistantPrivate()
-{
-    for (auto &device: this->m_deviceConfigs) {
-        auto notification = xpc_dictionary_create(NULL, NULL, 0);
-        xpc_dictionary_set_int64(notification, "message", AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY);
-        xpc_dictionary_set_string(notification, "device", device.first.c_str());
-
-        for (auto &client: this->m_clients)
-            xpc_connection_send_message(client.second, notification);
-
-        xpc_release(notification);
-    }
 }
 
 uint64_t AkVCam::AssistantPrivate::id()
@@ -227,19 +197,6 @@ void AkVCam::AssistantPrivate::timerTimeout(CFRunLoopTimerRef timer, void *info)
     AkLogFunction();
 
     CFRunLoopStop(CFRunLoopGetMain());
-}
-
-void AkVCam::AssistantPrivate::loadCameras()
-{
-    AkLogFunction();
-
-    for (size_t i = 0; i < Preferences::camerasCount(); i++) {
-        auto path = Preferences::cameraPath(i);
-        this->m_deviceConfigs[path] = {};
-        this->m_deviceConfigs[path].description =
-                Preferences::cameraDescription(i);
-        this->m_deviceConfigs[path].formats = Preferences::cameraFormats(i);
-    }
 }
 
 void AkVCam::AssistantPrivate::releaseDevicesFromPeer(const std::string &portName)
@@ -370,81 +327,8 @@ void AkVCam::AssistantPrivate::removePort(xpc_connection_t client,
     this->removePortByName(xpc_dictionary_get_string(event, "port"));
 }
 
-void AkVCam::AssistantPrivate::deviceCreate(xpc_connection_t client,
-                                            xpc_object_t event)
-{
-    AkLogFunction();
-    std::string portName = xpc_dictionary_get_string(event, "port");
-    AkLogInfo() << "Port Name: " << portName << std::endl;
-    size_t len = 0;
-    auto data = reinterpret_cast<const wchar_t *>(xpc_dictionary_get_data(event,
-                                                                          "description",
-                                                                          &len));
-    std::wstring description(data, len / sizeof(wchar_t));
-    auto formatsArray = xpc_dictionary_get_array(event, "formats");
-    std::vector<VideoFormat> formats;
-
-    for (size_t i = 0; i < xpc_array_get_count(formatsArray); i++) {
-        auto format = xpc_array_get_dictionary(formatsArray, i);
-        auto fourcc = FourCC(xpc_dictionary_get_uint64(format, "fourcc"));
-        auto width = int(xpc_dictionary_get_int64(format, "width"));
-        auto height = int(xpc_dictionary_get_int64(format, "height"));
-        auto frameRate = Fraction(xpc_dictionary_get_string(format, "fps"));
-        formats.push_back(VideoFormat {fourcc, width, height, {frameRate}});
-    }
-
-    auto deviceId = Preferences::addCamera(description, formats);
-    this->m_deviceConfigs[deviceId] = {};
-    this->m_deviceConfigs[deviceId].description = description;
-    this->m_deviceConfigs[deviceId].formats = formats;
-
-    auto notification = xpc_copy(event);
-    xpc_dictionary_set_string(notification, "device", deviceId.c_str());
-
-    for (auto &client: this->m_clients)
-        xpc_connection_send_message(client.second, notification);
-
-    xpc_release(notification);
-    AkLogInfo() << "Device created: " << deviceId << std::endl;
-
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_string(reply, "device", deviceId.c_str());
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
-void AkVCam::AssistantPrivate::deviceDestroyById(const std::string &deviceId)
-{
-    AkLogFunction();
-    auto it = this->m_deviceConfigs.find(deviceId);
-
-    if (it != this->m_deviceConfigs.end()) {
-        this->m_deviceConfigs.erase(it);
-
-        auto notification = xpc_dictionary_create(nullptr, nullptr, 0);
-        xpc_dictionary_set_int64(notification, "message", AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY);
-        xpc_dictionary_set_string(notification, "device", deviceId.c_str());
-
-        for (auto &client: this->m_clients)
-            xpc_connection_send_message(client.second, notification);
-
-        xpc_release(notification);
-    }
-}
-
-void AkVCam::AssistantPrivate::deviceDestroy(xpc_connection_t client,
+void AkVCam::AssistantPrivate::devicesUpdate(xpc_connection_t client,
                                              xpc_object_t event)
-{
-    UNUSED(client);
-    AkLogFunction();
-
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-    this->deviceDestroyById(deviceId);
-    Preferences::removeCamera(deviceId);
-}
-
-void AkVCam::AssistantPrivate::deviceUpdate(xpc_connection_t client,
-                                            xpc_object_t event)
 {
     UNUSED(client);
     AkLogFunction();
@@ -578,70 +462,6 @@ void AkVCam::AssistantPrivate::listener(xpc_connection_t client,
     auto reply = xpc_dictionary_create_reply(event);
     xpc_dictionary_set_string(reply, "listener", listener.c_str());
     xpc_dictionary_set_bool(reply, "status", ok);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
-void AkVCam::AssistantPrivate::devices(xpc_connection_t client,
-                                       xpc_object_t event)
-{
-    AkLogFunction();
-    auto devices = xpc_array_create(nullptr, 0);
-
-    for (auto &device: this->m_deviceConfigs) {
-        auto deviceObj = xpc_string_create(device.first.c_str());
-        xpc_array_append_value(devices, deviceObj);
-    }
-
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_value(reply, "devices", devices);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
-void AkVCam::AssistantPrivate::description(xpc_connection_t client,
-                                           xpc_object_t event)
-{
-    AkLogFunction();
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-    std::wstring description;
-
-    if (this->m_deviceConfigs.count(deviceId) > 0)
-        description = this->m_deviceConfigs[deviceId].description;
-
-    AkLogInfo() << "Description for device "
-                << deviceId
-                << ": "
-                << std::string(description.begin(), description.end())
-                << std::endl;
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_data(reply,
-                            "description",
-                            description.c_str(),
-                            description.size() * sizeof(wchar_t));
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
-}
-
-void AkVCam::AssistantPrivate::formats(xpc_connection_t client,
-                                       xpc_object_t event)
-{
-    AkLogFunction();
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-    auto formats = xpc_array_create(nullptr, 0);
-
-    if (this->m_deviceConfigs.count(deviceId) > 0)
-        for (auto &format: this->m_deviceConfigs[deviceId].formats) {
-            auto dictFormat = xpc_dictionary_create(nullptr, nullptr, 0);
-            xpc_dictionary_set_uint64(dictFormat, "fourcc", format.fourcc());
-            xpc_dictionary_set_int64(dictFormat, "width", format.width());
-            xpc_dictionary_set_int64(dictFormat, "height", format.height());
-            xpc_dictionary_set_string(dictFormat, "fps", format.minimumFrameRate().toString().c_str());
-            xpc_array_append_value(formats, dictFormat);
-        }
-
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_value(reply, "formats", formats);
     xpc_connection_send_message(client, reply);
     xpc_release(reply);
 }

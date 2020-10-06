@@ -66,17 +66,14 @@ namespace AkVCam
             std::thread m_sendFrameThread;
             std::atomic<bool> m_running;
             std::mutex m_mutex;
+            std::mutex m_controlsMutex;
             VideoFrame m_currentFrame;
             VideoFrame m_testFrame;
             VideoFrame m_testFrameAdapted;
             std::string m_broadcaster;
             bool m_horizontalFlip;   // Controlled by client
             bool m_verticalFlip;
-            bool m_horizontalMirror; // Controlled by server
-            bool m_verticalMirror;
-            Scaling m_scaling;
-            AspectRatio m_aspectRatio;
-            bool m_swapRgb;
+            std::map<std::string, int> m_controls;
             LONG m_brightness;
             LONG m_contrast;
             LONG m_saturation;
@@ -127,11 +124,6 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     this->d->m_adviseCookie = 0;
     this->d->m_sendFrameEvent = nullptr;
     this->d->m_running = false;
-    this->d->m_horizontalMirror = false;
-    this->d->m_verticalMirror = false;
-    this->d->m_scaling = ScalingFast;
-    this->d->m_aspectRatio = AspectRatioIgnore;
-    this->d->m_swapRgb = false;
     auto bmp = programFilesPath()
              + L"\\" DSHOW_PLUGIN_NAME_L L".plugin\\share\\TestFrame.bmp";
     this->d->m_testFrame.load(std::string(bmp.begin(), bmp.end()));
@@ -264,11 +256,9 @@ void AkVCam::Pin::serverStateChanged(IpcBridge::ServerState state)
 
     if (state == IpcBridge::ServerStateGone) {
         this->d->m_broadcaster.clear();
-        this->d->m_horizontalMirror = false;
-        this->d->m_verticalMirror = false;
-        this->d->m_scaling = ScalingFast;
-        this->d->m_aspectRatio = AspectRatioIgnore;
-        this->d->m_swapRgb = false;
+        this->d->m_controlsMutex.lock();
+        this->d->m_controls = {};
+        this->d->m_controlsMutex.unlock();
         this->d->updateTestFrame();
 
         this->d->m_mutex.lock();
@@ -315,49 +305,19 @@ void AkVCam::Pin::setBroadcasting(const std::string &broadcaster)
     this->d->m_mutex.unlock();
 }
 
-void AkVCam::Pin::setMirror(bool horizontalMirror, bool verticalMirror)
+void AkVCam::Pin::setControls(const std::map<std::string, int> &controls)
 {
     AkLogFunction();
+    this->d->m_controlsMutex.lock();
 
-    if (this->d->m_horizontalMirror == horizontalMirror
-        && this->d->m_verticalMirror == verticalMirror)
+    if (this->d->m_controls == controls) {
+        this->d->m_controlsMutex.unlock();
+
         return;
+    }
 
-    this->d->m_horizontalMirror = horizontalMirror;
-    this->d->m_verticalMirror = verticalMirror;
-    this->d->updateTestFrame();
-}
-
-void AkVCam::Pin::setScaling(Scaling scaling)
-{
-    AkLogFunction();
-
-    if (this->d->m_scaling == scaling)
-        return;
-
-    this->d->m_scaling = scaling;
-    this->d->updateTestFrame();
-}
-
-void AkVCam::Pin::setAspectRatio(AspectRatio aspectRatio)
-{
-    AkLogFunction();
-
-    if (this->d->m_aspectRatio == aspectRatio)
-        return;
-
-    this->d->m_aspectRatio = aspectRatio;
-    this->d->updateTestFrame();
-}
-
-void AkVCam::Pin::setSwapRgb(bool swap)
-{
-    AkLogFunction();
-
-    if (this->d->m_swapRgb == swap)
-        return;
-
-    this->d->m_swapRgb = swap;
+    this->d->m_controls = controls;
+    this->d->m_controlsMutex.unlock();
     this->d->updateTestFrame();
 }
 
@@ -618,8 +578,8 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
 HRESULT AkVCam::Pin::ReceiveConnection(IPin *pConnector,
                                        const AM_MEDIA_TYPE *pmt)
 {
-    UNUSED(pConnector)
-    UNUSED(pmt)
+    UNUSED(pConnector);
+    UNUSED(pmt);
     AkLogFunction();
 
     return VFW_E_TYPE_NOT_ACCEPTED;
@@ -789,8 +749,8 @@ HRESULT AkVCam::Pin::EnumMediaTypes(IEnumMediaTypes **ppEnum)
 HRESULT AkVCam::Pin::QueryInternalConnections(IPin **apPin, ULONG *nPin)
 {
     AkLogFunction();
-    UNUSED(apPin)
-    UNUSED(nPin)
+    UNUSED(apPin);
+    UNUSED(nPin);
 
     return E_NOTIMPL;
 }
@@ -983,13 +943,36 @@ AkVCam::VideoFrame AkVCam::PinPrivate::applyAdjusts(const VideoFrame &frame)
         {PixelFormatRGB15, PixelFormatBGR15},
     };
 
+    bool horizontalMirror = false;
+    bool verticalMirror = false;
+    Scaling scaling = ScalingFast;
+    AspectRatio aspectRatio = AspectRatioIgnore;
+    bool swapRgb = false;
+    this->m_controlsMutex.lock();
+
+    if (this->m_controls.count("hflip") > 0)
+        horizontalMirror = this->m_controls["hflip"];
+
+    if (this->m_controls.count("vflip") > 0)
+        verticalMirror = this->m_controls["vflip"];
+
+    if (this->m_controls.count("scaling") > 0)
+        scaling = Scaling(this->m_controls["scaling"]);
+
+    if (this->m_controls.count("aspect_ratio") > 0)
+        aspectRatio = AspectRatio(this->m_controls["aspect_ratio"]);
+
+    if (this->m_controls.count("swap_rgb") > 0)
+        swapRgb = this->m_controls["swap_rgb"];
+
+    this->m_controlsMutex.unlock();
     bool vmirror;
 
     if (fixFormat.count(fourcc) > 0) {
         fourcc = fixFormat[fourcc];
-        vmirror = this->m_verticalMirror == this->m_verticalFlip;
+        vmirror = verticalMirror == this->m_verticalFlip;
     } else {
-        vmirror = this->m_verticalMirror != this->m_verticalFlip;
+        vmirror = verticalMirror != this->m_verticalFlip;
     }
 
     VideoFrame newFrame;
@@ -997,28 +980,24 @@ AkVCam::VideoFrame AkVCam::PinPrivate::applyAdjusts(const VideoFrame &frame)
     if (width * height > frame.format().width() * frame.format().height()) {
         newFrame =
                 frame
-                .mirror(this->m_horizontalMirror != this->m_horizontalFlip,
+                .mirror(horizontalMirror != this->m_horizontalFlip,
                         vmirror)
-                .swapRgb(this->m_swapRgb)
+                .swapRgb(swapRgb)
                 .adjust(this->m_hue,
                         this->m_saturation,
                         this->m_brightness,
                         this->m_gamma,
                         this->m_contrast,
                         !this->m_colorenable)
-                .scaled(width, height,
-                        this->m_scaling,
-                        this->m_aspectRatio)
+                .scaled(width, height, scaling, aspectRatio)
                 .convert(fourcc);
     } else {
         newFrame =
                 frame
-                .scaled(width, height,
-                        this->m_scaling,
-                        this->m_aspectRatio)
-                .mirror(this->m_horizontalMirror != this->m_horizontalFlip,
+                .scaled(width, height, scaling, aspectRatio)
+                .mirror(horizontalMirror != this->m_horizontalFlip,
                         vmirror)
-                .swapRgb(this->m_swapRgb)
+                .swapRgb(swapRgb)
                 .adjust(this->m_hue,
                         this->m_saturation,
                         this->m_brightness,
@@ -1040,7 +1019,7 @@ void AkVCam::PinPrivate::propertyChanged(void *userData,
                                          LONG Flags)
 {
     AkLogFunction();
-    UNUSED(Flags)
+    UNUSED(Flags);
     auto self = reinterpret_cast<PinPrivate *>(userData);
 
     switch (Property) {

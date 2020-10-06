@@ -28,6 +28,7 @@
 #include "specifypropertypages.h"
 #include "videocontrol.h"
 #include "videoprocamp.h"
+#include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/ipcbridge.h"
@@ -77,19 +78,9 @@ namespace AkVCam
             static void setBroadcasting(void *userData,
                                         const std::string &deviceId,
                                         const std::string &broadcasting);
-            static void setMirror(void *userData,
-                                  const std::string &deviceId,
-                                  bool horizontalMirror,
-                                  bool verticalMirror);
-            static void setScaling(void *userData,
-                                   const std::string &deviceId,
-                                   Scaling scaling);
-            static void setAspectRatio(void *userData,
-                                       const std::string &deviceId,
-                                       AspectRatio aspectRatio);
-            static void setSwapRgb(void *userData,
-                                   const std::string &deviceId,
-                                   bool swap);
+            static void setControls(void *userData,
+                                    const std::string &deviceId,
+                                    const std::map<std::string, int> &controls);
     };
 }
 
@@ -124,14 +115,14 @@ void AkVCam::BaseFilter::removePin(IPin *pin, bool changed)
 AkVCam::BaseFilter *AkVCam::BaseFilter::create(const GUID &clsid)
 {
     AkLogFunction();
-    auto camera = cameraFromId(clsid);
+    auto camera = Preferences::cameraFromCLSID(clsid);
     AkLogInfo() << "CLSID: " << stringFromClsid(clsid) << std::endl;
     AkLogInfo() << "ID: " << camera << std::endl;
 
     if (camera < 0)
         return nullptr;
 
-    auto description = cameraDescription(DWORD(camera));
+    auto description = Preferences::cameraDescription(size_t(camera));
     AkLogInfo() << "Description: "
                 << std::string(description.begin(),
                                description.end())
@@ -139,7 +130,7 @@ AkVCam::BaseFilter *AkVCam::BaseFilter::create(const GUID &clsid)
     auto baseFilter = new BaseFilter(clsid,
                                      description,
                                      DSHOW_PLUGIN_VENDOR_L);
-    auto formats = cameraFormats(DWORD(camera));
+    auto formats = Preferences::cameraFormats(size_t(camera));
     baseFilter->addPin(formats, L"Video", false);
 
     return baseFilter;
@@ -340,13 +331,17 @@ void AkVCam::BaseFilter::stateChanged(FILTER_STATE state)
 {
     CLSID clsid;
     this->GetClassID(&clsid);
-    auto path = cameraPath(clsid);
-    std::string deviceId(path.begin(), path.end());
+    auto cameraIndex = Preferences::cameraFromCLSID(clsid);
+
+    if (cameraIndex < 0)
+        return;
+
+    auto path = Preferences::cameraPath(cameraIndex);
 
     if (state == State_Running)
-        this->d->m_ipcBridge.addListener(deviceId);
+        this->d->m_ipcBridge.addListener(path);
     else
-        this->d->m_ipcBridge.removeListener(deviceId);
+        this->d->m_ipcBridge.removeListener(path);
 }
 
 AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self,
@@ -370,19 +365,12 @@ AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self,
                                         &BaseFilterPrivate::frameReady);
     this->m_ipcBridge.connectBroadcastingChanged(this,
                                                  &BaseFilterPrivate::setBroadcasting);
-    this->m_ipcBridge.connectMirrorChanged(this,
-                                           &BaseFilterPrivate::setMirror);
-    this->m_ipcBridge.connectScalingChanged(this,
-                                            &BaseFilterPrivate::setScaling);
-    this->m_ipcBridge.connectAspectRatioChanged(this,
-                                                &BaseFilterPrivate::setAspectRatio);
-    this->m_ipcBridge.connectSwapRgbChanged(this,
-                                            &BaseFilterPrivate::setSwapRgb);
+    this->m_ipcBridge.connectControlsChanged(this,
+                                             &BaseFilterPrivate::setControls);
 }
 
 AkVCam::BaseFilterPrivate::~BaseFilterPrivate()
 {
-    this->m_ipcBridge.disconnectService();
     this->m_pins->setBaseFilter(nullptr);
     this->m_pins->Release();
     this->m_videoProcAmp->Release();
@@ -392,12 +380,16 @@ AkVCam::BaseFilterPrivate::~BaseFilterPrivate()
 IEnumPins *AkVCam::BaseFilterPrivate::pinsForDevice(const std::string &deviceId)
 {
     AkLogFunction();
-
     CLSID clsid;
     self->GetClassID(&clsid);
-    auto path = cameraPath(clsid);
+    auto cameraIndex = Preferences::cameraFromCLSID(clsid);
 
-    if (path.empty() || std::string(path.begin(), path.end()) != deviceId)
+    if (cameraIndex < 0)
+        return nullptr;
+
+    auto path = Preferences::cameraPath(cameraIndex);
+
+    if (path.empty() || path != deviceId)
         return nullptr;
 
     IEnumPins *pins = nullptr;
@@ -410,36 +402,25 @@ void AkVCam::BaseFilterPrivate::updatePins()
 {
     CLSID clsid;
     this->self->GetClassID(&clsid);
-    auto path = cameraPath(clsid);
-    std::string deviceId(path.begin(), path.end());
+    auto cameraIndex = Preferences::cameraFromCLSID(clsid);
 
-    auto broadcaster = this->m_ipcBridge.broadcaster(deviceId);
-    AkVCamDevicePinCall(deviceId,
+    if (cameraIndex < 0)
+        return;
+
+    auto path = Preferences::cameraPath(cameraIndex);
+
+    auto broadcaster = this->m_ipcBridge.broadcaster(path);
+    AkVCamDevicePinCall(path,
                         this,
                         setBroadcasting,
                         broadcaster);
-    auto hmirror = this->m_ipcBridge.isHorizontalMirrored(deviceId);
-    auto vmirror = this->m_ipcBridge.isVerticalMirrored(deviceId);
-    AkVCamDevicePinCall(deviceId,
-                        this,
-                        setMirror,
-                        hmirror,
-                        vmirror);
-    auto scaling = this->m_ipcBridge.scalingMode(deviceId);
-    AkVCamDevicePinCall(deviceId,
-                        this,
-                        setScaling,
-                        scaling);
-    auto aspect = this->m_ipcBridge.aspectRatioMode(deviceId);
-    AkVCamDevicePinCall(deviceId,
-                        this,
-                        setAspectRatio,
-                        aspect);
-    auto swap = this->m_ipcBridge.swapRgb(deviceId);
-    AkVCamDevicePinCall(deviceId,
-                        this,
-                        setSwapRgb,
-                        swap);
+    auto controlsList = this->m_ipcBridge.controls(path);
+    std::map<std::string, int> controls;
+
+    for (auto &control: controlsList)
+        controls[control.id] = control.value;
+
+    AkVCamDevicePinCall(path, this, setControls, controls);
 }
 
 void AkVCam::BaseFilterPrivate::serverStateChanged(void *userData,
@@ -477,43 +458,11 @@ void AkVCam::BaseFilterPrivate::setBroadcasting(void *userData,
     AkVCamDevicePinCall(deviceId, self, setBroadcasting, broadcaster);
 }
 
-void AkVCam::BaseFilterPrivate::setMirror(void *userData,
-                                          const std::string &deviceId,
-                                          bool horizontalMirror,
-                                          bool verticalMirror)
+void AkVCam::BaseFilterPrivate::setControls(void *userData,
+                                            const std::string &deviceId,
+                                            const std::map<std::string, int> &controls)
 {
     AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-    AkVCamDevicePinCall(deviceId,
-                        self,
-                        setMirror,
-                        horizontalMirror,
-                        verticalMirror);
-}
-
-void AkVCam::BaseFilterPrivate::setScaling(void *userData,
-                                           const std::string &deviceId,
-                                           Scaling scaling)
-{
-    AkLogFunction();
-    auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-    AkVCamDevicePinCall(deviceId, self, setScaling, scaling);
-}
-
-void AkVCam::BaseFilterPrivate::setAspectRatio(void *userData,
-                                               const std::string &deviceId,
-                                               AspectRatio aspectRatio)
-{
-    AkLogFunction();
-    auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-    AkVCamDevicePinCall(deviceId, self, setAspectRatio, aspectRatio);
-}
-
-void AkVCam::BaseFilterPrivate::setSwapRgb(void *userData,
-                                           const std::string &deviceId,
-                                           bool swap)
-{
-    AkLogFunction();
-    auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-    AkVCamDevicePinCall(deviceId, self, setSwapRgb, swap);
+    AkVCamDevicePinCall(deviceId, self, setControls, controls);
 }

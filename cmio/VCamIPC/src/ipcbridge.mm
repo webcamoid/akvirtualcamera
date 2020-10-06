@@ -67,8 +67,6 @@ namespace AkVCam
 
             // Message handling methods
             void isAlive(xpc_connection_t client, xpc_object_t event);
-            void deviceCreate(xpc_connection_t client, xpc_object_t event);
-            void deviceDestroy(xpc_connection_t client, xpc_object_t event);
             void deviceUpdate(xpc_connection_t client, xpc_object_t event);
             void frameReady(xpc_connection_t client, xpc_object_t event);
             void pictureUpdated(xpc_connection_t client, xpc_object_t event);
@@ -276,9 +274,9 @@ void AkVCam::IpcBridge::unregisterPeer()
 std::vector<std::string> AkVCam::IpcBridge::devices() const
 {
     AkLogFunction();
-    auto nCameras = Preferences::camerasCount();
-    std::vector<std::string> devices;
     AkLogInfo() << "Devices:" << std::endl;
+    std::vector<std::string> devices;
+    auto nCameras = Preferences::camerasCount();
 
     for (size_t i = 0; i < nCameras; i++) {
         auto deviceId = Preferences::cameraPath(i);
@@ -778,8 +776,6 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
         {AKVCAM_ASSISTANT_MSG_ISALIVE                , AKVCAM_BIND_FUNC(IpcBridgePrivate::isAlive)        },
         {AKVCAM_ASSISTANT_MSG_FRAME_READY            , AKVCAM_BIND_FUNC(IpcBridgePrivate::frameReady)     },
         {AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED        , AKVCAM_BIND_FUNC(IpcBridgePrivate::pictureUpdated) },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_CREATE          , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceCreate)   },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_DESTROY         , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceDestroy)  },
         {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE          , AKVCAM_BIND_FUNC(IpcBridgePrivate::deviceUpdate)   },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD    , AKVCAM_BIND_FUNC(IpcBridgePrivate::listenerAdd)    },
         {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE , AKVCAM_BIND_FUNC(IpcBridgePrivate::listenerRemove) },
@@ -842,34 +838,10 @@ void AkVCam::IpcBridgePrivate::isAlive(xpc_connection_t client,
                                        xpc_object_t event)
 {
     AkLogFunction();
-
     auto reply = xpc_dictionary_create_reply(event);
     xpc_dictionary_set_bool(reply, "alive", true);
     xpc_connection_send_message(client, reply);
     xpc_release(reply);
-}
-
-void AkVCam::IpcBridgePrivate::deviceCreate(xpc_connection_t client,
-                                            xpc_object_t event)
-{
-    UNUSED(client);
-    AkLogFunction();
-    std::string device = xpc_dictionary_get_string(event, "device");
-
-    for (auto bridge: this->m_bridges)
-        AKVCAM_EMIT(bridge, DeviceAdded, device)
-}
-
-void AkVCam::IpcBridgePrivate::deviceDestroy(xpc_connection_t client,
-                                             xpc_object_t event)
-{
-    UNUSED(client);
-    AkLogFunction();
-
-    std::string device = xpc_dictionary_get_string(event, "device");
-
-    for (auto bridge: this->m_bridges)
-        AKVCAM_EMIT(bridge, DeviceRemoved, device)
 }
 
 void AkVCam::IpcBridgePrivate::deviceUpdate(xpc_connection_t client,
@@ -878,9 +850,14 @@ void AkVCam::IpcBridgePrivate::deviceUpdate(xpc_connection_t client,
     UNUSED(client);
     UNUSED(event);
     AkLogFunction();
+    std::vector<std::string> devices;
+    auto nCameras = Preferences::camerasCount();
+
+    for (size_t i = 0; i < nCameras; i++)
+        devices.push_back(Preferences::cameraPath(i));
 
     for (auto bridge: this->m_bridges)
-        AKVCAM_EMIT(bridge, DevicesUpdated, nullptr)
+        AKVCAM_EMIT(bridge, DevicesChanged, devices)
 }
 
 void AkVCam::IpcBridgePrivate::frameReady(xpc_connection_t client,

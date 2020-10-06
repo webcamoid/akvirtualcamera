@@ -158,9 +158,7 @@ AkVCam::PluginInterface::PluginInterface():
     this->d->m_reserved = 0;
 
     this->d->m_ipcBridge.connectServerStateChanged(this, &PluginInterface::serverStateChanged);
-    this->d->m_ipcBridge.connectDeviceAdded(this, &PluginInterface::deviceAdded);
-    this->d->m_ipcBridge.connectDeviceRemoved(this, &PluginInterface::deviceRemoved);
-    this->d->m_ipcBridge.connectDevicesUpdated(this, &PluginInterface::devicesUpdated);
+    this->d->m_ipcBridge.connectDevicesChanged(this, &PluginInterface::devicesChanged);
     this->d->m_ipcBridge.connectFrameReady(this, &PluginInterface::frameReady);
     this->d->m_ipcBridge.connectPictureChanged(this, &PluginInterface::pictureChanged);
     this->d->m_ipcBridge.connectBroadcastingChanged(this, &PluginInterface::setBroadcasting);
@@ -227,11 +225,13 @@ OSStatus AkVCam::PluginInterface::InitializeWithObjectID(CMIOObjectID objectID)
 {
     AkLogFunction();
     AkLogInfo() << objectID << std::endl;
-
     this->m_objectID = objectID;
 
-    for (auto &deviceId: this->d->m_ipcBridge.devices())
-        this->deviceAdded(this, deviceId);
+    for (auto &deviceId: this->d->m_ipcBridge.devices()) {
+        auto description = this->d->m_ipcBridge.description(deviceId);
+        auto formats = this->d->m_ipcBridge.formats(deviceId);
+        this->createDevice(deviceId, description, formats);
+    }
 
     return kCMIOHardwareNoError;
 }
@@ -239,6 +239,18 @@ OSStatus AkVCam::PluginInterface::InitializeWithObjectID(CMIOObjectID objectID)
 OSStatus AkVCam::PluginInterface::Teardown()
 {
     AkLogFunction();
+
+    std::vector<std::string> oldDevices;
+
+    for (auto &device: this->m_devices) {
+        std::string deviceId;
+        device->properties().getProperty(kCMIODevicePropertyDeviceUID,
+                                         &deviceId);
+        oldDevices.push_back(deviceId);
+    }
+
+    for (auto &deviceId: oldDevices)
+        this->destroyDevice(deviceId);
 
     return kCMIOHardwareNoError;
 }
@@ -256,43 +268,22 @@ void AkVCam::PluginInterface::serverStateChanged(void *userData,
         self->d->updateDevices();
 }
 
-void AkVCam::PluginInterface::deviceAdded(void *userData,
-                                          const std::string &deviceId)
+void AkVCam::PluginInterface::devicesChanged(void *userData,
+                                             const std::vector<std::string> &devices)
 {
-    AkLogFunction();
-    AkLogInfo() << "Device Added: " << deviceId << std::endl;
-
-    auto self = reinterpret_cast<PluginInterface *>(userData);
-    auto description = self->d->m_ipcBridge.description(deviceId);
-    auto formats = self->d->m_ipcBridge.formats(deviceId);
-    self->createDevice(deviceId, description, formats);
-}
-
-void AkVCam::PluginInterface::deviceRemoved(void *userData,
-                                            const std::string &deviceId)
-{
-    AkLogFunction();
-    AkLogInfo() << "Device Removed: " << deviceId << std::endl;
-
-    auto self = reinterpret_cast<PluginInterface *>(userData);
-    self->destroyDevice(deviceId);
-}
-
-void AkVCam::PluginInterface::devicesUpdated(void *userData, void *unused)
-{
-    UNUSED(unused);
+    UNUSED(devices);
     AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
-    std::vector<std::string> devices;
+    std::vector<std::string> oldDevices;
 
     for (auto &device: self->m_devices) {
         std::string deviceId;
         device->properties().getProperty(kCMIODevicePropertyDeviceUID,
                                          &deviceId);
-        devices.push_back(deviceId);
+        oldDevices.push_back(deviceId);
     }
 
-    for (auto &deviceId: devices)
+    for (auto &deviceId: oldDevices)
         self->destroyDevice(deviceId);
 
     for (auto &deviceId: self->d->m_ipcBridge.devices()) {

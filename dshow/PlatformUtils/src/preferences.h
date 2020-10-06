@@ -55,6 +55,7 @@ namespace AkVCam
         void removeCamera(const std::string &path);
         size_t camerasCount();
         std::string createDevicePath();
+        int cameraFromCLSID(const CLSID &clsid);
         int cameraFromPath(const std::string &path);
         bool cameraExists(const std::string &path);
         std::wstring cameraDescription(size_t cameraIndex);

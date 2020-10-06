@@ -45,7 +45,7 @@ HRESULT AkVCam::PushSource::GetPushSourceFlags(ULONG *pFlags)
 
 HRESULT AkVCam::PushSource::SetPushSourceFlags(ULONG Flags)
 {
-    UNUSED(Flags)
+    UNUSED(Flags);
     AkLogFunction();
 
     return E_NOTIMPL;
@@ -53,7 +53,7 @@ HRESULT AkVCam::PushSource::SetPushSourceFlags(ULONG Flags)
 
 HRESULT AkVCam::PushSource::SetStreamOffset(REFERENCE_TIME rtOffset)
 {
-    UNUSED(rtOffset)
+    UNUSED(rtOffset);
     AkLogFunction();
 
     return E_NOTIMPL;
@@ -61,7 +61,7 @@ HRESULT AkVCam::PushSource::SetStreamOffset(REFERENCE_TIME rtOffset)
 
 HRESULT AkVCam::PushSource::GetStreamOffset(REFERENCE_TIME *prtOffset)
 {
-    UNUSED(prtOffset)
+    UNUSED(prtOffset);
     AkLogFunction();
 
     return E_NOTIMPL;
@@ -69,7 +69,7 @@ HRESULT AkVCam::PushSource::GetStreamOffset(REFERENCE_TIME *prtOffset)
 
 HRESULT AkVCam::PushSource::GetMaxStreamOffset(REFERENCE_TIME *prtMaxOffset)
 {
-    UNUSED(prtMaxOffset)
+    UNUSED(prtMaxOffset);
     AkLogFunction();
 
     return E_NOTIMPL;
@@ -77,7 +77,7 @@ HRESULT AkVCam::PushSource::GetMaxStreamOffset(REFERENCE_TIME *prtMaxOffset)
 
 HRESULT AkVCam::PushSource::SetMaxStreamOffset(REFERENCE_TIME rtMaxOffset)
 {
-    UNUSED(rtMaxOffset)
+    UNUSED(rtMaxOffset);
     AkLogFunction();
 
     return E_NOTIMPL;

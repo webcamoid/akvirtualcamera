@@ -34,7 +34,7 @@ AkVCam::QualityControl::~QualityControl()
 
 HRESULT AkVCam::QualityControl::Notify(IBaseFilter *pSelf, Quality q)
 {
-    UNUSED(q)
+    UNUSED(q);
     AkLogFunction();
 
     if (!pSelf)
@@ -50,7 +50,7 @@ HRESULT AkVCam::QualityControl::Notify(IBaseFilter *pSelf, Quality q)
 
 HRESULT AkVCam::QualityControl::SetSink(IQualityControl *piqc)
 {
-    UNUSED(piqc)
+    UNUSED(piqc);
     AkLogFunction();
 
     return E_NOTIMPL;

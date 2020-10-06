@@ -35,7 +35,7 @@ inline AkVCam::PluginInterface *pluginInterface()
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     UNUSED(lpvReserved);
-    AkLogFunction();    
+    AkLogFunction();
     auto loglevel = AkVCam::Preferences::logLevel();
     AkVCam::Logger::setLogLevel(loglevel);
 
@@ -88,7 +88,7 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 
     if (!IsEqualIID(riid, IID_IUnknown)
         && !IsEqualIID(riid, IID_IClassFactory)
-        && AkVCam::cameraFromId(riid) < 0)
+        && AkVCam::Preferences::cameraFromCLSID(riid) < 0)
             return CLASS_E_CLASSNOTAVAILABLE;
 
     auto classFactory = new AkVCam::ClassFactory(rclsid);
@@ -112,9 +112,9 @@ STDAPI DllRegisterServer()
 
     bool ok = true;
 
-    for (DWORD i = 0; i < AkVCam::camerasCount(); i++) {
-        auto description = AkVCam::cameraDescription(i);
-        auto path = AkVCam::cameraPath(i);
+    for (size_t i = 0; i < AkVCam::Preferences::camerasCount(); i++) {
+        auto description = AkVCam::Preferences::cameraDescription(i);
+        auto path = AkVCam::Preferences::cameraPath(i);
         auto clsid = AkVCam::createClsidFromStr(path);
 
         AkLogInfo() << "Creating Camera" << std::endl;
@@ -137,7 +137,7 @@ STDAPI DllUnregisterServer()
 {
     AkLogFunction();
     auto cameras =
-            AkVCam::listRegisteredCameras(pluginInterface()->pluginHinstance());
+            AkVCam::Preferences::listRegisteredCameras(pluginInterface()->pluginHinstance());
 
     for (auto camera: cameras) {
         AkLogInfo() << "Deleting "

@@ -95,7 +95,7 @@ HRESULT AkVCam::PersistPropertyBag::InitNew()
 HRESULT AkVCam::PersistPropertyBag::Load(IPropertyBag *pPropBag,
                                          IErrorLog *pErrorLog)
 {
-    UNUSED(pErrorLog)
+    UNUSED(pErrorLog);
     AkLogFunction();
 
     if (!pPropBag)
@@ -118,8 +118,8 @@ HRESULT AkVCam::PersistPropertyBag::Save(IPropertyBag *pPropBag,
                                          BOOL fClearDirty,
                                          BOOL fSaveAllProperties)
 {
-    UNUSED(fClearDirty)
-    UNUSED(fSaveAllProperties)
+    UNUSED(fClearDirty);
+    UNUSED(fSaveAllProperties);
     AkLogFunction();
 
     if (!pPropBag)
