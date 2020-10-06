@@ -34,7 +34,7 @@ namespace AkVCam
     {
         public:
             MessageServer *self;
-            std::wstring m_pipeName;
+            std::string m_pipeName;
             std::map<uint32_t, MessageHandler> m_handlers;
             MessageServer::ServerMode m_mode {MessageServer::ServerModeReceive};
             MessageServer::PipeState m_pipeState {MessageServer::PipeStateGone};
@@ -70,17 +70,17 @@ AkVCam::MessageServer::~MessageServer()
     delete this->d;
 }
 
-std::wstring AkVCam::MessageServer::pipeName() const
+std::string AkVCam::MessageServer::pipeName() const
 {
     return this->d->m_pipeName;
 }
 
-std::wstring &AkVCam::MessageServer::pipeName()
+std::string &AkVCam::MessageServer::pipeName()
 {
     return this->d->m_pipeName;
 }
 
-void AkVCam::MessageServer::setPipeName(const std::wstring &pipeName)
+void AkVCam::MessageServer::setPipeName(const std::string &pipeName)
 {
     this->d->m_pipeName = pipeName;
 }
@@ -169,35 +169,23 @@ BOOL AkVCam::MessageServer::sendMessage(const std::string &pipeName,
                                         Message *message,
                                         uint32_t timeout)
 {
-    return sendMessage(std::wstring(pipeName.begin(), pipeName.end()),
-                       message,
-                       timeout);
+    return sendMessage(pipeName, *message, message, timeout);
 }
 
-BOOL AkVCam::MessageServer::sendMessage(const std::wstring &pipeName,
-                                        Message *message,
-                                        uint32_t timeout)
-{
-    return sendMessage(pipeName,
-                       *message,
-                       message,
-                       timeout);
-}
-
-BOOL AkVCam::MessageServer::sendMessage(const std::wstring &pipeName,
+BOOL AkVCam::MessageServer::sendMessage(const std::string &pipeName,
                                         const Message &messageIn,
                                         Message *messageOut,
                                         uint32_t timeout)
 {
     DWORD bytesTransferred = 0;
 
-    return CallNamedPipe(pipeName.c_str(),
-                         const_cast<Message *>(&messageIn),
-                         DWORD(sizeof(Message)),
-                         messageOut,
-                         DWORD(sizeof(Message)),
-                         &bytesTransferred,
-                         timeout);
+    return CallNamedPipeA(pipeName.c_str(),
+                          const_cast<Message *>(&messageIn),
+                          DWORD(sizeof(Message)),
+                          messageOut,
+                          DWORD(sizeof(Message)),
+                          &bytesTransferred,
+                          timeout);
 }
 
 AkVCam::MessageServerPrivate::MessageServerPrivate(MessageServer *self):
@@ -217,12 +205,12 @@ bool AkVCam::MessageServerPrivate::startReceive(bool wait)
      *
      * https://msdn.microsoft.com/en-us/library/windows/desktop/aa379570(v=vs.85).aspx
      */
-    WCHAR descriptor[] =
-            L"D:"                   // Discretionary ACL
-            L"(D;OICI;GA;;;BG)"     // Deny access to Built-in Guests
-            L"(D;OICI;GA;;;AN)"     // Deny access to Anonymous Logon
-            L"(A;OICI;GRGWGX;;;AU)" // Allow read/write/execute to Authenticated Users
-            L"(A;OICI;GA;;;BA)";    // Allow full control to Administrators
+    TCHAR descriptor[] =
+            TEXT("D:")                   // Discretionary ACL
+            TEXT("(D;OICI;GA;;;BG)")     // Deny access to Built-in Guests
+            TEXT("(D;OICI;GA;;;AN)")     // Deny access to Anonymous Logon
+            TEXT("(A;OICI;GRGWGX;;;AU)") // Allow read/write/execute to Authenticated Users
+            TEXT("(A;OICI;GA;;;BA)");    // Allow full control to Administrators
 
     SECURITY_ATTRIBUTES securityAttributes;
     PSECURITY_DESCRIPTOR securityDescriptor =
@@ -246,17 +234,17 @@ bool AkVCam::MessageServerPrivate::startReceive(bool wait)
     securityAttributes.bInheritHandle = TRUE;
 
     // Create a read/write message type pipe.
-    this->m_pipe = CreateNamedPipe(this->m_pipeName.c_str(),
-                                   PIPE_ACCESS_DUPLEX
-                                   | FILE_FLAG_OVERLAPPED,
-                                   PIPE_TYPE_MESSAGE
-                                   | PIPE_READMODE_BYTE
-                                   | PIPE_WAIT,
-                                   PIPE_UNLIMITED_INSTANCES,
-                                   sizeof(Message),
-                                   sizeof(Message),
-                                   NMPWAIT_USE_DEFAULT_WAIT,
-                                   &securityAttributes);
+    this->m_pipe = CreateNamedPipeA(this->m_pipeName.c_str(),
+                                    PIPE_ACCESS_DUPLEX
+                                    | FILE_FLAG_OVERLAPPED,
+                                    PIPE_TYPE_MESSAGE
+                                    | PIPE_READMODE_BYTE
+                                    | PIPE_WAIT,
+                                    PIPE_UNLIMITED_INSTANCES,
+                                    sizeof(Message),
+                                    sizeof(Message),
+                                    NMPWAIT_USE_DEFAULT_WAIT,
+                                    &securityAttributes);
 
     if (this->m_pipe == INVALID_HANDLE_VALUE)
         goto startReceive_failed;
@@ -366,23 +354,17 @@ void AkVCam::MessageServerPrivate::messagesLoop()
 void AkVCam::MessageServerPrivate::checkLoop()
 {
     while (this->m_running) {
-        auto result = WaitNamedPipe(this->m_pipeName.c_str(), NMPWAIT_NOWAIT);
+        auto result = WaitNamedPipeA(this->m_pipeName.c_str(), NMPWAIT_NOWAIT);
 
         if (result
             && this->m_pipeState != AkVCam::MessageServer::PipeStateAvailable) {
-            AkLogInfo() << "Pipe Available: "
-                        << std::string(this->m_pipeName.begin(),
-                                       this->m_pipeName.end())
-                        << std::endl;
+            AkLogInfo() << "Pipe Available: " << this->m_pipeName << std::endl;
             this->m_pipeState = AkVCam::MessageServer::PipeStateAvailable;
             AKVCAM_EMIT(this->self, PipeStateChanged, this->m_pipeState)
         } else if (!result
                    && this->m_pipeState != AkVCam::MessageServer::PipeStateGone
                    && GetLastError() != ERROR_SEM_TIMEOUT) {
-            AkLogInfo() << "Pipe Gone: "
-                        << std::string(this->m_pipeName.begin(),
-                                       this->m_pipeName.end())
-                        << std::endl;
+            AkLogInfo() << "Pipe Gone: " << this->m_pipeName << std::endl;
             this->m_pipeState = AkVCam::MessageServer::PipeStateGone;
             AKVCAM_EMIT(this->self, PipeStateChanged, this->m_pipeState)
         }

@@ -102,7 +102,7 @@ AkVCam::Service::~Service()
 BOOL AkVCam::Service::install()
 {
     AkLogFunction();
-    WCHAR fileName[MAX_PATH];
+    TCHAR fileName[MAX_PATH];
 
     if (!GetModuleFileName(nullptr, fileName, MAX_PATH)) {
         AkLogError() << "Can't read module file name" << std::endl;
@@ -142,7 +142,7 @@ BOOL AkVCam::Service::install()
 
     // Add detailed description to the service.
     SERVICE_DESCRIPTION serviceDescription;
-    WCHAR description[] = TEXT(DSHOW_PLUGIN_DESCRIPTION_EXT);
+    TCHAR description[] = TEXT(DSHOW_PLUGIN_DESCRIPTION_EXT);
     serviceDescription.lpDescription = description;
     auto result =
             ChangeServiceConfig2(service,
@@ -150,7 +150,7 @@ BOOL AkVCam::Service::install()
                                  &serviceDescription);
 
     // Configure the service so it will restart if fail.
-    WCHAR rebootMsg[] = L"Service failed restarting...";
+    TCHAR rebootMsg[] = TEXT("Service failed restarting...");
 
     std::vector<SC_ACTION> actions {
         {SC_ACTION_RESTART, 5000}
@@ -264,7 +264,7 @@ AkVCam::ServicePrivate::ServicePrivate()
         0
     };
     this->m_statusHandler = nullptr;
-    this->m_messageServer.setPipeName(L"\\\\.\\pipe\\" DSHOW_PLUGIN_ASSISTANT_NAME_L);
+    this->m_messageServer.setPipeName("\\\\.\\pipe\\" DSHOW_PLUGIN_ASSISTANT_NAME);
     this->m_messageServer.setHandlers({
         {AKVCAM_ASSISTANT_MSG_FRAME_READY            , AKVCAM_BIND_FUNC(ServicePrivate::frameReady)     },
         {AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED        , AKVCAM_BIND_FUNC(ServicePrivate::pictureUpdated) },

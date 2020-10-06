@@ -121,17 +121,6 @@ RESOURCESPATH = $${DSHOW_PLUGIN_NAME}.plugin/share
 DESTDIR = $${OUT_PWD}/../../$${INSTALLPATH}
 
 INSTALLS += \
-    target \
-    resources
+    target
 
 target.path = $${PREFIX}/$${INSTALLPATH}
-
-resources.files = ../../share/TestFrame/TestFrame.bmp
-resources.path = $${PREFIX}/$${RESOURCESPATH}
-
-QMAKE_POST_LINK = \
-    $$sprintf($$QMAKE_MKDIR_CMD, \
-              $$shell_quote($$shell_path($${OUT_PWD}/../../$${RESOURCESPATH}))) \
-    $${CMD_SEP} \
-    $(COPY) $$shell_quote($$shell_path($${PWD}/../../share/TestFrame/TestFrame.bmp)) \
-            $$shell_quote($$shell_path($${OUT_PWD}/../../$${RESOURCESPATH}/TestFrame.bmp))

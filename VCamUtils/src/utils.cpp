@@ -54,50 +54,6 @@ std::string AkVCam::replace(const std::string &str,
     return newStr;
 }
 
-std::wstring AkVCam::replace(const std::wstring &str,
-                             const std::wstring &from,
-                             const std::wstring &to)
-{
-    auto newStr = str;
-
-    for (auto pos = newStr.find(from);
-         pos != std::wstring::npos;
-         pos = newStr.find(from))
-        newStr.replace(pos, from.size(), to);
-
-    return newStr;
-}
-
-bool AkVCam::isEqualFile(const std::wstring &file1, const std::wstring &file2)
-{
-    if (file1 == file2)
-        return true;
-
-    std::fstream f1;
-    std::fstream f2;
-    f1.open(std::string(file1.begin(), file1.end()), std::ios_base::in);
-    f2.open(std::string(file2.begin(), file2.end()), std::ios_base::in);
-
-    if (!f1.is_open() || !f2.is_open())
-        return false;
-
-    const size_t bufferSize = 1024;
-    char buffer1[bufferSize];
-    char buffer2[bufferSize];
-    memset(buffer1, 0, bufferSize);
-    memset(buffer2, 0, bufferSize);
-
-    while (!f1.eof() && !f2.eof()) {
-        f1.read(buffer1, bufferSize);
-        f2.read(buffer2, bufferSize);
-
-        if (memcmp(buffer1, buffer2, bufferSize) != 0)
-            return false;
-    }
-
-    return true;
-}
-
 std::string AkVCam::trimmed(const std::string &str)
 {
     auto left = uint64_t(str.size());
@@ -128,50 +84,11 @@ std::string AkVCam::trimmed(const std::string &str)
     return str.substr(size_t(left), strippedLen);
 }
 
-std::wstring AkVCam::trimmed(const std::wstring &str)
-{
-    auto left = uint64_t(str.size());
-    auto right = uint64_t(str.size());
-
-    for (size_t i = 0; i < str.size(); i++)
-        if (!iswspace(str[i])) {
-            left = uint64_t(i);
-
-            break;
-        }
-
-    auto strippedLen = str.size();
-
-    if (left == str.size()) {
-        strippedLen = 0;
-    } else {
-        for (int64_t i = str.size() - 1; i >= 0; i--)
-            if (!iswspace(str[size_t(i)])) {
-                right = uint64_t(i);
-
-                break;
-            }
-
-        strippedLen = size_t(right - left + 1);
-    }
-
-    return str.substr(size_t(left), strippedLen);
-}
-
 std::string AkVCam::fill(const std::string &str, size_t maxSize)
 {
     std::stringstream ss;
     std::vector<char> spaces(maxSize, ' ');
     ss << str << std::string(spaces.data(), maxSize - str.size());
-
-    return ss.str();
-}
-
-std::wstring AkVCam::fill(const std::wstring &str, size_t maxSize)
-{
-    std::wstringstream ss;
-    std::vector<wchar_t> spaces(maxSize, ' ');
-    ss << str << std::wstring(spaces.data(), maxSize - str.size());
 
     return ss.str();
 }

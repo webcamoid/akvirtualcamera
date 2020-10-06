@@ -30,7 +30,7 @@ namespace AkVCam
     {
         public:
             HANDLE m_sharedHandle;
-            std::wstring m_name;
+            std::string m_name;
             void *m_buffer;
             size_t m_pageSize;
             SharedMemory::OpenMode m_mode;
@@ -85,17 +85,17 @@ AkVCam::SharedMemory &AkVCam::SharedMemory::operator =(const SharedMemory &other
     return *this;
 }
 
-std::wstring AkVCam::SharedMemory::name() const
+std::string AkVCam::SharedMemory::name() const
 {
     return this->d->m_name;
 }
 
-std::wstring &AkVCam::SharedMemory::name()
+std::string &AkVCam::SharedMemory::name()
 {
     return this->d->m_name;
 }
 
-void AkVCam::SharedMemory::setName(const std::wstring &name)
+void AkVCam::SharedMemory::setName(const std::string &name)
 {
     this->d->m_name = name;
 }
@@ -110,26 +110,25 @@ bool AkVCam::SharedMemory::open(size_t pageSize, OpenMode mode)
 
     if (mode == OpenModeRead) {
         this->d->m_sharedHandle =
-                OpenFileMapping(FILE_MAP_ALL_ACCESS,
-                                FALSE,
-                                this->d->m_name.c_str());
+                OpenFileMappingA(FILE_MAP_ALL_ACCESS,
+                                 FALSE,
+                                 this->d->m_name.c_str());
     } else {
         if (pageSize < 1)
             return false;
 
         this->d->m_sharedHandle =
-                CreateFileMapping(INVALID_HANDLE_VALUE,
-                                  nullptr,
-                                  PAGE_READWRITE,
-                                  0,
-                                  DWORD(pageSize),
-                                  this->d->m_name.c_str());
+                CreateFileMappingA(INVALID_HANDLE_VALUE,
+                                   nullptr,
+                                   PAGE_READWRITE,
+                                   0,
+                                   DWORD(pageSize),
+                                   this->d->m_name.c_str());
     }
 
     if (!this->d->m_sharedHandle) {
         AkLogError() << "Error opening shared memory ("
-                     << std::string(this->d->m_name.begin(),
-                                    this->d->m_name.end())
+                     << this->d->m_name
                      << "): "
                      << errorToString(GetLastError())
                      << " (" << GetLastError() << ")"

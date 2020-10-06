@@ -36,11 +36,9 @@ namespace AkVCam
     FourCharCode formatToCM(PixelFormat format);
     PixelFormat formatFromCM(FourCharCode format);
     std::shared_ptr<CFTypeRef> cfTypeFromStd(const std::string &str);
-    std::shared_ptr<CFTypeRef> cfTypeFromStd(const std::wstring &str);
     std::shared_ptr<CFTypeRef> cfTypeFromStd(int num);
     std::shared_ptr<CFTypeRef> cfTypeFromStd(double num);
     std::string stringFromCFType(CFTypeRef cfType);
-    std::wstring wstringFromCFType(CFTypeRef cfType);
     std::string realPath(const std::string &path);
     VideoFrame loadPicture(const std::string &fileName);
 }

@@ -35,15 +35,12 @@ namespace AkVCam
         void write(const std::string &key,
                    const std::shared_ptr<CFTypeRef> &value);
         void write(const std::string &key, const std::string &value);
-        void write(const std::string &key, const std::wstring &value);
         void write(const std::string &key, int value);
         void write(const std::string &key, double value);
         void write(const std::string &key, std::vector<std::string> &value);
         std::shared_ptr<CFTypeRef> read(const std::string &key);
         std::string readString(const std::string &key,
                                const std::string &defaultValue={});
-        std::wstring readWString(const std::string &key,
-                                 const std::wstring &defaultValue={});
         int readInt(const std::string &key, int defaultValue=0);
         double readDouble(const std::string &key, double defaultValue=0.0);
         bool readBool(const std::string &key, bool defaultValue=false);
@@ -54,20 +51,20 @@ namespace AkVCam
         void move(const std::string &keyFrom, const std::string &keyTo);
         void moveAll(const std::string &keyFrom, const std::string &keyTo);
         void sync();
-        std::string addDevice(const std::wstring &description);
-        std::string addCamera(const std::wstring &description,
+        std::string addDevice(const std::string &description);
+        std::string addCamera(const std::string &description,
                               const std::vector<VideoFormat> &formats);
         std::string addCamera(const std::string &path,
-                              const std::wstring &description,
+                              const std::string &description,
                               const std::vector<VideoFormat> &formats);
         void removeCamera(const std::string &path);
         size_t camerasCount();
         std::string createDevicePath();
         int cameraFromPath(const std::string &path);
         bool cameraExists(const std::string &path);
-        std::wstring cameraDescription(size_t cameraIndex);
+        std::string cameraDescription(size_t cameraIndex);
         void cameraSetDescription(size_t cameraIndex,
-                                  const std::wstring &description);
+                                  const std::string &description);
         std::string cameraPath(size_t cameraIndex);
         size_t formatsCount(size_t cameraIndex);
         VideoFormat cameraFormat(size_t cameraIndex, size_t formatIndex);
@@ -83,8 +80,8 @@ namespace AkVCam
         void cameraSetControlValue(size_t cameraIndex,
                                    const std::string &key,
                                    int value);
-        std::wstring picture();
-        void setPicture(const std::wstring &picture);
+        std::string picture();
+        void setPicture(const std::string &picture);
         int logLevel();
         void setLogLevel(int logLevel);
     }

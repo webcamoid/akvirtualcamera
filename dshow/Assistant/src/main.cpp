@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 
     AkLogInfo() << "Setting service dispatcher" << std::endl;
 
-    WCHAR serviceName[] = TEXT(DSHOW_PLUGIN_ASSISTANT_NAME);
+    TCHAR serviceName[] = TEXT(DSHOW_PLUGIN_ASSISTANT_NAME);
     SERVICE_TABLE_ENTRY serviceTable[] = {
         {serviceName, serviceMain},
         {nullptr    , nullptr    }

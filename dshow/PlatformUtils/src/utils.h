@@ -32,23 +32,18 @@
 namespace AkVCam
 {
     class VideoFormat;
+    class VideoFrame;
 
-    BOOL isWow64();
     std::string tempPath();
-    std::wstring programFilesPath();
-    std::wstring moduleFileNameW(HINSTANCE hinstDLL);
     std::string moduleFileName(HINSTANCE hinstDLL);
-    std::wstring errorToStringW(DWORD errorCode);
     std::string errorToString(DWORD errorCode);
     CLSID createClsidFromStr(const std::string &str);
-    CLSID createClsidFromStr(const std::wstring &str);
-    std::wstring createClsidWStrFromStr(const std::string &str);
-    std::wstring createClsidWStrFromStr(const std::wstring &str);
+    std::string createClsidStrFromStr(const std::string &str);
     std::string stringFromIid(const IID &iid);
-    std::wstring wstringFromIid(const IID &iid);
     std::string stringFromResult(HRESULT result);
     std::string stringFromClsid(const CLSID &clsid);
-    wchar_t *wcharStrFromWStr(const std::wstring &wstr);
+    std::string stringFromWSTR(LPCWSTR wstr);
+    LPWSTR stringToWSTR(const std::string &str);
     FourCC formatFromGuid(const GUID &guid);
     const GUID &guidFromFormat(FourCC format);
     DWORD compressionFromFormat(FourCC format);
@@ -71,6 +66,7 @@ namespace AkVCam
     std::string stringFromMediaSample(IMediaSample *mediaSample);
     LSTATUS deleteTree(HKEY key, LPCSTR subkey, REGSAM samFlags);
     LSTATUS copyTree(HKEY src, LPCSTR subkey, HKEY dst, REGSAM samFlags);
+    VideoFrame loadPicture(const std::string &fileName);
 }
 
 #endif // PLATFORM_UTILS_H

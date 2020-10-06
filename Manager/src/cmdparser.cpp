@@ -707,13 +707,10 @@ int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,
             "Description"
         };
         auto columns = table.size();
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
 
         for (auto &device: devices) {
             table.push_back(device);
-            auto description =
-                    cv.to_bytes(this->m_ipcBridge.description(device));
-            table.push_back(description);
+            table.push_back(this->m_ipcBridge.description(device));
         }
 
         this->drawTable(table, columns);
@@ -733,8 +730,7 @@ int AkVCam::CmdParserPrivate::addDevice(const StringMap &flags,
         return -1;
     }
 
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
-    auto deviceId = this->m_ipcBridge.addDevice(cv.from_bytes(args[1]));
+    auto deviceId = this->m_ipcBridge.addDevice(args[1]);
 
     if (deviceId.empty()) {
         std::cerr << "Failed to create device." << std::endl;
@@ -810,7 +806,7 @@ int AkVCam::CmdParserPrivate::showDeviceDescription(const StringMap &flags,
         return -1;
     }
 
-    std::wcout << this->m_ipcBridge.description(args[1]) << std::endl;
+    std::cout << this->m_ipcBridge.description(args[1]) << std::endl;
 
     return 0;
 }
@@ -836,8 +832,7 @@ int AkVCam::CmdParserPrivate::setDeviceDescription(const AkVCam::StringMap &flag
         return -1;
     }
 
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
-    this->m_ipcBridge.setDescription(deviceId, cv.from_bytes(args[2]));
+    this->m_ipcBridge.setDescription(deviceId, args[2]);
 
     return 0;
 }
@@ -1492,7 +1487,7 @@ int AkVCam::CmdParserPrivate::picture(const AkVCam::StringMap &flags,
     UNUSED(flags);
     UNUSED(args);
 
-    std::wcout << this->m_ipcBridge.picture() << std::endl;
+    std::cout << this->m_ipcBridge.picture() << std::endl;
 
     return 0;
 }
@@ -1508,8 +1503,7 @@ int AkVCam::CmdParserPrivate::setPicture(const AkVCam::StringMap &flags,
         return -1;
     }
 
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
-    this->m_ipcBridge.setPicture(cv.from_bytes(args[1]));
+    this->m_ipcBridge.setPicture(args[1]);
 
     return 0;
 }
@@ -1591,11 +1585,8 @@ void AkVCam::CmdParserPrivate::loadGenerals(Settings &settings)
 {
     settings.beginGroup("General");
 
-    if (settings.contains("default_frame")) {
-        auto defaultFrame = settings.value("default_frame");
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
-        this->m_ipcBridge.setPicture(cv.from_bytes(defaultFrame));
-    }
+    if (settings.contains("default_frame"))
+        this->m_ipcBridge.setPicture(settings.value("default_frame"));
 
     if (settings.contains("loglevel")) {
         auto logLevel= settings.value("loglevel");
@@ -1742,8 +1733,7 @@ void AkVCam::CmdParserPrivate::createDevice(Settings &settings,
         return;
     }
 
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
-    auto deviceId = this->m_ipcBridge.addDevice(cv.from_bytes(description));
+    auto deviceId = this->m_ipcBridge.addDevice(description);
     auto supportedFormats = this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeOutput);
 
     for (auto &format: formats) {

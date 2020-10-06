@@ -41,9 +41,9 @@ namespace AkVCam
             ~SharedMemory();
             SharedMemory &operator =(const SharedMemory &other);
 
-            std::wstring name() const;
-            std::wstring &name();
-            void setName(const std::wstring &name);
+            std::string name() const;
+            std::string &name();
+            void setName(const std::string &name);
             bool open(size_t pageSize=0, OpenMode mode=OpenModeRead);
             bool isOpen() const;
             size_t pageSize() const;

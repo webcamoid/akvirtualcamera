@@ -29,6 +29,7 @@
 #include "utils.h"
 #include "VCamUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
+#include "VCamUtils/src/image/videoframe.h"
 
 #define TIME_BASE 1.0e7
 
@@ -85,16 +86,6 @@ bool operator <(const CLSID &a, const CLSID &b)
     return AkVCam::stringFromIid(a) < AkVCam::stringFromIid(b);
 }
 
-BOOL AkVCam::isWow64()
-{
-    BOOL isWow64 = FALSE;
-
-    if (!IsWow64Process(GetCurrentProcess(), &isWow64))
-        return false;
-
-    return isWow64;
-}
-
 std::string AkVCam::tempPath()
 {
     CHAR tempPath[MAX_PATH];
@@ -104,90 +95,35 @@ std::string AkVCam::tempPath()
     return std::string(tempPath);
 }
 
-std::wstring AkVCam::programFilesPath()
-{
-    bool ok = false;
-    TCHAR programFiles[MAX_PATH];
-    DWORD programFilesSize = MAX_PATH * sizeof(TCHAR);
-    memset(programFiles, 0, programFilesSize);
-    HKEY hkey = nullptr;
-    auto result = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-                               L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion",
-                               0,
-                               KEY_READ | KEY_WOW64_64KEY,
-                               &hkey);
-
-    if (result == ERROR_SUCCESS) {
-        result = RegGetValue(hkey,
-                             nullptr,
-                             L"ProgramFilesDir",
-                             RRF_RT_REG_SZ,
-                             nullptr,
-                             &programFiles,
-                             &programFilesSize);
-        if (isWow64())
-            ok = true;
-
-        RegCloseKey(hkey);
-    }
-
-    if (!ok)
-        SHGetSpecialFolderPath(nullptr,
-                               programFiles,
-                               CSIDL_PROGRAM_FILES,
-                               FALSE);
-
-    return std::wstring(programFiles);
-}
-
-std::wstring AkVCam::moduleFileNameW(HINSTANCE hinstDLL)
-{
-    WCHAR fileName[MAX_PATH];
-    memset(fileName, 0, MAX_PATH * sizeof(WCHAR));
-    GetModuleFileName(hinstDLL, fileName, MAX_PATH);
-
-    return std::wstring(fileName);
-}
-
 std::string AkVCam::moduleFileName(HINSTANCE hinstDLL)
 {
-    auto fileName = moduleFileNameW(hinstDLL);
+    CHAR fileName[MAX_PATH];
+    memset(fileName, 0, MAX_PATH * sizeof(CHAR));
+    GetModuleFileNameA(hinstDLL, fileName, MAX_PATH);
 
-    return std::string(fileName.begin(), fileName.end());
+    return std::string(fileName);
 }
 
-std::wstring AkVCam::errorToStringW(DWORD errorCode)
+std::string AkVCam::errorToString(DWORD errorCode)
 {
-    WCHAR *errorStr = nullptr;
-    auto size = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
-                              | FORMAT_MESSAGE_FROM_SYSTEM
-                              | FORMAT_MESSAGE_IGNORE_INSERTS,
-                              nullptr,
-                              errorCode,
-                              MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
-                              reinterpret_cast<LPWSTR>(&errorStr),
-                              0,
-                              nullptr);
-    std::wstring error(errorStr, size);
+    CHAR *errorStr = nullptr;
+    auto size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER
+                               | FORMAT_MESSAGE_FROM_SYSTEM
+                               | FORMAT_MESSAGE_IGNORE_INSERTS,
+                               nullptr,
+                               errorCode,
+                               MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
+                               reinterpret_cast<LPSTR>(&errorStr),
+                               0,
+                               nullptr);
+    std::string error(errorStr, size);
     LocalFree(errorStr);
 
     return error;
 }
 
-std::string AkVCam::errorToString(DWORD errorCode)
-{
-    auto errorStr = errorToStringW(errorCode);
-
-    return std::string(errorStr.begin(), errorStr.end());
-}
-
 // Converts a human redable string to a CLSID using MD5 hash.
 CLSID AkVCam::createClsidFromStr(const std::string &str)
-{
-    return createClsidFromStr(std::wstring(str.begin(), str.end()));
-}
-
-CLSID AkVCam::createClsidFromStr(const std::wstring &str)
 {
     HCRYPTPROV provider = 0;
     HCRYPTHASH hash = 0;
@@ -227,47 +163,35 @@ clsidFromStr_failed:
     return clsid;
 }
 
-std::wstring AkVCam::createClsidWStrFromStr(const std::string &str)
-{
-    return createClsidWStrFromStr(std::wstring(str.begin(), str.end()));
-}
-
-std::wstring AkVCam::createClsidWStrFromStr(const std::wstring &str)
+std::string AkVCam::createClsidStrFromStr(const std::string &str)
 {
     auto clsid = createClsidFromStr(str);
-    OLECHAR *clsidWStr = nullptr;
+    LPWSTR clsidWStr = nullptr;
 
     if (StringFromCLSID(clsid, &clsidWStr) != S_OK)
-        return std::wstring();
+        return {};
 
-    std::wstring wstr(clsidWStr);
+    auto str_ = stringFromWSTR(clsidWStr);
     CoTaskMemFree(clsidWStr);
 
-    return wstr;
+    return str_;
 }
 
 std::string AkVCam::stringFromIid(const IID &iid)
 {
-    auto wstr = wstringFromIid(iid);
-
-    return std::string(wstr.begin(), wstr.end());
-}
-
-std::wstring AkVCam::wstringFromIid(const IID &iid)
-{
-    WCHAR *strIID = nullptr;
+    LPWSTR strIID = nullptr;
     StringFromIID(iid, &strIID);
-    std::wstring wstr(strIID);
+    auto str = stringFromWSTR(strIID);
     CoTaskMemFree(strIID);
 
-    return wstr;
+    return str;
 }
 
 std::string AkVCam::stringFromResult(HRESULT result)
 {
-    auto msg = std::wstring(_com_error(result).ErrorMessage());
+    auto msg = stringFromWSTR(_com_error(result).ErrorMessage());
 
-    return std::string(msg.begin(), msg.end());
+    return msg;
 }
 
 std::string AkVCam::stringFromClsid(const CLSID &clsid)
@@ -332,17 +256,48 @@ std::string AkVCam::stringFromClsid(const CLSID &clsid)
     return stringFromIid(clsid);
 }
 
-wchar_t *AkVCam::wcharStrFromWStr(const std::wstring &wstr)
+std::string AkVCam::stringFromWSTR(LPCWSTR wstr)
 {
-    if (wstr.size() < 1)
-        return nullptr;
+    auto len = WideCharToMultiByte(CP_ACP,
+                            0,
+                            wstr,
+                            -1,
+                            nullptr,
+                            0,
+                            nullptr,
+                            nullptr);
+    CHAR *cstr = new CHAR[len];
+    WideCharToMultiByte(CP_ACP,
+                        0,
+                        wstr,
+                        -1,
+                        cstr,
+                        len,
+                        nullptr,
+                        nullptr);
+    std::string str(cstr);
+    delete [] cstr;
 
-    auto wcstrSize = wstr.size() * sizeof(wchar_t);
-    auto wcstr = reinterpret_cast<wchar_t *>(CoTaskMemAlloc(wcstrSize + 1));
-    wcstr[wstr.size()] = 0;
-    memcpy(wcstr, wstr.data(), wcstrSize);
+    return str;
+}
 
-    return wcstr;
+LPWSTR AkVCam::stringToWSTR(const std::string &str)
+{
+    auto len = MultiByteToWideChar(CP_ACP,
+                                   0,
+                                   str.c_str(),
+                                   str.size(),
+                                   nullptr,
+                                   0);
+    auto wstr = reinterpret_cast<LPWSTR>(CoTaskMemAlloc(len * sizeof(WCHAR)));
+    MultiByteToWideChar(CP_ACP,
+                        0,
+                        str.c_str(),
+                        str.size(),
+                        wstr,
+                        len);
+
+    return wstr;
 }
 
 AkVCam::FourCC AkVCam::formatFromGuid(const GUID &guid)
@@ -998,4 +953,22 @@ LSTATUS AkVCam::copyTree(HKEY src, LPCSTR subkey, HKEY dst, REGSAM samFlags)
         RegCloseKey(hkeyFrom);
 
     return result;
+}
+
+AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
+{
+    AkLogFunction();
+    VideoFrame frame;
+
+    if (frame.load(fileName)) {
+        AkLogInfo() << "Picture loaded as BMP" << std::endl;
+
+        return frame;
+    }
+
+    AkLogDebug() << "Error loading picture: "
+                 << fileName
+                 << std::endl;
+
+    return frame;
 }

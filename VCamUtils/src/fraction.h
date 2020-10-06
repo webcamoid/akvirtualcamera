@@ -35,7 +35,6 @@ namespace AkVCam
             Fraction();
             Fraction(int64_t num, int64_t den);
             Fraction(const std::string &str);
-            Fraction(const std::wstring &str);
             Fraction(const Fraction &other);
             virtual ~Fraction();
             Fraction &operator =(const Fraction &other);
@@ -48,7 +47,6 @@ namespace AkVCam
             int64_t &den();
             double value() const;
             std::string toString() const;
-            std::wstring toWString() const;
 
         private:
             FractionPrivate *d;

@@ -28,7 +28,6 @@
 namespace AkVCam {
     class CmdParserPrivate;
     using StringVector = std::vector<std::string>;
-    using WStringVector = std::vector<std::wstring>;
     using StringMap = std::map<std::string, std::string>;
     using ProgramOptionsFunc = std::function<int (const StringMap &flags,
                                                   const StringVector &args)>;

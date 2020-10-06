@@ -373,7 +373,7 @@ void AkVCam::PluginInterface::removeListener(void *userData,
 }
 
 bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
-                                           const std::wstring &description,
+                                           const std::string &description,
                                            const std::vector<VideoFormat> &formats)
 {
     AkLogFunction();

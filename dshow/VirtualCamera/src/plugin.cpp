@@ -118,13 +118,8 @@ STDAPI DllRegisterServer()
         auto clsid = AkVCam::createClsidFromStr(path);
 
         AkLogInfo() << "Creating Camera" << std::endl;
-        AkLogInfo() << "\tDescription: "
-                    << std::string(description.begin(),
-                                   description.end())
-                    << std::endl;
-        AkLogInfo() << "\tPath: "
-                    << std::string(path.begin(), path.end())
-                    << std::endl;
+        AkLogInfo() << "\tDescription: " << description << std::endl;
+        AkLogInfo() << "\tPath: " << path << std::endl;
         AkLogInfo() << "\tCLSID: " << AkVCam::stringFromIid(clsid) << std::endl;
 
         ok &= pluginInterface()->createDevice(path, description);

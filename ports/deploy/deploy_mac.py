@@ -53,7 +53,7 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         self.dependencies = []
         self.installerConfig = os.path.join(self.installDir, 'installer/config')
         self.installerPackages = os.path.join(self.installDir, 'installer/packages')
-        self.appIcon = os.path.join(self.rootDir, 'share/TestFrame/webcamoid.png')
+        self.appIcon = os.path.join(self.rootDir, 'share/icons/webcamoid.png')
         self.licenseFile = os.path.join(self.rootDir, 'COPYING')
         self.installerTargetDir = '@ApplicationsDir@/' + self.programName
         self.installerScript = os.path.join(self.rootDir, 'ports/deploy/installscript.mac.qs')
@@ -190,7 +190,7 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
                     size += os.path.getsize(fpath)
 
         return size
-    
+
     def signPackage(self, package):
         process = subprocess.Popen(['codesign', # nosec
                                     '--force',

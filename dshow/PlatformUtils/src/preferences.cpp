@@ -39,22 +39,14 @@ namespace AkVCam
         void splitSubKey(const std::string &key,
                          std::string &subKey,
                          std::string &value);
-        bool valueA(const std::string &key,
-                    DWORD dataTypeFlags,
-                    PVOID data,
-                    LPDWORD dataSize);
-        bool valueW(const std::string &key,
-                    DWORD dataTypeFlags,
-                    PVOID data,
-                    LPDWORD dataSize);
-        void setValueA(const std::string &key,
-                       DWORD dataType,
-                       LPCSTR data,
-                       DWORD dataSize);
-        void setValueW(const std::string &key,
-                       DWORD dataType,
-                       LPCWSTR data,
-                       DWORD dataSize);
+        bool readValue(const std::string &key,
+                       DWORD dataTypeFlags,
+                       PVOID data,
+                       LPDWORD dataSize);
+        void setValue(const std::string &key,
+                      DWORD dataType,
+                      LPCSTR data,
+                      DWORD dataSize);
     }
 }
 
@@ -63,28 +55,17 @@ void AkVCam::Preferences::write(const std::string &key,
 {
     AkLogFunction();
     AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
-    setValueA(key, REG_SZ, value.c_str(), DWORD(value.size()));
-}
-
-void AkVCam::Preferences::write(const std::string &key,
-                                const std::wstring &value)
-{
-    AkLogFunction();
-    AkLogInfo() << "Writing: "
-                << key
-                << " = "
-                << std::string(value.begin(), value.end()) << std::endl;
-    setValueW(key, REG_SZ, value.c_str(), DWORD(value.size()));
+    setValue(key, REG_SZ, value.c_str(), DWORD(value.size()));
 }
 
 void AkVCam::Preferences::write(const std::string &key, int value)
 {
     AkLogFunction();
     AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
-    setValueA(key,
-              REG_DWORD,
-              reinterpret_cast<const char *>(&value),
-              DWORD(sizeof(int)));
+    setValue(key,
+             REG_DWORD,
+             reinterpret_cast<const char *>(&value),
+             DWORD(sizeof(int)));
 }
 
 void AkVCam::Preferences::write(const std::string &key, double value)
@@ -92,10 +73,10 @@ void AkVCam::Preferences::write(const std::string &key, double value)
     AkLogFunction();
     AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
     auto val = std::to_string(value);
-    setValueA(key,
-              REG_SZ,
-              val.c_str(),
-              DWORD(val.size()));
+    setValue(key,
+             REG_SZ,
+             val.c_str(),
+             DWORD(val.size()));
 }
 
 void AkVCam::Preferences::write(const std::string &key,
@@ -113,21 +94,7 @@ std::string AkVCam::Preferences::readString(const std::string &key,
     memset(value, 0, MAX_PATH * sizeof(char));
     DWORD valueSize = MAX_PATH;
 
-    if (!valueA(key, RRF_RT_REG_SZ, &value, &valueSize))
-        return defaultValue;
-
-    return {value};
-}
-
-std::wstring AkVCam::Preferences::readWString(const std::string &key,
-                                              const std::wstring &defaultValue)
-{
-    AkLogFunction();
-    TCHAR value[MAX_PATH];
-    memset(value, 0, MAX_PATH * sizeof(TCHAR));
-    DWORD valueSize = MAX_PATH;
-
-    if (!valueW(key, RRF_RT_REG_SZ, &value, &valueSize))
+    if (!readValue(key, RRF_RT_REG_SZ, &value, &valueSize))
         return defaultValue;
 
     return {value};
@@ -139,7 +106,7 @@ int AkVCam::Preferences::readInt(const std::string &key, int defaultValue)
     DWORD value = 0;
     DWORD valueSize = sizeof(DWORD);
 
-    if (!valueA(key, RRF_RT_REG_DWORD, &value, &valueSize))
+    if (!readValue(key, RRF_RT_REG_DWORD, &value, &valueSize))
         return defaultValue;
 
     return int(value);
@@ -174,11 +141,11 @@ std::vector<CLSID> AkVCam::Preferences::listRegisteredCameras(HINSTANCE hinstDLL
     CoTaskMemFree(strIID);
 
     HKEY key = nullptr;
-    auto result = RegOpenKeyEx(HKEY_CLASSES_ROOT,
-                               ss.str().c_str(),
-                               0,
-                               MAXIMUM_ALLOWED,
-                               &key);
+    auto result = RegOpenKeyExW(HKEY_CLASSES_ROOT,
+                                ss.str().c_str(),
+                                0,
+                                MAXIMUM_ALLOWED,
+                                &key);
 
     if (result != ERROR_SUCCESS)
         return {};
@@ -208,17 +175,17 @@ std::vector<CLSID> AkVCam::Preferences::listRegisteredCameras(HINSTANCE hinstDLL
     FILETIME lastWrite;
 
     for (DWORD i = 0; i < subkeys; i++) {
-        TCHAR subKey[MAX_PATH];
-        memset(subKey, 0, MAX_PATH * sizeof(TCHAR));
+        WCHAR subKey[MAX_PATH];
+        memset(subKey, 0, MAX_PATH * sizeof(WCHAR));
         DWORD subKeyLen = MAX_PATH;
-        result = RegEnumKeyEx(key,
-                              i,
-                              subKey,
-                              &subKeyLen,
-                              nullptr,
-                              nullptr,
-                              nullptr,
-                              &lastWrite);
+        result = RegEnumKeyExW(key,
+                               i,
+                               subKey,
+                               &subKeyLen,
+                               nullptr,
+                               nullptr,
+                               nullptr,
+                               &lastWrite);
 
         if (result != ERROR_SUCCESS)
             continue;
@@ -229,18 +196,18 @@ std::vector<CLSID> AkVCam::Preferences::listRegisteredCameras(HINSTANCE hinstDLL
         memset(path, 0, MAX_PATH * sizeof(WCHAR));
         DWORD pathSize = MAX_PATH;
 
-        if (RegGetValue(HKEY_CLASSES_ROOT,
-                        ss.str().c_str(),
-                        nullptr,
-                        RRF_RT_REG_SZ,
-                        nullptr,
-                        path,
-                        &pathSize) == ERROR_SUCCESS) {
+        if (RegGetValueW(HKEY_CLASSES_ROOT,
+                         ss.str().c_str(),
+                         nullptr,
+                         RRF_RT_REG_SZ,
+                         nullptr,
+                         path,
+                         &pathSize) == ERROR_SUCCESS) {
             WCHAR modulePath[MAX_PATH];
             memset(modulePath, 0, MAX_PATH * sizeof(WCHAR));
-            GetModuleFileName(hinstDLL, modulePath, MAX_PATH);
+            GetModuleFileNameW(hinstDLL, modulePath, MAX_PATH);
 
-            if (!lstrcmpi(path, modulePath)) {
+            if (!lstrcmpiW(path, modulePath)) {
                 CLSID clsid;
                 memset(&clsid, 0, sizeof(CLSID));
                 CLSIDFromString(subKey, &clsid);
@@ -320,7 +287,7 @@ void AkVCam::Preferences::move(const std::string &keyFrom,
     }
 }
 
-std::string AkVCam::Preferences::addDevice(const std::wstring &description)
+std::string AkVCam::Preferences::addDevice(const std::string &description)
 {
     AkLogFunction();
     auto path = createDevicePath();
@@ -333,14 +300,14 @@ std::string AkVCam::Preferences::addDevice(const std::wstring &description)
     return path;
 }
 
-std::string AkVCam::Preferences::addCamera(const std::wstring &description,
+std::string AkVCam::Preferences::addCamera(const std::string &description,
                                            const std::vector<VideoFormat> &formats)
 {
     return addCamera("", description, formats);
 }
 
 std::string AkVCam::Preferences::addCamera(const std::string &path,
-                                           const std::wstring &description,
+                                           const std::string &description,
                                            const std::vector<VideoFormat> &formats)
 {
     AkLogFunction();
@@ -471,18 +438,18 @@ bool AkVCam::Preferences::cameraExists(const std::string &path)
     return false;
 }
 
-std::wstring AkVCam::Preferences::cameraDescription(size_t cameraIndex)
+std::string AkVCam::Preferences::cameraDescription(size_t cameraIndex)
 {
     if (cameraIndex >= camerasCount())
         return {};
 
-    return readWString("Cameras\\"
-                       + std::to_string(cameraIndex + 1)
-                       + "\\description");
+    return readString("Cameras\\"
+                      + std::to_string(cameraIndex + 1)
+                      + "\\description");
 }
 
 void AkVCam::Preferences::cameraSetDescription(size_t cameraIndex,
-                                               const std::wstring &description)
+                                               const std::string &description)
 {
     if (cameraIndex >= camerasCount())
         return;
@@ -642,12 +609,12 @@ void AkVCam::Preferences::cameraSetControlValue(size_t cameraIndex,
           value);
 }
 
-std::wstring AkVCam::Preferences::picture()
+std::string AkVCam::Preferences::picture()
 {
-    return readWString("picture");
+    return readString("picture");
 }
 
-void AkVCam::Preferences::setPicture(const std::wstring &picture)
+void AkVCam::Preferences::setPicture(const std::string &picture)
 {
     write("picture", picture);
 }
@@ -679,10 +646,10 @@ void AkVCam::Preferences::splitSubKey(const std::string &key,
     }
 }
 
-bool AkVCam::Preferences::valueA(const std::string &key,
-                                 DWORD dataTypeFlags,
-                                 PVOID data,
-                                 LPDWORD dataSize)
+bool AkVCam::Preferences::readValue(const std::string &key,
+                                    DWORD dataTypeFlags,
+                                    PVOID data,
+                                    LPDWORD dataSize)
 {
     std::string subKey;
     std::string val;
@@ -709,42 +676,10 @@ bool AkVCam::Preferences::valueA(const std::string &key,
     return result == ERROR_SUCCESS;
 }
 
-bool AkVCam::Preferences::valueW(const std::string &key,
-                                 DWORD dataTypeFlags,
-                                 PVOID data,
-                                 LPDWORD dataSize)
-{
-    std::string subKey;
-    std::string val;
-    splitSubKey(key, subKey, val);
-    HKEY hkey = nullptr;
-    auto result = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
-                                subKey.c_str(),
-                                0,
-                                KEY_READ | KEY_WOW64_64KEY,
-                                &hkey);
-
-    if (result != ERROR_SUCCESS)
-        return false;
-
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
-    auto wval = cv.from_bytes(val);
-    result = RegGetValueW(hkey,
-                          nullptr,
-                          wval.c_str(),
-                          dataTypeFlags,
-                          nullptr,
-                          data,
-                          dataSize);
-    RegCloseKey(hkey);
-
-    return result == ERROR_SUCCESS;
-}
-
-void AkVCam::Preferences::setValueA(const std::string &key,
-                                    DWORD dataType,
-                                    LPCSTR data,
-                                    DWORD dataSize)
+void AkVCam::Preferences::setValue(const std::string &key,
+                                   DWORD dataType,
+                                   LPCSTR data,
+                                   DWORD dataSize)
 {
     std::string subKey;
     std::string val;
@@ -765,38 +700,6 @@ void AkVCam::Preferences::setValueA(const std::string &key,
 
     RegSetValueA(hkey,
                  val.c_str(),
-                 dataType,
-                 data,
-                 dataSize);
-    RegCloseKey(hkey);
-}
-
-void AkVCam::Preferences::setValueW(const std::string &key,
-                                    DWORD dataType,
-                                    LPCWSTR data,
-                                    DWORD dataSize)
-{
-    std::string subKey;
-    std::string val;
-    splitSubKey(key, subKey, val);
-    HKEY hkey = nullptr;
-    LONG result = RegCreateKeyExA(HKEY_LOCAL_MACHINE,
-                                  subKey.c_str(),
-                                  0,
-                                  nullptr,
-                                  REG_OPTION_NON_VOLATILE,
-                                  KEY_WRITE | KEY_WOW64_64KEY,
-                                  nullptr,
-                                  &hkey,
-                                  nullptr);
-
-    if (result != ERROR_SUCCESS)
-        return;
-
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
-    auto wval = cv.from_bytes(val);
-    RegSetValueW(hkey,
-                 wval.c_str(),
                  dataType,
                  data,
                  dataSize);

@@ -36,6 +36,7 @@
 #include "qualitycontrol.h"
 #include "referenceclock.h"
 #include "videoprocamp.h"
+#include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/image/videoframe.h"
@@ -49,8 +50,8 @@ namespace AkVCam
             Pin *self;
             BaseFilter *m_baseFilter;
             VideoProcAmp *m_videoProcAmp;
-            std::wstring m_pinName;
-            std::wstring m_pinId;
+            std::string m_pinName;
+            std::string m_pinId;
             EnumMediaTypes *m_mediaTypes;
             IPin *m_connectedTo;
             IMemInputPin *m_memInputPin;
@@ -96,7 +97,7 @@ namespace AkVCam
 
 AkVCam::Pin::Pin(BaseFilter *baseFilter,
                  const std::vector<VideoFormat> &formats,
-                 const std::wstring &pinName):
+                 const std::string &pinName):
     StreamConfig(this)
 {
     this->setParent(this, &IID_IPin);
@@ -105,9 +106,9 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     this->d->self = this;
     this->d->m_baseFilter = baseFilter;
     this->d->m_pinName = pinName;
-    std::wstringstream wss;
-    wss << L"pin(" << this << L")";
-    this->d->m_pinId = wss.str();
+    std::stringstream ss;
+    ss << "pin(" << this << ")";
+    this->d->m_pinId = ss.str();
     this->d->m_mediaTypes = new AkVCam::EnumMediaTypes(formats);
     this->d->m_mediaTypes->AddRef();
     this->d->m_connectedTo = nullptr;
@@ -124,9 +125,10 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     this->d->m_adviseCookie = 0;
     this->d->m_sendFrameEvent = nullptr;
     this->d->m_running = false;
-    auto bmp = programFilesPath()
-             + L"\\" DSHOW_PLUGIN_NAME_L L".plugin\\share\\TestFrame.bmp";
-    this->d->m_testFrame.load(std::string(bmp.begin(), bmp.end()));
+    auto picture = Preferences::picture();
+
+    if (!picture.empty())
+        this->d->m_testFrame = loadPicture(picture);
 
     baseFilter->QueryInterface(IID_IAMVideoProcAmp,
                                reinterpret_cast<void **>(&this->d->m_videoProcAmp));
@@ -671,11 +673,14 @@ HRESULT AkVCam::Pin::QueryPinInfo(PIN_INFO *pInfo)
     pInfo->dir = PINDIR_OUTPUT;
     memset(pInfo->achName, 0, MAX_PIN_NAME * sizeof(WCHAR));
 
-    if (!this->d->m_pinName.empty())
+    if (!this->d->m_pinName.empty()) {
+        auto pinName = stringToWSTR(this->d->m_pinName);
         memcpy(pInfo->achName,
-               this->d->m_pinName.c_str(),
+               pinName,
                (std::min<size_t>)(this->d->m_pinName.size() * sizeof(WCHAR),
                                   MAX_PIN_NAME));
+        CoTaskMemFree(pinName);
+    }
 
     return S_OK;
 }
@@ -706,9 +711,9 @@ HRESULT AkVCam::Pin::QueryId(LPWSTR *Id)
         return E_OUTOFMEMORY;
 
     memset(*Id, 0, wstrSize);
-    memcpy(*Id,
-           this->d->m_pinId.c_str(),
-           this->d->m_pinId.size() * sizeof(WCHAR));
+    auto pinId = stringToWSTR(this->d->m_pinId);
+    memcpy(*Id, pinId, this->d->m_pinId.size() * sizeof(WCHAR));
+    CoTaskMemFree(pinId);
 
     return S_OK;
 }

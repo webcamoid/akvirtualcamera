@@ -110,12 +110,12 @@ AkVCam::IpcBridge::~IpcBridge()
     delete this->d;
 }
 
-std::wstring AkVCam::IpcBridge::picture() const
+std::string AkVCam::IpcBridge::picture() const
 {
     return Preferences::picture();
 }
 
-void AkVCam::IpcBridge::setPicture(const std::wstring &picture)
+void AkVCam::IpcBridge::setPicture(const std::string &picture)
 {
     AkLogFunction();
     Preferences::setPicture(picture);
@@ -123,10 +123,9 @@ void AkVCam::IpcBridge::setPicture(const std::wstring &picture)
     if (!this->d->m_serverMessagePort)
         return;
 
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
     auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
     xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED);
-    xpc_dictionary_set_string(dictionary, "picture", cv.to_bytes(picture).c_str());
+    xpc_dictionary_set_string(dictionary, "picture", picture.c_str());
     xpc_connection_send_message(this->d->m_serverMessagePort, dictionary);
     xpc_release(dictionary);
 }
@@ -287,7 +286,7 @@ std::vector<std::string> AkVCam::IpcBridge::devices() const
     return devices;
 }
 
-std::wstring AkVCam::IpcBridge::description(const std::string &deviceId) const
+std::string AkVCam::IpcBridge::description(const std::string &deviceId) const
 {
     AkLogFunction();
     auto cameraIndex = Preferences::cameraFromPath(deviceId);
@@ -299,7 +298,7 @@ std::wstring AkVCam::IpcBridge::description(const std::string &deviceId) const
 }
 
 void AkVCam::IpcBridge::setDescription(const std::string &deviceId,
-                                       const std::wstring &description)
+                                       const std::string &description)
 {
     AkLogFunction();
     auto cameraIndex = Preferences::cameraFromPath(deviceId);
@@ -521,7 +520,7 @@ std::string AkVCam::IpcBridge::clientExe(uint64_t pid) const
     return {path};
 }
 
-std::string AkVCam::IpcBridge::addDevice(const std::wstring &description)
+std::string AkVCam::IpcBridge::addDevice(const std::string &description)
 {
     return Preferences::addDevice(description);
 }

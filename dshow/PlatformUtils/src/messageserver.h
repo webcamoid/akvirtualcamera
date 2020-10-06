@@ -66,9 +66,9 @@ namespace AkVCam
             MessageServer(const MessageServer &other) = delete;
             ~MessageServer();
 
-            std::wstring pipeName() const;
-            std::wstring &pipeName();
-            void setPipeName(const std::wstring &pipeName);
+            std::string pipeName() const;
+            std::string &pipeName();
+            void setPipeName(const std::string &pipeName);
             ServerMode mode() const;
             ServerMode &mode();
             void setMode(ServerMode mode);
@@ -87,10 +87,7 @@ namespace AkVCam
             static BOOL sendMessage(const std::string &pipeName,
                                     Message *message,
                                     uint32_t timeout=MSERVER_TIMEOUT_MAX);
-            static BOOL sendMessage(const std::wstring &pipeName,
-                                    Message *message,
-                                    uint32_t timeout=MSERVER_TIMEOUT_MAX);
-            static BOOL sendMessage(const std::wstring &pipeName,
+            static BOOL sendMessage(const std::string &pipeName,
                                     const Message &messageIn,
                                     Message *messageOut,
                                     uint32_t timeout=MSERVER_TIMEOUT_MAX);

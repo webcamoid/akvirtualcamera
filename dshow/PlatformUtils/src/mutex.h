@@ -29,12 +29,12 @@ namespace AkVCam
     class Mutex
     {
         public:
-            Mutex(const std::wstring &name={});
+            Mutex(const std::string &name={});
             Mutex(const Mutex &other);
             ~Mutex();
             Mutex &operator =(const Mutex &other);
 
-            std::wstring name() const;
+            std::string name() const;
             void lock();
             bool tryLock(int timeout=0);
             void unlock();

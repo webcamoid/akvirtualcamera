@@ -41,7 +41,7 @@ namespace AkVCam
         public:
             Pin(BaseFilter *baseFilter=nullptr,
                 const std::vector<AkVCam::VideoFormat> &formats={},
-                const std::wstring &pinName={});
+                const std::string &pinName={});
             virtual ~Pin();
 
             BaseFilter *baseFilter() const;

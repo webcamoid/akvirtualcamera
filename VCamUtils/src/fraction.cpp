@@ -73,31 +73,6 @@ AkVCam::Fraction::Fraction(const std::string &str)
     }
 }
 
-AkVCam::Fraction::Fraction(const std::wstring &str)
-{
-    this->d = new FractionPrivate;
-    this->d->m_num = 0;
-    this->d->m_den = 1;
-    auto pos = str.find(L'/');
-
-    if (pos == std::wstring::npos) {
-        auto strCpy = trimmed(str);
-
-        this->d->m_num = uint32_t(wcstol(strCpy.c_str(), nullptr, 10));
-    } else {
-        auto numStr = trimmed(str.substr(0, pos));
-        auto denStr = trimmed(str.substr(pos + 1));
-
-        this->d->m_num = uint32_t(wcstol(numStr.c_str(), nullptr, 10));
-        this->d->m_den = uint32_t(wcstol(denStr.c_str(), nullptr, 10));
-
-        if (this->d->m_den < 1) {
-            this->d->m_num = 0;
-            this->d->m_den = 1;
-        }
-    }
-}
-
 AkVCam::Fraction::Fraction(const Fraction &other)
 {
     this->d = new FractionPrivate;
@@ -165,14 +140,6 @@ std::string AkVCam::Fraction::toString() const
 {
     std::stringstream ss;
     ss << this->d->m_num << '/' << this->d->m_den;
-
-    return ss.str();
-}
-
-std::wstring AkVCam::Fraction::toWString() const
-{
-    std::wstringstream ss;
-    ss << this->d->m_num << L'/' << this->d->m_den;
 
     return ss.str();
 }

@@ -79,10 +79,8 @@ AkVCam::Stream::Stream(bool registerObject,
     this->m_classID = kCMIOStreamClassID;
     auto picture = Preferences::picture();
 
-    if (!picture.empty()) {
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> cv;
-        this->d->m_testFrame = loadPicture(cv.to_bytes(picture));
-    }
+    if (!picture.empty())
+        this->d->m_testFrame = loadPicture(picture);
 
     this->d->m_clock =
             std::make_shared<Clock>("CMIO::VirtualCamera::Stream",

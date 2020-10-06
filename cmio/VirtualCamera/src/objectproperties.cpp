@@ -31,7 +31,6 @@ namespace AkVCam
         PropertyTypeFloat64,
         PropertyTypePidT,
         PropertyTypeString,
-        PropertyTypeWString,
         PropertyTypeObjectVector,
         PropertyTypeObjectPtrVector,
         PropertyTypeVideoFormat,
@@ -55,7 +54,6 @@ namespace AkVCam
         } num;
 
         std::string str;
-        std::wstring wstr;
         std::vector<Object *> objects;
         std::vector<ObjectPtr> objectsPtr;
         std::vector<VideoFormat> videoFormats;
@@ -114,17 +112,6 @@ bool AkVCam::ObjectProperties::setProperty(UInt32 property,
     this->d->m_properties[property].type = PropertyTypeString;
     this->d->m_properties[property].isSettable = isSettable;
     this->d->m_properties[property].str = value;
-
-    return true;
-}
-
-bool AkVCam::ObjectProperties::setProperty(UInt32 property,
-                                           const std::wstring &value,
-                                           bool isSettable)
-{
-    this->d->m_properties[property].type = PropertyTypeWString;
-    this->d->m_properties[property].isSettable = isSettable;
-    this->d->m_properties[property].wstr = value;
 
     return true;
 }
@@ -456,26 +443,6 @@ bool AkVCam::ObjectProperties::getProperty(UInt32 property,
                         CFStringCreateWithCString(kCFAllocatorDefault,
                                                   value.c_str(),
                                                   kCFStringEncodingUTF8);
-            }
-
-            break;
-
-        case PropertyTypeWString:
-            if (dataUsed) {
-                *dataUsed = sizeof(CFStringRef);
-
-                if (data)
-                    ok = dataSize == *dataUsed;
-            }
-
-            if (ok && data) {
-                auto value = this->d->m_properties[property].wstr;
-                *static_cast<CFStringRef *>(data) =
-                        CFStringCreateWithBytes(kCFAllocatorDefault,
-                                                reinterpret_cast<const UInt8 *>(value.c_str()),
-                                                CFIndex(value.size() * sizeof(wchar_t)),
-                                                kCFStringEncodingUTF32LE,
-                                                false);
             }
 
             break;

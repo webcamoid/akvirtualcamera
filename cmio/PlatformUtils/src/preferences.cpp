@@ -74,19 +74,6 @@ void AkVCam::Preferences::write(const std::string &key,
     CFPreferencesSetAppValue(CFStringRef(*cfKey), *cfValue, PREFERENCES_ID);
 }
 
-void AkVCam::Preferences::write(const std::string &key,
-                                const std::wstring &value)
-{
-    AkLogFunction();
-    AkLogInfo() << "Writing: "
-                << key
-                << " = "
-                << std::string(value.begin(), value.end()) << std::endl;
-    auto cfKey = cfTypeFromStd(key);
-    auto cfValue = cfTypeFromStd(value);
-    CFPreferencesSetAppValue(CFStringRef(*cfKey), *cfValue, PREFERENCES_ID);
-}
-
 void AkVCam::Preferences::write(const std::string &key, int value)
 {
     AkLogFunction();
@@ -141,24 +128,6 @@ std::string AkVCam::Preferences::readString(const std::string &key,
 
     if (cfValue) {
         value = stringFromCFType(cfValue);
-        CFRelease(cfValue);
-    }
-
-    return value;
-}
-
-std::wstring AkVCam::Preferences::readWString(const std::string &key,
-                                              const std::wstring &defaultValue)
-{
-    AkLogFunction();
-    auto cfKey = cfTypeFromStd(key);
-    auto cfValue =
-            CFStringRef(CFPreferencesCopyAppValue(CFStringRef(*cfKey),
-                                                  PREFERENCES_ID));
-    auto value = defaultValue;
-
-    if (cfValue) {
-        value = wstringFromCFType(cfValue);
         CFRelease(cfValue);
     }
 
@@ -284,7 +253,7 @@ void AkVCam::Preferences::sync()
     CFPreferencesAppSynchronize(PREFERENCES_ID);
 }
 
-std::string AkVCam::Preferences::addDevice(const std::wstring &description)
+std::string AkVCam::Preferences::addDevice(const std::string &description)
 {
     AkLogFunction();
     auto path = createDevicePath();
@@ -303,14 +272,14 @@ std::string AkVCam::Preferences::addDevice(const std::wstring &description)
     return path;
 }
 
-std::string AkVCam::Preferences::addCamera(const std::wstring &description,
+std::string AkVCam::Preferences::addCamera(const std::string &description,
                                            const std::vector<VideoFormat> &formats)
 {
     return addCamera("", description, formats);
 }
 
 std::string AkVCam::Preferences::addCamera(const std::string &path,
-                                           const std::wstring &description,
+                                           const std::string &description,
                                            const std::vector<VideoFormat> &formats)
 {
     AkLogFunction();
@@ -433,18 +402,18 @@ bool AkVCam::Preferences::cameraExists(const std::string &path)
     return false;
 }
 
-std::wstring AkVCam::Preferences::cameraDescription(size_t cameraIndex)
+std::string AkVCam::Preferences::cameraDescription(size_t cameraIndex)
 {
     if (cameraIndex >= camerasCount())
         return {};
 
-    return readWString("cameras."
-                       + std::to_string(cameraIndex)
-                       + ".description");
+    return readString("cameras."
+                      + std::to_string(cameraIndex)
+                      + ".description");
 }
 
 void AkVCam::Preferences::cameraSetDescription(size_t cameraIndex,
-                                               const std::wstring &description)
+                                               const std::string &description)
 {
     if (cameraIndex >= camerasCount())
         return;
@@ -606,12 +575,12 @@ void AkVCam::Preferences::cameraSetControlValue(size_t cameraIndex,
     sync();
 }
 
-std::wstring AkVCam::Preferences::picture()
+std::string AkVCam::Preferences::picture()
 {
-    return readWString("picture");
+    return readString("picture");
 }
 
-void AkVCam::Preferences::setPicture(const std::wstring &picture)
+void AkVCam::Preferences::setPicture(const std::string &picture)
 {
     write("picture", picture);
     sync();

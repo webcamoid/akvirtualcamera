@@ -36,12 +36,12 @@ namespace AkVCam
     {
         public:
             BaseFilter(const GUID &clsid,
-                       const std::wstring &filterName={},
-                       const std::wstring &vendor={});
+                       const std::string &filterName={},
+                       const std::string &vendor={});
             virtual ~BaseFilter();
 
             void addPin(const std::vector<VideoFormat> &formats={},
-                        const std::wstring &pinName={},
+                        const std::string &pinName={},
                         bool changed=true);
             void removePin(IPin *pin, bool changed=true);
             static BaseFilter *create(const GUID &clsid);

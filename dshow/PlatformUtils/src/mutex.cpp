@@ -27,27 +27,26 @@ namespace AkVCam
     {
         public:
             HANDLE m_mutex;
-            std::wstring m_name;
+            std::string m_name;
     };
 }
 
-AkVCam::Mutex::Mutex(const std::wstring &name)
+AkVCam::Mutex::Mutex(const std::string &name)
 {
     this->d = new MutexPrivate();
-    this->d->m_mutex = CreateMutex(nullptr,
-                                   FALSE,
-                                   name.empty()?
-                                       nullptr: name.c_str());
+    this->d->m_mutex = CreateMutexA(nullptr,
+                                    FALSE,
+                                    name.empty()? nullptr: name.c_str());
     this->d->m_name = name;
 }
 
 AkVCam::Mutex::Mutex(const Mutex &other)
 {
     this->d = new MutexPrivate();
-    this->d->m_mutex = CreateMutex(nullptr,
-                                   FALSE,
-                                   other.d->m_name.empty()?
-                                       nullptr: other.d->m_name.c_str());
+    this->d->m_mutex = CreateMutexA(nullptr,
+                                    FALSE,
+                                    other.d->m_name.empty()?
+                                        nullptr: other.d->m_name.c_str());
     this->d->m_name = other.d->m_name;
 }
 
@@ -67,17 +66,17 @@ AkVCam::Mutex &AkVCam::Mutex::operator =(const Mutex &other)
         if (this->d->m_mutex)
             CloseHandle(this->d->m_mutex);
 
-        this->d->m_mutex = CreateMutex(nullptr,
-                                       FALSE,
-                                       other.d->m_name.empty()?
-                                           nullptr: other.d->m_name.c_str());
+        this->d->m_mutex = CreateMutexA(nullptr,
+                                        FALSE,
+                                        other.d->m_name.empty()?
+                                            nullptr: other.d->m_name.c_str());
         this->d->m_name = other.d->m_name;
     }
 
     return *this;
 }
 
-std::wstring AkVCam::Mutex::name() const
+std::string AkVCam::Mutex::name() const
 {
     return this->d->m_name;
 }

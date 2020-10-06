@@ -58,14 +58,14 @@ namespace AkVCam
             EnumPins *m_pins;
             VideoProcAmp *m_videoProcAmp;
             ReferenceClock *m_referenceClock;
-            std::wstring m_vendor;
-            std::wstring m_filterName;
+            std::string m_vendor;
+            std::string m_filterName;
             IFilterGraph *m_filterGraph;
             IpcBridge m_ipcBridge;
 
             BaseFilterPrivate(BaseFilter *self,
-                              const std::wstring &filterName,
-                              const std::wstring &vendor);
+                              const std::string &filterName,
+                              const std::string &vendor);
             BaseFilterPrivate(const BaseFilterPrivate &other) = delete;
             ~BaseFilterPrivate();
             IEnumPins *pinsForDevice(const std::string &deviceId);
@@ -85,8 +85,8 @@ namespace AkVCam
 }
 
 AkVCam::BaseFilter::BaseFilter(const GUID &clsid,
-                               const std::wstring &filterName,
-                               const std::wstring &vendor):
+                               const std::string &filterName,
+                               const std::string &vendor):
     MediaFilter(clsid, this)
 {
     this->setParent(this, &IID_IBaseFilter);
@@ -99,7 +99,7 @@ AkVCam::BaseFilter::~BaseFilter()
 }
 
 void AkVCam::BaseFilter::addPin(const std::vector<AkVCam::VideoFormat> &formats,
-                                const std::wstring &pinName,
+                                const std::string &pinName,
                                 bool changed)
 {
     AkLogFunction();
@@ -123,15 +123,12 @@ AkVCam::BaseFilter *AkVCam::BaseFilter::create(const GUID &clsid)
         return nullptr;
 
     auto description = Preferences::cameraDescription(size_t(camera));
-    AkLogInfo() << "Description: "
-                << std::string(description.begin(),
-                               description.end())
-                << std::endl;
+    AkLogInfo() << "Description: " << description << std::endl;
     auto baseFilter = new BaseFilter(clsid,
                                      description,
-                                     DSHOW_PLUGIN_VENDOR_L);
+                                     DSHOW_PLUGIN_VENDOR);
     auto formats = Preferences::cameraFormats(size_t(camera));
-    baseFilter->addPin(formats, L"Video", false);
+    baseFilter->addPin(formats, "Video", false);
 
     return baseFilter;
 }
@@ -282,10 +279,12 @@ HRESULT AkVCam::BaseFilter::QueryFilterInfo(FILTER_INFO *pInfo)
     memset(pInfo->achName, 0, MAX_FILTER_NAME * sizeof(WCHAR));
 
     if (this->d->m_filterName.size() > 0) {
+        auto filterName = stringToWSTR(this->d->m_filterName);
         memcpy(pInfo->achName,
-               this->d->m_filterName.c_str(),
+               filterName,
                std::max<size_t>(this->d->m_filterName.size() * sizeof(WCHAR),
                                 MAX_FILTER_NAME));
+        CoTaskMemFree(filterName);
     }
 
     pInfo->pGraph = this->d->m_filterGraph;
@@ -301,13 +300,10 @@ HRESULT AkVCam::BaseFilter::JoinFilterGraph(IFilterGraph *pGraph, LPCWSTR pName)
     AkLogFunction();
 
     this->d->m_filterGraph = pGraph;
-    this->d->m_filterName = std::wstring(pName? pName: L"");
+    this->d->m_filterName = pName? stringFromWSTR(pName): "";
 
     AkLogInfo() << "Filter graph: " << this->d->m_filterGraph << std::endl;
-    AkLogInfo() << "Name: "
-                << std::string(this->d->m_filterName.begin(),
-                               this->d->m_filterName.end())
-                << std::endl;
+    AkLogInfo() << "Name: " << this->d->m_filterName << std::endl;
 
     return S_OK;
 }
@@ -322,7 +318,7 @@ HRESULT AkVCam::BaseFilter::QueryVendorInfo(LPWSTR *pVendorInfo)
     if (!pVendorInfo)
         return E_POINTER;
 
-    *pVendorInfo = wcharStrFromWStr(this->d->m_vendor);
+    *pVendorInfo = stringToWSTR(this->d->m_vendor);
 
     return S_OK;
 }
@@ -345,8 +341,8 @@ void AkVCam::BaseFilter::stateChanged(FILTER_STATE state)
 }
 
 AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self,
-                                             const std::wstring &filterName,
-                                             const std::wstring &vendor):
+                                             const std::string &filterName,
+                                             const std::string &vendor):
     self(self),
     m_pins(new AkVCam::EnumPins),
     m_videoProcAmp(new VideoProcAmp),

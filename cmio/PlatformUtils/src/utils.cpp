@@ -122,21 +122,6 @@ std::shared_ptr<CFTypeRef> AkVCam::cfTypeFromStd(const std::string &str)
     });
 }
 
-std::shared_ptr<CFTypeRef> AkVCam::cfTypeFromStd(const std::wstring &str)
-{
-    auto ref =
-            new CFTypeRef(CFStringCreateWithBytes(kCFAllocatorDefault,
-                                                  reinterpret_cast<const UInt8 *>(str.c_str()),
-                                                  CFIndex(str.size() * sizeof(wchar_t)),
-                                                  kCFStringEncodingUTF32LE,
-                                                  false));
-
-    return std::shared_ptr<CFTypeRef>(ref, [] (CFTypeRef *ptr) {
-        CFRelease(*ptr);
-        delete ptr;
-    });
-}
-
 std::shared_ptr<CFTypeRef> AkVCam::cfTypeFromStd(int num)
 {
     auto ref =
@@ -190,40 +175,6 @@ std::string AkVCam::stringFromCFType(CFTypeRef cfType)
     delete [] cstr;
 
     return str;
-}
-
-std::wstring AkVCam::wstringFromCFType(CFTypeRef cfType)
-{
-    auto len = CFStringGetLength(CFStringRef(cfType));
-    auto range = CFRangeMake(0, len);
-    CFIndex bufferLen = 0;
-    auto converted = CFStringGetBytes(CFStringRef(cfType),
-                                      range,
-                                      kCFStringEncodingUTF32LE,
-                                      0,
-                                      false,
-                                      nullptr,
-                                      0,
-                                      &bufferLen);
-
-    if (converted < 1 || bufferLen < 1)
-        return {};
-
-    wchar_t cstr[bufferLen];
-
-    converted = CFStringGetBytes(CFStringRef(cfType),
-                                 range,
-                                 kCFStringEncodingUTF32LE,
-                                 0,
-                                 false,
-                                 reinterpret_cast<UInt8 *>(cstr),
-                                 bufferLen,
-                                 nullptr);
-
-    if (converted < 1)
-        return {};
-
-    return std::wstring(cstr, size_t(len));
 }
 
 std::string AkVCam::realPath(const std::string &path)

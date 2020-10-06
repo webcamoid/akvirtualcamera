@@ -96,8 +96,8 @@ namespace AkVCam
 
             /* Server & Client */
 
-            std::wstring picture() const;
-            void setPicture(const std::wstring &picture);
+            std::string picture() const;
+            void setPicture(const std::string &picture);
             int logLevel() const;
             void setLogLevel(int logLevel);
 
@@ -111,9 +111,9 @@ namespace AkVCam
             std::vector<std::string> devices() const;
 
             // Return human readable description of the device.
-            std::wstring description(const std::string &deviceId) const;
+            std::string description(const std::string &deviceId) const;
             void setDescription(const std::string &deviceId,
-                                const std::wstring &description);
+                                const std::string &description);
 
             // Output pixel formats supported by the driver.
             std::vector<PixelFormat> supportedPixelFormats(StreamType type) const;
@@ -144,7 +144,7 @@ namespace AkVCam
 
             /* Server */
 
-            std::string addDevice(const std::wstring &description);
+            std::string addDevice(const std::string &description);
             void removeDevice(const std::string &deviceId);
             void addFormat(const std::string &deviceId,
                            const VideoFormat &format,

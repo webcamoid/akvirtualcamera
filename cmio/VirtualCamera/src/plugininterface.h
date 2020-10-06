@@ -68,7 +68,7 @@ namespace AkVCam
             static void removeListener(void *userData,
                                        const std::string &deviceId);
             bool createDevice(const std::string &deviceId,
-                              const std::wstring &description,
+                              const std::string &description,
                               const std::vector<VideoFormat> &formats);
             void destroyDevice(const std::string &deviceId);
 
