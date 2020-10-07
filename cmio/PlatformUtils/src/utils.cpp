@@ -338,11 +338,11 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     CGImageRelease(cgImage);
 
     AkLogDebug() << "Picture loaded as: "
-                 << VideoFormat::stringFromFourcc(videoFormat.fourcc())
+                 << VideoFormat::stringFromFourcc(frame.format().fourcc())
                  << " "
-                 << videoFormat.width()
+                 << frame.format().width()
                  << "x"
-                 << videoFormat.height()
+                 << frame.format().height()
                  << std::endl;
 
     return frame;

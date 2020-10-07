@@ -49,6 +49,7 @@ namespace AkVCam
             static HRESULT stateChanged(void *userData, FILTER_STATE state);
             void serverStateChanged(IpcBridge::ServerState state);
             void frameReady(const VideoFrame &frame);
+            void setPicture(const std::string &picture);
             void setBroadcasting(const std::string &broadcaster);
             void setControls(const std::map<std::string, int> &controls);
             bool horizontalFlip() const;

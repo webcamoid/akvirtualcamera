@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <dshow.h>
+#include <dbt.h>
 
 #include "basefilter.h"
 #include "enumpins.h"
@@ -75,6 +76,10 @@ namespace AkVCam
             static void frameReady(void *userData,
                                    const std::string &deviceId,
                                    const VideoFrame &frame);
+            static void pictureChanged(void *userData,
+                                       const std::string &picture);
+            static void devicesChanged(void *userData,
+                                       const std::vector<std::string> &devices);
             static void setBroadcasting(void *userData,
                                         const std::string &deviceId,
                                         const std::string &broadcasting);
@@ -357,8 +362,12 @@ AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self,
 
     this->m_ipcBridge.connectServerStateChanged(this,
                                                 &BaseFilterPrivate::serverStateChanged);
+    this->m_ipcBridge.connectDevicesChanged(this,
+                                            &BaseFilterPrivate::devicesChanged);
     this->m_ipcBridge.connectFrameReady(this,
                                         &BaseFilterPrivate::frameReady);
+    this->m_ipcBridge.connectPictureChanged(this,
+                                            &BaseFilterPrivate::pictureChanged);
     this->m_ipcBridge.connectBroadcastingChanged(this,
                                                  &BaseFilterPrivate::setBroadcasting);
     this->m_ipcBridge.connectControlsChanged(this,
@@ -443,6 +452,40 @@ void AkVCam::BaseFilterPrivate::frameReady(void *userData,
     AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
     AkVCamDevicePinCall(deviceId, self, frameReady, frame);
+}
+
+void AkVCam::BaseFilterPrivate::pictureChanged(void *userData,
+                                               const std::string &picture)
+{
+    AkLogFunction();
+    auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
+    IEnumPins *pins = nullptr;
+    self->self->EnumPins(&pins);
+
+    if (pins) {
+        AkVCamPinCall(pins, setPicture, picture)
+        pins->Release();
+    }
+}
+
+void AkVCam::BaseFilterPrivate::devicesChanged(void *userData,
+                                               const std::vector<std::string> &devices)
+{
+    UNUSED(userData);
+    UNUSED(devices);
+    AkLogFunction();
+    std::vector<HWND> handlers;
+    EnumWindows([] (HWND handler, LPARAM userData) -> BOOL {
+                    auto handlers =
+                            reinterpret_cast<std::vector<HWND> *>(userData);
+                    handlers->push_back(handler);
+
+                    return TRUE;
+                },
+                reinterpret_cast<LPARAM>(&handlers));
+
+    for (auto &handler: handlers)
+        SendMessage(handler, WM_DEVICECHANGE, DBT_DEVNODES_CHANGED, 0);
 }
 
 void AkVCam::BaseFilterPrivate::setBroadcasting(void *userData,

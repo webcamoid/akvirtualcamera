@@ -290,6 +290,20 @@ void AkVCam::Pin::frameReady(const VideoFrame &frame)
     this->d->m_mutex.unlock();
 }
 
+void AkVCam::Pin::setPicture(const std::string &picture)
+{
+    AkLogFunction();
+    AkLogDebug() << "Picture: " << picture;
+    this->d->m_testFrame = loadPicture(picture);
+    this->d->updateTestFrame();
+    this->d->m_mutex.lock();
+
+    if (this->d->m_broadcaster.empty())
+        this->d->m_currentFrame = this->d->m_testFrameAdapted;
+
+    this->d->m_mutex.unlock();
+}
+
 void AkVCam::Pin::setBroadcasting(const std::string &broadcaster)
 {
     AkLogFunction();

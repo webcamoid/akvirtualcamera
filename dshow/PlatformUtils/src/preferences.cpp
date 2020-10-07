@@ -230,10 +230,10 @@ void AkVCam::Preferences::deleteKey(const std::string &key)
     splitSubKey(key, subKey, val);
 
     if (val.empty()) {
-        deleteTree(HKEY_LOCAL_MACHINE, subKey.c_str(), KEY_WOW64_64KEY);
+        deleteTree(HKEY_CURRENT_USER, subKey.c_str(), KEY_WOW64_64KEY);
     } else {
         HKEY hkey = nullptr;
-        auto result = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+        auto result = RegOpenKeyExA(HKEY_CURRENT_USER,
                                     subKey.c_str(),
                                     0,
                                     KEY_ALL_ACCESS | KEY_WOW64_64KEY,
@@ -255,7 +255,7 @@ void AkVCam::Preferences::move(const std::string &keyFrom,
 
     std::string subKeyFrom = REG_PREFIX "\\" + keyFrom;
     HKEY hkeyFrom = nullptr;
-    auto result = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+    auto result = RegOpenKeyExA(HKEY_CURRENT_USER,
                                 subKeyFrom.c_str(),
                                 0,
                                 KEY_READ | KEY_WOW64_64KEY,
@@ -264,7 +264,7 @@ void AkVCam::Preferences::move(const std::string &keyFrom,
     if (result == ERROR_SUCCESS) {
         std::string subKeyTo = REG_PREFIX "\\" + keyTo;
         HKEY hkeyTo = nullptr;
-        result = RegCreateKeyExA(HKEY_LOCAL_MACHINE,
+        result = RegCreateKeyExA(HKEY_CURRENT_USER,
                                  subKeyTo.c_str(),
                                  0,
                                  nullptr,
@@ -655,7 +655,7 @@ bool AkVCam::Preferences::readValue(const std::string &key,
     std::string val;
     splitSubKey(key, subKey, val);
     HKEY hkey = nullptr;
-    auto result = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+    auto result = RegOpenKeyExA(HKEY_CURRENT_USER,
                                 subKey.c_str(),
                                 0,
                                 KEY_READ | KEY_WOW64_64KEY,
@@ -685,7 +685,7 @@ void AkVCam::Preferences::setValue(const std::string &key,
     std::string val;
     splitSubKey(key, subKey, val);
     HKEY hkey = nullptr;
-    LONG result = RegCreateKeyExA(HKEY_LOCAL_MACHINE,
+    LONG result = RegCreateKeyExA(HKEY_CURRENT_USER,
                                   subKey.c_str(),
                                   0,
                                   nullptr,

@@ -26,6 +26,14 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
+#if 1
+    #define ROOT_HKEY HKEY_CURRENT_USER
+    #define SUBKEY_PREFIX "Software\\Classes\\CLSID"
+#else
+    #define ROOT_HKEY HKEY_CLASSES_ROOT
+    #define SUBKEY_PREFIX "CLSID"
+#endif
+
 namespace AkVCam
 {
     class PluginInterfacePrivate
@@ -70,11 +78,11 @@ bool AkVCam::PluginInterface::registerServer(const std::string &deviceId,
     AkLogInfo() << "Description: " << description << std::endl;
     AkLogInfo() << "Filename: " << fileName << std::endl;
 
-    auto subkey = "CLSID\\" + clsid;
+    auto subkey = SUBKEY_PREFIX "\\" + clsid;
 
     HKEY keyCLSID = nullptr;
     HKEY keyServerType = nullptr;
-    LONG result = RegCreateKeyA(HKEY_CLASSES_ROOT, subkey.c_str(), &keyCLSID);
+    LONG result = RegCreateKeyA(ROOT_HKEY, subkey.c_str(), &keyCLSID);
     bool ok = false;
 
     if (result != ERROR_SUCCESS)
@@ -140,8 +148,8 @@ void AkVCam::PluginInterface::unregisterServer(const CLSID &clsid) const
 
     auto clsidStr = stringFromClsid(clsid);
     AkLogInfo() << "CLSID: " << clsidStr << std::endl;
-    auto subkey = "CLSID\\" + clsidStr;
-    deleteTree(HKEY_CLASSES_ROOT, subkey.c_str(), 0);
+    auto subkey = SUBKEY_PREFIX "\\" + clsidStr;
+    deleteTree(ROOT_HKEY, subkey.c_str(), 0);
 }
 
 bool AkVCam::PluginInterface::registerFilter(const std::string &deviceId,
@@ -254,15 +262,14 @@ bool AkVCam::PluginInterface::setDevicePath(const std::string &deviceId) const
     AkLogFunction();
 
     std::string subKey =
-            "CLSID\\"
+            SUBKEY_PREFIX "\\"
             + stringFromIid(CLSID_VideoInputDeviceCategory)
             + "\\Instance\\"
             + createClsidStrFromStr(deviceId);
-    AkLogInfo() << "Key: HKEY_CLASSES_ROOT" << std::endl;
     AkLogInfo() << "SubKey: " << subKey << std::endl;
 
     HKEY hKey = nullptr;
-    auto result = RegOpenKeyExA(HKEY_CLASSES_ROOT,
+    auto result = RegOpenKeyExA(ROOT_HKEY,
                                 subKey.c_str(),
                                 0,
                                 KEY_ALL_ACCESS,

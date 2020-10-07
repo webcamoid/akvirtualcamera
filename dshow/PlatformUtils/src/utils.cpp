@@ -25,6 +25,7 @@
 #include <dvdmedia.h>
 #include <comdef.h>
 #include <shlobj.h>
+#include <wincodec.h>
 
 #include "utils.h"
 #include "VCamUtils/src/utils.h"
@@ -966,8 +967,68 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
         return frame;
     }
 
-    AkLogDebug() << "Error loading picture: "
-                 << fileName
+    IWICImagingFactory *imagingFactory = nullptr;
+    auto hr = CoCreateInstance(CLSID_WICImagingFactory,
+                               NULL,
+                               CLSCTX_INPROC_SERVER,
+                               IID_PPV_ARGS(&imagingFactory));
+
+    if (SUCCEEDED(hr)) {
+        auto wfileName = stringToWSTR(fileName);
+        IWICBitmapDecoder *decoder = nullptr;
+        hr = imagingFactory->CreateDecoderFromFilename(wfileName,
+                                                       nullptr,
+                                                       GENERIC_READ,
+                                                       WICDecodeMetadataCacheOnLoad,
+                                                       &decoder);
+        CoTaskMemFree(wfileName);
+
+        if (SUCCEEDED(hr)) {
+            IWICBitmapFrameDecode *bmpFrame = nullptr;
+            hr = decoder->GetFrame(0, &bmpFrame);
+
+            if (SUCCEEDED(hr)) {
+                IWICFormatConverter *formatConverter = nullptr;
+                hr = imagingFactory->CreateFormatConverter(&formatConverter);
+
+                if (SUCCEEDED(hr)) {
+                    hr = formatConverter->Initialize(bmpFrame,
+                                                     GUID_WICPixelFormat24bppRGB,
+                                                     WICBitmapDitherTypeNone,
+                                                     nullptr,
+                                                     0.0,
+                                                     WICBitmapPaletteTypeMedianCut);
+
+                    if (SUCCEEDED(hr)) {
+                        UINT width = 0;
+                        UINT height = 0;
+                        formatConverter->GetSize(&width, &height);
+                        VideoFormat videoFormat(PixelFormatRGB24, width, height);
+                        frame = VideoFrame(videoFormat);
+                        formatConverter->CopyPixels(nullptr,
+                                                    3 * width,
+                                                    frame.data().size(),
+                                                    frame.data().data());
+                    }
+
+                    formatConverter->Release();
+                }
+
+                bmpFrame->Release();
+            }
+
+            decoder->Release();
+        }
+
+        imagingFactory->Release();
+    }
+
+    AkLogDebug() << "Picture loaded as: "
+                 << VideoFormat::stringFromFourcc(frame.format().fourcc())
+                 << " "
+                 << frame.format().width()
+                 << "x"
+                 << frame.format().height()
                  << std::endl;
 
     return frame;

@@ -45,7 +45,8 @@ LIBS = \
     -ladvapi32 \
     -lkernel32 \
     -lgdi32 \
-    -lshell32
+    -lshell32 \
+    -lwindowscodecs
 
 SOURCES = \
     src/messageserver.cpp \
