@@ -71,7 +71,7 @@ std::string AkVCam::trimmed(const std::string &str)
     if (left == str.size()) {
         strippedLen = 0;
     } else {
-        for (int64_t i = str.size() - 1; i >= 0; i--)
+        for (auto i = int64_t(str.size() - 1); i >= 0; i--)
             if (!isspace(str[size_t(i)])) {
                 right = uint64_t(i);
 

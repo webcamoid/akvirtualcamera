@@ -307,7 +307,7 @@ std::vector<std::string> AkVCam::Settings::valueList(const std::string &key,
             auto it = std::find(value.begin() + pos, value.end(), separator);
 
             if (size_t(it - value.begin()) < index)
-                index = it - value.begin();
+                index = size_t(it - value.begin());
         }
 
         result.push_back(trimmed(value.substr(pos, index - pos)));
@@ -446,7 +446,7 @@ std::string AkVCam::SettingsPrivate::parseString(const std::string &str)
             } else if (str[i + 1] == 'x' && i < str.size() - 4) {
                 memcpy(hex, str.c_str() + i + 2, 2);
                 char *p = nullptr;
-                c = strtol(hex, &p, 16);
+                c = char(strtol(hex, &p, 16));
 
                 if (*p) {
                     parsedStr += str[i];

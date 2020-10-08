@@ -647,12 +647,12 @@ AkVCam::VideoFrame AkVCam::VideoFrame::scaled(size_t maxArea,
                                               AkVCam::Scaling mode,
                                               int align) const
 {
-    auto width = int(sqrt(maxArea
-                          * size_t(this->d->m_format.width())
-                          / size_t(this->d->m_format.height())));
-    auto height = int(sqrt(maxArea
-                           * size_t(this->d->m_format.height())
-                           / size_t(this->d->m_format.width())));
+    auto width = int(sqrt(double(maxArea)
+                          * double(this->d->m_format.width())
+                          / double(this->d->m_format.height())));
+    auto height = int(sqrt(double(maxArea)
+                           * double(this->d->m_format.height())
+                           / double(this->d->m_format.width())));
     int owidth = align * int(width / align);
     int oheight = height * owidth / width;
 

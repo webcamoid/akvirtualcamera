@@ -27,7 +27,7 @@ isEmpty(DSHOW_PLUGIN_DESCRIPTION):
 isEmpty(DSHOW_PLUGIN_DESCRIPTION_EXT):
     DSHOW_PLUGIN_DESCRIPTION_EXT = "Central service for communicating between virtual cameras clients and servers"
 isEmpty(DSHOW_PLUGIN_DEVICE_PREFIX):
-    DSHOW_PLUGIN_DEVICE_PREFIX = /akvcam/video
+    DSHOW_PLUGIN_DEVICE_PREFIX = AkVCamVideoDevice
 isEmpty(DSHOW_PLUGIN_VENDOR):
     DSHOW_PLUGIN_VENDOR = "Webcamoid Project"
 

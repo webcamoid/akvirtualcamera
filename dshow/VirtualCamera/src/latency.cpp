@@ -31,7 +31,7 @@ namespace AkVCam
     class LatencyPrivate
     {
         public:
-            IAMStreamConfig *m_streamConfig;
+            IAMStreamConfig *m_streamConfig {nullptr};
     };
 }
 

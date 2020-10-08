@@ -93,6 +93,6 @@ void AkVCam::TimerPrivate::timerLoop()
         if (this->m_interval)
             std::this_thread::sleep_for(std::chrono::milliseconds(this->m_interval));
 
-        AKVCAM_EMIT_NOARGS(this->self, Timeout);
+        AKVCAM_EMIT_NOARGS(this->self, Timeout)
     }
 }

@@ -35,20 +35,8 @@ inline AkVCam::PluginInterface *pluginInterface()
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     UNUSED(lpvReserved);
+    pluginInterface()->initializeLogger();
     AkLogFunction();
-    auto loglevel = AkVCam::Preferences::logLevel();
-    AkVCam::Logger::setLogLevel(loglevel);
-
-    if (loglevel > AKVCAM_LOGLEVEL_DEFAULT) {
-        // Turn on lights
-        freopen("CONOUT$", "a", stdout);
-        freopen("CONOUT$", "a", stderr);
-        setbuf(stdout, nullptr);
-    }
-
-    auto defaultLogFile = AkVCam::tempPath() + "\\" DSHOW_PLUGIN_NAME ".log";
-    auto logFile = AkVCam::Preferences::readString("logfile", defaultLogFile);
-    AkVCam::Logger::setLogFile(logFile);
 
     switch (fdwReason) {
         case DLL_PROCESS_ATTACH:
@@ -107,6 +95,7 @@ STDAPI DllCanUnloadNow()
 
 STDAPI DllRegisterServer()
 {
+    pluginInterface()->initializeLogger();
     AkLogFunction();
     DllUnregisterServer();
 
@@ -130,6 +119,7 @@ STDAPI DllRegisterServer()
 
 STDAPI DllUnregisterServer()
 {
+    pluginInterface()->initializeLogger();
     AkLogFunction();
     auto cameras =
             AkVCam::Preferences::listRegisteredCameras(pluginInterface()->pluginHinstance());

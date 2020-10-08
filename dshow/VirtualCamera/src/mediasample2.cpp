@@ -26,11 +26,11 @@ namespace AkVCam
     class MediaSample2Private
     {
         public:
-            DWORD m_data;
-            DWORD m_typeSpecificFlags;
-            DWORD m_sampleFlags;
-            DWORD m_streamId;
-            AM_MEDIA_TYPE *m_mediaType;
+            DWORD m_data {0};
+            DWORD m_typeSpecificFlags {0};
+            DWORD m_sampleFlags {0};
+            DWORD m_streamId {0};
+            AM_MEDIA_TYPE *m_mediaType {nullptr};
     };
 }
 
@@ -41,11 +41,6 @@ AkVCam::MediaSample2::MediaSample2(IMemAllocator *memAllocator,
     MediaSample(memAllocator, bufferSize, align, prefix)
 {
     this->d = new MediaSample2Private;
-    this->d->m_data = 0;
-    this->d->m_typeSpecificFlags = 0;
-    this->d->m_sampleFlags = 0;
-    this->d->m_streamId = 0;
-    this->d->m_mediaType = nullptr;
 }
 
 AkVCam::MediaSample2::~MediaSample2()

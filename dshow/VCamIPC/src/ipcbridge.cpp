@@ -559,8 +559,11 @@ void AkVCam::IpcBridge::updateDevices()
     auto path = pluginPath + "\\" DSHOW_PLUGIN_NAME ".dll";
     AkLogDebug() << "Plugin binary: " << path << std::endl;
 
-    if (!this->d->fileExists(path))
+    if (!this->d->fileExists(path)) {
+        AkLogError() << "Plugin binary not found: " << path << std::endl;
+
         return;
+    }
 
     if (auto hmodule = LoadLibraryA(path.c_str())) {
         auto registerServer =
@@ -573,9 +576,13 @@ void AkVCam::IpcBridge::updateDevices()
             message.messageId = AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE;
             message.dataSize = 0;
             this->d->m_mainServer.sendMessage(&message);
+        } else {
+            AkLogError() << "Can't locate DllRegisterServer function." << std::endl;
         }
 
         FreeLibrary(hmodule);
+    } else {
+        AkLogError() << "Error loading plugin binary: " << path << std::endl;
     }
 }
 

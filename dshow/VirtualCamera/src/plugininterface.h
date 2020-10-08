@@ -49,6 +49,7 @@ namespace AkVCam
                               const std::string &description);
             void destroyDevice(const std::string &deviceId);
             void destroyDevice(const CLSID &clsid);
+            void initializeLogger() const;
 
         private:
             PluginInterfacePrivate *d;

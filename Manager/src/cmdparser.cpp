@@ -419,7 +419,7 @@ std::string AkVCam::CmdParserPrivate::basename(const std::string &path)
     auto program =
             rit == path.rend()?
                 path:
-                path.substr(path.size() + (path.rbegin() - rit));
+                path.substr(path.size() + size_t(path.rbegin() - rit));
 
     auto it =
             std::find_if(program.begin(),
@@ -431,7 +431,7 @@ std::string AkVCam::CmdParserPrivate::basename(const std::string &path)
     program =
             it == path.end()?
                 program:
-                program.substr(0, it - program.begin());
+                program.substr(0, size_t(it - program.begin()));
 
     return program;
 }
@@ -987,7 +987,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
 
     if (!indexStr.empty()) {
         p = nullptr;
-        index = strtoul(indexStr.c_str(), &p, 10);
+        index = int(strtoul(indexStr.c_str(), &p, 10));
 
         if (*p) {
             std::cerr << "Index must be an unsigned integer." << std::endl;
@@ -996,7 +996,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
         }
     }
 
-    VideoFormat fmt(format, width, height, {fps});
+    VideoFormat fmt(format, int(width), int(height), {fps});
     this->m_ipcBridge.addFormat(deviceId, fmt, index);
 
     return 0;
@@ -1040,7 +1040,7 @@ int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
         return -1;
     }
 
-    this->m_ipcBridge.removeFormat(deviceId, index);
+    this->m_ipcBridge.removeFormat(deviceId, int(index));
 
     return 0;
 }
@@ -1167,7 +1167,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
         return -1;
     }
 
-    VideoFormat fmt(format, width, height, {{30, 1}});
+    VideoFormat fmt(format, int(width), int(height), {{30, 1}});
 
     if (!this->m_ipcBridge.deviceStart(deviceId, fmt)) {
         std::cerr << "Can't start stream." << std::endl;
@@ -1188,8 +1188,8 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     do {
         std::cin.read(reinterpret_cast<char *>(frame.data().data()
                                                + bufferSize),
-                      frame.data().size() - bufferSize);
-        bufferSize += std::cin.gcount();
+                      std::streamsize(frame.data().size() - bufferSize));
+        bufferSize += size_t(std::cin.gcount());
 
         if (bufferSize == frame.data().size()) {
             this->m_ipcBridge.write(deviceId, frame);
@@ -1438,7 +1438,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                                 return -1;
                             }
 
-                            controls[key] = it - control.menu.begin();
+                            controls[key] = int(it - control.menu.begin());
                         } else {
                             if (val >= control.menu.size()) {
                                 std::cerr << "Value at argument "
@@ -1449,7 +1449,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                                 return -1;
                             }
 
-                            controls[key] = val;
+                            controls[key] = int(val);
                         }
 
                         break;

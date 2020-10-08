@@ -33,7 +33,7 @@ namespace AkVCam
     class SpecifyPropertyPagesPrivate
     {
         public:
-            IPin *m_pin;
+            IPin *m_pin {nullptr};
     };
 }
 

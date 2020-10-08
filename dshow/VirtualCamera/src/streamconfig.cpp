@@ -34,8 +34,8 @@ namespace AkVCam
     class StreamConfigPrivate
     {
         public:
-            Pin *m_pin;
-            AM_MEDIA_TYPE *m_mediaType;
+            Pin *m_pin {nullptr};
+            AM_MEDIA_TYPE *m_mediaType {nullptr};
     };
 }
 
@@ -44,7 +44,6 @@ AkVCam::StreamConfig::StreamConfig(Pin *pin):
 {
     this->d = new StreamConfigPrivate;
     this->d->m_pin = pin;
-    this->d->m_mediaType = nullptr;
 }
 
 AkVCam::StreamConfig::~StreamConfig()

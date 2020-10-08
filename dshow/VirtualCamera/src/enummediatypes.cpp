@@ -30,8 +30,8 @@ namespace AkVCam
     {
         public:
             std::vector<VideoFormat> m_formats;
-            size_t m_position;
-            bool m_changed;
+            size_t m_position {0};
+            bool m_changed {false};
     };
 }
 
@@ -40,8 +40,6 @@ AkVCam::EnumMediaTypes::EnumMediaTypes(const std::vector<VideoFormat> &formats):
 {
     this->d = new EnumMediaTypesPrivate;
     this->d->m_formats = formats;
-    this->d->m_position = 0;
-    this->d->m_changed = false;
 }
 
 AkVCam::EnumMediaTypes::EnumMediaTypes(const AkVCam::EnumMediaTypes &other):

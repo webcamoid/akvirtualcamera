@@ -410,7 +410,10 @@ std::string AkVCam::Preferences::createDevicePath()
 
 int AkVCam::Preferences::cameraFromCLSID(const CLSID &clsid)
 {
-    for (DWORD i = 0; i < camerasCount(); i++) {
+    AkLogFunction();
+    AkLogDebug() << "CLSID: " << stringFromIid(clsid) << std::endl;
+
+    for (size_t i = 0; i < camerasCount(); i++) {
         auto cameraClsid = createClsidFromStr(cameraPath(i));
 
         if (IsEqualCLSID(cameraClsid, clsid))
@@ -512,6 +515,7 @@ void AkVCam::Preferences::cameraSetFormats(size_t cameraIndex,
     if (cameraIndex >= camerasCount())
         return;
 
+    deleteKey("Cameras\\" + std::to_string(cameraIndex + 1) + "\\Formats\\");
     write("Cameras\\"
           + std::to_string(cameraIndex + 1)
           + "\\Formats\\size",
@@ -651,9 +655,12 @@ bool AkVCam::Preferences::readValue(const std::string &key,
                                     PVOID data,
                                     LPDWORD dataSize)
 {
+    AkLogFunction();
     std::string subKey;
     std::string val;
     splitSubKey(key, subKey, val);
+    AkLogDebug() << "SubKey: " << subKey << std::endl;
+    AkLogDebug() << "Value: " << val << std::endl;
     HKEY hkey = nullptr;
     auto result = RegOpenKeyExA(HKEY_CURRENT_USER,
                                 subKey.c_str(),
@@ -681,9 +688,12 @@ void AkVCam::Preferences::setValue(const std::string &key,
                                    LPCSTR data,
                                    DWORD dataSize)
 {
+    AkLogFunction();
     std::string subKey;
     std::string val;
     splitSubKey(key, subKey, val);
+    AkLogDebug() << "SubKey: " << subKey << std::endl;
+    AkLogDebug() << "Value: " << val << std::endl;
     HKEY hkey = nullptr;
     LONG result = RegCreateKeyExA(HKEY_CURRENT_USER,
                                   subKey.c_str(),
@@ -698,10 +708,11 @@ void AkVCam::Preferences::setValue(const std::string &key,
     if (result != ERROR_SUCCESS)
         return;
 
-    RegSetValueA(hkey,
-                 val.c_str(),
-                 dataType,
-                 data,
-                 dataSize);
+    RegSetValueExA(hkey,
+                   val.c_str(),
+                   0,
+                   dataType,
+                   reinterpret_cast<CONST BYTE *>(data),
+                   dataSize);
     RegCloseKey(hkey);
 }

@@ -36,7 +36,7 @@ namespace AkVCam
     class VideoControlPrivate
     {
         public:
-            IEnumPins *m_enumPins;
+            IEnumPins *m_enumPins {nullptr};
     };
 }
 

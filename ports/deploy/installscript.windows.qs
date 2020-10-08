@@ -13,19 +13,29 @@ Component.prototype.createOperations = function()
     let archs = ["x86", "x64"];
 
     for (let i in archs) {
+        if (installer.isUninstaller()) {
+            let managerPath =
+                installer.value("TargetDir")
+                + "/"
+                + archs[i]
+                + "/AkVCamManager.exe";
+            component.addOperation("Execute",
+                                   managerPath, "remove-devices");
+            component.addElevatedOperation("Execute",
+                                           managerPath, "update");
+        }
+    
         let assistantPath =
             installer.value("TargetDir")
             + "/"
             + archs[i]
             + "/AkVCamAssistant.exe";
 
-        if (!installer.fileExists(assistantPath))
-            continue;
-
         // Load assistant daemon.
-        component.addElevatedOperation("Execute",
-                                       assistantPath, "--install",
-                                       "UNDOEXECUTE",
-                                       assistantPath, "--uninstall");
+        if (installer.fileExists(assistantPath))
+            component.addElevatedOperation("Execute",
+                                           assistantPath, "--install",
+                                           "UNDOEXECUTE",
+                                           assistantPath, "--uninstall");
     }
 }

@@ -206,7 +206,7 @@ void AkVCam::AdviseCookiePrivate::adviseTimeTh(REFERENCE_TIME baseTime,
 
     auto startSleep =
             REFERENCE_TIME(1e3
-                           * (baseTime + streamTime - clockTime)
+                           * double(baseTime + streamTime - clockTime)
                            / TIME_BASE);
 
     if (startSleep > 0) {
@@ -252,7 +252,7 @@ void AkVCam::AdviseCookiePrivate::advisePeriodicTh(REFERENCE_TIME startTime,
 
     auto startSleep =
             REFERENCE_TIME(1e3
-                           * (startTime - clockTime)
+                           * double(startTime - clockTime)
                            / TIME_BASE);
 
     if (startSleep > 0) {
@@ -262,7 +262,7 @@ void AkVCam::AdviseCookiePrivate::advisePeriodicTh(REFERENCE_TIME startTime,
         this->m_mutex.unlock();
     }
 
-    auto periodSleep = REFERENCE_TIME(1e3 * periodTime / TIME_BASE);
+    auto periodSleep = REFERENCE_TIME(1e3 * double(periodTime) / TIME_BASE);
     std::chrono::milliseconds period(periodSleep);
 
     while (this->m_run) {

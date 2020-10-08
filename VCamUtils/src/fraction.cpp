@@ -18,7 +18,6 @@
  */
 
 #include <cstdlib>
-#include <cwchar>
 #include <sstream>
 #include <string>
 
@@ -133,7 +132,7 @@ int64_t &AkVCam::Fraction::den()
 
 double AkVCam::Fraction::value() const
 {
-    return double(this->d->m_num) / this->d->m_den;
+    return double(this->d->m_num) / double(this->d->m_den);
 }
 
 std::string AkVCam::Fraction::toString() const

@@ -48,8 +48,8 @@ namespace AkVCam
     class CUnknownPrivate
     {
         public:
-            std::atomic<ULONG> m_ref;
-            CUnknown *m_parent;
+            std::atomic<ULONG> m_ref {0};
+            CUnknown *m_parent {nullptr};
             CLSID m_parentCLSID;
     };
 }
@@ -57,7 +57,6 @@ namespace AkVCam
 AkVCam::CUnknown::CUnknown(CUnknown *parent, REFIID parentCLSID)
 {
     this->d = new CUnknownPrivate;
-    this->d->m_ref = 0;
     this->d->m_parent = parent;
     this->d->m_parentCLSID = parentCLSID;
 }

@@ -31,11 +31,11 @@ namespace AkVCam
     class MediaFilterPrivate
     {
         public:
-            IBaseFilter *m_baseFilter;
-            IReferenceClock *m_clock;
+            IBaseFilter *m_baseFilter {nullptr};
+            IReferenceClock *m_clock {nullptr};
             std::vector<StateChangedCallback> m_stateChanged;
-            FILTER_STATE m_state;
-            REFERENCE_TIME m_start;
+            FILTER_STATE m_state {State_Stopped};
+            REFERENCE_TIME m_start {0};
     };
 }
 
@@ -46,9 +46,6 @@ AkVCam::MediaFilter::MediaFilter(const IID &classCLSID,
     this->setParent(this, &IID_IMediaFilter);
     this->d = new MediaFilterPrivate;
     this->d->m_baseFilter = baseFilter;
-    this->d->m_clock = nullptr;
-    this->d->m_state = State_Stopped;
-    this->d->m_start = 0;
 }
 
 AkVCam::MediaFilter::~MediaFilter()

@@ -23,16 +23,12 @@
 #include <uuids.h>
 
 #include "plugininterface.h"
+#include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
-#if 1
-    #define ROOT_HKEY HKEY_CURRENT_USER
-    #define SUBKEY_PREFIX "Software\\Classes\\CLSID"
-#else
-    #define ROOT_HKEY HKEY_CLASSES_ROOT
-    #define SUBKEY_PREFIX "CLSID"
-#endif
+#define ROOT_HKEY HKEY_CLASSES_ROOT
+#define SUBKEY_PREFIX "CLSID"
 
 namespace AkVCam
 {
@@ -119,7 +115,7 @@ bool AkVCam::PluginInterface::registerServer(const std::string &deviceId,
                            0L,
                            REG_SZ,
                            reinterpret_cast<const BYTE *>(threadingModel.c_str()),
-                           DWORD((threadingModel.size() + 1) * sizeof(wchar_t)));
+                           DWORD(threadingModel.size() + 1));
 
     ok = true;
 
@@ -146,7 +142,7 @@ void AkVCam::PluginInterface::unregisterServer(const CLSID &clsid) const
 {
     AkLogFunction();
 
-    auto clsidStr = stringFromClsid(clsid);
+    auto clsidStr = stringFromIid(clsid);
     AkLogInfo() << "CLSID: " << clsidStr << std::endl;
     auto subkey = SUBKEY_PREFIX "\\" + clsidStr;
     deleteTree(ROOT_HKEY, subkey.c_str(), 0);
@@ -181,12 +177,15 @@ bool AkVCam::PluginInterface::registerFilter(const std::string &deviceId,
     regFilter.cPins2 = ULONG(pins.size());
     regFilter.rgPins2 = pins.data();
 
-    auto result = CoInitialize(nullptr);
+    auto result = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     bool ok = false;
     LPWSTR wdescription = nullptr;
 
-    if (FAILED(result))
+    if (FAILED(result)) {
+        AkLogError() << "Failed to initialize the COM library." << std::endl;
+
         goto registerFilter_failed;
+    }
 
     result = CoCreateInstance(CLSID_FilterMapper2,
                               nullptr,
@@ -194,8 +193,11 @@ bool AkVCam::PluginInterface::registerFilter(const std::string &deviceId,
                               IID_IFilterMapper2,
                               reinterpret_cast<void **>(&filterMapper));
 
-    if (FAILED(result))
+    if (FAILED(result)) {
+        AkLogError() << "Can't create instance for IFilterMapper2." << std::endl;
+
         goto registerFilter_failed;
+    }
 
     wdescription = stringToWSTR(description);
     result = filterMapper->RegisterFilter(clsid,
@@ -230,7 +232,7 @@ void AkVCam::PluginInterface::unregisterFilter(const CLSID &clsid) const
 {
     AkLogFunction();
     IFilterMapper2 *filterMapper = nullptr;
-    auto result = CoInitialize(nullptr);
+    auto result = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     if (FAILED(result))
         goto unregisterFilter_failed;
@@ -284,7 +286,7 @@ bool AkVCam::PluginInterface::setDevicePath(const std::string &deviceId) const
                             0,
                             REG_SZ,
                             reinterpret_cast<const BYTE *>(deviceId.c_str()),
-                            DWORD((deviceId.size() + 1) * sizeof(wchar_t)));
+                            DWORD(deviceId.size() + 1));
 
     if (result != ERROR_SUCCESS)
         goto setDevicePath_failed;
@@ -336,4 +338,28 @@ void AkVCam::PluginInterface::destroyDevice(const CLSID &clsid)
 
     this->unregisterFilter(clsid);
     this->unregisterServer(clsid);
+}
+
+void AkVCam::PluginInterface::initializeLogger() const
+{
+    static bool loggerReady = false;
+
+    if (loggerReady)
+        return;
+
+    auto loglevel = AkVCam::Preferences::logLevel();
+    AkVCam::Logger::setLogLevel(loglevel);
+
+    if (loglevel > AKVCAM_LOGLEVEL_DEFAULT) {
+        // Turn on lights
+        freopen("CONOUT$", "a", stdout);
+        freopen("CONOUT$", "a", stderr);
+        setbuf(stdout, nullptr);
+    }
+
+    auto defaultLogFile = AkVCam::tempPath() + "\\" DSHOW_PLUGIN_NAME ".log";
+    auto logFile = AkVCam::Preferences::readString("logfile", defaultLogFile);
+    AkLogInfo() << "Sending debug output to " << logFile << std::endl;
+    AkVCam::Logger::setLogFile(logFile);
+    loggerReady = true;
 }

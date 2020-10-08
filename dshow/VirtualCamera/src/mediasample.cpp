@@ -28,20 +28,20 @@ namespace AkVCam
     class MediaSamplePrivate
     {
         public:
-            IMemAllocator *m_memAllocator;
-            BYTE *m_buffer;
-            LONG m_bufferSize;
-            LONG m_dataLength;
-            LONG m_prefix;
-            AM_MEDIA_TYPE *m_mediaType;
-            REFERENCE_TIME m_sampleTimeStart;
-            REFERENCE_TIME m_sampleTimeEnd;
-            REFERENCE_TIME m_mediaTimeStart;
-            REFERENCE_TIME m_mediaTimeEnd;
-            BOOL m_syncPoint;
-            BOOL m_preroll;
-            BOOL m_discontinuity;
-            BOOL m_mediaTypeChanged;
+            IMemAllocator *m_memAllocator {nullptr};
+            BYTE *m_buffer {nullptr};
+            LONG m_bufferSize {0};
+            LONG m_dataLength {0};
+            LONG m_prefix {0};
+            AM_MEDIA_TYPE *m_mediaType {nullptr};
+            REFERENCE_TIME m_sampleTimeStart {-1};
+            REFERENCE_TIME m_sampleTimeEnd {-1};
+            REFERENCE_TIME m_mediaTimeStart {-1};
+            REFERENCE_TIME m_mediaTimeEnd {-1};
+            BOOL m_syncPoint {S_FALSE};
+            BOOL m_preroll {S_FALSE};
+            BOOL m_discontinuity {S_FALSE};
+            BOOL m_mediaTypeChanged {S_FALSE};
     };
 }
 
@@ -58,15 +58,7 @@ AkVCam::MediaSample::MediaSample(IMemAllocator *memAllocator,
     this->d->m_prefix = prefix;
     auto realSize = size_t(bufferSize + prefix + align - 1) & ~size_t(align - 1);
     this->d->m_buffer = new BYTE[realSize];
-    this->d->m_mediaType = nullptr;
-    this->d->m_sampleTimeStart = -1;
-    this->d->m_sampleTimeEnd = -1;
-    this->d->m_mediaTimeStart = -1;
-    this->d->m_mediaTimeEnd = -1;
-    this->d->m_syncPoint = S_FALSE;
-    this->d->m_preroll = S_FALSE;
-    this->d->m_discontinuity = S_FALSE;
-    this->d->m_mediaTypeChanged = S_FALSE;
+    memset(this->d->m_buffer, 0, realSize * sizeof(BYTE));
 }
 
 AkVCam::MediaSample::~MediaSample()

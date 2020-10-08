@@ -37,8 +37,8 @@ namespace AkVCam
             ALLOCATOR_PROPERTIES m_properties;
             std::mutex m_mutex;
             std::condition_variable_any m_bufferReleased;
-            bool m_commited;
-            bool m_decommiting;
+            bool m_commited {false};
+            bool m_decommiting {false};
     };
 }
 
@@ -47,8 +47,6 @@ AkVCam::MemAllocator::MemAllocator():
 {
     this->d = new MemAllocatorPrivate;
     memset(&this->d->m_properties, 0, sizeof(ALLOCATOR_PROPERTIES));
-    this->d->m_commited = false;
-    this->d->m_decommiting = false;
 }
 
 AkVCam::MemAllocator::~MemAllocator()

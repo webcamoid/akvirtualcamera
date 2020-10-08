@@ -48,39 +48,39 @@ namespace AkVCam
     {
         public:
             Pin *self;
-            BaseFilter *m_baseFilter;
-            VideoProcAmp *m_videoProcAmp;
+            BaseFilter *m_baseFilter {nullptr};
+            VideoProcAmp *m_videoProcAmp {nullptr};
             std::string m_pinName;
             std::string m_pinId;
-            EnumMediaTypes *m_mediaTypes;
-            IPin *m_connectedTo;
-            IMemInputPin *m_memInputPin;
-            IMemAllocator *m_memAllocator;
-            REFERENCE_TIME m_pts;
-            REFERENCE_TIME m_ptsDrift;
-            REFERENCE_TIME m_start;
-            REFERENCE_TIME m_stop;
-            double m_rate;
-            FILTER_STATE m_prevState;
-            DWORD_PTR m_adviseCookie;
-            HANDLE m_sendFrameEvent;
+            EnumMediaTypes *m_mediaTypes {nullptr};
+            IPin *m_connectedTo {nullptr};
+            IMemInputPin *m_memInputPin {nullptr};
+            IMemAllocator *m_memAllocator {nullptr};
+            REFERENCE_TIME m_pts {-1};
+            REFERENCE_TIME m_ptsDrift {0};
+            REFERENCE_TIME m_start {0};
+            REFERENCE_TIME m_stop {MAXLONGLONG};
+            double m_rate {1.0};
+            FILTER_STATE m_prevState = State_Stopped;
+            DWORD_PTR m_adviseCookie {0};
+            HANDLE m_sendFrameEvent {nullptr};
             std::thread m_sendFrameThread;
-            std::atomic<bool> m_running;
+            std::atomic<bool> m_running {false};
             std::mutex m_mutex;
             std::mutex m_controlsMutex;
             VideoFrame m_currentFrame;
             VideoFrame m_testFrame;
             VideoFrame m_testFrameAdapted;
             std::string m_broadcaster;
-            bool m_horizontalFlip;   // Controlled by client
-            bool m_verticalFlip;
+            bool m_horizontalFlip {false};   // Controlled by client
+            bool m_verticalFlip {false};
             std::map<std::string, int> m_controls;
-            LONG m_brightness;
-            LONG m_contrast;
-            LONG m_saturation;
-            LONG m_gamma;
-            LONG m_hue;
-            LONG m_colorenable;
+            LONG m_brightness {0};
+            LONG m_contrast {0};
+            LONG m_saturation {0};
+            LONG m_gamma {0};
+            LONG m_hue {0};
+            LONG m_colorenable {0};
 
             void sendFrameOneShot();
             void sendFrameLoop();
@@ -111,20 +111,6 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     this->d->m_pinId = ss.str();
     this->d->m_mediaTypes = new AkVCam::EnumMediaTypes(formats);
     this->d->m_mediaTypes->AddRef();
-    this->d->m_connectedTo = nullptr;
-    this->d->m_memInputPin = nullptr;
-    this->d->m_memAllocator = nullptr;
-    this->d->m_ptsDrift = -1;
-    this->d->m_ptsDrift = 0;
-    this->d->m_start = 0;
-    this->d->m_stop = MAXLONGLONG;
-    this->d->m_rate = 1.0;
-    this->d->m_horizontalFlip = false;
-    this->d->m_verticalFlip = false;
-    this->d->m_prevState = State_Stopped;
-    this->d->m_adviseCookie = 0;
-    this->d->m_sendFrameEvent = nullptr;
-    this->d->m_running = false;
     auto picture = Preferences::picture();
 
     if (!picture.empty())
@@ -226,9 +212,7 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
         auto videoFormat = formatFromMediaType(mediaType);
         deleteMediaType(&mediaType);
         auto fps = videoFormat.minimumFrameRate();
-        auto period = REFERENCE_TIME(TIME_BASE
-                                     * fps.den()
-                                     / fps.num());
+        auto period = REFERENCE_TIME(TIME_BASE / fps.value());
 
         clock->AdvisePeriodic(now,
                               period,
@@ -691,7 +675,7 @@ HRESULT AkVCam::Pin::QueryPinInfo(PIN_INFO *pInfo)
         auto pinName = stringToWSTR(this->d->m_pinName);
         memcpy(pInfo->achName,
                pinName,
-               (std::min<size_t>)(this->d->m_pinName.size() * sizeof(WCHAR),
+               (std::min<size_t>)(wcslen(pinName) * sizeof(WCHAR),
                                   MAX_PIN_NAME));
         CoTaskMemFree(pinName);
     }
@@ -718,16 +702,10 @@ HRESULT AkVCam::Pin::QueryId(LPWSTR *Id)
     if (!Id)
         return E_POINTER;
 
-    auto wstrSize = (this->d->m_pinId.size() + 1) * sizeof(WCHAR);
-    *Id = reinterpret_cast<LPWSTR>(CoTaskMemAlloc(wstrSize));
+    *Id = stringToWSTR(this->d->m_pinId);
 
     if (!*Id)
         return E_OUTOFMEMORY;
-
-    memset(*Id, 0, wstrSize);
-    auto pinId = stringToWSTR(this->d->m_pinId);
-    memcpy(*Id, pinId, this->d->m_pinId.size() * sizeof(WCHAR));
-    CoTaskMemFree(pinId);
 
     return S_OK;
 }
@@ -894,9 +872,7 @@ HRESULT AkVCam::PinPrivate::sendFrame()
     auto format = formatFromMediaType(mediaType);
     deleteMediaType(&mediaType);
     auto fps = format.minimumFrameRate();
-    auto duration = REFERENCE_TIME(TIME_BASE
-                                   * fps.den()
-                                   / fps.num());
+    auto duration = REFERENCE_TIME(TIME_BASE / fps.value());
 
     if (this->m_pts < 0) {
         this->m_pts = 0;

@@ -18,7 +18,6 @@
  */
 
 #include <algorithm>
-#include <cwchar>
 #include <map>
 #include <sstream>
 #include <dshow.h>
@@ -126,6 +125,8 @@ std::string AkVCam::errorToString(DWORD errorCode)
 // Converts a human redable string to a CLSID using MD5 hash.
 CLSID AkVCam::createClsidFromStr(const std::string &str)
 {
+    AkLogFunction();
+    AkLogDebug() << "String: " << str << std::endl;
     HCRYPTPROV provider = 0;
     HCRYPTHASH hash = 0;
     CLSID clsid;
@@ -144,7 +145,7 @@ CLSID AkVCam::createClsidFromStr(const std::string &str)
 
     if (!CryptHashData(hash,
                        reinterpret_cast<const BYTE *>(str.c_str()),
-                       DWORD(str.size() * sizeof(wchar_t)),
+                       DWORD(str.size()),
                        0))
         goto clsidFromStr_failed;
 
@@ -161,21 +162,14 @@ clsidFromStr_failed:
     if (provider)
         CryptReleaseContext(provider, 0);
 
+    AkLogDebug() << "CLSID: " << stringFromIid(clsid) << std::endl;
+
     return clsid;
 }
 
 std::string AkVCam::createClsidStrFromStr(const std::string &str)
 {
-    auto clsid = createClsidFromStr(str);
-    LPWSTR clsidWStr = nullptr;
-
-    if (StringFromCLSID(clsid, &clsidWStr) != S_OK)
-        return {};
-
-    auto str_ = stringFromWSTR(clsidWStr);
-    CoTaskMemFree(clsidWStr);
-
-    return str_;
+    return stringFromIid(createClsidFromStr(str));
 }
 
 std::string AkVCam::stringFromIid(const IID &iid)
@@ -260,14 +254,23 @@ std::string AkVCam::stringFromClsid(const CLSID &clsid)
 std::string AkVCam::stringFromWSTR(LPCWSTR wstr)
 {
     auto len = WideCharToMultiByte(CP_ACP,
-                            0,
-                            wstr,
-                            -1,
-                            nullptr,
-                            0,
-                            nullptr,
-                            nullptr);
-    CHAR *cstr = new CHAR[len];
+                                   0,
+                                   wstr,
+                                   -1,
+                                   nullptr,
+                                   0,
+                                   nullptr,
+                                   nullptr);
+
+    if (len < 1)
+        return {};
+
+    auto cstr = new CHAR[len + 1];
+
+    if (!cstr)
+        return {};
+
+    memset(cstr, 0, size_t(len + 1) * sizeof(CHAR));
     WideCharToMultiByte(CP_ACP,
                         0,
                         wstr,
@@ -287,14 +290,24 @@ LPWSTR AkVCam::stringToWSTR(const std::string &str)
     auto len = MultiByteToWideChar(CP_ACP,
                                    0,
                                    str.c_str(),
-                                   str.size(),
+                                   -1,
                                    nullptr,
                                    0);
-    auto wstr = reinterpret_cast<LPWSTR>(CoTaskMemAlloc(len * sizeof(WCHAR)));
+
+    if (len < 1)
+        return nullptr;
+
+    auto wstr = reinterpret_cast<LPWSTR>(CoTaskMemAlloc(size_t(len + 1)
+                                                        * sizeof(WCHAR)));
+
+    if (!wstr)
+        return nullptr;
+
+    memset(wstr, 0, size_t(len + 1) * sizeof(WCHAR));
     MultiByteToWideChar(CP_ACP,
                         0,
                         str.c_str(),
-                        str.size(),
+                        -1,
                         wstr,
                         len);
 
@@ -434,16 +447,16 @@ AM_MEDIA_TYPE *AkVCam::mediaTypeFromFormat(const AkVCam::VideoFormat &format)
 AkVCam::VideoFormat AkVCam::formatFromMediaType(const AM_MEDIA_TYPE *mediaType)
 {
     if (!mediaType)
-        return VideoFormat();
+        return {};
 
     if (!IsEqualGUID(mediaType->majortype, MEDIATYPE_Video))
-        return VideoFormat();
+        return {};
 
     if (!isSubTypeSupported(mediaType->subtype))
-        return VideoFormat();
+        return {};
 
     if (!mediaType->pbFormat)
-        return VideoFormat();
+        return {};
 
     if (IsEqualGUID(mediaType->formattype, FORMAT_VideoInfo)) {
         auto format = reinterpret_cast<VIDEOINFOHEADER *>(mediaType->pbFormat);
@@ -465,7 +478,7 @@ AkVCam::VideoFormat AkVCam::formatFromMediaType(const AM_MEDIA_TYPE *mediaType)
                            {fps});
     }
 
-    return VideoFormat();
+    return {};
 }
 
 bool AkVCam::isEqualMediaType(const AM_MEDIA_TYPE *mediaType1,
@@ -821,7 +834,7 @@ LSTATUS AkVCam::deleteTree(HKEY key, LPCSTR subkey, REGSAM samFlags)
                               i,
                               name,
                               &nameLen,
-                              0,
+                              nullptr,
                               nullptr,
                               nullptr,
                               nullptr);
@@ -933,7 +946,7 @@ LSTATUS AkVCam::copyTree(HKEY src, LPCSTR subkey, HKEY dst, REGSAM samFlags)
                               i,
                               name,
                               &nameLen,
-                              0,
+                              nullptr,
                               &dataType,
                               data,
                               &dataSize);
@@ -969,7 +982,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
 
     IWICImagingFactory *imagingFactory = nullptr;
     auto hr = CoCreateInstance(CLSID_WICImagingFactory,
-                               NULL,
+                               nullptr,
                                CLSCTX_INPROC_SERVER,
                                IID_PPV_ARGS(&imagingFactory));
 
@@ -1003,11 +1016,13 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
                         UINT width = 0;
                         UINT height = 0;
                         formatConverter->GetSize(&width, &height);
-                        VideoFormat videoFormat(PixelFormatRGB24, width, height);
+                        VideoFormat videoFormat(PixelFormatRGB24,
+                                                int(width),
+                                                int(height));
                         frame = VideoFrame(videoFormat);
                         formatConverter->CopyPixels(nullptr,
                                                     3 * width,
-                                                    frame.data().size(),
+                                                    UINT(frame.data().size()),
                                                     frame.data().data());
                     }
 
