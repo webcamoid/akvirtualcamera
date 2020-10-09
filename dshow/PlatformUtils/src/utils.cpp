@@ -43,47 +43,35 @@ namespace AkVCam
             GUID guid;
             const DWORD *masks;
 
-            inline static const std::vector<VideoFormatSpecsPrivate> &formats()
-            {
-                static const DWORD bits555[] = {0x007c00, 0x0003e0, 0x00001f};
-                static const DWORD bits565[] = {0x00f800, 0x0007e0, 0x00001f};
-
-                static const std::vector<VideoFormatSpecsPrivate> formats {
-                    {PixelFormatRGB32, BI_RGB                        , MEDIASUBTYPE_RGB32 , nullptr},
-                    {PixelFormatRGB24, BI_RGB                        , MEDIASUBTYPE_RGB24 , nullptr},
-                    {PixelFormatRGB16, BI_BITFIELDS                  , MEDIASUBTYPE_RGB565, bits565},
-                    {PixelFormatRGB15, BI_BITFIELDS                  , MEDIASUBTYPE_RGB555, bits555},
-                    {PixelFormatUYVY , MAKEFOURCC('U', 'Y', 'V', 'Y'), MEDIASUBTYPE_UYVY  , nullptr},
-                    {PixelFormatYUY2 , MAKEFOURCC('Y', 'U', 'Y', '2'), MEDIASUBTYPE_YUY2  , nullptr},
-                    {PixelFormatNV12 , MAKEFOURCC('N', 'V', '1', '2'), MEDIASUBTYPE_NV12  , nullptr}
-                };
-
-                return formats;
-            }
-
-            static inline const VideoFormatSpecsPrivate *byGuid(const GUID &guid)
-            {
-                for (auto &format: formats())
-                    if (IsEqualGUID(format.guid, guid))
-                        return &format;
-
-                return nullptr;
-            }
-
-            static inline const VideoFormatSpecsPrivate *byPixelFormat(FourCC pixelFormat)
-            {
-                for (auto &format: formats())
-                    if (format.pixelFormat == pixelFormat)
-                        return &format;
-
-                return nullptr;
-            }
+            inline static const std::vector<VideoFormatSpecsPrivate> &formats();
+            static inline const VideoFormatSpecsPrivate *byGuid(const GUID &guid);
+            static inline const VideoFormatSpecsPrivate *byPixelFormat(FourCC pixelFormat);
     };
 }
 
 bool operator <(const CLSID &a, const CLSID &b)
 {
     return AkVCam::stringFromIid(a) < AkVCam::stringFromIid(b);
+}
+
+std::string AkVCam::locatePluginPath()
+{
+    AkLogFunction();
+    char path[MAX_PATH];
+    memset(path, 0, MAX_PATH);
+    HMODULE hmodule = nullptr;
+
+    if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                          GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                          LPCTSTR(&locatePluginPath),
+                          &hmodule)) {
+        GetModuleFileNameA(hmodule, path, MAX_PATH);
+    }
+
+    if (strlen(path) < 1)
+        return {};
+
+    return dirname(path);
 }
 
 std::string AkVCam::tempPath()
@@ -102,6 +90,16 @@ std::string AkVCam::moduleFileName(HINSTANCE hinstDLL)
     GetModuleFileNameA(hinstDLL, fileName, MAX_PATH);
 
     return std::string(fileName);
+}
+
+std::string AkVCam::dirname(const std::string &path)
+{
+    return path.substr(0, path.rfind("\\"));
+}
+
+bool AkVCam::fileExists(const std::string &path)
+{
+    return GetFileAttributesA(path.c_str()) & FILE_ATTRIBUTE_ARCHIVE;
 }
 
 std::string AkVCam::errorToString(DWORD errorCode)
@@ -1047,4 +1045,151 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
                  << std::endl;
 
     return frame;
+}
+
+std::vector<CLSID> AkVCam::listAllCameras()
+{
+    WCHAR *strIID = nullptr;
+    StringFromIID(CLSID_VideoInputDeviceCategory, &strIID);
+
+    std::wstringstream ss;
+    ss << L"CLSID\\" << strIID << L"\\Instance";
+    CoTaskMemFree(strIID);
+
+    HKEY key = nullptr;
+    auto result = RegOpenKeyExW(HKEY_CLASSES_ROOT,
+                                ss.str().c_str(),
+                                0,
+                                MAXIMUM_ALLOWED,
+                                &key);
+
+    if (result != ERROR_SUCCESS)
+        return {};
+
+    DWORD subkeys = 0;
+
+    result = RegQueryInfoKey(key,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             &subkeys,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr);
+
+    if (result != ERROR_SUCCESS) {
+        RegCloseKey(key);
+
+        return {};
+    }
+
+    std::vector<CLSID> cameras;
+    FILETIME lastWrite;
+
+    for (DWORD i = 0; i < subkeys; i++) {
+        WCHAR subKey[MAX_PATH];
+        memset(subKey, 0, MAX_PATH * sizeof(WCHAR));
+        DWORD subKeyLen = MAX_PATH;
+        result = RegEnumKeyExW(key,
+                               i,
+                               subKey,
+                               &subKeyLen,
+                               nullptr,
+                               nullptr,
+                               nullptr,
+                               &lastWrite);
+
+        if (result == ERROR_SUCCESS) {
+            CLSID clsid;
+            memset(&clsid, 0, sizeof(CLSID));
+            CLSIDFromString(subKey, &clsid);
+            cameras.push_back(clsid);
+        }
+    }
+
+    RegCloseKey(key);
+
+    return cameras;
+}
+
+std::vector<CLSID> AkVCam::listRegisteredCameras()
+{
+    AkLogFunction();
+    auto pluginFolder = locatePluginPath();
+    AkLogDebug() << "Plugin path: " << pluginFolder << std::endl;
+
+    if (pluginFolder.empty())
+        return {};
+
+    auto pluginPath = pluginFolder + "\\" DSHOW_PLUGIN_NAME ".dll";
+    AkLogDebug() << "Plugin binary: " << pluginPath << std::endl;
+
+    if (!fileExists(pluginPath)) {
+        AkLogError() << "Plugin binary not found: " << pluginPath << std::endl;
+
+        return {};
+    }
+
+    std::vector<CLSID> cameras;
+
+    for (auto &clsid: listAllCameras()) {
+        auto subKey = "CLSID\\" + stringFromIid(clsid) + "\\InprocServer32";
+        CHAR path[MAX_PATH];
+        memset(path, 0, MAX_PATH * sizeof(CHAR));
+        DWORD pathSize = MAX_PATH;
+
+        if (RegGetValueA(HKEY_CLASSES_ROOT,
+                         subKey.c_str(),
+                         nullptr,
+                         RRF_RT_REG_SZ,
+                         nullptr,
+                         path,
+                         &pathSize) == ERROR_SUCCESS) {
+
+            if (path == pluginPath)
+                cameras.push_back(clsid);
+        }
+    }
+
+    return cameras;
+}
+
+const std::vector<AkVCam::VideoFormatSpecsPrivate> &AkVCam::VideoFormatSpecsPrivate::formats()
+{
+    static const DWORD bits555[] = {0x007c00, 0x0003e0, 0x00001f};
+    static const DWORD bits565[] = {0x00f800, 0x0007e0, 0x00001f};
+
+    static const std::vector<VideoFormatSpecsPrivate> formats {
+        {PixelFormatRGB32, BI_RGB                        , MEDIASUBTYPE_RGB32 , nullptr},
+        {PixelFormatRGB24, BI_RGB                        , MEDIASUBTYPE_RGB24 , nullptr},
+        {PixelFormatRGB16, BI_BITFIELDS                  , MEDIASUBTYPE_RGB565, bits565},
+        {PixelFormatRGB15, BI_BITFIELDS                  , MEDIASUBTYPE_RGB555, bits555},
+        {PixelFormatUYVY , MAKEFOURCC('U', 'Y', 'V', 'Y'), MEDIASUBTYPE_UYVY  , nullptr},
+        {PixelFormatYUY2 , MAKEFOURCC('Y', 'U', 'Y', '2'), MEDIASUBTYPE_YUY2  , nullptr},
+        {PixelFormatNV12 , MAKEFOURCC('N', 'V', '1', '2'), MEDIASUBTYPE_NV12  , nullptr}
+    };
+
+    return formats;
+}
+
+const AkVCam::VideoFormatSpecsPrivate *AkVCam::VideoFormatSpecsPrivate::byGuid(const GUID &guid)
+{
+    for (auto &format: formats())
+        if (IsEqualGUID(format.guid, guid))
+            return &format;
+
+    return nullptr;
+}
+
+const AkVCam::VideoFormatSpecsPrivate *AkVCam::VideoFormatSpecsPrivate::byPixelFormat(FourCC pixelFormat)
+{
+    for (auto &format: formats())
+        if (format.pixelFormat == pixelFormat)
+            return &format;
+
+    return nullptr;
 }

@@ -40,7 +40,6 @@ namespace AkVCam
         int readInt(const std::string &key, int defaultValue=0);
         double readDouble(const std::string &key, double defaultValue=0.0);
         bool readBool(const std::string &key, bool defaultValue=false);
-        std::vector<CLSID> listRegisteredCameras(HINSTANCE hinstDLL);
         void deleteKey(const std::string &key);
         void move(const std::string &keyFrom, const std::string &keyTo);
         std::string addDevice(const std::string &description);

@@ -121,8 +121,7 @@ STDAPI DllUnregisterServer()
 {
     pluginInterface()->initializeLogger();
     AkLogFunction();
-    auto cameras =
-            AkVCam::Preferences::listRegisteredCameras(pluginInterface()->pluginHinstance());
+    auto cameras = AkVCam::listRegisteredCameras();
 
     for (auto camera: cameras) {
         AkLogInfo() << "Deleting "

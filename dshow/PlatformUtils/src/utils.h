@@ -34,8 +34,11 @@ namespace AkVCam
     class VideoFormat;
     class VideoFrame;
 
+    std::string locatePluginPath();
     std::string tempPath();
     std::string moduleFileName(HINSTANCE hinstDLL);
+    std::string dirname(const std::string &path);
+    bool fileExists(const std::string &path);
     std::string errorToString(DWORD errorCode);
     CLSID createClsidFromStr(const std::string &str);
     std::string createClsidStrFromStr(const std::string &str);
@@ -67,6 +70,8 @@ namespace AkVCam
     LSTATUS deleteTree(HKEY key, LPCSTR subkey, REGSAM samFlags);
     LSTATUS copyTree(HKEY src, LPCSTR subkey, HKEY dst, REGSAM samFlags);
     VideoFrame loadPicture(const std::string &fileName);
+    std::vector<CLSID> listAllCameras();
+    std::vector<CLSID> listRegisteredCameras();
 }
 
 #endif // PLATFORM_UTILS_H

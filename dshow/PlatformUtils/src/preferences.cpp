@@ -129,98 +129,6 @@ bool AkVCam::Preferences::readBool(const std::string &key, bool defaultValue)
     return readInt(key, defaultValue) != 0;
 }
 
-std::vector<CLSID> AkVCam::Preferences::listRegisteredCameras(HINSTANCE hinstDLL)
-{
-    WCHAR *strIID = nullptr;
-    StringFromIID(CLSID_VideoInputDeviceCategory, &strIID);
-
-    std::wstringstream ss;
-    ss << L"CLSID\\"
-       << strIID
-       << L"\\Instance";
-    CoTaskMemFree(strIID);
-
-    HKEY key = nullptr;
-    auto result = RegOpenKeyExW(HKEY_CLASSES_ROOT,
-                                ss.str().c_str(),
-                                0,
-                                MAXIMUM_ALLOWED,
-                                &key);
-
-    if (result != ERROR_SUCCESS)
-        return {};
-
-    DWORD subkeys = 0;
-
-    result = RegQueryInfoKey(key,
-                             nullptr,
-                             nullptr,
-                             nullptr,
-                             &subkeys,
-                             nullptr,
-                             nullptr,
-                             nullptr,
-                             nullptr,
-                             nullptr,
-                             nullptr,
-                             nullptr);
-
-    if (result != ERROR_SUCCESS) {
-        RegCloseKey(key);
-
-        return {};
-    }
-
-    std::vector<CLSID> cameras;
-    FILETIME lastWrite;
-
-    for (DWORD i = 0; i < subkeys; i++) {
-        WCHAR subKey[MAX_PATH];
-        memset(subKey, 0, MAX_PATH * sizeof(WCHAR));
-        DWORD subKeyLen = MAX_PATH;
-        result = RegEnumKeyExW(key,
-                               i,
-                               subKey,
-                               &subKeyLen,
-                               nullptr,
-                               nullptr,
-                               nullptr,
-                               &lastWrite);
-
-        if (result != ERROR_SUCCESS)
-            continue;
-
-        std::wstringstream ss;
-        ss << L"CLSID\\" << subKey << L"\\InprocServer32";
-        WCHAR path[MAX_PATH];
-        memset(path, 0, MAX_PATH * sizeof(WCHAR));
-        DWORD pathSize = MAX_PATH;
-
-        if (RegGetValueW(HKEY_CLASSES_ROOT,
-                         ss.str().c_str(),
-                         nullptr,
-                         RRF_RT_REG_SZ,
-                         nullptr,
-                         path,
-                         &pathSize) == ERROR_SUCCESS) {
-            WCHAR modulePath[MAX_PATH];
-            memset(modulePath, 0, MAX_PATH * sizeof(WCHAR));
-            GetModuleFileNameW(hinstDLL, modulePath, MAX_PATH);
-
-            if (!lstrcmpiW(path, modulePath)) {
-                CLSID clsid;
-                memset(&clsid, 0, sizeof(CLSID));
-                CLSIDFromString(subKey, &clsid);
-                cameras.push_back(clsid);
-            }
-        }
-    }
-
-    RegCloseKey(key);
-
-    return cameras;
-}
-
 void AkVCam::Preferences::deleteKey(const std::string &key)
 {
     AkLogFunction();
@@ -390,6 +298,8 @@ std::string AkVCam::Preferences::createDevicePath()
     for (size_t i = 0; i < camerasCount(); i++)
         cameraPaths.push_back(cameraPath(i));
 
+    // List device CLSIDs in use.
+    auto cameraClsids = listAllCameras();
     const int maxId = 64;
 
     for (int i = 0; i < maxId; i++) {
@@ -397,11 +307,12 @@ std::string AkVCam::Preferences::createDevicePath()
          * incremental index to a common prefix.
          */
         auto path = DSHOW_PLUGIN_DEVICE_PREFIX + std::to_string(i);
+        auto clsid = createClsidFromStr(path);
+        auto pit = std::find(cameraPaths.begin(), cameraPaths.end(), path);
+        auto cit = std::find(cameraClsids.begin(), cameraClsids.end(), clsid);
 
         // Check if the path is being used, if not return it.
-        if (std::find(cameraPaths.begin(),
-                      cameraPaths.end(),
-                      path) == cameraPaths.end())
+        if (pit == cameraPaths.end() && cit == cameraClsids.end())
             return path;
     }
 

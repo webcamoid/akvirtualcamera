@@ -66,12 +66,9 @@ namespace AkVCam
             ~IpcBridgePrivate();
 
             inline const std::vector<DeviceControl> &controls() const;
-            static std::string dirname(const std::string &path);
             void updateDeviceSharedProperties();
             void updateDeviceSharedProperties(const std::string &deviceId,
                                               const std::string &owner);
-            bool fileExists(const std::string &path) const;
-            static std::string locatePluginPath();
             static void pipeStateChanged(void *userData,
                                          MessageServer::PipeState state);
 
@@ -422,7 +419,7 @@ std::vector<std::string> AkVCam::IpcBridge::listeners(const std::string &deviceI
 std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
 {
     AkLogFunction();
-    auto pluginPath = this->d->locatePluginPath();
+    auto pluginPath = locatePluginPath();
     AkLogDebug() << "Plugin path: " << pluginPath << std::endl;
 
     if (pluginPath.empty())
@@ -431,7 +428,7 @@ std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
     auto path = pluginPath + "\\" DSHOW_PLUGIN_NAME ".dll";
     AkLogDebug() << "Plugin binary: " << path << std::endl;
 
-    if (!this->d->fileExists(path))
+    if (!fileExists(path))
         return {};
 
     std::vector<uint64_t> pids;
@@ -550,7 +547,7 @@ void AkVCam::IpcBridge::removeFormat(const std::string &deviceId, int index)
 void AkVCam::IpcBridge::updateDevices()
 {
     AkLogFunction();
-    auto pluginPath = this->d->locatePluginPath();
+    auto pluginPath = locatePluginPath();
     AkLogDebug() << "Plugin path: " << pluginPath << std::endl;
 
     if (pluginPath.empty())
@@ -559,7 +556,7 @@ void AkVCam::IpcBridge::updateDevices()
     auto path = pluginPath + "\\" DSHOW_PLUGIN_NAME ".dll";
     AkLogDebug() << "Plugin binary: " << path << std::endl;
 
-    if (!this->d->fileExists(path)) {
+    if (!fileExists(path)) {
         AkLogError() << "Plugin binary not found: " << path << std::endl;
 
         return;
@@ -800,11 +797,6 @@ const std::vector<AkVCam::DeviceControl> &AkVCam::IpcBridgePrivate::controls() c
     return controls;
 }
 
-std::string AkVCam::IpcBridgePrivate::dirname(const std::string &path)
-{
-    return path.substr(0, path.rfind("\\"));
-}
-
 void AkVCam::IpcBridgePrivate::updateDeviceSharedProperties()
 {
     for (size_t i = 0; i < Preferences::camerasCount(); i++) {
@@ -835,31 +827,6 @@ void AkVCam::IpcBridgePrivate::updateDeviceSharedProperties(const std::string &d
         if (sharedMemory.open())
             this->m_devices[deviceId] = {sharedMemory, mutex};
     }
-}
-
-bool AkVCam::IpcBridgePrivate::fileExists(const std::string &path) const
-{
-    return GetFileAttributesA(path.c_str()) & FILE_ATTRIBUTE_ARCHIVE;
-}
-
-std::string AkVCam::IpcBridgePrivate::locatePluginPath()
-{
-    AkLogFunction();
-    char path[MAX_PATH];
-    memset(path, 0, MAX_PATH);
-    HMODULE hmodule = nullptr;
-
-    if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                          GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                          LPCTSTR(&AkVCam::IpcBridgePrivate::locatePluginPath),
-                          &hmodule)) {
-        GetModuleFileNameA(hmodule, path, MAX_PATH);
-    }
-
-    if (strlen(path) < 1)
-        return {};
-
-    return dirname(path);
 }
 
 void AkVCam::IpcBridgePrivate::pipeStateChanged(void *userData,
