@@ -71,7 +71,6 @@ namespace AkVCam
             ~BaseFilterPrivate();
             IEnumPins *pinsForDevice(const std::string &deviceId);
             void updatePins();
-            static WINBOOL enumWindowsProc(HWND handler, LPARAM userData);
             static void serverStateChanged(void *userData,
                                            IpcBridge::ServerState state);
             static void frameReady(void *userData,
@@ -89,6 +88,8 @@ namespace AkVCam
                                     const std::map<std::string, int> &controls);
     };
 }
+
+WINBOOL CALLBACK AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
 
 AkVCam::BaseFilter::BaseFilter(const GUID &clsid,
                                const std::string &filterName,
@@ -428,15 +429,6 @@ void AkVCam::BaseFilterPrivate::updatePins()
     AkVCamDevicePinCall(path, this, setControls, controls)
 }
 
-WINBOOL AkVCam::BaseFilterPrivate::enumWindowsProc(HWND handler,
-                                                   LPARAM userData)
-{
-    auto handlers = reinterpret_cast<std::vector<HWND> *>(userData);
-    handlers->push_back(handler);
-
-    return TRUE;
-}
-
 void AkVCam::BaseFilterPrivate::serverStateChanged(void *userData,
                                                    IpcBridge::ServerState state)
 {
@@ -484,7 +476,7 @@ void AkVCam::BaseFilterPrivate::devicesChanged(void *userData,
     UNUSED(devices);
     AkLogFunction();
     std::vector<HWND> handlers;
-    EnumWindows(WNDENUMPROC(enumWindowsProc), LPARAM(&handlers));
+    EnumWindows(WNDENUMPROC(AkVCamEnumWindowsProc), LPARAM(&handlers));
 
     for (auto &handler: handlers)
         SendMessage(handler, WM_DEVICECHANGE, DBT_DEVNODES_CHANGED, 0);
@@ -506,4 +498,12 @@ void AkVCam::BaseFilterPrivate::setControls(void *userData,
     AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
     AkVCamDevicePinCall(deviceId, self, setControls, controls)
+}
+
+WINBOOL CALLBACK AkVCamEnumWindowsProc(HWND handler, LPARAM userData)
+{
+    auto handlers = reinterpret_cast<std::vector<HWND> *>(userData);
+    handlers->push_back(handler);
+
+    return TRUE;
 }
