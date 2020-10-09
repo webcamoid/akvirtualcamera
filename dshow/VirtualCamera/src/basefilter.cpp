@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <windows.h>
 #include <dshow.h>
 #include <dbt.h>
 
