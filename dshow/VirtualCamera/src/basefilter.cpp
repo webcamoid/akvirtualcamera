@@ -71,6 +71,7 @@ namespace AkVCam
             ~BaseFilterPrivate();
             IEnumPins *pinsForDevice(const std::string &deviceId);
             void updatePins();
+            static WINBOOL enumWindowsProc(HWND handler, LPARAM userData);
             static void serverStateChanged(void *userData,
                                            IpcBridge::ServerState state);
             static void frameReady(void *userData,
@@ -427,6 +428,15 @@ void AkVCam::BaseFilterPrivate::updatePins()
     AkVCamDevicePinCall(path, this, setControls, controls)
 }
 
+WINBOOL AkVCam::BaseFilterPrivate::enumWindowsProc(HWND handler,
+                                                   LPARAM userData)
+{
+    auto handlers = reinterpret_cast<std::vector<HWND> *>(userData);
+    handlers->push_back(handler);
+
+    return TRUE;
+}
+
 void AkVCam::BaseFilterPrivate::serverStateChanged(void *userData,
                                                    IpcBridge::ServerState state)
 {
@@ -474,14 +484,7 @@ void AkVCam::BaseFilterPrivate::devicesChanged(void *userData,
     UNUSED(devices);
     AkLogFunction();
     std::vector<HWND> handlers;
-    EnumWindows([] (HWND handler, LPARAM userData) -> BOOL {
-                    auto handlers =
-                            reinterpret_cast<std::vector<HWND> *>(userData);
-                    handlers->push_back(handler);
-
-                    return TRUE;
-                },
-                reinterpret_cast<LPARAM>(&handlers));
+    EnumWindows(enumWindowsProc, LPARAM(&handlers));
 
     for (auto &handler: handlers)
         SendMessage(handler, WM_DEVICECHANGE, DBT_DEVNODES_CHANGED, 0);
