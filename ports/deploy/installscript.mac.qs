@@ -11,6 +11,16 @@ Component.prototype.createOperations = function()
 {
     component.createOperations();
 
+    // Remove virtual cameras
+    if (installer.isUninstaller()) {
+        component.addOperation("Execute",
+                               "@TargetDir@/@Name@.plugin/Contents/Resources/AkVCamManager",
+                               "remove-devices");
+        component.addOperation("Execute",
+                               "@TargetDir@/@Name@.plugin/Contents/Resources/AkVCamManager",
+                               "update");
+    }
+
     // Remove old plugin
     if (installer.isInstaller()) {
         component.addOperation("ConsumeOutput",

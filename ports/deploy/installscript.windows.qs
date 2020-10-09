@@ -13,6 +13,7 @@ Component.prototype.createOperations = function()
     let archs = ["x86", "x64"];
 
     for (let i in archs) {
+        // Remove virtual cameras
         if (installer.isUninstaller()) {
             let managerPath =
                 installer.value("TargetDir")
@@ -24,7 +25,7 @@ Component.prototype.createOperations = function()
             component.addElevatedOperation("Execute",
                                            managerPath, "update");
         }
-    
+
         let assistantPath =
             installer.value("TargetDir")
             + "/"
