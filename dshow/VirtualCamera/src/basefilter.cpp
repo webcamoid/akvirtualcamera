@@ -484,7 +484,7 @@ void AkVCam::BaseFilterPrivate::devicesChanged(void *userData,
     UNUSED(devices);
     AkLogFunction();
     std::vector<HWND> handlers;
-    EnumWindows(enumWindowsProc, LPARAM(&handlers));
+    EnumWindows(WNDENUMPROC(enumWindowsProc), LPARAM(&handlers));
 
     for (auto &handler: handlers)
         SendMessage(handler, WM_DEVICECHANGE, DBT_DEVNODES_CHANGED, 0);
