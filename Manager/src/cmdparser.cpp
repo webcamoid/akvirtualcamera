@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <codecvt>
+#include <csignal>
 #include <iostream>
 #include <functional>
 #include <locale>

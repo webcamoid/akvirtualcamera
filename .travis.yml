@@ -10,7 +10,7 @@ env:
   global:
     - QTVER=5.14.1
     - QTIFWVER=3.2.2
-    - ARCH_ROOT_DATE=2020.06.01
+    - ARCH_ROOT_DATE=2020.10.01
     - ARCH_ROOT_URL=https://mirror.rackspace.com/archlinux
     # BT_KEY
     - secure: "hHaLRfMKI1iB/NtKRfS3E+kABSbMOycS3dW2wNmNdCpPEmGaeuBfRIiwXlPMMXYIE/47YUKCGN8vraCoW4yEJGaIsU86MpaHsBYdjNFYaTjkElKTo8d2IgS9ur/ve65Fjutd8rDRGYBcvG9FIcMMgN+rNekSy9L4eVoaFuMq5V5AkxSmQu7YMmny3DMR1+eD7E/I4tu6tde16l51mB47fyW1u/FcyJ8mIAPW5hoSvVznNxAPGd5/80NcqykfjNmTFQ2B7YJMEQPwIA/YJMq+SjOqZNyB0Q8XzN1I9HqK2D2C89dZUI6bD+Q9JNGKIyoEpJ5BzKu6oZaVBGIfCCI9Dyq/B6PCm4s5swVWkGFJzL31EKewvzP3YepszEAbiuFMLW2ye6PJat5pSU13RHVKzVS2jXoFQGdPnwU9dtIRXga1csGar3RqJDlCR2Ncz1DGv80r4Z3CFycrftgFNIRLG1cXaaN4GWM8uE38zSp0hhWyiPXay++rhRdyQU4sq2A3dEA8JqxOR1B6ngxqBgN17u1VHK2EUUZ5HHlv856SnZ1lA94J7T0CBrkRxEDLmE6fLR5n0CuHSX5iA4rRfqKmF1FfQi/IaG+EWKbACkmQGIV9+aKB30JqsJvcXLtSGTC7IzonIzIKiBhjJo7AbW45VzzmfBC3MqiNPpEwwTiRKDI="
@@ -71,6 +71,21 @@ matrix:
     compiler: clang
   - os: osx
     osx_image: xcode11.3
+    compiler: clang
+  - os: osx
+    osx_image: xcode11.4
+    compiler: clang
+  - os: osx
+    osx_image: xcode11.5
+    compiler: clang
+  - os: osx
+    osx_image: xcode11.6
+    compiler: clang
+  - os: osx
+    osx_image: xcode12
+    compiler: clang
+  - os: osx
+    osx_image: xcode12u
     compiler: clang
 
 install:
