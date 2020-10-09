@@ -18,7 +18,6 @@
  */
 
 #include <algorithm>
-#include <windows.h>
 #include <dshow.h>
 #include <dbt.h>
 
@@ -90,7 +89,7 @@ namespace AkVCam
     };
 }
 
-WINBOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
+BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
 
 AkVCam::BaseFilter::BaseFilter(const GUID &clsid,
                                const std::string &filterName,
@@ -501,7 +500,7 @@ void AkVCam::BaseFilterPrivate::setControls(void *userData,
     AkVCamDevicePinCall(deviceId, self, setControls, controls)
 }
 
-WINBOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData)
+BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData)
 {
     auto handlers = reinterpret_cast<std::vector<HWND> *>(userData);
     handlers->push_back(handler);
