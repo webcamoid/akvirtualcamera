@@ -15,7 +15,7 @@ Visit the [wiki](https://github.com/webcamoid/akvirtualcamera/wiki) for a compre
 
 [![Build Status](https://travis-ci.org/webcamoid/akvirtualcamera.svg?branch=master)](https://travis-ci.org/webcamoid/akvirtualcamera)
 [![Build status](https://ci.appveyor.com/api/projects/status/rwd4of9casmfmmys?svg=true)](https://ci.appveyor.com/project/hipersayanX/akvirtualcamera)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/1cee2645a3604633a506a203fb8c3161)](https://www.codacy.com/gh/webcamoid/akvirtualcamera?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=webcamoid/akvirtualcamera&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/1cee2645a3604633a506a203fb8c3161)](https://www.codacy.com/gh/webcamoid/akvirtualcamera/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=webcamoid/akvirtualcamera&amp;utm_campaign=Badge_Grade)
 [![Daily Build](https://api.bintray.com/packages/webcamoid/webcamoid/akvirtualcamera/images/download.svg?version=daily)](https://bintray.com/webcamoid/webcamoid/akvirtualcamera/daily)
 
 ## Reporting Bugs ##

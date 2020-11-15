@@ -40,6 +40,7 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto', self.targetSystem)
         self.detectQt(os.path.join(self.buildDir, 'Manager'))
         self.programName = 'AkVirtualCamera'
+        self.adminRights = True
         self.rootInstallDir = os.path.join(self.installDir, 'Applications')
         self.appBundleDir = os.path.join(self.rootInstallDir, self.programName + '.plugin')
         self.execPrefixDir = os.path.join(self.appBundleDir, 'Contents')
@@ -48,12 +49,11 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         self.programVersion = self.detectVersion(os.path.join(self.rootDir, 'commons.pri'))
         self.detectMake()
         self.binarySolver = tools.binary_mach.DeployToolsBinary()
-        self.binarySolver.readExcludeList(os.path.join(self.rootDir, 'ports/deploy/exclude.{}.{}.txt'.format(os.name, sys.platform)))
+        self.binarySolver.readExcludeList(os.path.join(self.rootDir, 'ports/deploy/tools/exclude/exclude.{}.{}.txt'.format(os.name, sys.platform)))
         self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
         self.dependencies = []
         self.installerConfig = os.path.join(self.installDir, 'installer/config')
         self.installerPackages = os.path.join(self.installDir, 'installer/packages')
-        self.appIcon = os.path.join(self.rootDir, 'share/icons/webcamoid.png')
         self.licenseFile = os.path.join(self.rootDir, 'COPYING')
         self.installerTargetDir = '@ApplicationsDir@/' + self.programName
         self.installerScript = os.path.join(self.rootDir, 'ports/deploy/installscript.mac.qs')
@@ -64,7 +64,8 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
 
     def prepare(self):
         print('Executing make install')
-        self.makeInstall(self.buildDir, self.installDir)
+        params = {'INSTALL_ROOT': self.installDir}
+        self.makeInstall(self.buildDir, params)
         self.detectTargetArch()
         print('Stripping symbols')
         self.binarySolver.stripSymbols(self.installDir)

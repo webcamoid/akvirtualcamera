@@ -39,6 +39,7 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto/windows')
         self.detectQt(os.path.join(self.buildDir, 'Manager'))
         self.programName = 'AkVirtualCamera'
+        self.adminRights = True
         self.rootInstallDir = os.path.join(self.installDir, self.programName + '.plugin')
         self.binaryInstallDir = os.path.join(self.rootInstallDir, 'bin')
         self.mainBinary = os.path.join(self.binaryInstallDir, self.programName + '.exe')
@@ -46,12 +47,11 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         self.programVersion = self.detectVersion(os.path.join(self.rootDir, 'commons.pri'))
         self.detectMake()
         self.binarySolver = tools.binary_pecoff.DeployToolsBinary()
-        self.binarySolver.readExcludeList(os.path.join(self.rootDir, 'ports/deploy/exclude.{}.{}.txt'.format(os.name, sys.platform)))
+        self.binarySolver.readExcludeList(os.path.join(self.rootDir, 'ports/deploy/tools/exclude/exclude.{}.{}.txt'.format(os.name, sys.platform)))
         self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
         self.dependencies = []
         self.installerConfig = os.path.join(self.installDir, 'installer/config')
         self.installerPackages = os.path.join(self.installDir, 'installer/packages')
-        self.appIcon = os.path.join(self.rootDir, 'share/icons/webcamoid.png')
         self.licenseFile = os.path.join(self.rootDir, 'COPYING')
         self.installerScript = os.path.join(self.rootDir, 'ports/deploy/installscript.windows.qs')
         self.changeLog = os.path.join(self.rootDir, 'ChangeLog')
@@ -74,7 +74,8 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
 
     def prepare(self):
         print('Executing make install')
-        self.makeInstall(self.buildDir, self.installDir)
+        params = {'INSTALL_ROOT': self.installDir}
+        self.makeInstall(self.buildDir, params)
 
         if self.targetArch == '32bit':
             self.binarySolver.sysBinsPath = ['/usr/i686-w64-mingw32/bin']

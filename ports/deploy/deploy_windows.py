@@ -38,6 +38,7 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         self.installDir = os.path.join(self.buildDir, 'ports/deploy/temp_priv')
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto/windows')
         self.detectQt(os.path.join(self.buildDir, 'Manager'))
+        self.adminRights = True
         self.programName = 'AkVirtualCamera'
         self.rootInstallDir = os.path.join(self.installDir, self.programName + '.plugin')
         self.binaryInstallDir = os.path.join(self.rootInstallDir, 'bin')
@@ -46,12 +47,11 @@ class Deploy(deploy_base.DeployBase, tools.qt5.DeployToolsQt):
         self.programVersion = self.detectVersion(os.path.join(self.rootDir, 'commons.pri'))
         self.detectMake()
         self.binarySolver = tools.binary_pecoff.DeployToolsBinary()
-        self.binarySolver.readExcludeList(os.path.join(self.rootDir, 'ports/deploy/exclude.{}.{}.txt'.format(os.name, sys.platform)))
+        self.binarySolver.readExcludeList(os.path.join(self.rootDir, 'ports/deploy/tools/exclude/exclude.{}.{}.txt'.format(os.name, sys.platform)))
         self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
         self.dependencies = []
         self.installerConfig = os.path.join(self.installDir, 'installer/config')
         self.installerPackages = os.path.join(self.installDir, 'installer/packages')
-        self.appIcon = os.path.join(self.rootDir, 'share/icons/webcamoid.png')
         self.licenseFile = os.path.join(self.rootDir, 'COPYING')
         self.installerScript = os.path.join(self.rootDir, 'ports/deploy/installscript.windows.qs')
         self.changeLog = os.path.join(self.rootDir, 'ChangeLog')
