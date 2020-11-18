@@ -22,7 +22,12 @@ if "%PLATFORM%" == "x86" (
     set PYTHON_PATH=C:\%PYTHON_VERSION%-x64
 )
 
+cd ports/deploy
+git clone https://github.com/webcamoid/DeployTools.git
+cd ../..
+
 set MAKE_PATH=%TOOLSDIR%\bin\%MAKETOOL%.exe
 set PATH=%QTDIR%\bin;%TOOLSDIR%\bin;%PATH%
+set PYTHONPATH=%cd%\ports\deploy\DeployTools
 
 %PYTHON_PATH%\python.exe ports\deploy\deploy.py

@@ -70,8 +70,9 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.installerScript = os.path.join(self.rootDir, 'ports/deploy/installscript.posix.qs')
         self.changeLog = os.path.join(self.rootDir, 'ChangeLog')
         self.outPackage = os.path.join(self.pkgsDir,
-                                       'webcamoid-installer-{}-{}.run'.format(self.programVersion,
-                                                                              platform.machine()))
+                                       '{}-installer-{}-{}.run'.format(self.programName,
+                                                                       self.programVersion,
+                                                                       platform.machine()))
 
     def detectAppImage(self):
         if 'APPIMAGETOOL' in os.environ:

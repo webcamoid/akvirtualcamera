@@ -74,8 +74,9 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.installerTargetDir = appsDir + '/' + self.programName + '.plugin'
         arch = 'win32' if self.targetArch == '32bit' else 'win64'
         self.outPackage = os.path.join(self.pkgsDir,
-                                       'webcamoid-{}-{}.exe'.format(self.programVersion,
-                                                                    arch))
+                                       '{}-{}-{}.exe'.format(self.programName,
+                                                             self.programVersion,
+                                                             arch))
 
         print('Stripping symbols')
         self.binarySolver.stripSymbols(self.installDir)
