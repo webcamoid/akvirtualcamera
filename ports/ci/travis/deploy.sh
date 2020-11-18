@@ -50,6 +50,7 @@ EOF
     fi
 
     cat << EOF >> ${DEPLOYSCRIPT}
+export PYTHONPATH="\${PWD}/ports/deploy/DeployTools"
 python ports/deploy/deploy.py
 EOF
     chmod +x ${DEPLOYSCRIPT}
@@ -59,5 +60,6 @@ EOF
     sudo umount root.x86_64/$HOME
     sudo umount root.x86_64
 elif [ "${TRAVIS_OS_NAME}" = osx ]; then
-    ${EXEC} python3 ports/deploy/deploy.py
+    export PYTHONPATH="${PWD}/ports/deploy/DeployTools"
+    python3 ports/deploy/deploy.py
 fi
