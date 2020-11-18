@@ -22,6 +22,10 @@ if [ "${TRAVIS_OS_NAME}" = linux ]; then
     EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
 fi
 
+cd ports/deploy
+git clone https://github.com/webcamoid/DeployTools.git
+cd ../..
+
 DEPLOYSCRIPT=deployscript.sh
 
 if [ "${TRAVIS_OS_NAME}" = linux ]; then
@@ -34,6 +38,7 @@ if [ "${TRAVIS_OS_NAME}" = linux ]; then
 export LC_ALL=C
 export HOME=$HOME
 export PATH="$TRAVIS_BUILD_DIR/.local/bin:\$PATH"
+export PYTHONPATH="\$PWD/ports/deploy/DeployTools"
 export WINEPREFIX=/opt/.wine
 cd $TRAVIS_BUILD_DIR
 EOF
