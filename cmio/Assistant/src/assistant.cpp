@@ -26,7 +26,6 @@
 
 #include "assistant.h"
 #include "assistantglobals.h"
-#include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/image/videoframe.h"
@@ -63,11 +62,11 @@ namespace AkVCam
             bool startTimer();
             void stopTimer();
             static void timerTimeout(CFRunLoopTimerRef timer, void *info);
-            void releaseDevicesFromPeer(const std::string &portName);
             void peerDied();
+            void removePortByName(const std::string &portName);
+            void releaseDevicesFromPeer(const std::string &portName);
             void requestPort(xpc_connection_t client, xpc_object_t event);
             void addPort(xpc_connection_t client, xpc_object_t event);
-            void removePortByName(const std::string &portName);
             void removePort(xpc_connection_t client, xpc_object_t event);
             void devicesUpdate(xpc_connection_t client, xpc_object_t event);
             void setBroadcasting(xpc_connection_t client, xpc_object_t event);
@@ -76,9 +75,9 @@ namespace AkVCam
             void listeners(xpc_connection_t client, xpc_object_t event);
             void listener(xpc_connection_t client, xpc_object_t event);
             void broadcasting(xpc_connection_t client, xpc_object_t event);
-            void controlsUpdated(xpc_connection_t client, xpc_object_t event);
             void listenerAdd(xpc_connection_t client, xpc_object_t event);
             void listenerRemove(xpc_connection_t client, xpc_object_t event);
+            void controlsUpdated(xpc_connection_t client, xpc_object_t event);
     };
 }
 
@@ -199,40 +198,10 @@ void AkVCam::AssistantPrivate::timerTimeout(CFRunLoopTimerRef timer, void *info)
     CFRunLoopStop(CFRunLoopGetMain());
 }
 
-void AkVCam::AssistantPrivate::releaseDevicesFromPeer(const std::string &portName)
-{
-    AkLogFunction();
-
-    for (auto &config: this->m_deviceConfigs)
-        if (config.second.broadcaster == portName) {
-            config.second.broadcaster.clear();
-
-            auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
-            xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING);
-            xpc_dictionary_set_string(dictionary, "device", config.first.c_str());
-            xpc_dictionary_set_string(dictionary, "broadcaster", "");
-
-            for (auto &client: this->m_clients) {
-                auto reply =
-                        xpc_connection_send_message_with_reply_sync(client.second,
-                                                                    dictionary);
-                xpc_release(reply);
-            }
-
-            xpc_release(dictionary);
-        } else {
-            auto it = std::find(config.second.listeners.begin(),
-                                config.second.listeners.end(),
-                                portName);
-
-            if (it != config.second.listeners.end())
-                config.second.listeners.erase(it);
-        }
-}
-
 void AkVCam::AssistantPrivate::peerDied()
 {
     AkLogFunction();
+    std::vector<std::string> deadPeers;
 
     for (auto &client: this->m_clients) {
         auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
@@ -249,8 +218,57 @@ void AkVCam::AssistantPrivate::peerDied()
         xpc_release(reply);
 
         if (!alive)
-            this->removePortByName(client.first);
+            deadPeers.push_back(client.first);
     }
+
+    for (auto &peer: deadPeers)
+        this->removePortByName(peer);
+}
+
+void AkVCam::AssistantPrivate::removePortByName(const std::string &portName)
+{
+    AkLogFunction();
+    AkLogInfo() << "Port: " << portName << std::endl;
+
+    for (auto &peer: this->m_clients)
+        if (peer.first == portName) {
+            xpc_release(peer.second);
+            this->m_clients.erase(portName);
+
+            break;
+        }
+
+    if (this->m_clients.empty())
+        this->startTimer();
+
+    this->releaseDevicesFromPeer(portName);
+}
+
+void AkVCam::AssistantPrivate::releaseDevicesFromPeer(const std::string &portName)
+{
+    AkLogFunction();
+
+    for (auto &config: this->m_deviceConfigs)
+        if (config.second.broadcaster == portName) {
+            config.second.broadcaster.clear();
+
+            auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
+            xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING);
+            xpc_dictionary_set_string(dictionary, "device", config.first.c_str());
+            xpc_dictionary_set_string(dictionary, "broadcaster", "");
+
+            for (auto &client: this->m_clients)
+                xpc_connection_send_message(client.second, dictionary);
+
+            xpc_release(dictionary);
+        } else {
+            auto it = std::find(config.second.listeners.begin(),
+                                config.second.listeners.end(),
+                                portName);
+
+            if (it != config.second.listeners.end())
+                config.second.listeners.erase(it);
+        }
 }
 
 void AkVCam::AssistantPrivate::requestPort(xpc_connection_t client,
@@ -299,25 +317,6 @@ void AkVCam::AssistantPrivate::addPort(xpc_connection_t client,
     xpc_release(reply);
 }
 
-void AkVCam::AssistantPrivate::removePortByName(const std::string &portName)
-{
-    AkLogFunction();
-    AkLogInfo() << "Port: " << portName << std::endl;
-
-    for (auto &peer: this->m_clients)
-        if (peer.first == portName) {
-            xpc_release(peer.second);
-            this->m_clients.erase(portName);
-
-            break;
-        }
-
-    if (this->m_clients.empty())
-        this->startTimer();
-
-    this->releaseDevicesFromPeer(portName);
-}
-
 void AkVCam::AssistantPrivate::removePort(xpc_connection_t client,
                                           xpc_object_t event)
 {
@@ -332,21 +331,38 @@ void AkVCam::AssistantPrivate::devicesUpdate(xpc_connection_t client,
 {
     UNUSED(client);
     AkLogFunction();
-    auto notification = xpc_copy(event);
 
-    for (auto &client: this->m_clients)
-        xpc_connection_send_message(client.second, notification);
+    auto devicesList = xpc_dictionary_get_array(event, "devices");
+    DeviceConfigs configs;
 
-    xpc_release(notification);
+    for (size_t i = 0; i < xpc_array_get_count(devicesList); i++) {
+        std::string device = xpc_array_get_string(devicesList, i);
+
+        if (this->m_deviceConfigs.count(device) > 0)
+            configs[device] = this->m_deviceConfigs[device];
+        else
+            configs[device] = {};
+    }
+
+    this->m_deviceConfigs = configs;
+
+    if (xpc_dictionary_get_bool(event, "propagate")) {
+        auto notification = xpc_copy(event);
+
+        for (auto &client: this->m_clients)
+            xpc_connection_send_message(client.second, notification);
+
+        xpc_release(notification);
+    }
 }
 
 void AkVCam::AssistantPrivate::setBroadcasting(xpc_connection_t client,
                                                xpc_object_t event)
 {
+    UNUSED(client);
     AkLogFunction();
     std::string deviceId = xpc_dictionary_get_string(event, "device");
     std::string broadcaster = xpc_dictionary_get_string(event, "broadcaster");
-    bool ok = false;
 
     if (this->m_deviceConfigs.count(deviceId) > 0)
         if (this->m_deviceConfigs[deviceId].broadcaster != broadcaster) {
@@ -359,13 +375,7 @@ void AkVCam::AssistantPrivate::setBroadcasting(xpc_connection_t client,
                 xpc_connection_send_message(client.second, notification);
 
             xpc_release(notification);
-            ok = true;
         }
-
-    auto reply = xpc_dictionary_create_reply(event);
-    xpc_dictionary_set_bool(reply, "status", ok);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
 }
 
 void AkVCam::AssistantPrivate::frameReady(xpc_connection_t client,
@@ -378,6 +388,7 @@ void AkVCam::AssistantPrivate::frameReady(xpc_connection_t client,
     bool ok = true;
 
     for (auto &client: this->m_clients) {
+        AkLogDebug() << "Sending frame to " << client.first << std::endl;
         auto reply = xpc_connection_send_message_with_reply_sync(client.second,
                                                                  event);
         auto replyType = xpc_get_type(reply);
@@ -387,6 +398,10 @@ void AkVCam::AssistantPrivate::frameReady(xpc_connection_t client,
             isOk = xpc_dictionary_get_bool(reply, "status");
 
         ok &= isOk;
+
+        if (!isOk)
+            AkLogError() << "Failed sending frame." << std::endl;
+
         xpc_release(reply);
     }
 
@@ -400,25 +415,12 @@ void AkVCam::AssistantPrivate::pictureUpdated(xpc_connection_t client,
 {
     UNUSED(client);
     AkLogFunction();
-    auto reply = xpc_dictionary_create_reply(event);
-    bool ok = true;
+    auto notification = xpc_copy(event);
 
-    for (auto &client: this->m_clients) {
-        auto reply = xpc_connection_send_message_with_reply_sync(client.second,
-                                                                 event);
-        auto replyType = xpc_get_type(reply);
-        bool isOk = false;
+    for (auto &client: this->m_clients)
+        xpc_connection_send_message(client.second, notification);
 
-        if (replyType == XPC_TYPE_DICTIONARY)
-            isOk = xpc_dictionary_get_bool(reply, "status");
-
-        ok &= isOk;
-        xpc_release(reply);
-    }
-
-    xpc_dictionary_set_bool(reply, "status", ok);
-    xpc_connection_send_message(client, reply);
-    xpc_release(reply);
+    xpc_release(notification);
 }
 
 void AkVCam::AssistantPrivate::listeners(xpc_connection_t client,
@@ -484,22 +486,6 @@ void AkVCam::AssistantPrivate::broadcasting(xpc_connection_t client,
     xpc_release(reply);
 }
 
-void AkVCam::AssistantPrivate::controlsUpdated(xpc_connection_t client, xpc_object_t event)
-{
-    UNUSED(client);
-    AkLogFunction();
-    std::string deviceId = xpc_dictionary_get_string(event, "device");
-
-    if (this->m_deviceConfigs.count(deviceId) > 0) {
-        auto notification = xpc_copy(event);
-
-        for (auto &client: this->m_clients)
-            xpc_connection_send_message(client.second, notification);
-
-        xpc_release(notification);
-    }
-}
-
 void AkVCam::AssistantPrivate::listenerAdd(xpc_connection_t client,
                                            xpc_object_t event)
 {
@@ -558,4 +544,28 @@ void AkVCam::AssistantPrivate::listenerRemove(xpc_connection_t client,
     xpc_dictionary_set_bool(reply, "status", ok);
     xpc_connection_send_message(client, reply);
     xpc_release(reply);
+}
+
+void AkVCam::AssistantPrivate::controlsUpdated(xpc_connection_t client,
+                                               xpc_object_t event)
+{
+    UNUSED(client);
+    AkLogFunction();
+    std::string deviceId = xpc_dictionary_get_string(event, "device");
+
+    if (this->m_deviceConfigs.count(deviceId) <= 0) {
+        AkLogError() << "'"
+                     << deviceId
+                     << "' device in not in the devices list."
+                     << std::endl;
+
+        return;
+    }
+
+    auto notification = xpc_copy(event);
+
+    for (auto &client: this->m_clients)
+        xpc_connection_send_message(client.second, notification);
+
+    xpc_release(notification);
 }

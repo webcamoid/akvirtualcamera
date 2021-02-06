@@ -142,3 +142,10 @@ std::string AkVCam::Fraction::toString() const
 
     return ss.str();
 }
+
+std::ostream &operator <<(std::ostream &os, const AkVCam::Fraction &fraction)
+{
+    os << fraction.toString();
+
+    return os;
+}

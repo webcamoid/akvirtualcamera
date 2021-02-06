@@ -27,6 +27,7 @@
 #include <wincodec.h>
 
 #include "utils.h"
+#include "messagecommons.h"
 #include "VCamUtils/src/utils.h"
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/image/videoframe.h"
@@ -102,7 +103,16 @@ bool AkVCam::fileExists(const std::string &path)
     return GetFileAttributesA(path.c_str()) & FILE_ATTRIBUTE_ARCHIVE;
 }
 
-std::string AkVCam::errorToString(DWORD errorCode)
+std::string AkVCam::realPath(const std::string &path)
+{
+    char rpath[MAX_PATH];
+    memset(rpath, 0, MAX_PATH);
+    GetFullPathNameA(path.c_str(), MAX_PATH, rpath, nullptr);
+
+    return std::string(rpath);
+}
+
+std::string AkVCam::stringFromError(DWORD errorCode)
 {
     CHAR *errorStr = nullptr;
     auto size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER
@@ -168,6 +178,32 @@ clsidFromStr_failed:
 std::string AkVCam::createClsidStrFromStr(const std::string &str)
 {
     return stringFromIid(createClsidFromStr(str));
+}
+
+std::string AkVCam::stringFromMessageId(uint32_t messageId)
+{
+    static const std::map<uint32_t, std::string> clsidToString {
+        {AKVCAM_ASSISTANT_MSG_ISALIVE                , "ISALIVE"                },
+        {AKVCAM_ASSISTANT_MSG_FRAME_READY            , "FRAME_READY"            },
+        {AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED        , "PICTURE_UPDATED"        },
+        {AKVCAM_ASSISTANT_MSG_REQUEST_PORT           , "REQUEST_PORT"           },
+        {AKVCAM_ASSISTANT_MSG_ADD_PORT               , "ADD_PORT"               },
+        {AKVCAM_ASSISTANT_MSG_REMOVE_PORT            , "REMOVE_PORT"            },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE          , "DEVICE_UPDATE"          },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENERS       , "DEVICE_LISTENERS"       },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER        , "DEVICE_LISTENER"        },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD    , "DEVICE_LISTENER_ADD"    },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE , "DEVICE_LISTENER_REMOVE" },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_BROADCASTING    , "DEVICE_BROADCASTING"    },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING , "DEVICE_SETBROADCASTING" },
+        {AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED, "DEVICE_CONTROLS_UPDATED"},
+    };
+
+    for (auto &id: clsidToString)
+        if (id.first == messageId)
+            return id.second;
+
+    return  "AKVCAM_ASSISTANT_MSG_(" + std::to_string(messageId) + ")";
 }
 
 std::string AkVCam::stringFromIid(const IID &iid)

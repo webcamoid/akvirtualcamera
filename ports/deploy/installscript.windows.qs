@@ -20,10 +20,12 @@ Component.prototype.createOperations = function()
                 + "/"
                 + archs[i]
                 + "/AkVCamManager.exe";
-            component.addOperation("Execute",
-                                   managerPath, "remove-devices");
+            component.addElevateOperation("Execute",
+                                          managerPath,
+                                          "remove-devices");
             component.addElevatedOperation("Execute",
-                                           managerPath, "update");
+                                           managerPath,
+                                           "update");
         }
 
         let assistantPath =

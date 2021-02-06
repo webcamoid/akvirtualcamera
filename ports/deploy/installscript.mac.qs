@@ -56,14 +56,15 @@ Component.prototype.createOperations = function()
                                    "/Library/CoreMediaIO/Plug-Ins/DAL/@Name@.plugin");
 
     // Set assistant daemon.
-    let daemonPlist = "/Library/LaunchAgents/org.webcamoid.cmio.AkVCam.Assistant.plist"
+    let service = "org.webcamoid.cmio.AkVCam.Assistant"
+    let daemonPlist = "/Library/LaunchDaemons/" + service + ".plist"
     let plistContents = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                       + "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
                       + "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
                       + "<plist version=\"1.0\">\n"
                       + "    <dict>\n"
                       + "        <key>Label</key>\n"
-                      + "        <string>org.webcamoid.cmio.AkVCam.Assistant</string>\n"
+                      + "        <string>" + service + "</string>\n"
                       + "        <key>ProgramArguments</key>\n"
                       + "        <array>\n"
                       + "            <string>"
@@ -75,7 +76,7 @@ Component.prototype.createOperations = function()
                       + "        </array>\n"
                       + "        <key>MachServices</key>\n"
                       + "        <dict>\n"
-                      + "            <key>org.webcamoid.cmio.AkVCam.Assistant</key>\n"
+                      + "            <key>" + service + "</key>\n"
                       + "            <true/>\n"
                       + "        </dict>\n"
                       + "        <key>StandardOutPath</key>\n"
@@ -88,10 +89,14 @@ Component.prototype.createOperations = function()
     component.addElevatedOperation("AppendFile", daemonPlist, plistContents);
 
     // Load assistant daemon.
+    if (installer.isUninstaller())
+        component.addElevatedOperation("Execute",
+                                       "launchctl", "enable", "system/" + service);
+
     component.addElevatedOperation("Execute",
-                                   "launchctl", "load", "-w", daemonPlist,
+                                   "launchctl", "bootstrap", "system", daemonPlist,
                                    "UNDOEXECUTE",
-                                   "launchctl", "unload", "-w", daemonPlist);
+                                   "launchctl", "bootout", "system", daemonPlist);
 
     if (installer.isUninstaller())
         component.addElevatedOperation("Delete", daemonPlist);

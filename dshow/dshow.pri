@@ -25,7 +25,7 @@ isEmpty(DSHOW_PLUGIN_ASSISTANT_DESCRIPTION):
 isEmpty(DSHOW_PLUGIN_DESCRIPTION):
     DSHOW_PLUGIN_DESCRIPTION = "Webcamoid Virtual Camera"
 isEmpty(DSHOW_PLUGIN_DESCRIPTION_EXT):
-    DSHOW_PLUGIN_DESCRIPTION_EXT = "Central service for communicating between virtual cameras clients and servers"
+    DSHOW_PLUGIN_DESCRIPTION_EXT = "Central service for communicating between virtual cameras and clients"
 isEmpty(DSHOW_PLUGIN_DEVICE_PREFIX):
     DSHOW_PLUGIN_DEVICE_PREFIX = AkVCamVideoDevice
 isEmpty(DSHOW_PLUGIN_VENDOR):

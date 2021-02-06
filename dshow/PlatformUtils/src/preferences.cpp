@@ -30,7 +30,7 @@
 #include "VCamUtils/src/image/videoformat.h"
 #include "VCamUtils/src/logger.h"
 
-#define REG_PREFIX "SOFTWARE\\Webcamoid\\VirtualCamera\\"
+#define REG_PREFIX "SOFTWARE\\Webcamoid\\VirtualCamera"
 
 namespace AkVCam
 {
@@ -42,128 +42,154 @@ namespace AkVCam
         bool readValue(const std::string &key,
                        DWORD dataTypeFlags,
                        PVOID data,
-                       LPDWORD dataSize);
-        void setValue(const std::string &key,
+                       LPDWORD dataSize,
+                       bool global);
+        bool setValue(const std::string &key,
                       DWORD dataType,
                       LPCSTR data,
-                      DWORD dataSize);
+                      DWORD dataSize,
+                      bool global);
     }
 }
 
-void AkVCam::Preferences::write(const std::string &key,
-                                const std::string &value)
+bool AkVCam::Preferences::write(const std::string &key,
+                                const std::string &value,
+                                bool global)
 {
     AkLogFunction();
     AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
-    setValue(key, REG_SZ, value.c_str(), DWORD(value.size()));
+
+    return setValue(key, REG_SZ, value.c_str(), DWORD(value.size()), global);
 }
 
-void AkVCam::Preferences::write(const std::string &key, int value)
+bool AkVCam::Preferences::write(const std::string &key, int value, bool global)
 {
     AkLogFunction();
     AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
-    setValue(key,
-             REG_DWORD,
-             reinterpret_cast<const char *>(&value),
-             DWORD(sizeof(int)));
+
+    return setValue(key,
+                    REG_DWORD,
+                    reinterpret_cast<const char *>(&value),
+                    DWORD(sizeof(int)),
+                    global);
 }
 
-void AkVCam::Preferences::write(const std::string &key, double value)
+bool AkVCam::Preferences::write(const std::string &key,
+                                double value,
+                                bool global)
 {
     AkLogFunction();
     AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
     auto val = std::to_string(value);
-    setValue(key,
-             REG_SZ,
-             val.c_str(),
-             DWORD(val.size()));
+
+    return setValue(key,
+                    REG_SZ,
+                    val.c_str(),
+                    DWORD(val.size()),
+                    global);
 }
 
-void AkVCam::Preferences::write(const std::string &key,
-                                std::vector<std::string> &value)
+bool AkVCam::Preferences::write(const std::string &key,
+                                std::vector<std::string> &value,
+                                bool global)
 {
     AkLogFunction();
-    write(key, join(value, ","));
+
+    return write(key, join(value, ","), global);
 }
 
 std::string AkVCam::Preferences::readString(const std::string &key,
-                                            const std::string &defaultValue)
+                                            const std::string &defaultValue,
+                                            bool global)
 {
     AkLogFunction();
     char value[MAX_PATH];
     memset(value, 0, MAX_PATH * sizeof(char));
     DWORD valueSize = MAX_PATH;
 
-    if (!readValue(key, RRF_RT_REG_SZ, &value, &valueSize))
+    if (!readValue(key, RRF_RT_REG_SZ, &value, &valueSize, global))
         return defaultValue;
 
     return {value};
 }
 
-int AkVCam::Preferences::readInt(const std::string &key, int defaultValue)
+int AkVCam::Preferences::readInt(const std::string &key,
+                                 int defaultValue,
+                                 bool global)
 {
     AkLogFunction();
     DWORD value = 0;
     DWORD valueSize = sizeof(DWORD);
 
-    if (!readValue(key, RRF_RT_REG_DWORD, &value, &valueSize))
+    if (!readValue(key, RRF_RT_REG_DWORD, &value, &valueSize, global))
         return defaultValue;
 
     return int(value);
 }
 
 double AkVCam::Preferences::readDouble(const std::string &key,
-                                       double defaultValue)
+                                       double defaultValue,
+                                       bool global)
 {
     AkLogFunction();
-    auto value = readString(key, std::to_string(defaultValue));
+    auto value = readString(key, std::to_string(defaultValue), global);
     std::string::size_type sz;
 
     return std::stod(value, &sz);
 }
 
-bool AkVCam::Preferences::readBool(const std::string &key, bool defaultValue)
+bool AkVCam::Preferences::readBool(const std::string &key,
+                                   bool defaultValue,
+                                   bool global)
 {
     AkLogFunction();
 
-    return readInt(key, defaultValue) != 0;
+    return readInt(key, defaultValue, global) != 0;
 }
 
-void AkVCam::Preferences::deleteKey(const std::string &key)
+bool AkVCam::Preferences::deleteKey(const std::string &key, bool global)
 {
     AkLogFunction();
     AkLogInfo() << "Deleting " << key << std::endl;
+    HKEY rootKey = global? HKEY_LOCAL_MACHINE: HKEY_CURRENT_USER;
     std::string subKey;
     std::string val;
     splitSubKey(key, subKey, val);
+    bool ok = false;
 
     if (val.empty()) {
-        deleteTree(HKEY_CURRENT_USER, subKey.c_str(), KEY_WOW64_64KEY);
+        ok = deleteTree(rootKey,
+                        subKey.c_str(),
+                        KEY_WOW64_64KEY) == ERROR_SUCCESS;
     } else {
         HKEY hkey = nullptr;
-        auto result = RegOpenKeyExA(HKEY_CURRENT_USER,
+        auto result = RegOpenKeyExA(rootKey,
                                     subKey.c_str(),
                                     0,
                                     KEY_ALL_ACCESS | KEY_WOW64_64KEY,
                                     &hkey);
 
         if (result == ERROR_SUCCESS) {
-            RegDeleteValueA(hkey, val.c_str());
+            ok = RegDeleteValueA(hkey, val.c_str()) == ERROR_SUCCESS;
             RegCloseKey(hkey);
         }
     }
+
+    return ok;
 }
 
-void AkVCam::Preferences::move(const std::string &keyFrom,
-                               const std::string &keyTo)
+bool AkVCam::Preferences::move(const std::string &keyFrom,
+                               const std::string &keyTo,
+                               bool global)
 {
     AkLogFunction();
     AkLogInfo() << "From: " << keyFrom << std::endl;
     AkLogInfo() << "To: " << keyTo << std::endl;
-
+    HKEY rootKey = global? HKEY_LOCAL_MACHINE: HKEY_CURRENT_USER;
+    bool ok = false;
     std::string subKeyFrom = REG_PREFIX "\\" + keyFrom;
     HKEY hkeyFrom = nullptr;
-    auto result = RegOpenKeyExA(HKEY_CURRENT_USER,
+    auto result = RegOpenKeyExA(rootKey,
                                 subKeyFrom.c_str(),
                                 0,
                                 KEY_READ | KEY_WOW64_64KEY,
@@ -172,7 +198,7 @@ void AkVCam::Preferences::move(const std::string &keyFrom,
     if (result == ERROR_SUCCESS) {
         std::string subKeyTo = REG_PREFIX "\\" + keyTo;
         HKEY hkeyTo = nullptr;
-        result = RegCreateKeyExA(HKEY_CURRENT_USER,
+        result = RegCreateKeyExA(rootKey,
                                  subKeyTo.c_str(),
                                  0,
                                  nullptr,
@@ -186,26 +212,34 @@ void AkVCam::Preferences::move(const std::string &keyFrom,
             result = copyTree(hkeyFrom, nullptr, hkeyTo, KEY_WOW64_64KEY);
 
             if (result == ERROR_SUCCESS)
-                deleteKey(keyFrom);
+                ok = deleteKey(keyFrom, global);
 
             RegCloseKey(hkeyTo);
         }
 
         RegCloseKey(hkeyFrom);
     }
+
+    return ok;
 }
 
 std::string AkVCam::Preferences::addDevice(const std::string &description)
 {
     AkLogFunction();
     auto path = createDevicePath();
-    int cameraIndex = readInt("Cameras\\size") + 1;
-    write("Cameras\\size", cameraIndex);
-    write("Cameras\\" + std::to_string(cameraIndex) + "\\description",
-          description);
-    write("Cameras\\" + std::to_string(cameraIndex) + "\\path", path);
 
-    return path;
+    if (path.empty())
+        return {};
+
+    bool ok = true;
+    int cameraIndex = readInt("Cameras\\size", 0, true) + 1;
+    ok &= write("Cameras\\size", cameraIndex, true);
+    ok &= write("Cameras\\" + std::to_string(cameraIndex) + "\\description",
+                description,
+                true);
+    ok &= write("Cameras\\" + std::to_string(cameraIndex) + "\\path", path, true);
+
+    return ok? path: std::string();
 }
 
 std::string AkVCam::Preferences::addCamera(const std::string &description,
@@ -224,20 +258,28 @@ std::string AkVCam::Preferences::addCamera(const std::string &path,
         return {};
 
     auto path_ = path.empty()? createDevicePath(): path;
-    int cameraIndex = readInt("Cameras\\") + 1;
-    write("Cameras\\size", cameraIndex);
-    write("Cameras\\"
-          + std::to_string(cameraIndex)
-          + "\\description",
-          description);
-    write("Cameras\\"
-          + std::to_string(cameraIndex)
-          + "\\path",
-          path_);
-    write("Cameras\\"
-          + std::to_string(cameraIndex)
-          + "\\Formats\\size",
-          int(formats.size()));
+
+    if (path.empty())
+        return {};
+
+    bool ok = true;
+    int cameraIndex = readInt("Cameras\\", 0, true) + 1;
+    ok &= write("Cameras\\size", cameraIndex, true);
+    ok &= write("Cameras\\"
+                + std::to_string(cameraIndex)
+                + "\\description",
+                description,
+                true);
+    ok &= write("Cameras\\"
+                + std::to_string(cameraIndex)
+                + "\\path",
+                path_,
+                true);
+    ok &= write("Cameras\\"
+                + std::to_string(cameraIndex)
+                + "\\Formats\\size",
+                int(formats.size()),
+                true);
 
     for (size_t i = 0; i < formats.size(); i++) {
         auto &format = formats[i];
@@ -246,43 +288,49 @@ std::string AkVCam::Preferences::addCamera(const std::string &path,
                     + "\\Formats\\"
                     + std::to_string(i + 1);
         auto formatStr = VideoFormat::stringFromFourcc(format.fourcc());
-        write(prefix + "\\format", formatStr);
-        write(prefix + "\\width", format.width());
-        write(prefix + "\\height", format.height());
-        write(prefix + "\\fps", format.minimumFrameRate().toString());
+        ok &= write(prefix + "\\format", formatStr, true);
+        ok &= write(prefix + "\\width", format.width(), true);
+        ok &= write(prefix + "\\height", format.height(), true);
+        ok &= write(prefix + "\\fps",
+                    format.minimumFrameRate().toString(),
+                    true);
     }
 
-    return path_;
+    return ok? path_: std::string();
 }
 
-void AkVCam::Preferences::removeCamera(const std::string &path)
+bool AkVCam::Preferences::removeCamera(const std::string &path)
 {
     AkLogFunction();
     AkLogInfo() << "Device: " << path << std::endl;
     int cameraIndex = cameraFromPath(path);
 
     if (cameraIndex < 0)
-        return;
+        return false;
 
-    cameraSetFormats(size_t(cameraIndex), {});
+    bool ok = true;
+    ok &= cameraSetFormats(size_t(cameraIndex), {});
 
     auto nCameras = camerasCount();
-    deleteKey("Cameras\\" + std::to_string(cameraIndex + 1) + '\\');
+    ok &= deleteKey("Cameras\\" + std::to_string(cameraIndex + 1) + '\\', true);
 
     for (auto i = size_t(cameraIndex + 1); i < nCameras; i++)
-        move("Cameras\\" + std::to_string(i + 1),
-             "Cameras\\" + std::to_string(i));
+        ok &= move("Cameras\\" + std::to_string(i + 1),
+                   "Cameras\\" + std::to_string(i),
+                   true);
 
     if (nCameras > 1)
-        write("Cameras\\size", int(nCameras - 1));
+        ok &= write("Cameras\\size", int(nCameras - 1), true);
     else
-        deleteKey("Cameras\\");
+        ok &= deleteKey("Cameras\\", true);
+
+    return ok;
 }
 
 size_t AkVCam::Preferences::camerasCount()
 {
     AkLogFunction();
-    int nCameras = readInt("Cameras\\size");
+    int nCameras = readInt("Cameras\\size", 0, true);
     AkLogInfo() << "Cameras: " << nCameras << std::endl;
 
     return size_t(nCameras);
@@ -359,31 +407,38 @@ std::string AkVCam::Preferences::cameraDescription(size_t cameraIndex)
 
     return readString("Cameras\\"
                       + std::to_string(cameraIndex + 1)
-                      + "\\description");
+                      + "\\description",
+                      {},
+                      true);
 }
 
-void AkVCam::Preferences::cameraSetDescription(size_t cameraIndex,
+bool AkVCam::Preferences::cameraSetDescription(size_t cameraIndex,
                                                const std::string &description)
 {
     if (cameraIndex >= camerasCount())
-        return;
+        return false;
 
-    write("Cameras\\" + std::to_string(cameraIndex + 1) + "\\description",
-          description);
+    return write("Cameras\\" + std::to_string(cameraIndex + 1) + "\\description",
+                 description,
+                 true);
 }
 
 std::string AkVCam::Preferences::cameraPath(size_t cameraIndex)
 {
     return readString("Cameras\\"
                       + std::to_string(cameraIndex + 1)
-                      + "\\path");
+                      + "\\path",
+                      {},
+                      true);
 }
 
 size_t AkVCam::Preferences::formatsCount(size_t cameraIndex)
 {
     return size_t(readInt("Cameras\\"
                           + std::to_string(cameraIndex + 1)
-                          + "\\Formats\\size"));
+                          + "\\Formats\\size",
+                          0,
+                          true));
 }
 
 AkVCam::VideoFormat AkVCam::Preferences::cameraFormat(size_t cameraIndex,
@@ -394,11 +449,11 @@ AkVCam::VideoFormat AkVCam::Preferences::cameraFormat(size_t cameraIndex,
                 + std::to_string(cameraIndex + 1)
                 + "\\Formats\\"
                 + std::to_string(formatIndex + 1);
-    auto format = readString(prefix + "\\format");
+    auto format = readString(prefix + "\\format", {}, true);
     auto fourcc = VideoFormat::fourccFromString(format);
-    int width = readInt(prefix + "\\width");
-    int height = readInt(prefix + "\\height");
-    auto fps = Fraction(readString(prefix + "\\fps"));
+    int width = readInt(prefix + "\\width", 0, true);
+    int height = readInt(prefix + "\\height", 0, true);
+    auto fps = Fraction(readString(prefix + "\\fps", {}, true));
 
     return VideoFormat(fourcc, width, height, {fps});
 }
@@ -418,19 +473,22 @@ std::vector<AkVCam::VideoFormat> AkVCam::Preferences::cameraFormats(size_t camer
     return formats;
 }
 
-void AkVCam::Preferences::cameraSetFormats(size_t cameraIndex,
+bool AkVCam::Preferences::cameraSetFormats(size_t cameraIndex,
                                            const std::vector<AkVCam::VideoFormat> &formats)
 {
     AkLogFunction();
 
     if (cameraIndex >= camerasCount())
-        return;
+        return false;
 
-    deleteKey("Cameras\\" + std::to_string(cameraIndex + 1) + "\\Formats\\");
-    write("Cameras\\"
-          + std::to_string(cameraIndex + 1)
-          + "\\Formats\\size",
-          int(formats.size()));
+    bool ok = true;
+    ok &= deleteKey("Cameras\\" + std::to_string(cameraIndex + 1) + "\\Formats\\",
+                    true);
+    ok &= write("Cameras\\"
+                + std::to_string(cameraIndex + 1)
+                + "\\Formats\\size",
+                int(formats.size()),
+                true);
 
     for (size_t i = 0; i < formats.size(); i++) {
         auto &format = formats[i];
@@ -439,14 +497,16 @@ void AkVCam::Preferences::cameraSetFormats(size_t cameraIndex,
                       + "\\Formats\\"
                       + std::to_string(i + 1);
         auto formatStr = VideoFormat::stringFromFourcc(format.fourcc());
-        write(prefix + "\\format", formatStr);
-        write(prefix + "\\width", format.width());
-        write(prefix + "\\height", format.height());
-        write(prefix + "\\fps", format.minimumFrameRate().toString());
+        ok &= write(prefix + "\\format", formatStr, true);
+        ok &= write(prefix + "\\width", format.width(), true);
+        ok &= write(prefix + "\\height", format.height(), true);
+        ok &= write(prefix + "\\fps", format.minimumFrameRate().toString(), true);
     }
+
+    return ok;
 }
 
-void AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
+bool AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
                                           const AkVCam::VideoFormat &format,
                                           int index)
 {
@@ -456,11 +516,13 @@ void AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
     if (index < 0 || index > int(formats.size()))
         index = int(formats.size());
 
+    bool ok = true;
     formats.insert(formats.begin() + index, format);
-    write("Cameras\\"
-          + std::to_string(cameraIndex + 1)
-          + "\\Formats\\size",
-          int(formats.size()));
+    ok &= write("Cameras\\"
+                + std::to_string(cameraIndex + 1)
+                + "\\Formats\\size",
+                int(formats.size()),
+                true);
 
     for (size_t i = 0; i < formats.size(); i++) {
         auto &format = formats[i];
@@ -469,26 +531,30 @@ void AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
                     + "\\Formats\\"
                     + std::to_string(i + 1);
         auto formatStr = VideoFormat::stringFromFourcc(format.fourcc());
-        write(prefix + "\\format", formatStr);
-        write(prefix + "\\width", format.width());
-        write(prefix + "\\height", format.height());
-        write(prefix + "\\fps", format.minimumFrameRate().toString());
+        ok &= write(prefix + "\\format", formatStr, true);
+        ok &= write(prefix + "\\width", format.width(), true);
+        ok &= write(prefix + "\\height", format.height(), true);
+        ok &= write(prefix + "\\fps", format.minimumFrameRate().toString(), true);
     }
+
+    return ok;
 }
 
-void AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
+bool AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
 {
     AkLogFunction();
     auto formats = cameraFormats(cameraIndex);
 
     if (index < 0 || index >= int(formats.size()))
-        return;
+        return false;
 
+    bool ok = true;
     formats.erase(formats.begin() + index);
-    write("Cameras\\"
-          + std::to_string(cameraIndex + 1)
-          + "\\Formats\\size",
-          int(formats.size()));
+    ok &= write("Cameras\\"
+                + std::to_string(cameraIndex + 1)
+                + "\\Formats\\size",
+                int(formats.size()),
+                true);
 
     for (size_t i = 0; i < formats.size(); i++) {
         auto &format = formats[i];
@@ -497,11 +563,15 @@ void AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
                     + "\\Formats\\"
                     + std::to_string(i + 1);
         auto formatStr = VideoFormat::stringFromFourcc(format.fourcc());
-        write(prefix + "\\format", formatStr);
-        write(prefix + "\\width", format.width());
-        write(prefix + "\\height", format.height());
-        write(prefix + "\\fps", format.minimumFrameRate().toString());
+        ok &= write(prefix + "\\format", formatStr, true);
+        ok &= write(prefix + "\\width", format.width(), true);
+        ok &= write(prefix + "\\height", format.height(), true);
+        ok &= write(prefix + "\\fps",
+                    format.minimumFrameRate().toString(),
+                    true);
     }
+
+    return ok;
 }
 
 int AkVCam::Preferences::cameraControlValue(size_t cameraIndex,
@@ -513,15 +583,15 @@ int AkVCam::Preferences::cameraControlValue(size_t cameraIndex,
                    + key);
 }
 
-void AkVCam::Preferences::cameraSetControlValue(size_t cameraIndex,
+bool AkVCam::Preferences::cameraSetControlValue(size_t cameraIndex,
                                                 const std::string &key,
                                                 int value)
 {
-    write("Cameras\\"
-          + std::to_string(cameraIndex + 1)
-          + "\\Controls\\"
-          + key,
-          value);
+    return write("Cameras\\"
+                 + std::to_string(cameraIndex + 1)
+                 + "\\Controls\\"
+                 + key,
+                 value);
 }
 
 std::string AkVCam::Preferences::picture()
@@ -529,19 +599,19 @@ std::string AkVCam::Preferences::picture()
     return readString("picture");
 }
 
-void AkVCam::Preferences::setPicture(const std::string &picture)
+bool AkVCam::Preferences::setPicture(const std::string &picture)
 {
-    write("picture", picture);
+    return write("picture", picture);
 }
 
 int AkVCam::Preferences::logLevel()
 {
-    return readInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
+    return readInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT, true);
 }
 
-void AkVCam::Preferences::setLogLevel(int logLevel)
+bool AkVCam::Preferences::setLogLevel(int logLevel)
 {
-    write("loglevel", logLevel);
+    return write("loglevel", logLevel, true);
 }
 
 void AkVCam::Preferences::splitSubKey(const std::string &key,
@@ -564,16 +634,18 @@ void AkVCam::Preferences::splitSubKey(const std::string &key,
 bool AkVCam::Preferences::readValue(const std::string &key,
                                     DWORD dataTypeFlags,
                                     PVOID data,
-                                    LPDWORD dataSize)
+                                    LPDWORD dataSize,
+                                    bool global)
 {
     AkLogFunction();
+    HKEY rootKey = global? HKEY_LOCAL_MACHINE: HKEY_CURRENT_USER;
     std::string subKey;
     std::string val;
     splitSubKey(key, subKey, val);
     AkLogDebug() << "SubKey: " << subKey << std::endl;
     AkLogDebug() << "Value: " << val << std::endl;
     HKEY hkey = nullptr;
-    auto result = RegOpenKeyExA(HKEY_CURRENT_USER,
+    auto result = RegOpenKeyExA(rootKey,
                                 subKey.c_str(),
                                 0,
                                 KEY_READ | KEY_WOW64_64KEY,
@@ -594,19 +666,21 @@ bool AkVCam::Preferences::readValue(const std::string &key,
     return result == ERROR_SUCCESS;
 }
 
-void AkVCam::Preferences::setValue(const std::string &key,
+bool AkVCam::Preferences::setValue(const std::string &key,
                                    DWORD dataType,
                                    LPCSTR data,
-                                   DWORD dataSize)
+                                   DWORD dataSize,
+                                   bool global)
 {
     AkLogFunction();
+    HKEY rootKey = global? HKEY_LOCAL_MACHINE: HKEY_CURRENT_USER;
     std::string subKey;
     std::string val;
     splitSubKey(key, subKey, val);
     AkLogDebug() << "SubKey: " << subKey << std::endl;
     AkLogDebug() << "Value: " << val << std::endl;
     HKEY hkey = nullptr;
-    LONG result = RegCreateKeyExA(HKEY_CURRENT_USER,
+    LONG result = RegCreateKeyExA(rootKey,
                                   subKey.c_str(),
                                   0,
                                   nullptr,
@@ -617,13 +691,15 @@ void AkVCam::Preferences::setValue(const std::string &key,
                                   nullptr);
 
     if (result != ERROR_SUCCESS)
-        return;
+        return false;
 
-    RegSetValueExA(hkey,
-                   val.c_str(),
-                   0,
-                   dataType,
-                   reinterpret_cast<CONST BYTE *>(data),
-                   dataSize);
+    result = RegSetValueExA(hkey,
+                            val.c_str(),
+                            0,
+                            dataType,
+                            reinterpret_cast<CONST BYTE *>(data),
+                            dataSize);
     RegCloseKey(hkey);
+
+    return result == ERROR_SUCCESS;
 }

@@ -53,4 +53,6 @@ namespace AkVCam
     };
 }
 
+std::ostream &operator <<(std::ostream &os, const AkVCam::Fraction &fraction);
+
 #endif // FRACTION_H

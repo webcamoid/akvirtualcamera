@@ -141,14 +141,9 @@ namespace AkVCam
         char port[MAX_STRING];
     };
 
-    struct MsgDeviceAdded
+    struct MsgDevicesUpdated
     {
-        char device[MAX_STRING];
-    };
-
-    struct MsgDeviceRemoved
-    {
-        char device[MAX_STRING];
+        bool propagate;
     };
 
     struct MsgBroadcasting

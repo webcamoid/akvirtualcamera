@@ -150,6 +150,28 @@ IReferenceClock *AkVCam::BaseFilter::referenceClock() const
     return this->d->m_referenceClock;
 }
 
+std::string AkVCam::BaseFilter::deviceId()
+{
+    CLSID clsid;
+    this->GetClassID(&clsid);
+    auto cameraIndex = Preferences::cameraFromCLSID(clsid);
+
+    if (cameraIndex < 0)
+        return {};
+
+    return Preferences::cameraPath(size_t(cameraIndex));
+}
+
+std::string AkVCam::BaseFilter::broadcaster()
+{
+    auto deviceId = this->deviceId();
+
+    if (deviceId.empty())
+        return {};
+
+    return this->d->m_ipcBridge.broadcaster(deviceId);
+}
+
 HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppvObject)
 {
     AkLogFunction();

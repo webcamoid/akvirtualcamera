@@ -44,12 +44,20 @@ std::string AkVCam::replace(const std::string &str,
                             const std::string &from,
                             const std::string &to)
 {
-    auto newStr = str;
+    std::string newStr;
 
-    for (auto pos = newStr.find(from);
-         pos != std::string::npos;
-         pos = newStr.find(from))
-        newStr.replace(pos, from.size(), to);
+    for (size_t i = 0; i < str.size(); i++) {
+        auto pos = str.find(from, i);
+
+        if (pos == std::string::npos) {
+            newStr += str.substr(i);
+
+            break;
+        } else {
+            newStr += str.substr(i, pos - i) + to;
+            i = pos + from.size() - 1;
+        }
+    }
 
     return newStr;
 }

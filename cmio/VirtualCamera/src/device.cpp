@@ -68,6 +68,7 @@ OSStatus AkVCam::Device::createObject()
 OSStatus AkVCam::Device::registerObject(bool regist)
 {
     AkLogFunction();
+    AkLogDebug() << "Register: " << regist << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!this->m_isCreated
@@ -90,6 +91,11 @@ OSStatus AkVCam::Device::registerObject(bool regist)
                                              1,
                                              &this->m_objectID);
     }
+
+    if (status == kCMIOHardwareNoError)
+        AkLogDebug() << "Ok";
+    else
+        AkLogDebug() << "Error registering device" << std::endl;
 
     return status;
 }
@@ -134,6 +140,7 @@ std::list<AkVCam::StreamPtr> AkVCam::Device::addStreams(int n)
 OSStatus AkVCam::Device::registerStreams(bool regist)
 {
     AkLogFunction();
+    AkLogDebug() << "Register: " << regist << std::endl;
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!this->m_isCreated
@@ -162,6 +169,11 @@ OSStatus AkVCam::Device::registerStreams(bool regist)
                                              UInt32(streams.size()),
                                              streams.data());
     }
+
+    if (status == kCMIOHardwareNoError)
+        AkLogDebug() << "Ok";
+    else
+        AkLogDebug() << "Error registering streams" << std::endl;
 
     return status;
 }
@@ -338,6 +350,7 @@ OSStatus AkVCam::Device::processRS422Command(CMIODeviceRS422Command *ioRS422Comm
 
 void AkVCam::Device::updateStreamsProperty()
 {
+    AkLogFunction();
     std::vector<ObjectPtr> streams;
 
     for (auto &stream: this->m_streams)

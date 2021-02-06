@@ -130,7 +130,7 @@ bool AkVCam::SharedMemory::open(size_t pageSize, OpenMode mode)
         AkLogError() << "Error opening shared memory ("
                      << this->d->m_name
                      << "): "
-                     << errorToString(GetLastError())
+                     << stringFromError(GetLastError())
                      << " (" << GetLastError() << ")"
                      << std::endl;
 

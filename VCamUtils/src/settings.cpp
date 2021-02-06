@@ -108,10 +108,11 @@ bool AkVCam::Settings::load(const std::string &fileName)
                 if (this->d->m_configs.count(currentGroup) < 1)
                     this->d->m_configs[currentGroup] = {};
             } else if (!element.key.empty() && !element.value.empty()) {
-                if (currentGroup.empty()) {
+                if (currentGroup.empty())
                     currentGroup = "General";
+
+                if (this->d->m_configs.count(currentGroup) < 1)
                     this->d->m_configs[currentGroup] = {};
-                }
 
                 this->d->m_configs[currentGroup][element.key] = element.value;
             }
@@ -210,14 +211,13 @@ bool AkVCam::Settings::contains(const std::string &key) const
     if (this->d->m_currentArray.empty()) {
         contains = groupConfigs.count(key) > 0;
     } else {
-        std::string arrayKey;
-        std::stringstream ss(arrayKey);
-        ss << this->d->m_currentArray
-           << '/'
-           << this->d->m_arrayIndex + 1
-           << '/'
-           << key;
-        contains = groupConfigs.count(arrayKey) > 0;
+        std::stringstream arrayKey;
+        arrayKey << this->d->m_currentArray
+                 << '/'
+                 << this->d->m_arrayIndex + 1
+                 << '/'
+                 << key;
+        contains = groupConfigs.count(arrayKey.str()) > 0;
     }
 
     return contains;
@@ -237,14 +237,13 @@ std::string AkVCam::Settings::value(const std::string &key) const
     if (this->d->m_currentArray.empty()) {
         value = groupConfigs[key];
     } else {
-        std::string arrayKey;
-        std::stringstream ss(arrayKey);
-        ss << this->d->m_currentArray
-           << '/'
-           << this->d->m_arrayIndex + 1
-           << '/'
-           << key;
-        value = groupConfigs[arrayKey];
+        std::stringstream arrayKey;
+        arrayKey << this->d->m_currentArray
+                 << '/'
+                 << this->d->m_arrayIndex + 1
+                 << '/'
+                 << key;
+        value = groupConfigs[arrayKey.str()];
     }
 
     return value;
@@ -358,7 +357,7 @@ AkVCam::SettingsElement AkVCam::SettingsPrivate::parse(const std::string &line, 
 
     if (line.empty() || line[0] == '#' || line[0] == ';') {
         if (ok)
-            *ok = false;
+            *ok = true;
 
         return {};
     }

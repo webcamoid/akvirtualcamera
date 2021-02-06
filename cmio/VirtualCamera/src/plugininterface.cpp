@@ -437,6 +437,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
     stream->properties().setProperty(kCMIOStreamPropertyDirection, 0);
 
     if (device->registerStreams() != kCMIOHardwareNoError) {
+        AkLogDebug() << "Failed registering streams" << std::endl;
         device->registerStreams(false);
 
         goto createDevice_failed;
@@ -444,6 +445,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
 
     // Register the device.
     if (device->registerObject() != kCMIOHardwareNoError) {
+        AkLogDebug() << "Failed registering device" << std::endl;
         device->registerObject(false);
         device->registerStreams(false);
 

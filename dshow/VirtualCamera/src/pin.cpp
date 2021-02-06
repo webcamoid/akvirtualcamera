@@ -111,6 +111,20 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     this->d->m_pinId = ss.str();
     this->d->m_mediaTypes = new AkVCam::EnumMediaTypes(formats);
     this->d->m_mediaTypes->AddRef();
+
+    auto cameraIndex = Preferences::cameraFromPath(baseFilter->deviceId());
+    this->d->m_broadcaster = baseFilter->broadcaster();
+    this->d->m_controls["hflip"] =
+            Preferences::cameraControlValue(cameraIndex, "hflip");
+    this->d->m_controls["vflip"] =
+            Preferences::cameraControlValue(cameraIndex, "vflip");
+    this->d->m_controls["scaling"] =
+            Preferences::cameraControlValue(cameraIndex, "scaling");
+    this->d->m_controls["aspect_ratio"] =
+            Preferences::cameraControlValue(cameraIndex, "aspect_ratio");
+    this->d->m_controls["swap_rgb"] =
+            Preferences::cameraControlValue(cameraIndex, "swap_rgb");
+
     auto picture = Preferences::picture();
 
     if (!picture.empty())
@@ -316,9 +330,18 @@ void AkVCam::Pin::setControls(const std::map<std::string, int> &controls)
         return;
     }
 
+    for (auto &control: controls)
+        AkLogDebug() << control.first << ": " << control.second << std::endl;
+
     this->d->m_controls = controls;
     this->d->m_controlsMutex.unlock();
     this->d->updateTestFrame();
+    this->d->m_mutex.lock();
+
+    if (this->d->m_broadcaster.empty())
+        this->d->m_currentFrame = this->d->m_testFrameAdapted;
+
+    this->d->m_mutex.unlock();
 }
 
 bool AkVCam::Pin::horizontalFlip() const
@@ -907,6 +930,7 @@ HRESULT AkVCam::PinPrivate::sendFrame()
 
 void AkVCam::PinPrivate::updateTestFrame()
 {
+    AkLogFunction();
     auto frame = this->applyAdjusts(this->m_testFrame);
 
     if (frame.format().size() < 1)

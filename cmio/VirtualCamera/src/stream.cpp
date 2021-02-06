@@ -309,6 +309,7 @@ void AkVCam::Stream::frameReady(const AkVCam::VideoFrame &frame)
 void AkVCam::Stream::setBroadcasting(const std::string &broadcaster)
 {
     AkLogFunction();
+    AkLogDebug() << "Broadcaster: " << broadcaster << std::endl;
 
     if (this->d->m_broadcaster == broadcaster)
         return;
@@ -325,6 +326,7 @@ void AkVCam::Stream::setBroadcasting(const std::string &broadcaster)
 void AkVCam::Stream::setHorizontalMirror(bool horizontalMirror)
 {
     AkLogFunction();
+    AkLogDebug() << "Mirror: " << horizontalMirror << std::endl;
 
     if (this->d->m_horizontalMirror == horizontalMirror)
         return;
@@ -342,6 +344,7 @@ void AkVCam::Stream::setHorizontalMirror(bool horizontalMirror)
 void AkVCam::Stream::setVerticalMirror(bool verticalMirror)
 {
     AkLogFunction();
+    AkLogDebug() << "Mirror: " << verticalMirror << std::endl;
 
     if (this->d->m_verticalMirror == verticalMirror)
         return;
@@ -359,6 +362,7 @@ void AkVCam::Stream::setVerticalMirror(bool verticalMirror)
 void AkVCam::Stream::setScaling(Scaling scaling)
 {
     AkLogFunction();
+    AkLogDebug() << "Scaling: " << scaling << std::endl;
 
     if (this->d->m_scaling == scaling)
         return;
@@ -376,6 +380,7 @@ void AkVCam::Stream::setScaling(Scaling scaling)
 void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
 {
     AkLogFunction();
+    AkLogDebug() << "Aspect ratio: " << aspectRatio << std::endl;
 
     if (this->d->m_aspectRatio == aspectRatio)
         return;
@@ -393,6 +398,7 @@ void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
 void AkVCam::Stream::setSwapRgb(bool swap)
 {
     AkLogFunction();
+    AkLogDebug() << "Swap: " << swap << std::endl;
 
     if (this->d->m_swapRgb == swap)
         return;
@@ -625,11 +631,14 @@ void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
 
 void AkVCam::StreamPrivate::updateTestFrame()
 {
+    AkLogFunction();
     this->m_testFrameAdapted = this->applyAdjusts(this->m_testFrame);
 }
 
 AkVCam::VideoFrame AkVCam::StreamPrivate::applyAdjusts(const VideoFrame &frame)
 {
+    AkLogFunction();
+
     VideoFormat format;
     this->self->m_properties.getProperty(kCMIOStreamPropertyFormatDescription,
                                          &format);

@@ -47,6 +47,8 @@ namespace AkVCam
             static BaseFilter *create(const GUID &clsid);
             IFilterGraph *filterGraph() const;
             IReferenceClock *referenceClock() const;
+            std::string deviceId();
+            std::string broadcaster();
 
             DECLARE_IMEDIAFILTER_NQ
 

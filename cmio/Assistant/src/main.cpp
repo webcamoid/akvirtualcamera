@@ -47,8 +47,10 @@ int main(int argc, char **argv)
             auto timeout = strtod(argv[i + 1], nullptr);
             AkLogInfo() << "Set timeout: " << timeout << std::endl;
             assistant()->setTimeout(timeout);
-
-            break;
+        } else if (strcmp(argv[i], "--loglevel") == 0 && i + 1 < argc) {
+            auto loglevel = strtoul(argv[i + 1], nullptr, 10);
+            AkVCam::Logger::setLogLevel(loglevel);
+            AkLogInfo() << "Set loglevel: " << loglevel << std::endl;
         }
 
     AkLogDebug() << "Setting up handler" << std::endl;

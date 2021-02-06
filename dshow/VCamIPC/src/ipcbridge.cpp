@@ -66,6 +66,7 @@ namespace AkVCam
             ~IpcBridgePrivate();
 
             inline const std::vector<DeviceControl> &controls() const;
+            void updateDevices(bool propagate);
             void updateDeviceSharedProperties();
             void updateDeviceSharedProperties(const std::string &deviceId,
                                               const std::string &owner);
@@ -74,13 +75,21 @@ namespace AkVCam
 
             // Message handling methods
             void isAlive(Message *message);
+            void deviceUpdate(Message *message);
             void frameReady(Message *message);
             void pictureUpdated(Message *message);
-            void deviceUpdate(Message *message);
-            void listenerAdd(Message *message);
-            void listenerRemove (Message *message);
             void setBroadcasting(Message *message);
             void controlsUpdated(Message *message);
+            void listenerAdd(Message *message);
+            void listenerRemove (Message *message);
+
+            bool isRoot() const;
+            int sudo(const std::vector<std::string> &parameters,
+                     const std::string &directory={},
+                     bool show=false);
+            std::string manager() const;
+            std::string alternativeManager() const;
+            std::string alternativePlugin() const;
     };
 
     static const int maxFrameWidth = 1920;
@@ -97,12 +106,17 @@ AkVCam::IpcBridge::IpcBridge()
     AkVCam::Logger::setLogLevel(loglevel);
     this->d->m_mainServer.start();
     this->registerPeer();
+    this->d->updateDeviceSharedProperties();
+    this->d->m_mainServer.connectPipeStateChanged(this,
+                                                  &IpcBridgePrivate::pipeStateChanged);
 }
 
 AkVCam::IpcBridge::~IpcBridge()
 {
+    this->d->m_mainServer.disconnectPipeStateChanged(this,
+                                                     &IpcBridgePrivate::pipeStateChanged);
     this->unregisterPeer();
-    this->d->m_mainServer.stop(true);
+    this->d->m_mainServer.stop();
     delete this->d;
 }
 
@@ -113,6 +127,7 @@ std::string AkVCam::IpcBridge::picture() const
 
 void AkVCam::IpcBridge::setPicture(const std::string &picture)
 {
+    AkLogFunction();
     Preferences::setPicture(picture);
     Message message;
     message.messageId = AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED;
@@ -131,6 +146,7 @@ int AkVCam::IpcBridge::logLevel() const
 
 void AkVCam::IpcBridge::setLogLevel(int logLevel)
 {
+    AkLogFunction();
     Preferences::setLogLevel(logLevel);
     Logger::setLogLevel(logLevel);
 }
@@ -138,6 +154,11 @@ void AkVCam::IpcBridge::setLogLevel(int logLevel)
 bool AkVCam::IpcBridge::registerPeer()
 {
     AkLogFunction();
+
+    if (!this->d->m_portName.empty())
+        return true;
+
+    AkLogDebug() << "Requesting port." << std::endl;
 
     Message message;
     message.messageId = AKVCAM_ASSISTANT_MSG_REQUEST_PORT;
@@ -149,16 +170,26 @@ bool AkVCam::IpcBridge::registerPeer()
         return false;
 
     std::string portName(requestData->port);
+    AkLogInfo() << "Recommended port name: " << portName << std::endl;
+
+    if (portName.empty()) {
+        AkLogError() << "The returned por name is empty." << std::endl;
+
+        return false;
+    }
+
+    AkLogDebug() << "Starting message server." << std::endl;    
     auto pipeName = "\\\\.\\pipe\\" + portName;
     this->d->m_messageServer.setPipeName(pipeName);
     this->d->m_messageServer.setHandlers(this->d->m_messageHandlers);
-    AkLogInfo() << "Recommended port name: " << portName << std::endl;
 
     if (!this->d->m_messageServer.start()) {
         AkLogError() << "Can't start message server" << std::endl;
 
         return false;
     }
+
+    AkLogInfo() << "Registering port: " << portName << std::endl;
 
     message.clear();
     message.messageId = AKVCAM_ASSISTANT_MSG_ADD_PORT;
@@ -171,17 +202,17 @@ bool AkVCam::IpcBridge::registerPeer()
            pipeName.c_str(),
            (std::min<size_t>)(pipeName.size(), MAX_STRING));
 
-    AkLogInfo() << "Registering port name: " << portName << std::endl;
-
     if (!MessageServer::sendMessage("\\\\.\\pipe\\" DSHOW_PLUGIN_ASSISTANT_NAME,
                                     &message)) {
-        this->d->m_messageServer.stop(true);
+        AkLogError() << "Failed registering port." << std::endl;
+        this->d->m_messageServer.stop();
 
         return false;
     }
 
     if (!addData->status) {
-        this->d->m_messageServer.stop(true);
+        AkLogError() << "Failed registering port." << std::endl;
+        this->d->m_messageServer.stop();
 
         return false;
     }
@@ -190,6 +221,9 @@ bool AkVCam::IpcBridge::registerPeer()
     this->d->m_globalMutex = Mutex(portName + ".mutex");
     this->d->m_portName = portName;
     AkLogInfo() << "Peer registered as " << portName << std::endl;
+
+    AkLogInfo() << "SUCCESSFUL" << std::endl;
+    this->d->updateDevices(false);
 
     return true;
 }
@@ -201,7 +235,6 @@ void AkVCam::IpcBridge::unregisterPeer()
     if (this->d->m_portName.empty())
         return;
 
-    this->d->m_sharedMemory.setName({});
     Message message;
     message.messageId = AKVCAM_ASSISTANT_MSG_REMOVE_PORT;
     message.dataSize = sizeof(MsgRemovePort);
@@ -211,15 +244,17 @@ void AkVCam::IpcBridge::unregisterPeer()
            (std::min<size_t>)(this->d->m_portName.size(), MAX_STRING));
     MessageServer::sendMessage("\\\\.\\pipe\\" DSHOW_PLUGIN_ASSISTANT_NAME,
                                &message);
-    this->d->m_messageServer.stop(true);
+    this->d->m_messageServer.stop();    
+    this->d->m_sharedMemory.setName({});
+    this->d->m_globalMutex = {};
     this->d->m_portName.clear();
 }
 
 std::vector<std::string> AkVCam::IpcBridge::devices() const
 {
     AkLogFunction();
-    auto nCameras = Preferences::camerasCount();
     std::vector<std::string> devices;
+    auto nCameras = Preferences::camerasCount();
     AkLogInfo() << "Devices:" << std::endl;
 
     for (size_t i = 0; i < nCameras; i++) {
@@ -285,9 +320,11 @@ std::vector<AkVCam::VideoFormat> AkVCam::IpcBridge::formats(const std::string &d
 
     return Preferences::cameraFormats(size_t(cameraIndex));
 }
+
 void AkVCam::IpcBridge::setFormats(const std::string &deviceId,
                                    const std::vector<VideoFormat> &formats)
 {
+    AkLogFunction();
     auto cameraIndex = Preferences::cameraFromPath(deviceId);
 
     if (cameraIndex >= 0)
@@ -425,10 +462,22 @@ std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
     if (pluginPath.empty())
         return {};
 
-    auto path = pluginPath + "\\" DSHOW_PLUGIN_NAME ".dll";
+    std::vector<std::string> plugins;
+
+    // First check for the existence of the main plugin binary.
+    auto path = pluginPath + "\\" DSHOW_PLUGIN_NAME ".dll";    
     AkLogDebug() << "Plugin binary: " << path << std::endl;
 
-    if (!fileExists(path))
+    if (fileExists(path))
+        plugins.push_back(path);
+
+    // Check if the alternative architecture plugin exists.
+    auto altPlugin = this->d->alternativePlugin();
+
+    if (!altPlugin.empty())
+        plugins.push_back(path);
+
+    if (plugins.empty())
         return {};
 
     std::vector<uint64_t> pids;
@@ -449,8 +498,18 @@ std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
                                       | PROCESS_VM_READ,
                                       FALSE,
                                       process[i]);
-          if (!processHnd)
-              continue;
+
+        if (!processHnd)
+            continue;
+
+        char processName[MAX_PATH];
+        memset(&processName, 0, sizeof(MAX_PATH));
+
+        if (GetModuleBaseNameA(processHnd,
+                               nullptr,
+                               processName,
+                               MAX_PATH))
+            AkLogDebug() << "Enumerating modules for '" << processName << "'" << std::endl;
 
         HMODULE modules[nElements];
         memset(modules, 0, nElements * sizeof(HMODULE));
@@ -470,7 +529,11 @@ std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
                                          modules[j],
                                          moduleName,
                                          MAX_PATH)) {
-                    if (moduleName == path) {
+                    auto it = std::find(plugins.begin(),
+                                        plugins.end(),
+                                        moduleName);
+
+                    if (it != plugins.end()) {
                         auto pidsIt = std::find(pids.begin(),
                                                 pids.end(),
                                                 process[i]);
@@ -513,11 +576,15 @@ std::string AkVCam::IpcBridge::clientExe(uint64_t pid) const
 
 std::string AkVCam::IpcBridge::addDevice(const std::string &description)
 {
+    AkLogFunction();
+
     return Preferences::addDevice(description);
 }
 
 void AkVCam::IpcBridge::removeDevice(const std::string &deviceId)
 {
+    AkLogFunction();
+
     Preferences::removeCamera(deviceId);
 }
 
@@ -567,12 +634,24 @@ void AkVCam::IpcBridge::updateDevices()
                 RegisterServerFunc(GetProcAddress(hmodule, "DllRegisterServer"));
 
         if (registerServer) {
-            (*registerServer)();
+            AkLogDebug() << "Registering server" << std::endl;
+            auto result = (*registerServer)();
+            AkLogDebug() << "Server registered with code " << result << std::endl;
+            this->d->updateDevices(true);
+            auto lockFileName = tempPath() + "\\akvcam_update.lck";
 
-            Message message;
-            message.messageId = AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE;
-            message.dataSize = 0;
-            this->d->m_mainServer.sendMessage(&message);
+            if (!fileExists(lockFileName)) {
+                std::ofstream lockFile;
+                lockFile.open(lockFileName);
+                lockFile << std::endl;
+                lockFile.close();
+                auto altManager = this->d->alternativeManager();
+
+                if (!altManager.empty())
+                    this->d->sudo({altManager, "update"});
+
+                DeleteFileA(lockFileName.c_str());
+            }
         } else {
             AkLogError() << "Can't locate DllRegisterServer function." << std::endl;
         }
@@ -625,9 +704,6 @@ bool AkVCam::IpcBridge::deviceStart(const std::string &deviceId,
 
         return false;
     }
-
-    if (!data->status)
-        return false;
 
     this->d->m_broadcasting.push_back(deviceId);
 
@@ -746,15 +822,42 @@ bool AkVCam::IpcBridge::removeListener(const std::string &deviceId)
     return data->status;
 }
 
+bool AkVCam::IpcBridge::needsRoot(const std::string &operation) const
+{
+    static const std::vector<std::string> operations {
+        "add-device",
+        "remove-device",
+        "remove-devices",
+        "set-description",
+        "add-format",
+        "remove-format",
+        "remove-formats",
+        "update",
+        "load",
+        "set-loglevel",
+    };
+
+    auto it = std::find(operations.begin(), operations.end(), operation);
+
+    return it != operations.end() && !this->d->isRoot();
+}
+
+int AkVCam::IpcBridge::sudo(int argc, char **argv) const
+{
+    AkLogFunction();
+    std::vector<std::string> arguments;
+
+    for (int i = 0; i < argc; i++)
+        arguments.push_back(argv[i]);
+
+    return this->d->sudo(arguments);
+}
+
 AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
     self(self)
 {
     this->m_mainServer.setPipeName("\\\\.\\pipe\\" DSHOW_PLUGIN_ASSISTANT_NAME);
     this->m_mainServer.setMode(MessageServer::ServerModeSend);
-    this->m_mainServer.connectPipeStateChanged(this,
-                                               &IpcBridgePrivate::pipeStateChanged);
-    this->updateDeviceSharedProperties();
-
     this->m_messageHandlers = std::map<uint32_t, MessageHandler> {
         {AKVCAM_ASSISTANT_MSG_ISALIVE                , AKVCAM_BIND_FUNC(IpcBridgePrivate::isAlive)        },
         {AKVCAM_ASSISTANT_MSG_FRAME_READY            , AKVCAM_BIND_FUNC(IpcBridgePrivate::frameReady)     },
@@ -769,7 +872,6 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
 
 AkVCam::IpcBridgePrivate::~IpcBridgePrivate()
 {
-    this->m_mainServer.stop(true);
 }
 
 const std::vector<AkVCam::DeviceControl> &AkVCam::IpcBridgePrivate::controls() const
@@ -797,8 +899,22 @@ const std::vector<AkVCam::DeviceControl> &AkVCam::IpcBridgePrivate::controls() c
     return controls;
 }
 
+void AkVCam::IpcBridgePrivate::updateDevices(bool propagate)
+{
+    AkLogFunction();
+
+    Message message;
+    message.messageId = AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE;
+    message.dataSize = sizeof(MsgDevicesUpdated);
+    auto data = messageData<MsgDevicesUpdated>(&message);
+    data->propagate = propagate;
+    this->m_mainServer.sendMessage(&message);
+}
+
 void AkVCam::IpcBridgePrivate::updateDeviceSharedProperties()
 {
+    AkLogFunction();
+
     for (size_t i = 0; i < Preferences::camerasCount(); i++) {
         auto path = Preferences::cameraPath(i);
         Message message;
@@ -817,6 +933,8 @@ void AkVCam::IpcBridgePrivate::updateDeviceSharedProperties()
 void AkVCam::IpcBridgePrivate::updateDeviceSharedProperties(const std::string &deviceId,
                                                             const std::string &owner)
 {
+    AkLogFunction();
+
     if (owner.empty()) {
         this->m_devices[deviceId] = {SharedMemory(), Mutex()};
     } else {
@@ -865,6 +983,19 @@ void AkVCam::IpcBridgePrivate::isAlive(Message *message)
     data->alive = true;
 }
 
+void AkVCam::IpcBridgePrivate::deviceUpdate(Message *message)
+{
+    UNUSED(message);
+    AkLogFunction();
+    std::vector<std::string> devices;
+    auto nCameras = Preferences::camerasCount();
+
+    for (size_t i = 0; i < nCameras; i++)
+        devices.push_back(Preferences::cameraPath(i));
+
+    AKVCAM_EMIT(this->self, DevicesChanged, devices)
+}
+
 void AkVCam::IpcBridgePrivate::frameReady(Message *message)
 {
     AkLogFunction();
@@ -899,39 +1030,6 @@ void AkVCam::IpcBridgePrivate::pictureUpdated(Message *message)
     AKVCAM_EMIT(this->self, PictureChanged, std::string(data->picture))
 }
 
-void AkVCam::IpcBridgePrivate::deviceUpdate(Message *message)
-{
-    UNUSED(message);
-    AkLogFunction();
-    std::vector<std::string> devices;
-    auto nCameras = Preferences::camerasCount();
-
-    for (size_t i = 0; i < nCameras; i++)
-        devices.push_back(Preferences::cameraPath(i));
-
-    AKVCAM_EMIT(this->self, DevicesChanged, devices)
-}
-
-void AkVCam::IpcBridgePrivate::listenerAdd(Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgListeners>(message);
-    AKVCAM_EMIT(this->self,
-                ListenerAdded,
-                std::string(data->device),
-                std::string(data->listener))
-}
-
-void AkVCam::IpcBridgePrivate::listenerRemove(Message *message)
-{
-    AkLogFunction();
-    auto data = messageData<MsgListeners>(message);
-    AKVCAM_EMIT(this->self,
-                ListenerRemoved,
-                std::string(data->device),
-                std::string(data->listener))
-}
-
 void AkVCam::IpcBridgePrivate::setBroadcasting(Message *message)
 {
     AkLogFunction();
@@ -954,9 +1052,181 @@ void AkVCam::IpcBridgePrivate::controlsUpdated(Message *message)
 
     std::map<std::string, int> controls;
 
-    for (auto &control: this->controls())
+    for (auto &control: this->controls()) {
         controls[control.id] =
                 Preferences::cameraControlValue(size_t(cameraIndex), control.id);
+        AkLogDebug() << control.id << ": " << controls[control.id] << std::endl;
+    }
 
     AKVCAM_EMIT(this->self, ControlsChanged, deviceId, controls)
+}
+
+void AkVCam::IpcBridgePrivate::listenerAdd(Message *message)
+{
+    AkLogFunction();
+    auto data = messageData<MsgListeners>(message);
+    AKVCAM_EMIT(this->self,
+                ListenerAdded,
+                std::string(data->device),
+                std::string(data->listener))
+}
+
+void AkVCam::IpcBridgePrivate::listenerRemove(Message *message)
+{
+    AkLogFunction();
+    auto data = messageData<MsgListeners>(message);
+    AKVCAM_EMIT(this->self,
+                ListenerRemoved,
+                std::string(data->device),
+                std::string(data->listener))
+}
+
+bool AkVCam::IpcBridgePrivate::isRoot() const
+{
+    AkLogFunction();
+    HANDLE token = nullptr;
+
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
+        return false;
+
+    TOKEN_ELEVATION elevationInfo;
+    memset(&elevationInfo, 0, sizeof(TOKEN_ELEVATION));
+    DWORD len = 0;
+
+    if (!GetTokenInformation(token,
+                             TokenElevation,
+                             &elevationInfo,
+                             sizeof(TOKEN_ELEVATION),
+                             &len)) {
+        CloseHandle(token);
+
+        return false;
+    }
+
+    CloseHandle(token);
+
+    return elevationInfo.TokenIsElevated;
+}
+
+int AkVCam::IpcBridgePrivate::sudo(const std::vector<std::string> &parameters,
+                                   const std::string &directory,
+                                   bool show)
+{
+    AkLogFunction();
+
+    if (parameters.size() < 1)
+        return E_FAIL;
+
+    auto command = parameters[0];
+    std::string params;
+    size_t i = 0;
+
+    for (auto &param: parameters) {
+        if (i < 1) {
+            i++;
+
+            continue;
+        }
+
+        if (!params.empty())
+            params += ' ';
+
+        auto param_ = replace(param, "\"", "\"\"\"");
+
+        if (param_.find(" ") == std::string::npos)
+            params += param_;
+        else
+            params += "\"" + param_ + "\"";
+    }
+
+    AkLogDebug() << "Command: " << command << std::endl;
+    AkLogDebug() << "Arguments: " << params << std::endl;
+
+    SHELLEXECUTEINFOA execInfo;
+    memset(&execInfo, 0, sizeof(SHELLEXECUTEINFO));
+    execInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+    execInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+    execInfo.hwnd = nullptr;
+    execInfo.lpVerb = "runas";
+    execInfo.lpFile = command.data();
+    execInfo.lpParameters = params.data();
+    execInfo.lpDirectory = directory.data();
+    execInfo.nShow = show? SW_SHOWNORMAL: SW_HIDE;
+    execInfo.hInstApp = nullptr;
+    ShellExecuteExA(&execInfo);
+
+    if (!execInfo.hProcess) {
+        AkLogError() << "Failed executing command" << std::endl;
+
+        return E_FAIL;
+    }
+
+    WaitForSingleObject(execInfo.hProcess, INFINITE);
+
+    DWORD exitCode;
+    GetExitCodeProcess(execInfo.hProcess, &exitCode);
+    CloseHandle(execInfo.hProcess);
+
+    if (FAILED(exitCode))
+        AkLogError() << "Command failed with code "
+                     << exitCode
+                     << " ("
+                     << stringFromError(exitCode)
+                     << ")"
+                     << std::endl;
+
+    AkLogError() << "Command exited with code " << exitCode << std::endl;
+
+    return int(exitCode);
+}
+
+std::string AkVCam::IpcBridgePrivate::manager() const
+{
+    AkLogFunction();
+    auto pluginPath = locatePluginPath();
+    auto path = realPath(pluginPath + "\\AkVCamManager.dll");
+
+    return fileExists(path)? path: std::string();
+}
+
+std::string AkVCam::IpcBridgePrivate::alternativeManager() const
+{
+    AkLogFunction();
+    auto pluginPath = locatePluginPath();
+
+#ifdef _WIN64
+    auto path = realPath(pluginPath + "\\..\\x86\\AkVCamManager.dll");
+#else
+    SYSTEM_INFO info;
+    memset(&info, 0, sizeof(SYSTEM_INFO));
+    GetNativeSystemInfo(&info);
+
+    if  (info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL)
+        return {};
+
+    auto path = realPath(pluginPath + "\\..\\x64\\AkVCamManager.dll");
+#endif
+
+    return fileExists(path)? path: std::string();
+}
+
+std::string AkVCam::IpcBridgePrivate::alternativePlugin() const
+{
+    AkLogFunction();
+    auto pluginPath = locatePluginPath();
+
+#ifdef _WIN64
+    auto path = realPath(pluginPath + "\\..\\x86\\" DSHOW_PLUGIN_NAME ".dll");
+#else
+    SYSTEM_INFO info;
+    memset(&info, 0, sizeof(SYSTEM_INFO));
+    GetNativeSystemInfo(&info);
+
+    if  (info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL)
+        return {};
+
+    auto path = realPath(pluginPath + "\\..\\x64\\" DSHOW_PLUGIN_NAME ".dll");
+#endif
+
+    return fileExists(path)? path: std::string();
 }

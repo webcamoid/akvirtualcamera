@@ -17,8 +17,9 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#include <map>
 #include <algorithm>
+#include <map>
+#include <ostream>
 
 #include "videoformat.h"
 #include "../utils.h"
@@ -420,4 +421,39 @@ size_t AkVCam::VideoFormatGlobals::byplNV(size_t plane, size_t width)
     UNUSED(plane);
 
     return align32(size_t(width));
+}
+
+std::ostream &operator <<(std::ostream &os, const AkVCam::VideoFormat &format)
+{
+    auto formatStr = AkVCam::VideoFormat::stringFromFourcc(format.fourcc());
+
+    os << "VideoFormat("
+       << formatStr
+       << ' '
+       << format.width()
+       << 'x'
+       << format.height()
+       << ' '
+       << format.minimumFrameRate()
+       << ')';
+
+    return os;
+}
+
+std::ostream &operator <<(std::ostream &os, const AkVCam::VideoFormats &formats)
+{
+    bool writeComma = false;
+    os << "VideoFormats(";
+
+    for (auto &format: formats) {
+        if (writeComma)
+            os << ", ";
+
+        os << format;
+        writeComma = true;
+    }
+
+    os << ')';
+
+    return os;
 }

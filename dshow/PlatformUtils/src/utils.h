@@ -39,9 +39,11 @@ namespace AkVCam
     std::string moduleFileName(HINSTANCE hinstDLL);
     std::string dirname(const std::string &path);
     bool fileExists(const std::string &path);
-    std::string errorToString(DWORD errorCode);
+    std::string realPath(const std::string &path);
+    std::string stringFromError(DWORD errorCode);
     CLSID createClsidFromStr(const std::string &str);
     std::string createClsidStrFromStr(const std::string &str);
+    std::string stringFromMessageId(uint32_t messageId);
     std::string stringFromIid(const IID &iid);
     std::string stringFromResult(HRESULT result);
     std::string stringFromClsid(const CLSID &clsid);

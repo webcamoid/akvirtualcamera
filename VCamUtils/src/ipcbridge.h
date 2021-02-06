@@ -115,10 +115,10 @@ namespace AkVCam
             void setDescription(const std::string &deviceId,
                                 const std::string &description);
 
-            // Output pixel formats supported by the driver.
+            // Pixel formats supported by the driver.
             std::vector<PixelFormat> supportedPixelFormats(StreamType type) const;
 
-            // Default output pixel format of the driver.
+            // Default pixel format of the driver.
             PixelFormat defaultPixelFormat(StreamType type) const;
 
             // Return supported formats for the device.
@@ -170,6 +170,9 @@ namespace AkVCam
 
             // Decrement the count of device listeners
             bool removeListener(const std::string &deviceId);
+
+            bool needsRoot(const std::string &operation) const;
+            int sudo(int argc, char **argv) const;
 
         private:
             IpcBridgePrivate *d;

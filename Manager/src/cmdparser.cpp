@@ -18,12 +18,20 @@
  */
 
 #include <algorithm>
+#include <chrono>
 #include <codecvt>
 #include <csignal>
+#include <cstring>
 #include <iostream>
 #include <functional>
 #include <locale>
 #include <sstream>
+#include <thread>
+
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 #include "cmdparser.h"
 #include "VCamUtils/src/ipcbridge.h"
@@ -99,6 +107,8 @@ namespace AkVCam {
                                      const StringVector &args);
             int showSupportedFormats(const StringMap &flags,
                                      const StringVector &args);
+            int showDefaultFormat(const StringMap &flags,
+                                  const StringVector &args);
             int showFormats(const StringMap &flags, const StringVector &args);
             int addFormat(const StringMap &flags, const StringVector &args);
             int removeFormat(const StringMap &flags, const StringVector &args);
@@ -106,6 +116,7 @@ namespace AkVCam {
             int update(const StringMap &flags, const StringVector &args);
             int loadSettings(const StringMap &flags, const StringVector &args);
             int stream(const StringMap &flags, const StringVector &args);
+            int listenEvents(const StringMap &flags, const StringVector &args);
             int showControls(const StringMap &flags, const StringVector &args);
             int readControl(const StringMap &flags, const StringVector &args);
             int writeControls(const StringMap &flags, const StringVector &args);
@@ -114,6 +125,7 @@ namespace AkVCam {
             int logLevel(const StringMap &flags, const StringVector &args);
             int setLogLevel(const StringMap &flags, const StringVector &args);
             int showClients(const StringMap &flags, const StringVector &args);
+            int dumpInfo(const StringMap &flags, const StringVector &args);
             void loadGenerals(Settings &settings);
             VideoFormatMatrix readFormats(Settings &settings);
             std::vector<VideoFormat> readFormat(Settings &settings);
@@ -131,6 +143,7 @@ namespace AkVCam {
     };
 
     std::string operator *(const std::string &str, size_t n);
+    std::string operator *(size_t n, const std::string &str);
 }
 
 AkVCam::CmdParser::CmdParser()
@@ -141,6 +154,9 @@ AkVCam::CmdParser::CmdParser()
     this->addFlags("",
                    {"-h", "--help"},
                    "Show help.");
+    this->addFlags("",
+                   {"-v", "--version"},
+                   "Show program version.");
     this->addFlags("",
                    {"-p", "--parseable"},
                    "Show parseable output.");
@@ -178,6 +194,16 @@ AkVCam::CmdParser::CmdParser()
     this->addFlags("supported-formats",
                    {"-o", "--output"},
                    "Show supported output formats.");
+    this->addCommand("default-format",
+                     "",
+                     "Default device format.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::showDefaultFormat));
+    this->addFlags("default-format",
+                   {"-i", "--input"},
+                   "Default input format.");
+    this->addFlags("default-format",
+                   {"-o", "--output"},
+                   "Default output format.");
     this->addCommand("formats",
                      "DEVICE",
                      "Show device formats.",
@@ -210,6 +236,10 @@ AkVCam::CmdParser::CmdParser()
                      "DEVICE FORMAT WIDTH HEIGHT",
                      "Read frames from stdin and send them to the device.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::stream));
+    this->addCommand("listen-events",
+                     "",
+                     "Keep the manager running and listening to global events.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::listenEvents));
     this->addCommand("controls",
                      "DEVICE",
                      "Show device controls.",
@@ -263,6 +293,10 @@ AkVCam::CmdParser::CmdParser()
                      "",
                      "Show clients using the camera.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::showClients));
+    this->addCommand("dump",
+                     "",
+                     "Show all information in a parseable XML format.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::dumpInfo));
 }
 
 AkVCam::CmdParser::~CmdParser()
@@ -279,8 +313,10 @@ int AkVCam::CmdParser::parse(int argc, char **argv)
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
+        char *p = nullptr;
+        strtod(arg.c_str(), &p);
 
-        if (arg[0] == '-') {
+        if (arg[0] == '-' && strlen(p) != 0) {
             auto flag = this->d->parserFlag(command->flags, arg);
 
             if (!flag) {
@@ -337,6 +373,9 @@ int AkVCam::CmdParser::parse(int argc, char **argv)
             }
         }
     }
+
+    if (this->d->m_ipcBridge.needsRoot(command->command))
+        return this->d->m_ipcBridge.sudo(argc, argv);
 
     return command->func(flags, arguments);
 }
@@ -638,6 +677,12 @@ int AkVCam::CmdParserPrivate::defaultHandler(const StringMap &flags,
     if (flags.empty() || this->containsFlag(flags, "", "-h"))
         return this->showHelp(flags, args);
 
+    if (this->containsFlag(flags, "", "-v")) {
+        std::cout << COMMONS_VERSION << std::endl;
+
+        return 0;
+    }
+
     if (this->containsFlag(flags, "", "-p"))
         this->m_parseable = true;
 
@@ -864,6 +909,21 @@ int AkVCam::CmdParserPrivate::showSupportedFormats(const StringMap &flags,
     return 0;
 }
 
+int AkVCam::CmdParserPrivate::showDefaultFormat(const AkVCam::StringMap &flags,
+                                                const AkVCam::StringVector &args)
+{
+    UNUSED(args);
+
+    auto type =
+            this->containsFlag(flags, "default-format", "-i")?
+                IpcBridge::StreamTypeInput:
+                IpcBridge::StreamTypeOutput;
+    auto format = this->m_ipcBridge.defaultPixelFormat(type);
+    std::cout << VideoFormat::stringFromFourcc(format) << std::endl;
+
+    return 0;
+}
+
 int AkVCam::CmdParserPrivate::showFormats(const StringMap &flags,
                                           const StringVector &args)
 {
@@ -948,7 +1008,8 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
         return -1;
     }
 
-    auto formats = this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeOutput);
+    auto formats =
+            this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeOutput);
     auto fit = std::find(formats.begin(), formats.end(), format);
 
     if (fit == formats.end()) {
@@ -1141,7 +1202,8 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
         return -1;
     }
 
-    auto formats = this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeOutput);
+    auto formats =
+            this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeOutput);
     auto fit = std::find(formats.begin(), formats.end(), format);
 
     if (fit == formats.end()) {
@@ -1186,6 +1248,11 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     AkVCam::VideoFrame frame(fmt);
     size_t bufferSize = 0;
 
+#ifdef _WIN32
+    // Set std::cin in binary mode.
+    _setmode(_fileno(stdin), _O_BINARY);
+#endif
+
     do {
         std::cin.read(reinterpret_cast<char *>(frame.data().data()
                                                + bufferSize),
@@ -1199,6 +1266,42 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     } while (!std::cin.eof() && !exit);
 
     this->m_ipcBridge.deviceStop(deviceId);
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::listenEvents(const AkVCam::StringMap &flags,
+                                           const AkVCam::StringVector &args)
+{
+    UNUSED(flags);
+    UNUSED(args);
+
+    auto serverStateChanged = [] (void *, IpcBridge::ServerState state) {
+        if (state == IpcBridge::ServerStateAvailable)
+            std::cout << "ServerAvailable" << std::endl;
+        else
+            std::cout << "ServerGone" << std::endl;
+    };
+    auto devicesChanged = [] (void *, const std::vector<std::string> &) {
+        std::cout << "DevicesUpdated" << std::endl;
+    };
+    auto pictureChanged = [] (void *, const std::string &) {
+        std::cout << "PictureUpdated" << std::endl;
+    };
+
+    this->m_ipcBridge.connectServerStateChanged(this, serverStateChanged);
+    this->m_ipcBridge.connectDevicesChanged(this, devicesChanged);
+    this->m_ipcBridge.connectPictureChanged(this, pictureChanged);
+
+    static bool exit = false;
+    auto signalHandler = [] (int) {
+        exit = true;
+    };
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+
+    while (!exit)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     return 0;
 }
@@ -1311,11 +1414,14 @@ int AkVCam::CmdParserPrivate::readControl(const StringMap &flags,
                 }
 
                 if (this->containsFlag(flags, "get-control", "-l")) {
-                    for (size_t i = 0; i< control.menu.size(); i++)
+                    for (size_t i = 0; i < control.menu.size(); i++)
                         if (this->m_parseable)
                             std::cout << control.menu[i] << std::endl;
                         else
-                            std::cout << i << ": " << control.menu[i] << std::endl;
+                            std::cout << i
+                                      << ": "
+                                      << control.menu[i]
+                                      << std::endl;
                 }
             }
 
@@ -1582,6 +1688,189 @@ int AkVCam::CmdParserPrivate::showClients(const StringMap &flags,
     return 0;
 }
 
+int AkVCam::CmdParserPrivate::dumpInfo(const AkVCam::StringMap &flags,
+                                       const AkVCam::StringVector &args)
+{
+    UNUSED(flags);
+    UNUSED(args);
+    static const auto indent = 4 * std::string(" ");
+
+    std::cout << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>" << std::endl;
+    std::cout << "<info>" << std::endl;
+    std::cout << indent << "<devices>" << std::endl;
+
+    auto devices = this->m_ipcBridge.devices();
+
+    for (auto &device: devices) {
+        std::cout << 2 * indent << "<device>" << std::endl;
+        std::cout << 3 * indent << "<id>" << device << "</id>" << std::endl;
+        std::cout << 3 * indent
+                  << "<description>"
+                  << this->m_ipcBridge.description(device)
+                  << "</description>"
+                  << std::endl;
+        std::cout << 3 * indent << "<formats>" << std::endl;
+
+        for  (auto &format: this->m_ipcBridge.formats(device)) {
+            std::cout << 4 * indent << "<format>" << std::endl;
+            std::cout << 5 * indent
+                      << "<pixel-format>"
+                      << VideoFormat::stringFromFourcc(format.fourcc())
+                      << "</pixel-format>"
+                      << std::endl;
+            std::cout << 5 * indent
+                      << "<width>"
+                      << format.width()
+                      << "</width>"
+                      << std::endl;
+            std::cout << 5 * indent
+                      << "<height>"
+                      << format.height()
+                      << "</height>"
+                      << std::endl;
+            std::cout << 5 * indent
+                      << "<fps>"
+                      << format.minimumFrameRate().toString()
+                      << "</fps>"
+                      << std::endl;
+            std::cout << 4 * indent << "</format>" << std::endl;
+        }
+
+        std::cout << 3 * indent << "</formats>" << std::endl;
+        std::cout << 3 * indent << "<controls>" << std::endl;
+
+        for (auto &control: this->m_ipcBridge.controls(device)) {
+            std::cout << 4 * indent << "<control>" << std::endl;
+            std::cout << 5 * indent
+                      << "<id>"
+                      << control.id
+                      << "</id>"
+                      << std::endl;
+            std::cout << 5 * indent
+                      << "<description>"
+                      << control.description
+                      << "</description>"
+                      << std::endl;
+            auto typeStr = typeStrMap();
+            std::cout << 5 * indent
+                      << "<type>"
+                      << typeStr[control.type]
+                      << "</type>"
+                      << std::endl;
+            std::cout << 5 * indent
+                      << "<minimum>"
+                      << control.minimum
+                      << "</minimum>"
+                      << std::endl;
+            std::cout << 5 * indent
+                      << "<maximum>"
+                      << control.maximum
+                      << "</maximum>"
+                      << std::endl;
+            std::cout << 5 * indent
+                      << "<step>"
+                      << control.step
+                      << "</step>"
+                      << std::endl;
+            std::cout << 5 * indent
+                      << "<default-value>"
+                      << control.defaultValue
+                      << "</default-value>"
+                      << std::endl;
+            std::cout << 5 * indent
+                      << "<value>"
+                      << control.value
+                      << "</value>"
+                      << std::endl;
+
+            if (!control.menu.empty() && control.type == ControlTypeMenu) {
+                std::cout << 5 * indent << "<menu>" << std::endl;
+
+                for (auto &item: control.menu)
+                    std::cout << 6 * indent
+                              << "<item>"
+                              << item
+                              << "</item>"
+                              << std::endl;
+
+                std::cout << 5 * indent << "</menu>" << std::endl;
+            }
+
+            std::cout << 4 * indent << "</control>" << std::endl;
+        }
+
+        std::cout << 3 * indent << "</controls>" << std::endl;
+        std::cout << 2 * indent << "</device>" << std::endl;
+    }
+
+    std::cout << indent << "</devices>" << std::endl;
+    std::cout << indent << "<input-formats>" << std::endl;
+
+    for (auto &format: this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeInput))
+        std::cout << 2 * indent
+                  << "<pixel-format>"
+                  << VideoFormat::stringFromFourcc(format)
+                  << "</pixel-format>"
+                  << std::endl;
+
+    std::cout << indent << "</input-formats>" << std::endl;
+
+    auto defInputFormat =
+            this->m_ipcBridge.defaultPixelFormat(IpcBridge::StreamTypeInput);
+    std::cout << indent
+              << "<default-input-format>"
+              << VideoFormat::stringFromFourcc(defInputFormat)
+              << "</default-input-format>"
+              << std::endl;
+
+    std::cout << indent << "<output-formats>" << std::endl;
+
+    for (auto &format: this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeOutput))
+        std::cout << 2 * indent
+                  << "<pixel-format>"
+                  << VideoFormat::stringFromFourcc(format)
+                  << "</pixel-format>"
+                  << std::endl;
+
+    std::cout << indent << "</output-formats>" << std::endl;
+
+    auto defOutputFormat =
+            this->m_ipcBridge.defaultPixelFormat(IpcBridge::StreamTypeOutput);
+    std::cout << indent
+              << "<default-output-format>"
+              << VideoFormat::stringFromFourcc(defOutputFormat)
+              << "</default-output-format>"
+              << std::endl;
+
+    std::cout << indent << "<clients>" << std::endl;
+
+   for (auto &pid: this->m_ipcBridge.clientsPids()) {
+       std::cout << 2 * indent << "<client>" << std::endl;
+       std::cout << 3 * indent << "<pid>" << pid << "</pid>" << std::endl;
+       std::cout << 3 * indent
+                 << "<exe>"
+                 << this->m_ipcBridge.clientExe(pid)
+                 << "</exe>"
+                 << std::endl;
+       std::cout << 2 * indent << "</client>" << std::endl;
+   }
+
+    std::cout << indent << "</clients>" << std::endl;
+    std::cout << indent
+              << "<picture>"
+              << this->m_ipcBridge.picture()
+              << "</picture>"
+              << std::endl;
+    std::cout << indent
+              << "<loglevel>"
+              << this->m_ipcBridge.logLevel()
+              << "</loglevel>"
+              << std::endl;
+    std::cout << "</info>" << std::endl;
+
+    return 0;
+}
+
 void AkVCam::CmdParserPrivate::loadGenerals(Settings &settings)
 {
     settings.beginGroup("General");
@@ -1654,7 +1943,7 @@ std::vector<AkVCam::VideoFormat> AkVCam::CmdParserPrivate::readFormat(Settings &
         VideoFormat format(pixFormat,
                            width,
                            height,
-        {frame_rate});
+                           {frame_rate});
 
         if (format.isValid())
             formats.push_back(format);
@@ -1735,7 +2024,8 @@ void AkVCam::CmdParserPrivate::createDevice(Settings &settings,
     }
 
     auto deviceId = this->m_ipcBridge.addDevice(description);
-    auto supportedFormats = this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeOutput);
+    auto supportedFormats =
+            this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeOutput);
 
     for (auto &format: formats) {
         auto it = std::find(supportedFormats.begin(),
@@ -1773,6 +2063,16 @@ std::vector<AkVCam::VideoFormat> AkVCam::CmdParserPrivate::readDeviceFormats(Set
 }
 
 std::string AkVCam::operator *(const std::string &str, size_t n)
+{
+    std::stringstream ss;
+
+    for (size_t i = 0; i < n; i++)
+        ss << str;
+
+    return ss.str();
+}
+
+std::string AkVCam::operator *(size_t n, const std::string &str)
 {
     std::stringstream ss;
 

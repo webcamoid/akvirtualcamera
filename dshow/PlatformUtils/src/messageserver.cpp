@@ -17,6 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -29,7 +31,15 @@
 #include "VCamUtils/src/logger.h"
 
 namespace AkVCam
-{
+{    
+    struct PipeThread
+    {
+        std::shared_ptr<std::thread> thread;
+        std::atomic<bool> finished {false};
+    };
+
+    using PipeThreadPtr = std::shared_ptr<PipeThread>;
+
     class MessageServerPrivate
     {
         public:
@@ -38,9 +48,8 @@ namespace AkVCam
             std::map<uint32_t, MessageHandler> m_handlers;
             MessageServer::ServerMode m_mode {MessageServer::ServerModeReceive};
             MessageServer::PipeState m_pipeState {MessageServer::PipeStateGone};
-            HANDLE m_pipe {INVALID_HANDLE_VALUE};
-            OVERLAPPED m_overlapped;
-            std::thread m_thread;
+            std::thread m_mainThread;
+            std::vector<PipeThreadPtr> m_clientsThreads;
             std::mutex m_mutex;
             std::condition_variable_any m_exitCheckLoop;
             int m_checkInterval {5000};
@@ -52,10 +61,8 @@ namespace AkVCam
             bool startSend();
             void stopSend();
             void messagesLoop();
+            void processPipe(PipeThreadPtr pipeThread, HANDLE pipe);
             void checkLoop();
-            HRESULT waitResult(DWORD *bytesTransferred);
-            bool readMessage(Message *message);
-            bool writeMessage(const Message &message);
     };
 }
 
@@ -66,7 +73,7 @@ AkVCam::MessageServer::MessageServer()
 
 AkVCam::MessageServer::~MessageServer()
 {
-    this->stop(true);
+    this->stop();
     delete this->d;
 }
 
@@ -177,27 +184,116 @@ BOOL AkVCam::MessageServer::sendMessage(const std::string &pipeName,
                                         Message *messageOut,
                                         uint32_t timeout)
 {
-    DWORD bytesTransferred = 0;
+    AkLogFunction();
+    AkLogDebug() << "Pipe: " << pipeName << std::endl;
+    AkLogDebug() << "Message ID: " << stringFromMessageId(messageIn.messageId) << std::endl;
 
-    return CallNamedPipeA(pipeName.c_str(),
-                          const_cast<Message *>(&messageIn),
-                          DWORD(sizeof(Message)),
-                          messageOut,
-                          DWORD(sizeof(Message)),
-                          &bytesTransferred,
-                          timeout);
+    // CallNamedPie can sometimes return false without ever sending any data to
+    // the server, try many times before returning.
+    bool result;
+
+    for (int i = 0; i < 5; i++) {
+        DWORD bytesTransferred = 0;
+        result = CallNamedPipeA(pipeName.c_str(),
+                                const_cast<Message *>(&messageIn),
+                                DWORD(sizeof(Message)),
+                                messageOut,
+                                DWORD(sizeof(Message)),
+                                &bytesTransferred,
+                                timeout);
+
+        if (result)
+            break;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
+
+    if (!result) {
+        AkLogError() << "Error sending message" << std::endl;
+        auto lastError = GetLastError();
+
+        if (lastError)
+            AkLogError() << stringFromError(lastError) << std::endl;
+    }
+
+    return result;
 }
 
 AkVCam::MessageServerPrivate::MessageServerPrivate(MessageServer *self):
     self(self)
 {
-    memset(&this->m_overlapped, 0, sizeof(OVERLAPPED));
 }
 
 bool AkVCam::MessageServerPrivate::startReceive(bool wait)
 {
+    AkLogFunction();
     AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateAboutToStart)
-    bool ok = false;
+    this->m_running = true;
+
+    if (wait) {
+        AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateStarted)
+        AkLogDebug() << "Server ready." << std::endl;
+        this->messagesLoop();
+    } else {
+        this->m_mainThread = std::thread(&MessageServerPrivate::messagesLoop, this);
+        AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateStarted)
+        AkLogDebug() << "Server ready." << std::endl;
+    }
+
+    return true;
+}
+
+void AkVCam::MessageServerPrivate::stopReceive(bool wait)
+{
+    AkLogFunction();
+
+    if (!this->m_running)
+        return;
+
+    AkLogDebug() << "Stopping clients threads." << std::endl;
+    AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateAboutToStop)
+    this->m_running = false;
+
+    // wake up current pipe thread.
+    Message message;
+    message.messageId = AKVCAM_ASSISTANT_MSG_ISALIVE;
+    message.dataSize = sizeof(MsgIsAlive);
+    MessageServer::sendMessage(this->m_pipeName, &message);
+
+    if (!wait)
+        this->m_mainThread.join();
+}
+
+bool AkVCam::MessageServerPrivate::startSend()
+{
+    AkLogFunction();
+    AkLogDebug() << "Pipe: " << this->m_pipeName << std::endl;
+    this->m_running = true;
+    this->m_mainThread = std::thread(&MessageServerPrivate::checkLoop, this);
+
+    return true;
+}
+
+void AkVCam::MessageServerPrivate::stopSend()
+{
+    AkLogFunction();
+
+    if (!this->m_running)
+        return;
+
+    AkLogDebug() << "Pipe: " << this->m_pipeName << std::endl;
+    this->m_running = false;
+    this->m_mutex.lock();
+    this->m_exitCheckLoop.notify_all();
+    this->m_mutex.unlock();
+    this->m_mainThread.join();
+    this->m_pipeState = MessageServer::PipeStateGone;
+}
+
+void AkVCam::MessageServerPrivate::messagesLoop()
+{
+    AkLogFunction();
+    AkLogDebug() << "Initializing security descriptor." << std::endl;
 
     // Define who can read and write from pipe.
 
@@ -205,7 +301,7 @@ bool AkVCam::MessageServerPrivate::startReceive(bool wait)
      *
      * https://msdn.microsoft.com/en-us/library/windows/desktop/aa379570(v=vs.85).aspx
      */
-    TCHAR descriptor[] =
+    static const TCHAR descriptor[] =
             TEXT("D:")                   // Discretionary ACL
             TEXT("(D;OICI;GA;;;BG)")     // Deny access to Built-in Guests
             TEXT("(D;OICI;GA;;;AN)")     // Deny access to Anonymous Logon
@@ -216,144 +312,160 @@ bool AkVCam::MessageServerPrivate::startReceive(bool wait)
     PSECURITY_DESCRIPTOR securityDescriptor =
             LocalAlloc(LPTR, SECURITY_DESCRIPTOR_MIN_LENGTH);
 
-    if (!securityDescriptor)
-        goto startReceive_failed;
+    if (!securityDescriptor) {
+        AkLogError() << "Security descriptor not allocated" << std::endl;
+
+        return;
+    }
 
     if (!InitializeSecurityDescriptor(securityDescriptor,
-                                      SECURITY_DESCRIPTOR_REVISION))
-        goto startReceive_failed;
+                                      SECURITY_DESCRIPTOR_REVISION)) {
+        LocalFree(securityDescriptor);
+        AkLogError() << "Can't initialize security descriptor: "
+                     << stringFromError(GetLastError())
+                     << " (" << GetLastError() << ")"
+                     << std::endl;
+
+        return;
+    }
+
+    AkLogDebug() << "Getting security descriptor from string." << std::endl;
 
     if (!ConvertStringSecurityDescriptorToSecurityDescriptor(descriptor,
                                                              SDDL_REVISION_1,
                                                              &securityDescriptor,
-                                                             nullptr))
-        goto startReceive_failed;
+                                                             nullptr)) {
+        LocalFree(securityDescriptor);
+        AkLogError() << "Can't read security descriptor from string: "
+                     << stringFromError(GetLastError())
+                     << " (" << GetLastError() << ")"
+                     << std::endl;
+
+        return;
+    }
 
     securityAttributes.nLength = sizeof(SECURITY_ATTRIBUTES);
     securityAttributes.lpSecurityDescriptor = securityDescriptor;
     securityAttributes.bInheritHandle = TRUE;
-
-    // Create a read/write message type pipe.
-    this->m_pipe = CreateNamedPipeA(this->m_pipeName.c_str(),
-                                    PIPE_ACCESS_DUPLEX
-                                    | FILE_FLAG_OVERLAPPED,
-                                    PIPE_TYPE_MESSAGE
-                                    | PIPE_READMODE_BYTE
-                                    | PIPE_WAIT,
-                                    PIPE_UNLIMITED_INSTANCES,
-                                    sizeof(Message),
-                                    sizeof(Message),
-                                    NMPWAIT_USE_DEFAULT_WAIT,
-                                    &securityAttributes);
-
-    if (this->m_pipe == INVALID_HANDLE_VALUE)
-        goto startReceive_failed;
-
-    memset(&this->m_overlapped, 0, sizeof(OVERLAPPED));
-    this->m_overlapped.hEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
-    AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateStarted)
-    this->m_running = true;
-
-    if (wait)
-        this->messagesLoop();
-    else
-        this->m_thread =
-            std::thread(&MessageServerPrivate::messagesLoop, this);
-
-    ok = true;
-
-startReceive_failed:
-
-    if (!ok) {
-        AkLogError() << "Error starting server: "
-                     << errorToString(GetLastError())
-                     << " (" << GetLastError() << ")"
-                     << std::endl;
-        AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateStopped)
-    }
-
-    if (securityDescriptor)
-        LocalFree(securityDescriptor);
-
-    return ok;
-}
-
-void AkVCam::MessageServerPrivate::stopReceive(bool wait)
-{
-    if (!this->m_running)
-        return;
-
-    this->m_running = false;
-    SetEvent(this->m_overlapped.hEvent);
-
-    if (wait)
-        this->m_thread.join();
-}
-
-bool AkVCam::MessageServerPrivate::startSend()
-{
-    this->m_running = true;
-    this->m_thread = std::thread(&MessageServerPrivate::checkLoop, this);
-
-    return true;
-}
-
-void AkVCam::MessageServerPrivate::stopSend()
-{
-    if (!this->m_running)
-        return;
-
-    this->m_running = false;
-    this->m_mutex.lock();
-    this->m_exitCheckLoop.notify_all();
-    this->m_mutex.unlock();
-    this->m_thread.join();
-    this->m_pipeState = MessageServer::PipeStateGone;
-}
-
-void AkVCam::MessageServerPrivate::messagesLoop()
-{
-    DWORD bytesTransferred = 0;
+    AkLogDebug() << "Pipe name: " << this->m_pipeName << std::endl;
 
     while (this->m_running) {
-        HRESULT result = S_OK;
+        // Clean death threads.
+        for (;;) {
+            auto it = std::find_if(this->m_clientsThreads.begin(),
+                                   this->m_clientsThreads.end(),
+                                   [] (const PipeThreadPtr &thread) -> bool {
+                return thread->finished;
+            });
 
-        // Wait for a connection.
-        if (!ConnectNamedPipe(this->m_pipe, &this->m_overlapped))
-            result = this->waitResult(&bytesTransferred);
+            if (it == this->m_clientsThreads.end())
+                break;
 
-        if (result == S_OK) {
-            Message message;
-
-            if (this->readMessage(&message)) {
-                if (this->m_handlers.count(message.messageId))
-                    this->m_handlers[message.messageId](&message);
-
-                this->writeMessage(message);
-            }
+            (*it)->thread->join();
+            this->m_clientsThreads.erase(it);
         }
 
-        DisconnectNamedPipe(this->m_pipe);
+        AkLogDebug() << "Creating pipe." << std::endl;
+        auto pipe = CreateNamedPipeA(this->m_pipeName.c_str(),
+                                     PIPE_ACCESS_DUPLEX,
+                                     PIPE_TYPE_MESSAGE
+                                     | PIPE_READMODE_MESSAGE
+                                     | PIPE_WAIT,
+                                     PIPE_UNLIMITED_INSTANCES,
+                                     sizeof(Message),
+                                     sizeof(Message),
+                                     0,
+                                     &securityAttributes);
+
+        if (pipe == INVALID_HANDLE_VALUE)
+            continue;
+
+        AkLogDebug() << "Connecting pipe." << std::endl;
+        auto connected = ConnectNamedPipe(pipe, nullptr);
+
+        if (connected || GetLastError() == ERROR_PIPE_CONNECTED) {
+            auto thread = std::make_shared<PipeThread>();
+            thread->thread =
+                    std::make_shared<std::thread>(&MessageServerPrivate::processPipe,
+                                                  this,
+                                                  thread,
+                                                  pipe);
+            this->m_clientsThreads.push_back(thread);
+        } else {
+            AkLogError() << "Failed connecting pipe." << std::endl;
+            CloseHandle(pipe);
+        }
     }
 
+    for (auto &thread: this->m_clientsThreads)
+        thread->thread->join();
+
+    LocalFree(securityDescriptor);    
     AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateStopped)
+    AkLogDebug() << "Server stopped." << std::endl;
+}
 
-    if (this->m_overlapped.hEvent != INVALID_HANDLE_VALUE) {
-        CloseHandle(this->m_overlapped.hEvent);
-        memset(&this->m_overlapped, 0, sizeof(OVERLAPPED));
+void AkVCam::MessageServerPrivate::processPipe(PipeThreadPtr pipeThread,
+                                               HANDLE pipe)
+{
+    for (;;) {
+        AkLogDebug() << "Reading message." << std::endl;
+
+        Message message;
+        DWORD bytesTransferred = 0;
+        auto result = ReadFile(pipe,
+                               &message,
+                               DWORD(sizeof(Message)),
+                               &bytesTransferred,
+                               nullptr);
+
+        if (!result || bytesTransferred == 0) {
+            AkLogError() << "Failed reading from pipe." << std::endl;
+            auto lastError = GetLastError();
+
+            if (lastError)
+                AkLogError() << stringFromError(lastError) << std::endl;
+
+            break;
+        }
+
+        AkLogDebug() << "Message ID: " << stringFromMessageId(message.messageId) << std::endl;
+
+        if (this->m_handlers.count(message.messageId))
+            this->m_handlers[message.messageId](&message);
+
+        AkLogDebug() << "Writing message." << std::endl;
+        result = WriteFile(pipe,
+                           &message,
+                           DWORD(sizeof(Message)),
+                           &bytesTransferred,
+                           nullptr);
+
+        if (!result || bytesTransferred != DWORD(sizeof(Message))) {
+            AkLogError() << "Failed writing to pipe." << std::endl;
+            auto lastError = GetLastError();
+
+            if (lastError)
+                AkLogError() << stringFromError(lastError) << std::endl;
+
+            break;
+        }
     }
 
-    if (this->m_pipe != INVALID_HANDLE_VALUE) {
-        CloseHandle(this->m_pipe);
-        this->m_pipe = INVALID_HANDLE_VALUE;
-    }
-
-    AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateStopped)
+    AkLogDebug() << "Closing pipe." << std::endl;
+    FlushFileBuffers(pipe);
+    DisconnectNamedPipe(pipe);
+    CloseHandle(pipe);
+    pipeThread->finished = true;
+    AkLogDebug() << "Pipe thread finished." << std::endl;
 }
 
 void AkVCam::MessageServerPrivate::checkLoop()
 {
+    AkLogFunction();
+
     while (this->m_running) {
+        AkLogDebug() << "Waiting for pipe: " << this->m_pipeName << std::endl;
         auto result = WaitNamedPipeA(this->m_pipeName.c_str(), NMPWAIT_NOWAIT);
 
         if (result
@@ -377,63 +489,4 @@ void AkVCam::MessageServerPrivate::checkLoop()
                                        std::chrono::milliseconds(this->m_checkInterval));
         this->m_mutex.unlock();
     }
-}
-
-HRESULT AkVCam::MessageServerPrivate::waitResult(DWORD *bytesTransferred)
-{
-    auto lastError = GetLastError();
-
-    if (lastError == ERROR_IO_PENDING) {
-        if (WaitForSingleObject(this->m_overlapped.hEvent,
-                                INFINITE) == WAIT_OBJECT_0) {
-             if (!GetOverlappedResult(this->m_pipe,
-                                      &this->m_overlapped,
-                                      bytesTransferred,
-                                      FALSE))
-                 return S_FALSE;
-         } else {
-             CancelIo(this->m_pipe);
-
-             return S_FALSE;
-         }
-    } else {
-        AkLogWarning() << "Wait result failed: "
-                       << errorToString(lastError)
-                       << " (" << lastError << ")"
-                       << std::endl;
-
-        return E_FAIL;
-    }
-
-    return S_OK;
-}
-
-bool AkVCam::MessageServerPrivate::readMessage(Message *message)
-{
-    DWORD bytesTransferred = 0;
-    HRESULT result = S_OK;
-
-    if (!ReadFile(this->m_pipe,
-                  message,
-                  DWORD(sizeof(Message)),
-                  &bytesTransferred,
-                  &this->m_overlapped))
-        result = this->waitResult(&bytesTransferred);
-
-    return result == S_OK;
-}
-
-bool AkVCam::MessageServerPrivate::writeMessage(const Message &message)
-{
-    DWORD bytesTransferred = 0;
-    HRESULT result = S_OK;
-
-    if (!WriteFile(this->m_pipe,
-                   &message,
-                   DWORD(sizeof(Message)),
-                   &bytesTransferred,
-                   &this->m_overlapped))
-        result = this->waitResult(&bytesTransferred);
-
-    return result == S_OK;
 }

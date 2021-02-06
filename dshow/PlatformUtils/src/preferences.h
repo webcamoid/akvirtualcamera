@@ -31,51 +31,64 @@ namespace AkVCam
 
     namespace Preferences
     {
-        void write(const std::string &key, const std::string &value);
-        void write(const std::string &key, int value);
-        void write(const std::string &key, double value);
-        void write(const std::string &key, std::vector<std::string> &value);
+        bool write(const std::string &key,
+                   const std::string &value,
+                   bool global=false);
+        bool write(const std::string &key, int value, bool global=false);
+        bool write(const std::string &key, double value, bool global=false);
+        bool write(const std::string &key,
+                   std::vector<std::string> &value,
+                   bool global=false);
         std::string readString(const std::string &key,
-                               const std::string &defaultValue={});
-        int readInt(const std::string &key, int defaultValue=0);
-        double readDouble(const std::string &key, double defaultValue=0.0);
-        bool readBool(const std::string &key, bool defaultValue=false);
-        void deleteKey(const std::string &key);
-        void move(const std::string &keyFrom, const std::string &keyTo);
+                               const std::string &defaultValue={},
+                               bool global=false);
+        int readInt(const std::string &key,
+                    int defaultValue=0,
+                    bool global=false);
+        double readDouble(const std::string &key,
+                          double defaultValue=0.0,
+                          bool global=false);
+        bool readBool(const std::string &key,
+                      bool defaultValue=false,
+                      bool global=false);
+        bool deleteKey(const std::string &key, bool global=false);
+        bool move(const std::string &keyFrom,
+                  const std::string &keyTo,
+                  bool global=false);
         std::string addDevice(const std::string &description);
         std::string addCamera(const std::string &description,
                               const std::vector<VideoFormat> &formats);
         std::string addCamera(const std::string &path,
                               const std::string &description,
                               const std::vector<VideoFormat> &formats);
-        void removeCamera(const std::string &path);
+        bool removeCamera(const std::string &path);
         size_t camerasCount();
         std::string createDevicePath();
         int cameraFromCLSID(const CLSID &clsid);
         int cameraFromPath(const std::string &path);
         bool cameraExists(const std::string &path);
         std::string cameraDescription(size_t cameraIndex);
-        void cameraSetDescription(size_t cameraIndex,
+        bool cameraSetDescription(size_t cameraIndex,
                                   const std::string &description);
         std::string cameraPath(size_t cameraIndex);
         size_t formatsCount(size_t cameraIndex);
         VideoFormat cameraFormat(size_t cameraIndex, size_t formatIndex);
         std::vector<VideoFormat> cameraFormats(size_t cameraIndex);
-        void cameraSetFormats(size_t cameraIndex,
+        bool cameraSetFormats(size_t cameraIndex,
                               const std::vector<VideoFormat> &formats);
-        void cameraAddFormat(size_t cameraIndex,
+        bool cameraAddFormat(size_t cameraIndex,
                              const VideoFormat &format,
                              int index);
-        void cameraRemoveFormat(size_t cameraIndex, int index);
+        bool cameraRemoveFormat(size_t cameraIndex, int index);
         int cameraControlValue(size_t cameraIndex,
                                const std::string &key);
-        void cameraSetControlValue(size_t cameraIndex,
+        bool cameraSetControlValue(size_t cameraIndex,
                                    const std::string &key,
                                    int value);
         std::string picture();
-        void setPicture(const std::string &picture);
+        bool setPicture(const std::string &picture);
         int logLevel();
-        void setLogLevel(int logLevel);
+        bool setLogLevel(int logLevel);
     }
 }
 

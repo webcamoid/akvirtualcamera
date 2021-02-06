@@ -28,7 +28,9 @@
 
 namespace AkVCam
 {
+    class VideoFormat;
     class VideoFormatPrivate;
+    using VideoFormats = std::vector<VideoFormat>;
 
     class VideoFormat
     {
@@ -75,5 +77,8 @@ namespace AkVCam
             VideoFormatPrivate *d;
     };
 }
+
+std::ostream &operator <<(std::ostream &os, const AkVCam::VideoFormat &format);
+std::ostream &operator <<(std::ostream &os, const AkVCam::VideoFormats &formats);
 
 #endif // AKVCAMUTILS_VIDEOFORMAT_H
