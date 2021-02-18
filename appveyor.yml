@@ -14,10 +14,6 @@ configuration:
   - release
 #  - debug
 
-branches:
-  only:
-  - master
-
 environment:
   global:
     PYTHON_VERSION: Python39
