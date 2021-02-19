@@ -21,7 +21,7 @@
 
 #include "enummediatypes.h"
 #include "PlatformUtils/src/utils.h"
-#include "VCamUtils/src/image/videoformat.h"
+#include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/utils.h"
 
 namespace AkVCam

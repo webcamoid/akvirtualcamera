@@ -21,7 +21,7 @@
 
 #include "preferences.h"
 #include "utils.h"
-#include "VCamUtils/src/image/videoformat.h"
+#include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/logger.h"
 
 #define PREFERENCES_ID CFSTR(CMIO_ASSISTANT_NAME)

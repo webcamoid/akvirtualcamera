@@ -24,7 +24,7 @@
 #include <vector>
 
 #include "videoformattypes.h"
-#include "../fraction.h"
+#include "fraction.h"
 
 namespace AkVCam
 {

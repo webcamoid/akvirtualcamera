@@ -1,5 +1,5 @@
 # akvirtualcamera, virtual camera for Mac and Windows.
-# Copyright (C) 2020  Gonzalo Exequiel Pedone
+# Copyright (C) 2021  Gonzalo Exequiel Pedone
 #
 # akvirtualcamera is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,26 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-TEMPLATE = subdirs
-CONFIG += ordered
+cmake_minimum_required(VERSION 3.14)
 
-SUBDIRS = VCamUtils
-macx: SUBDIRS += cmio
-win32: SUBDIRS += dshow
-SUBDIRS += Manager
+project(VCamIPC LANGUAGES CXX)
+
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(../dshow.cmake)
+
+add_library(VCamIPC STATIC
+            src/ipcbridge.cpp)
+
+add_dependencies(VCamIPC PlatformUtils VCamUtils)
+target_compile_definitions(VCamIPC PRIVATE VCAMIPC_LIBRARY)
+target_include_directories(VCamIPC
+                           PRIVATE ..
+                           PRIVATE ../..)
+target_link_libraries(VCamIPC
+                      PlatformUtils 
+                      advapi32
+                      kernel32
+                      psapi)

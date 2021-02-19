@@ -27,8 +27,8 @@
 #include "assistant.h"
 #include "assistantglobals.h"
 #include "PlatformUtils/src/utils.h"
-#include "VCamUtils/src/image/videoformat.h"
-#include "VCamUtils/src/image/videoframe.h"
+#include "VCamUtils/src/videoformat.h"
+#include "VCamUtils/src/videoframe.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/logger.h"
 

@@ -21,7 +21,7 @@
 #define STREAM_H
 
 #include "VCamUtils/src/fraction.h"
-#include "VCamUtils/src/image/videoframetypes.h"
+#include "VCamUtils/src/videoframetypes.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "object.h"
 #include "queue.h"

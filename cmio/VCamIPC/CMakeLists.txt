@@ -1,5 +1,5 @@
 # akvirtualcamera, virtual camera for Mac and Windows.
-# Copyright (C) 2020  Gonzalo Exequiel Pedone
+# Copyright (C) 2021  Gonzalo Exequiel Pedone
 #
 # akvirtualcamera is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,41 +16,26 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-exists(commons.pri) {
-    include(commons.pri)
-} else {
-    exists(../../commons.pri) {
-        include(../../commons.pri)
-    } else {
-        error("commons.pri file not found.")
-    }
-}
+cmake_minimum_required(VERSION 3.14)
 
-include(../cmio.pri)
+project(VCamIPC LANGUAGES CXX OBJCXX)
 
-CONFIG += \
-    staticlib \
-    create_prl \
-    no_install_prl
-CONFIG -= qt
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-DESTDIR = $${OUT_PWD}/$${BIN_DIR}
+include(../cmio.cmake)
 
-TARGET = PlatformUtils
+add_library(VCamIPC STATIC
+            src/ipcbridge.mm)
 
-TEMPLATE = lib
-
-LIBS = \
-    -L$${OUT_PWD}/../../VCamUtils/$${BIN_DIR} -lVCamUtils \
-    -framework CoreFoundation \
-    -framework CoreGraphics
-
-SOURCES = \
-    src/preferences.cpp \
-    src/utils.cpp
-
-HEADERS =  \
-    src/preferences.h \
-    src/utils.h
-
-INCLUDEPATH += ../..
+add_dependencies(VCamIPC VCamUtils)
+target_compile_definitions(VCamIPC PRIVATE VCAMIPC_LIBRARY)
+target_include_directories(VCamIPC
+                           PRIVATE ..
+                           PRIVATE ../..)
+find_library(FOUNDATION_FRAMEWORK NAMES Foundation)
+set(EXTRA_LIBS ${FOUNDATION_FRAMEWORK})
+target_link_libraries(VCamIPC
+                      VCamUtils
+                      ${EXTRA_LIBS})

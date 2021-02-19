@@ -23,7 +23,7 @@
 #include <string>
 #include <strmif.h>
 
-#include "VCamUtils/src/image/videoformattypes.h"
+#include "VCamUtils/src/videoformattypes.h"
 #include "VCamUtils/src/logger.h"
 
 #define AkLogInterface(interface, instance) \

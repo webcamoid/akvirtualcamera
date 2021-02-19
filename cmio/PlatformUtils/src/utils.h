@@ -25,7 +25,7 @@
 #include <CoreMediaIO/CMIOHardwarePlugIn.h>
 #include <CoreMedia/CMFormatDescription.h>
 
-#include "VCamUtils/src/image/videoformattypes.h"
+#include "VCamUtils/src/videoformattypes.h"
 
 namespace AkVCam
 {

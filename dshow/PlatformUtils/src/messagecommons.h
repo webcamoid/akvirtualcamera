@@ -24,7 +24,7 @@
 #include <cstring>
 #include <functional>
 
-#include "VCamUtils/src/image/videoframetypes.h"
+#include "VCamUtils/src/videoframetypes.h"
 
 #define AKVCAM_ASSISTANT_CLIENT_NAME "AkVCam_Client"
 #define AKVCAM_ASSISTANT_SERVER_NAME "AkVCam_Server"

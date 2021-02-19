@@ -17,11 +17,11 @@
         <key>CFBundlePackageType</key>
         <string>BNDL</string>
         <key>CFBundleShortVersionString</key>
-        <string>$$VERSION</string>
+        <string>@VERSION@</string>
         <key>CFBundleSignature</key>
         <string>????</string>
         <key>CFBundleVersion</key>
-        <string>$$VERSION</string>
+        <string>@VERSION@</string>
         <key>CFBundleSupportedPlatforms</key>
         <array>
             <string>MacOSX</string>

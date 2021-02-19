@@ -32,8 +32,8 @@
 #include "service.h"
 #include "PlatformUtils/src/messageserver.h"
 #include "PlatformUtils/src/preferences.h"
-#include "VCamUtils/src/image/videoformat.h"
-#include "VCamUtils/src/image/videoframe.h"
+#include "VCamUtils/src/videoformat.h"
+#include "VCamUtils/src/videoframe.h"
 #include "VCamUtils/src/timer.h"
 #include "VCamUtils/src/logger.h"
 

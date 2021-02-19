@@ -38,8 +38,8 @@
 #include "videoprocamp.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
-#include "VCamUtils/src/image/videoformat.h"
-#include "VCamUtils/src/image/videoframe.h"
+#include "VCamUtils/src/videoformat.h"
+#include "VCamUtils/src/videoframe.h"
 #include "VCamUtils/src/utils.h"
 
 namespace AkVCam
@@ -208,7 +208,7 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
         self->d->m_ptsDrift = 0;
 
         self->d->m_sendFrameEvent =
-                CreateSemaphore(nullptr, 1, 1, L"SendFrame");
+                CreateSemaphore(nullptr, 1, 1, TEXT("SendFrame"));
 
         self->d->m_running = true;
         self->d->m_sendFrameThread =

@@ -36,8 +36,8 @@
 #include "cmdparser.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/settings.h"
-#include "VCamUtils/src/image/videoformat.h"
-#include "VCamUtils/src/image/videoframe.h"
+#include "VCamUtils/src/videoformat.h"
+#include "VCamUtils/src/videoframe.h"
 #include "VCamUtils/src/logger.h"
 
 #define AKVCAM_BIND_FUNC(member) \

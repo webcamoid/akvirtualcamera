@@ -23,8 +23,8 @@
 #include <string>
 #include <map>
 
-#include "image/videoformattypes.h"
-#include "image/videoframetypes.h"
+#include "videoformattypes.h"
+#include "videoframetypes.h"
 #include "utils.h"
 
 namespace AkVCam

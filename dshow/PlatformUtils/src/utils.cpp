@@ -29,8 +29,8 @@
 #include "utils.h"
 #include "messagecommons.h"
 #include "VCamUtils/src/utils.h"
-#include "VCamUtils/src/image/videoformat.h"
-#include "VCamUtils/src/image/videoframe.h"
+#include "VCamUtils/src/videoformat.h"
+#include "VCamUtils/src/videoframe.h"
 
 #define TIME_BASE 1.0e7
 

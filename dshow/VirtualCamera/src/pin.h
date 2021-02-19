@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include "VCamUtils/src/image/videoframetypes.h"
+#include "VCamUtils/src/videoframetypes.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "streamconfig.h"
 
