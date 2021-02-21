@@ -27,15 +27,4 @@ git clone https://github.com/webcamoid/DeployTools.git
 cd ../..
 
 set PYTHONPATH=%cd%\ports\deploy\DeployTools
-
-setlocal
-if "%CMAKE_GENERATOR%" == "MSYS Makefiles" set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;%PATH%
-cd build-x64
-cmake --build . --target install 
-cd ..
-cd build-x86
-cmake --build . --target install 
-cd ..
-endlocal
-
 %PYTHON_PATH%\python.exe ports\deploy\deploy.py

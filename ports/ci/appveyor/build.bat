@@ -34,6 +34,7 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build .
+    cmake --build . --target install 
 )
 
 endlocal
@@ -46,6 +47,7 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build . --config Release
+    cmake --build . --config Release --target install 
 )
 
 cmake --build .
@@ -67,6 +69,7 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build .
+    cmake --build . --target install 
 )
 
 endlocal
@@ -79,6 +82,7 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build . --config Release
+    cmake --build . --config Release --target install 
 )
 
 cd ..
