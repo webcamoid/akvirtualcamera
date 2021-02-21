@@ -51,9 +51,9 @@ if (WIN32)
     }" HAVE_X64)
 
     if (HAVE_X64)
-        set(TARGET_ARCH x64)
+        set(TARGET_ARCH x64 CACHE INTERNAL "")
     else ()
-        set(TARGET_ARCH x86)
+        set(TARGET_ARCH x86 CACHE INTERNAL "")
     endif()
 
     add_definitions(-DUNICODE -D_UNICODE)
