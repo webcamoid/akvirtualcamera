@@ -42,10 +42,10 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -A x64 ^
-        --config Release ^
+        -DCMAKE_BUILD_TYPE=Release ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
-    cmake --build .
+    cmake --config Release --build .
 )
 
 cmake --build .
@@ -75,10 +75,10 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -A Win32 ^
-        --config Release ^
+        -DCMAKE_BUILD_TYPE=Release ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
-    cmake --build .
+    cmake --config Release --build .
 )
 
 cd ..
