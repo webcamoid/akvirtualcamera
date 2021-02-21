@@ -25,7 +25,7 @@ mkdir build-x64
 cd build-x64
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
-    set Path=C:\msys64\mingw64\bin;C:\msys64\usr\bin;%Path%
+    set Path=C:\msys64\mingw64\bin;C:\msys64\usr\bin;"%Path%"
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
@@ -33,7 +33,7 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
 )
 
 if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
-    set Path=C:\Program Files\CMake\bin;%Path%
+    set Path="C:\Program Files\CMake\bin;%Path%"
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -A x64 ^
@@ -53,7 +53,7 @@ mkdir build-x86
 cd build-x86
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
-    set Path=C:\msys64\mingw32\bin;C:\msys64\usr\bin;%Path%
+    set Path=C:\msys64\mingw32\bin;C:\msys64\usr\bin;"%Path%"
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
@@ -61,7 +61,7 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
 )
 
 if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
-    set Path=C:\Program Files\CMake\bin;%Path%
+    set Path="C:\Program Files\CMake\bin;%Path%"
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -A Win32 ^
