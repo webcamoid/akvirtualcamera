@@ -20,7 +20,9 @@ echo.
 echo Building x64 virtual camera driver
 echo.
 
+echo "%PATH%"
 set PATH_ORIG="%PATH%"
+echo "%PATH%"
 mkdir build-x64
 cd build-x64
 
