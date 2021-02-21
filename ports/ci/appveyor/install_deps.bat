@@ -20,7 +20,7 @@ rem Installing various utilities
 choco install -y jfrog-cli
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
-    set Path=C:\msys64\usr\bin;%Path%
+    set Path=C:\msys64\usr\bin;"%Path%"
     pacman -Syy
     pacman --noconfirm --needed -S ^
         cmake ^

@@ -34,7 +34,7 @@ echo "Building x64 virtual camera driver"
 echo
 mkdir build-x64
 cd build-x64
-/usr/x86_64-w64-mingw32/bin/cmake ..
+x86_64-w64-mingw32-cmake ..
 cmake --build .
 cd ..
 echo
@@ -42,7 +42,7 @@ echo "Building x86 virtual camera driver"
 echo
 mkdir build-x86
 cd build-x86
-/usr/i686-w64-mingw32/bin/cmake ..
+i686-w64-mingw32-cmake ..
 cmake --build .
 EOF
     chmod +x ${BUILDSCRIPT}
