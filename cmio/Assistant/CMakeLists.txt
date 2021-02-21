@@ -32,8 +32,7 @@ add_executable(Assistant
                src/assistantglobals.h
                src/main.cpp)
 set_target_properties(Assistant PROPERTIES
-                      OUTPUT_NAME ${CMIO_PLUGIN_ASSISTANT_NAME}
-                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${INSTALLPATH}")
+                      OUTPUT_NAME ${CMIO_PLUGIN_ASSISTANT_NAME})
 add_dependencies(Assistant PlatformUtils VCamUtils)
 target_include_directories(Assistant
                            PRIVATE ..

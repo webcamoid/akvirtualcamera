@@ -50,6 +50,12 @@ EOF
     fi
 
     cat << EOF >> ${DEPLOYSCRIPT}
+cd build-x64
+cmake --build . --target install 
+cd ..
+cd build-x86
+cmake --build . --target install 
+cd ..
 python ports/deploy/deploy.py
 EOF
     chmod +x ${DEPLOYSCRIPT}
@@ -59,6 +65,10 @@ EOF
     sudo umount root.x86_64/$HOME
     sudo umount root.x86_64
 elif [ "${TRAVIS_OS_NAME}" = osx ]; then
+    cd build
+    cmake --build . --target install 
+    cd ..
+
     export PYTHONPATH="${PWD}/ports/deploy/DeployTools"
     python3 ports/deploy/deploy.py
 fi

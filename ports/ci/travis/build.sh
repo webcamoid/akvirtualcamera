@@ -19,6 +19,7 @@
 # Web-Site: http://webcamoid.github.io/
 
 BUILDSCRIPT=dockerbuild.sh
+INSTALL_PREFIX=${TRAVIS_BUILD_DIR}/ports/deploy/temp_priv/data
 
 if [ "${TRAVIS_OS_NAME}" = linux ]; then
     sudo mount --bind root.x86_64 root.x86_64
@@ -28,13 +29,16 @@ if [ "${TRAVIS_OS_NAME}" = linux ]; then
 
 export LC_ALL=C
 export HOME=$HOME
-cd $TRAVIS_BUILD_DIR
+cd ${TRAVIS_BUILD_DIR}
 echo
 echo "Building x64 virtual camera driver"
 echo
 mkdir build-x64
 cd build-x64
-x86_64-w64-mingw32-cmake ..
+x86_64-w64-mingw32-cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    ..
 cmake --build .
 cd ..
 echo
@@ -42,7 +46,10 @@ echo "Building x86 virtual camera driver"
 echo
 mkdir build-x86
 cd build-x86
-i686-w64-mingw32-cmake ..
+i686-w64-mingw32-cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    ..
 cmake --build .
 EOF
     chmod +x ${BUILDSCRIPT}
@@ -61,6 +68,9 @@ EOF
 elif [ "${TRAVIS_OS_NAME}" = osx ]; then
     mkdir build
     cd build
-    cmake ..
+    cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+        ..
     cmake --build .
 fi

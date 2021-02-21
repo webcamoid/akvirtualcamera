@@ -16,6 +16,8 @@ REM along with Webcamoid. If not, see <http://www.gnu.org/licenses/>.
 REM
 REM Web-Site: http://webcamoid.github.io/
 
+set INSTALL_PREFIX=%APPVEYOR_BUILD_FOLDER%\ports\deploy\temp_priv\data
+
 echo.
 echo Building x64 virtual camera driver
 echo.
@@ -28,6 +30,7 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" set PATH=C:\msys64\mingw64\bin;C:\msy
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
+        -DCMAKE_BUILD_TYPE=Release ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build .
@@ -39,6 +42,7 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -A x64 ^
+        -DCMAKE_BUILD_TYPE=Release ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build .
@@ -59,6 +63,7 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" set PATH=C:\msys64\mingw32\bin;C:\msy
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
+        -DCMAKE_BUILD_TYPE=Release ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build .
@@ -70,6 +75,7 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -A Win32 ^
+        -DCMAKE_BUILD_TYPE=Release ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build .

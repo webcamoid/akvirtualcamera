@@ -31,8 +31,7 @@ add_executable(Assistant
                src/service.cpp
                src/service.h)
 set_target_properties(Assistant PROPERTIES
-                      OUTPUT_NAME ${DSHOW_PLUGIN_ASSISTANT_NAME}
-                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${INSTALLPATH}")
+                      OUTPUT_NAME ${DSHOW_PLUGIN_ASSISTANT_NAME})
 add_dependencies(Assistant PlatformUtils VCamUtils)
 target_include_directories(Assistant
                            PRIVATE ..

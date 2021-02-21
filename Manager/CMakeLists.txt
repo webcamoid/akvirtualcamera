@@ -36,8 +36,7 @@ add_executable(Manager
                src/main.cpp
                src/cmdparser.cpp)
 set_target_properties(Manager PROPERTIES
-                      OUTPUT_NAME AkVCamManager
-                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${INSTALLPATH}")
+                      OUTPUT_NAME AkVCamManager)
 add_dependencies(Manager VCamIPC PlatformUtils VCamUtils)
 target_include_directories(Manager
                            PRIVATE ..)

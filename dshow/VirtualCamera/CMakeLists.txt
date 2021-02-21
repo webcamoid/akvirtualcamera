@@ -79,7 +79,6 @@ add_library(VirtualCamera SHARED
             VirtualCamera.def)
 set_target_properties(VirtualCamera PROPERTIES
                       OUTPUT_NAME ${DSHOW_PLUGIN_NAME}
-                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${INSTALLPATH}"
                       PREFIX "")
 add_dependencies(VirtualCamera VCamIPC PlatformUtils VCamUtils)
 target_compile_definitions(VirtualCamera PRIVATE VIRTUALCAMERA_LIBRARY)
