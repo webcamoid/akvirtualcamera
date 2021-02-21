@@ -20,7 +20,8 @@ rem Installing various utilities
 choco install -y jfrog-cli
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
-    set PATH=C:\msys64\usr\bin;"%PATH%"
+    setlocal
+    set PATH=C:\msys64\usr\bin;%PATH%
     pacman -Syy
     pacman --noconfirm --needed -S ^
         cmake ^
@@ -32,4 +33,5 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
         mingw-w64-i686-cmake ^
         mingw-w64-x86_64-pkg-config ^
         mingw-w64-i686-pkg-config
+    endlocal
 )

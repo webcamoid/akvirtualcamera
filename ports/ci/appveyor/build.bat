@@ -20,27 +20,27 @@ echo.
 echo Building x64 virtual camera driver
 echo.
 
-echo "%PATH%"
-set PATH_ORIG="%PATH%"
-echo "%PATH%"
 mkdir build-x64
 cd build-x64
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
-    set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;"%PATH%"
+    setlocal
+    set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;%PATH%
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
+    cmake --build .
+    endlocal
 )
 
 if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
-    set PATH="C:\Program Files\CMake\bin;%PATH%"
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -A x64 ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
+    cmake --build .
 )
 
 cmake --build .
@@ -50,28 +50,29 @@ echo.
 echo Building x86 virtual camera driver
 echo.
 
-set PATH="%PATH_ORIG%"
 mkdir build-x86
 cd build-x86
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
+    setlocal
     set PATH=C:\msys64\mingw32\bin;C:\msys64\usr\bin;"%PATH%"
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
+    cmake --build .
+    endlocal
 )
 
 if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
-    set PATH="C:\Program Files\CMake\bin;%PATH%"
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -A Win32 ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
+    cmake --build .
 )
 
-cmake --build .
 cd ..
 
 mkdir build-x64\AkVirtualCamera.plugin\x86
