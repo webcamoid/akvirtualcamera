@@ -50,7 +50,6 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
     cmake --build . --config Release --target install 
 )
 
-cmake --build .
 cd ..
 
 echo.
