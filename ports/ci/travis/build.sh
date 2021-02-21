@@ -18,132 +18,49 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-if [ -z "${DISABLE_CCACHE}" ]; then
-    if [ "${CXX}" = clang++ ]; then
-        UNUSEDARGS="-Qunused-arguments"
-    fi
-
-    COMPILER="ccache ${CXX} ${UNUSEDARGS}"
-else
-    COMPILER=${CXX}
-fi
-
-if [ "${TRAVIS_OS_NAME}" = linux ]; then
-    EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
-fi
-
 BUILDSCRIPT=dockerbuild.sh
 
 if [ "${TRAVIS_OS_NAME}" = linux ]; then
     sudo mount --bind root.x86_64 root.x86_64
     sudo mount --bind $HOME root.x86_64/$HOME
-
-    QMAKE_CMD=/usr/${ARCH_ROOT_MINGW}-w64-mingw32/lib/qt/bin/qmake
-
     cat << EOF > ${BUILDSCRIPT}
 #!/bin/sh
 
 export LC_ALL=C
 export HOME=$HOME
-EOF
-
-    if [ ! -z "${DAILY_BUILD}" ]; then
-        cat << EOF >> ${BUILDSCRIPT}
-export DAILY_BUILD=1
-EOF
-    fi
-
-    cat << EOF >> ${BUILDSCRIPT}
 cd $TRAVIS_BUILD_DIR
-${QMAKE_CMD} -query
-${QMAKE_CMD} -spec ${COMPILESPEC} akvirtualcamera.pro \
-    CONFIG+=silent \
-    QMAKE_CXX="${COMPILER}"
+echo
+echo "Building x64 virtual camera driver"
+echo
+mkdir build-x64
+cd build-x64
+/usr/x86_64-w64-mingw32/bin/cmake ..
+cmake --build .
+cd ..
+echo
+echo "Building x86 virtual camera driver"
+echo
+mkdir build-x86
+cd build-x86
+/usr/i686-w64-mingw32/bin/cmake ..
+cmake --build .
 EOF
     chmod +x ${BUILDSCRIPT}
     sudo cp -vf ${BUILDSCRIPT} root.x86_64/$HOME/
 
+    EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
     ${EXEC} bash $HOME/${BUILDSCRIPT}
-elif [ "${TRAVIS_OS_NAME}" = osx ]; then
-    ${EXEC} qmake -query
-    ${EXEC} qmake -spec ${COMPILESPEC} akvirtualcamera.pro \
-        CONFIG+=silent \
-        QMAKE_CXX="${COMPILER}"
-fi
-
-if [ -z "${NJOBS}" ]; then
-    NJOBS=4
-fi
-
-if [ "${TRAVIS_OS_NAME}" = linux ]; then
-    cat << EOF > ${BUILDSCRIPT}
-#!/bin/sh
-
-export LC_ALL=C
-export HOME=$HOME
-EOF
-
-    if [ ! -z "${DAILY_BUILD}" ]; then
-        cat << EOF >> ${BUILDSCRIPT}
-export DAILY_BUILD=1
-EOF
-    fi
-
-    cat << EOF >> ${BUILDSCRIPT}
-cd $TRAVIS_BUILD_DIR
-make -j${NJOBS}
-EOF
-    chmod +x ${BUILDSCRIPT}
-    sudo cp -vf ${BUILDSCRIPT} root.x86_64/$HOME/
-
-    ${EXEC} bash $HOME/${BUILDSCRIPT}
-    sudo umount root.x86_64/$HOME
-    sudo umount root.x86_64
-else
-    ${EXEC} make -j${NJOBS}
-fi
-
-if [ "${TRAVIS_OS_NAME}" = linux ]; then
-    if [ "$ARCH_ROOT_MINGW" = x86_64 ]; then
-        mingw_arch=i686
-        mingw_compiler=${COMPILER/x86_64/i686}
-        mingw_dstdir=x86
-    else
-        mingw_arch=x86_64
-        mingw_compiler=${COMPILER/i686/x86_64}
-        mingw_dstdir=x64
-    fi
-
-    echo
-    echo "Building $mingw_arch virtual camera driver"
-    echo
-    sudo mount --bind root.x86_64 root.x86_64
-    sudo mount --bind $HOME root.x86_64/$HOME
-
-    cat << EOF > ${BUILDSCRIPT}
-#!/bin/sh
-
-export LC_ALL=C
-export HOME=$HOME
-mkdir -p $TRAVIS_BUILD_DIR/akvcam
-cd $TRAVIS_BUILD_DIR/akvcam
-/usr/${mingw_arch}-w64-mingw32/lib/qt/bin/qmake \
-    -spec ${COMPILESPEC} \
-    ../akvirtualcamera.pro \
-    CONFIG+=silent \
-    QMAKE_CXX="${mingw_compiler}"
-make -j${NJOBS}
-EOF
-    chmod +x ${BUILDSCRIPT}
-    sudo cp -vf ${BUILDSCRIPT} root.x86_64/$HOME/
-
-    ${EXEC} bash $HOME/${BUILDSCRIPT}
-
-    sudo mkdir -p ports/deploy/temp_priv/AkVirtualCamera.plugin/${mingw_dstdir}
+    
+    sudo mkdir -p build-x64/AkVirtualCamera.plugin/x86
     sudo cp -rvf \
-        akvcam/AkVirtualCamera.plugin/${mingw_dstdir}/* \
-        ports/deploy/temp_priv/AkVirtualCamera.plugin/${mingw_dstdir}/
+        build-x86/AkVirtualCamera.plugin/x86/* \
+        build-x64/AkVirtualCamera.plugin/x86/
 
     sudo umount root.x86_64/$HOME
     sudo umount root.x86_64
+elif [ "${TRAVIS_OS_NAME}" = osx ]; then
+    mkdir build
+    cd build
+    cmake ..
+    cmake --build .
 fi

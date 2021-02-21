@@ -20,25 +20,11 @@ matrix:
     dist: focal
     compiler: gcc
     env:
-      - ARCH_ROOT_MINGW=x86_64
       - DAILY_BUILD=1
   - os: linux
     dist: focal
     compiler: gcc
     env:
-      - ARCH_ROOT_MINGW=i686
-      - DAILY_BUILD=1
-  - os: linux
-    dist: focal
-    compiler: gcc
-    env:
-      - ARCH_ROOT_MINGW=x86_64
-      - RELEASE_BUILD=1
-  - os: linux
-    dist: focal
-    compiler: gcc
-    env:
-      - ARCH_ROOT_MINGW=i686
       - RELEASE_BUILD=1
   - os: osx
     osx_image: xcode10.2
@@ -87,19 +73,6 @@ matrix:
 install:
   - chmod +x ports/ci/travis/install_deps.sh
   - ports/ci/travis/install_deps.sh
-
-before_script: |
-  if [ "${TRAVIS_OS_NAME}" = linux ]; then
-    export CXX=${ARCH_ROOT_MINGW}-w64-mingw32-g++
-    export COMPILESPEC=win32-g++
-  elif [ "${TRAVIS_OS_NAME}" = osx ]; then
-    brew link --force qt5
-    if [ "${CXX}" = g++ ]; then
-      export COMPILESPEC=macx-g++
-    elif [ "${CXX}" = clang++ ]; then
-      export COMPILESPEC=macx-clang
-    fi
-  fi
 
 script:
   - chmod +x ports/ci/travis/build.sh

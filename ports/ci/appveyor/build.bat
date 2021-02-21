@@ -16,53 +16,64 @@ REM along with Webcamoid. If not, see <http://www.gnu.org/licenses/>.
 REM
 REM Web-Site: http://webcamoid.github.io/
 
-if "%PLATFORM%" == "x86" (
-    set VC_ARGS=x86
-) else (
-    set VC_ARGS=amd64
-)
-
-rem Visual Studio init
-if not "%VSPATH%" == "" call "%VSPATH%\vcvarsall" %VC_ARGS%
-
-set PATH_ORIG=%PATH%
-set PATH=%QTDIR%\bin;%TOOLSDIR%\bin;%PATH%
-
-qmake -query
-qmake akvirtualcamera.pro ^
-    CONFIG+=%CONFIGURATION% ^
-    CONFIG+=silent ^
-    PREFIX="%INSTALL_PREFIX%"
-
-%MAKETOOL% -j4
-
-if "%DAILY_BUILD%" == "" goto EndScript
-
-if "%PLATFORM%" == "x86" (
-    set DRV_ARCH=x64
-) else (
-    set DRV_ARCH=x86
-)
-
 echo.
-echo Building %DRV_ARCH% virtual camera driver
+echo Building x64 virtual camera driver
 echo.
 
-mkdir akvcam
-cd akvcam
+set PATH_ORIG=%Path%
+mkdir build-x64
+cd build-x64
 
-set PATH=%QTDIR_ALT%\bin;%TOOLSDIR_ALT%\bin;%PATH_ORIG%
-qmake -query
-qmake ^
-    CONFIG+=silent ^
-    ..\akvirtualcamera.pro
-%MAKETOOL% -j4
+if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
+    set Path=C:\msys64\mingw64\bin;C:\msys64\usr\bin;%Path%
+    cmake ^
+        -G "%CMAKE_GENERATOR%" ^
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
+        ..
+)
 
+if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
+    set Path=C:\Program Files\CMake\bin;%Path%
+    cmake ^
+        -G "%CMAKE_GENERATOR%" ^
+        -A x64 ^
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
+        ..
+)
+
+cmake --build .
 cd ..
-mkdir AkVirtualCamera.plugin\%DRV_ARCH%
-xcopy ^
-    akvcam\AkVirtualCamera.plugin\%DRV_ARCH%\* ^
-    AkVirtualCamera.plugin\%DRV_ARCH% ^
-    /i /y
 
-:EndScript
+echo.
+echo Building x86 virtual camera driver
+echo.
+
+set Path=%PATH_ORIG%
+mkdir build-x86
+cd build-x86
+
+if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
+    set Path=C:\msys64\mingw32\bin;C:\msys64\usr\bin;%Path%
+    cmake ^
+        -G "%CMAKE_GENERATOR%" ^
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
+        ..
+)
+
+if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
+    set Path=C:\Program Files\CMake\bin;%Path%
+    cmake ^
+        -G "%CMAKE_GENERATOR%" ^
+        -A Win32 ^
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
+        ..
+)
+
+cmake --build .
+cd ..
+
+mkdir build-x64\AkVirtualCamera.plugin\x86
+xcopy ^
+    build-x86\AkVirtualCamera.plugin\x86\* ^
+    build-x64\AkVirtualCamera.plugin\x86 ^
+    /i /y

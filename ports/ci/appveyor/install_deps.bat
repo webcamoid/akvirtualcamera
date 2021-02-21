@@ -18,3 +18,18 @@ REM Web-Site: http://webcamoid.github.io/
 
 rem Installing various utilities
 choco install -y jfrog-cli
+
+if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
+    set Path=C:\msys64\usr\bin;%Path%
+    pacman -Syy
+    pacman --noconfirm --needed -S ^
+        cmake ^
+        git ^
+        make ^
+        pkg-config ^
+        python3 ^
+        mingw-w64-x86_64-cmake ^
+        mingw-w64-i686-cmake ^
+        mingw-w64-x86_64-pkg-config ^
+        mingw-w64-i686-pkg-config
+)

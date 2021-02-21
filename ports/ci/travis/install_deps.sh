@@ -82,7 +82,7 @@ EOF
         wine \
         mingw-w64-pkg-config \
         mingw-w64-gcc \
-        mingw-w64-qt5-base
+        mingw-w64-cmake
 
     qtIFW=QtInstallerFramework-win-x86.exe
 
@@ -115,17 +115,17 @@ EOF
     sudo umount root.x86_64/$HOME
     sudo umount root.x86_64
 elif [ "${TRAVIS_OS_NAME}" = osx ]; then
+    brew link --force qt5
     brew update
     brew upgrade
     brew link --overwrite numpy
     brew install \
-        p7zip \
-        python \
         ccache \
+        cmake \
+        p7zip \
         pkg-config \
-        qt5
+        python
     brew link --overwrite python
-
     brew link python
     qtIFW=QtInstallerFramework-mac-x64.dmg
 
