@@ -36,21 +36,16 @@ if (WIN32)
     include(CheckCXXSourceCompiles)
 
     check_cxx_source_compiles("
-    #if !defined(__amd64__) \\
-        && !defined(__amd64) \\
-        && !defined(__x86_64_) \\
-        && !defined(__x86_64) \\
-        && !defined(_M_X64) \\
-        && !defined(_M_AMD64)
+    #ifndef _WIN64
         #error Not x64
     #endif
 
     int main()
     {
         return 0;
-    }" HAVE_X64)
+    }" IS_WIN64_TARGET)
 
-    if (HAVE_X64)
+    if (IS_WIN64_TARGET)
         set(TARGET_ARCH x64 CACHE INTERNAL "")
     else ()
         set(TARGET_ARCH x86 CACHE INTERNAL "")
