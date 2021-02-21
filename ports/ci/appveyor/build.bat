@@ -80,11 +80,3 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
         ..
     cmake --build .
 )
-
-cd ..
-
-mkdir build-x64\AkVirtualCamera.plugin\x86
-xcopy ^
-    build-x86\AkVirtualCamera.plugin\x86\* ^
-    build-x64\AkVirtualCamera.plugin\x86 ^
-    /i /y

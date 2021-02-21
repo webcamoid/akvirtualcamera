@@ -57,11 +57,6 @@ EOF
 
     EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
     ${EXEC} bash $HOME/${BUILDSCRIPT}
-    
-    sudo mkdir -p build-x64/AkVirtualCamera.plugin/x86
-    sudo cp -rvf \
-        build-x86/AkVirtualCamera.plugin/x86/* \
-        build-x64/AkVirtualCamera.plugin/x86/
 
     sudo umount root.x86_64/$HOME
     sudo umount root.x86_64
