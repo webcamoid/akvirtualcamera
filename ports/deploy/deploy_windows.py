@@ -59,8 +59,6 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.changeLog = os.path.join(self.rootDir, 'ChangeLog')
 
     def prepare(self):
-        print('Executing make install')
-        self.makeInstall(self.buildDir)
         self.detectTargetArch()
 
         if self.qtIFWVersion == '' or int(self.qtIFWVersion.split('.')[0]) < 3:

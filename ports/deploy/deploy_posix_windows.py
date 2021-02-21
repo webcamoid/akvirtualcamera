@@ -75,10 +75,6 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
             os.remove(afile)
 
     def prepare(self):
-        print('Executing make install')
-        params = {'INSTALL_ROOT': self.installDir}
-        self.makeInstall(self.buildDir, params)
-
         if self.targetArch == '32bit':
             self.binarySolver.sysBinsPath = ['/usr/i686-w64-mingw32/bin']
         else:

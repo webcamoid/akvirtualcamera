@@ -65,9 +65,6 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
                                                       self.programVersion))
 
     def prepare(self):
-        print('Executing make install')
-        params = {'INSTALL_ROOT': self.installDir}
-        self.makeInstall(self.buildDir, params)
         self.detectTargetArch()
         print('Stripping symbols')
         self.binarySolver.stripSymbols(self.installDir)

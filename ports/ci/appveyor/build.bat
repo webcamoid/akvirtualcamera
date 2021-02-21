@@ -16,7 +16,7 @@ REM along with Webcamoid. If not, see <http://www.gnu.org/licenses/>.
 REM
 REM Web-Site: http://webcamoid.github.io/
 
-set INSTALL_PREFIX=%APPVEYOR_BUILD_FOLDER%\ports\deploy\temp_priv\data
+set INSTALL_PREFIX=%APPVEYOR_BUILD_FOLDER%\ports\deploy\temp_priv
 
 echo.
 echo Building x64 virtual camera driver
