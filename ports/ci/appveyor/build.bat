@@ -26,6 +26,7 @@ cd build-x64
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
     set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;"%PATH%"
+    echo %PATH%
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
@@ -34,6 +35,7 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
 
 if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
     set PATH="C:\Program Files\CMake\bin;%PATH%"
+    echo %PATH%
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -A x64 ^
