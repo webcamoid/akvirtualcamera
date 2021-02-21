@@ -20,12 +20,11 @@ echo.
 echo Building x64 virtual camera driver
 echo.
 
-set PATH_ORIG=%PATH%
+set PATH_ORIG="%PATH%"
 mkdir build-x64
 cd build-x64
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
-    echo %PATH%
     set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;"%PATH%"
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
@@ -34,7 +33,6 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
 )
 
 if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
-    echo %PATH%
     set PATH="C:\Program Files\CMake\bin;%PATH%"
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
@@ -50,7 +48,7 @@ echo.
 echo Building x86 virtual camera driver
 echo.
 
-set PATH=%PATH_ORIG%
+set PATH="%PATH_ORIG%"
 mkdir build-x86
 cd build-x86
 
