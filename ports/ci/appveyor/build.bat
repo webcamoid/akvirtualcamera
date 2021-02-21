@@ -22,17 +22,18 @@ echo.
 
 mkdir build-x64
 cd build-x64
+setlocal
 
+if "%CMAKE_GENERATOR%" == "MSYS Makefiles" set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;%PATH%
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
-    setlocal
-    set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;%PATH%
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build .
-    endlocal
 )
+
+endlocal
 
 if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
     cmake ^
@@ -52,17 +53,18 @@ echo.
 
 mkdir build-x86
 cd build-x86
+setlocal
 
+if "%CMAKE_GENERATOR%" == "MSYS Makefiles" set PATH=C:\msys64\mingw32\bin;C:\msys64\usr\bin;%PATH%
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
-    setlocal
-    set PATH=C:\msys64\mingw32\bin;C:\msys64\usr\bin;"%PATH%"
     cmake ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build .
-    endlocal
 )
+
+endlocal
 
 if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
     cmake ^
