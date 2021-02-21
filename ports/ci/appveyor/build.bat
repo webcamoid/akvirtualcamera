@@ -80,3 +80,5 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
         ..
     cmake --build .
 )
+
+cd ..
