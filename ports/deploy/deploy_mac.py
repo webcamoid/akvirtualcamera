@@ -44,7 +44,7 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.detectQtIFWVersion()
         self.programName = 'AkVirtualCamera'
         self.adminRights = True
-        self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
+        self.packageConfig = os.path.join(self.buildDir, 'package_info.conf')
         self.rootInstallDir = os.path.join(self.installDir, 'Applications')
         self.appBundleDir = os.path.join(self.rootInstallDir, self.programName + '.plugin')
         self.execPrefixDir = os.path.join(self.appBundleDir, 'Contents')

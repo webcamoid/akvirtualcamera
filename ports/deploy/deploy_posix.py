@@ -43,16 +43,16 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.detectQtIFW()
         self.detectQtIFWVersion()
         self.rootInstallDir = os.path.join(self.installDir, self.qmakeQuery(var='QT_INSTALL_PREFIX')[1:])
-        self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
+        self.packageConfig = os.path.join(self.buildDir, 'package_info.conf')
         self.binaryInstallDir = os.path.join(self.rootInstallDir, 'bin')
         self.mainBinary = os.path.join(self.binaryInstallDir, 'webcamoid')
         self.programName = os.path.basename(self.mainBinary)
         self.detectMake()
-        xspec = self.qmakeQuery(var='QMAKE_XSPEC')
+        targetSystem = self.targetSystem()
 
-        if 'win32' in xspec:
+        if targetSystem == 'windows':
             self.targetSystem = 'posix_windows'
-        elif 'android' in xspec:
+        elif targetSystem == 'android':
             self.targetSystem = 'android'
 
         self.binarySolver = DTBinaryElf.ElfBinaryTools()
