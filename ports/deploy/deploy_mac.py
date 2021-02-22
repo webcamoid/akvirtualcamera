@@ -40,19 +40,19 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.setRootDir(rootDir)
         self.installDir = os.path.join(self.buildDir, 'ports/deploy/temp_priv')
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto', self.targetSystem)
-        self.detectQt(os.path.join(self.buildDir, 'Manager'))
+        self.detectQtIFW()
+        self.detectQtIFWVersion()
         self.programName = 'AkVirtualCamera'
         self.adminRights = True
+        self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
         self.rootInstallDir = os.path.join(self.installDir, 'Applications')
         self.appBundleDir = os.path.join(self.rootInstallDir, self.programName + '.plugin')
         self.execPrefixDir = os.path.join(self.appBundleDir, 'Contents')
         self.binaryInstallDir = os.path.join(self.execPrefixDir, 'MacOS')
         self.mainBinary = os.path.join(self.binaryInstallDir, self.programName)
-        self.programVersion = self.detectVersion(os.path.join(self.rootDir, 'commons.pri'))
         self.detectMake()
         self.binarySolver = DTBinaryMach.MachBinaryTools()
         self.binarySolver.readExcludes(os.name, sys.platform)
-        self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
         self.dependencies = []
         self.installerConfig = os.path.join(self.installDir, 'installer/config')
         self.installerPackages = os.path.join(self.installDir, 'installer/packages')
@@ -62,7 +62,7 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.changeLog = os.path.join(self.rootDir, 'ChangeLog')
         self.outPackage = os.path.join(self.pkgsDir,
                                    '{}-{}.dmg'.format(self.programName,
-                                                      self.programVersion))
+                                                      self.programVersion()))
 
     def prepare(self):
         self.detectTargetArch()

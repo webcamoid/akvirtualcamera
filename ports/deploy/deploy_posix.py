@@ -40,12 +40,13 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.setRootDir(rootDir)
         self.installDir = os.path.join(self.buildDir, 'ports/deploy/temp_priv')
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto', sys.platform)
-        self.detectQt(os.path.join(self.buildDir, 'Manager'))
+        self.detectQtIFW()
+        self.detectQtIFWVersion()
         self.rootInstallDir = os.path.join(self.installDir, self.qmakeQuery(var='QT_INSTALL_PREFIX')[1:])
+        self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
         self.binaryInstallDir = os.path.join(self.rootInstallDir, 'bin')
         self.mainBinary = os.path.join(self.binaryInstallDir, 'webcamoid')
         self.programName = os.path.basename(self.mainBinary)
-        self.programVersion = self.detectVersion(os.path.join(self.rootDir, 'commons.pri'))
         self.detectMake()
         xspec = self.qmakeQuery(var='QMAKE_XSPEC')
 
@@ -56,7 +57,6 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
 
         self.binarySolver = DTBinaryElf.ElfBinaryTools()
         self.binarySolver.readExcludes(os.name, sys.platform)
-        self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
         self.dependencies = []
         self.installerConfig = os.path.join(self.installDir, 'installer/config')
         self.installerPackages = os.path.join(self.installDir, 'installer/packages')
@@ -71,7 +71,7 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.changeLog = os.path.join(self.rootDir, 'ChangeLog')
         self.outPackage = os.path.join(self.pkgsDir,
                                        '{}-installer-{}-{}.run'.format(self.programName,
-                                                                       self.programVersion,
+                                                                       self.programVersion(),
                                                                        platform.machine()))
 
     def detectAppImage(self):
@@ -102,8 +102,6 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
                 self.dependencies.append(dep)
 
     def prepare(self):
-        print('Executing make install')
-        self.makeInstall(self.buildDir, self.installDir)
         self.detectTargetArch()
         self.appImage = self.detectAppImage()
         print('Copying Qml modules\n')
@@ -332,7 +330,7 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         packagePath = \
             os.path.join(self.pkgsDir,
                          '{}-portable-{}-{}.tar.xz'.format(self.programName,
-                                                           self.programVersion,
+                                                           self.programVersion(),
                                                            platform.machine()))
 
         if not os.path.exists(self.pkgsDir):
@@ -364,7 +362,7 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         appDir = \
             os.path.join(self.installDir,
                          '{}-{}-{}.AppDir'.format(self.programName,
-                                                  self.programVersion,
+                                                  self.programVersion(),
                                                   platform.machine()))
 
         usrDir = os.path.join(appDir, 'usr')
@@ -407,7 +405,7 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         packagePath = \
             os.path.join(self.pkgsDir,
                          '{}-{}-{}.AppImage'.format(self.programName,
-                                                    self.programVersion,
+                                                    self.programVersion(),
                                                     platform.machine()))
 
         if not os.path.exists(self.pkgsDir):

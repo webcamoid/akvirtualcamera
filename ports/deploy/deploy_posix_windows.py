@@ -39,18 +39,18 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.targetSystem = 'posix_windows'
         self.installDir = os.path.join(self.buildDir, 'ports/deploy/temp_priv')
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto/windows')
-        self.detectQt(os.path.join(self.buildDir, 'Manager'))
+        self.detectQtIFW()
+        self.detectQtIFWVersion()
         self.programName = 'AkVirtualCamera'
         self.adminRights = True
+        self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
         self.rootInstallDir = os.path.join(self.installDir, self.programName + '.plugin')
         self.binaryInstallDir = os.path.join(self.rootInstallDir, 'bin')
         self.mainBinary = os.path.join(self.binaryInstallDir, self.programName + '.exe')
         self.programName = os.path.splitext(os.path.basename(self.mainBinary))[0]
-        self.programVersion = self.detectVersion(os.path.join(self.rootDir, 'commons.pri'))
         self.detectMake()
         self.binarySolver = DTBinaryPecoff.PecoffBinaryTools()
         self.binarySolver.readExcludes(os.name, sys.platform)
-        self.packageConfig = os.path.join(self.rootDir, 'ports/deploy/package_info.conf')
         self.dependencies = []
         self.installerConfig = os.path.join(self.installDir, 'installer/config')
         self.installerPackages = os.path.join(self.installDir, 'installer/packages')
@@ -94,7 +94,7 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         arch = 'win32' if self.targetArch == '32bit' else 'win64'
         self.outPackage = os.path.join(self.pkgsDir,
                                        '{}-{}-{}.exe'.format(self.programName,
-                                                             self.programVersion,
+                                                             self.programVersion(),
                                                              arch))
 
         print('Stripping symbols')
