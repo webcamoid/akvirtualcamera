@@ -36,10 +36,11 @@ if [ "${TRAVIS_OS_NAME}" = linux ]; then
 #!/bin/sh
 
 export LC_ALL=C
-export HOME=$HOME
-export PATH="$TRAVIS_BUILD_DIR/.local/bin:\$PATH"
-export PYTHONPATH="$TRAVIS_BUILD_DIR/ports/deploy/DeployTools"
-export BUILD_PATH="$TRAVIS_BUILD_DIR/build-x64"
+export HOME=${HOME}
+export PATH="${TRAVIS_BUILD_DIR}/.local/bin:\$PATH"
+export PYTHONPATH="${TRAVIS_BUILD_DIR}/ports/deploy/DeployTools"
+export BUILD_PATH="${TRAVIS_BUILD_DIR}/build-x64"
+export INSTALL_PATH=${TRAVIS_BUILD_DIR}/ports/deploy/temp_priv
 export WINEPREFIX=/opt/.wine
 cd $TRAVIS_BUILD_DIR
 EOF
@@ -72,5 +73,6 @@ elif [ "${TRAVIS_OS_NAME}" = osx ]; then
 
     export PYTHONPATH="${PWD}/ports/deploy/DeployTools"
     export BUILD_PATH="${PWD}/build"
+    export INSTALL_PATH=${TRAVIS_BUILD_DIR}/ports/deploy/temp_priv
     python3 ports/deploy/deploy.py
 fi

@@ -28,4 +28,5 @@ cd ../..
 
 set PYTHONPATH=%cd%\ports\deploy\DeployTools
 set BUILD_PATH=%cd%\build-x64
+set INSTALL_PATH=%INSTALL_PREFIX%
 %PYTHON_PATH%\python.exe ports\deploy\deploy.py
