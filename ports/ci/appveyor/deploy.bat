@@ -27,4 +27,5 @@ git clone https://github.com/webcamoid/DeployTools.git
 cd ../..
 
 set PYTHONPATH=%cd%\ports\deploy\DeployTools
+set BUILD_PATH=%cd%\build-x64
 %PYTHON_PATH%\python.exe ports\deploy\deploy.py
