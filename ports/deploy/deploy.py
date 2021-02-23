@@ -26,12 +26,13 @@ if __name__ =='__main__':
     system = DTUtils.Utils().system
 
     while True:
-        try:
-            deploy = __import__('deploy_' + system).Deploy()
-        except Exception as e:
-            print('No valid deploy script found: ', e)
+        deploy = __import__('deploy_' + system).Deploy()
+        #try:
+            #deploy = __import__('deploy_' + system).Deploy()
+        #except Exception as e:
+            #print('No valid deploy script found: ', e)
 
-            exit()
+            #exit()
 
         if system == deploy.targetSystem:
             deploy.run()
