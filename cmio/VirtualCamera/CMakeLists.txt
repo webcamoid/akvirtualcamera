@@ -79,4 +79,4 @@ target_link_libraries(VirtualCamera
                       VCamIPC
                       ${EXTRA_LIBS})
 install(TARGETS VirtualCamera DESTINATION ${MACBINPATH})
-install(FILES ${CMAKE_BINARY_DIR}/Info.plist DESTINATION ${CONTENTSPATH})
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/Info.plist DESTINATION ${CONTENTSPATH})
