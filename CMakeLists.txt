@@ -33,9 +33,9 @@ endif ()
 add_subdirectory(Manager)
 
 if (APPLE)
-    set(TARGET_SYSTEM mac)
+    set(TARGET_PLATFORM mac)
 elseif (WIN32)
-    set(TARGET_SYSTEM windows)
+    set(TARGET_PLATFORM windows)
 endif ()
 
 file(WRITE ${CMAKE_BINARY_DIR}/package_info.conf
@@ -46,4 +46,4 @@ file(WRITE ${CMAKE_BINARY_DIR}/package_info.conf
      "description = AkVirtualCamera, virtual camera for Mac and Windows\n"
      "url = https://github.com/webcamoid/akvirtualcamera\n"
      "licenseDescription = GNU General Public License v3.0\n"
-     "targetSystem = ${TARGET_SYSTEM}\n")
+     "targetPlatform = ${TARGET_PLATFORM}\n")

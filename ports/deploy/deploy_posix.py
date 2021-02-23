@@ -47,11 +47,11 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.mainBinary = os.path.join(self.binaryInstallDir, 'webcamoid')
         self.programName = os.path.basename(self.mainBinary)
         self.detectMake()
-        targetSystem = self.targetSystem()
+        targetPlatform = self.targetPlatform()
 
-        if targetSystem == 'windows':
+        if targetPlatform == 'windows':
             self.targetSystem = 'posix_windows'
-        elif targetSystem == 'android':
+        elif targetPlatform == 'android':
             self.targetSystem = 'android'
 
         self.binarySolver = DTBinaryElf.ElfBinaryTools()
