@@ -38,7 +38,6 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         super().__init__()
         rootDir = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..'))
         self.setRootDir(rootDir)
-        self.installDir = os.path.join(self.buildDir, 'ports/deploy/temp_priv')
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto', self.targetSystem)
         self.detectQtIFW()
         self.detectQtIFWVersion()

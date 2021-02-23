@@ -37,7 +37,6 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         rootDir = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..'))
         self.setRootDir(rootDir)
         self.targetSystem = 'posix_windows'
-        self.installDir = os.path.join(self.buildDir, 'ports/deploy/temp_priv')
         self.pkgsDir = os.path.join(self.buildDir, 'ports/deploy/packages_auto/windows')
         self.detectQtIFW()
         self.detectQtIFWVersion()
