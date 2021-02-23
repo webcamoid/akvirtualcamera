@@ -44,8 +44,7 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         self.programName = 'AkVirtualCamera'
         self.adminRights = True
         self.packageConfig = os.path.join(self.buildDir, 'package_info.conf')
-        self.rootInstallDir = os.path.join(self.installDir, 'Applications')
-        self.appBundleDir = os.path.join(self.rootInstallDir, self.programName + '.plugin')
+        self.appBundleDir = os.path.join(self.installDir, self.programName + '.plugin')
         self.execPrefixDir = os.path.join(self.appBundleDir, 'Contents')
         self.binaryInstallDir = os.path.join(self.execPrefixDir, 'MacOS')
         self.mainBinary = os.path.join(self.binaryInstallDir, self.programName)
@@ -68,7 +67,7 @@ class Deploy(DTDeployBase.DeployBase, DTQt5.Qt5Tools):
         print('Stripping symbols')
         self.binarySolver.stripSymbols(self.installDir)
         print('Resetting file permissions')
-        self.binarySolver.resetFilePermissions(self.rootInstallDir,
+        self.binarySolver.resetFilePermissions(self.installDir,
                                                self.binaryInstallDir)
         print('\nWritting build system information\n')
         self.writeBuildInfo()
