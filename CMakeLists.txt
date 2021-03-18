@@ -26,24 +26,23 @@ add_subdirectory(VCamUtils)
 
 if (APPLE)
     add_subdirectory(cmio)
+    set(TARGET_PLATFORM mac)
+    set(BUILD_INFO_FILE AkVirtualCamera.plugin/Contents/Resources/build-info.txt)
+    set(APP_LIBDIR AkVirtualCamera.plugin/Contents/Frameworks)
+    set(QTIFW_TARGET_DIR "\@ApplicationsDir\@/AkVirtualCamera")
 elseif (WIN32)
     add_subdirectory(dshow)
+    set(TARGET_PLATFORM windows)
+    set(BUILD_INFO_FILE share/build-info.txt)
+    set(APP_LIBDIR ${TARGET_ARCH})
+
+    if (IS_64BITS_TARGET)
+        set(QTIFW_TARGET_DIR "\@ApplicationsDirX64\@/AkVirtualCamera")
+    else ()
+        set(QTIFW_TARGET_DIR "\@ApplicationsDirX86\@/AkVirtualCamera")
+    endif()
 endif ()
 
 add_subdirectory(Manager)
 
-if (APPLE)
-    set(TARGET_PLATFORM mac)
-elseif (WIN32)
-    set(TARGET_PLATFORM windows)
-endif ()
-
-file(WRITE ${CMAKE_BINARY_DIR}/package_info.conf
-     "[Package]\n"
-     "appName = AkVirtualCamera\n"
-     "packageName = akvirtualcamera\n"
-     "version = ${VERSION}\n"
-     "description = AkVirtualCamera, virtual camera for Mac and Windows\n"
-     "url = https://github.com/webcamoid/akvirtualcamera\n"
-     "licenseDescription = GNU General Public License v3.0\n"
-     "targetPlatform = ${TARGET_PLATFORM}\n")
+configure_file(package_info.conf.in package_info.conf)

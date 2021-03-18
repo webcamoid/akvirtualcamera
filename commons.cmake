@@ -18,6 +18,12 @@
 
 cmake_minimum_required(VERSION 3.5)
 
+if (NOT APPLE AND NOT WIN32)
+    message(FATAL_ERROR "This driver only works in Mac an Windows. For Linux check 'akvcam' instead.")
+endif ()
+
+include(CheckCXXSourceCompiles)
+
 set(COMMONS_APPNAME AkVirtualCamera)
 string(TOLOWER ${COMMONS_APPNAME} COMMONS_TARGET)
 
@@ -32,9 +38,17 @@ add_definitions(-DCOMMONS_APPNAME="\\"${COMMONS_APPNAME}\\""
                 -DCOMMONS_VERSION="\\"${VERSION}\\""
                 -DPREFIX="\\"${PREFIX}\\"")
 
-if (WIN32)
-    include(CheckCXXSourceCompiles)
+if (APPLE)
+    check_cxx_source_compiles("
+    #ifndef __x86_64__
+        #error Not x64
+    #endif
 
+    int main()
+    {
+        return 0;
+    }" IS_64BITS_TARGET)
+elseif (WIN32)
     check_cxx_source_compiles("
     #ifndef _WIN64
         #error Not x64
@@ -43,17 +57,17 @@ if (WIN32)
     int main()
     {
         return 0;
-    }" IS_WIN64_TARGET)
-
-    if (IS_WIN64_TARGET)
-        set(TARGET_ARCH x64 CACHE INTERNAL "")
-    else ()
-        set(TARGET_ARCH x86 CACHE INTERNAL "")
-    endif()
+    }" IS_64BITS_TARGET)
 
     add_definitions(-DUNICODE -D_UNICODE)
 endif ()
 
-if (NOT APPLE AND NOT WIN32)
-    message(FATAL_ERROR "This driver only works in Mac an Windows. For Linux check 'akvcam' instead.")
-endif ()
+if (IS_64BITS_TARGET)
+    set(TARGET_ARCH x64 CACHE INTERNAL "")
+else ()
+    set(TARGET_ARCH x86 CACHE INTERNAL "")
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
+endif()

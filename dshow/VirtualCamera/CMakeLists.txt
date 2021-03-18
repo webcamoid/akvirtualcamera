@@ -25,7 +25,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(../dshow.cmake)
-set(INSTALLPATH ${DSHOW_PLUGIN_NAME}.plugin/${TARGET_ARCH})
+set(INSTALLPATH ${TARGET_ARCH})
 
 add_library(VirtualCamera SHARED
             src/basefilter.cpp
