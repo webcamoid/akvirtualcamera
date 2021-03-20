@@ -19,7 +19,7 @@
 # Web-Site: http://webcamoid.github.io/
 
 BUILDSCRIPT=dockerbuild.sh
-INSTALL_PREFIX=${TRAVIS_BUILD_DIR}/ports/deploy/temp_priv
+INSTALL_PREFIX=${TRAVIS_BUILD_DIR}/webcamoid-data
 
 if [ "${TRAVIS_OS_NAME}" = linux ]; then
     sudo mount --bind root.x86_64 root.x86_64

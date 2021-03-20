@@ -22,11 +22,14 @@ if "%PLATFORM%" == "x86" (
     set PYTHON_PATH=C:\%PYTHON_VERSION%-x64
 )
 
-cd ports/deploy
-git clone https://github.com/webcamoid/DeployTools.git
-cd ../..
+set INSTALL_PREFIX=%APPVEYOR_BUILD_FOLDER%\webcamoid-data
+set PACKAGES_DIR=%APPVEYOR_BUILD_FOLDER%\webcamoid-packages
 
-set PYTHONPATH=%cd%\ports\deploy\DeployTools
+git clone https://github.com/webcamoid/DeployTools.git
+
+set PYTHONPATH=%cd%\DeployTools
 set BUILD_PATH=%cd%\build-x64
-set INSTALL_PATH=%INSTALL_PREFIX%
-%PYTHON_PATH%\python.exe ports\deploy\deploy.py
+%PYTHON_PATH%\python.exe DeployTools\deploy.py ^
+    -d "%INSTALL_PREFIX%" ^
+    -c "%BUILD_PATH%\package_info.conf" ^
+    -o "%PACKAGES_DIR%"

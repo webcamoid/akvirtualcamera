@@ -16,13 +16,15 @@ REM along with Webcamoid. If not, see <http://www.gnu.org/licenses/>.
 REM
 REM Web-Site: http://webcamoid.github.io/
 
+set PACKAGES_DIR=%APPVEYOR_BUILD_FOLDER%\webcamoid-packages
+
 if not "%DAILY_BUILD%" == "" (
     jfrog bt config ^
         --user=hipersayanx ^
         --key=%BT_KEY% ^
         --licenses=GPL-3.0-or-later
 
-    for %%f in (ports\deploy\packages_auto\windows\*.exe) do (
+    for %%f in (%PACKAGES_DIR%\*) do (
         jfrog bt upload ^
             --user=hipersayanx ^
             --key=%BT_KEY% ^

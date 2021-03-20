@@ -16,7 +16,7 @@ REM along with Webcamoid. If not, see <http://www.gnu.org/licenses/>.
 REM
 REM Web-Site: http://webcamoid.github.io/
 
-set INSTALL_PREFIX=%APPVEYOR_BUILD_FOLDER%\ports\deploy\temp_priv
+set INSTALL_PREFIX=%APPVEYOR_BUILD_FOLDER%\webcamoid-data
 
 echo.
 echo Building x64 virtual camera driver
@@ -34,7 +34,7 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build .
-    cmake --build . --target install 
+    cmake --build . --target install
 )
 
 endlocal
@@ -47,7 +47,7 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build . --config Release
-    cmake --build . --config Release --target install 
+    cmake --build . --config Release --target install
 )
 
 cd ..
@@ -68,7 +68,7 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build .
-    cmake --build . --target install 
+    cmake --build . --target install
 )
 
 endlocal
@@ -81,7 +81,7 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
         -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
         ..
     cmake --build . --config Release
-    cmake --build . --config Release --target install 
+    cmake --build . --config Release --target install
 )
 
 cd ..

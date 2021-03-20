@@ -22,9 +22,7 @@ if [ "${TRAVIS_OS_NAME}" = linux ]; then
     EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
 fi
 
-cd ports/deploy
 git clone https://github.com/webcamoid/DeployTools.git
-cd ../..
 
 DEPLOYSCRIPT=deployscript.sh
 
@@ -38,9 +36,10 @@ if [ "${TRAVIS_OS_NAME}" = linux ]; then
 export LC_ALL=C
 export HOME=${HOME}
 export PATH="${TRAVIS_BUILD_DIR}/.local/bin:\$PATH"
-export PYTHONPATH="${TRAVIS_BUILD_DIR}/ports/deploy/DeployTools"
+export INSTALL_PREFIX="${TRAVIS_BUILD_DIR}/webcamoid-data"
+export PACKAGES_DIR="${TRAVIS_BUILD_DIR}/webcamoid-packages/windows"
+export PYTHONPATH="${TRAVIS_BUILD_DIR}/DeployTools"
 export BUILD_PATH="${TRAVIS_BUILD_DIR}/build-x64"
-export INSTALL_PATH=${TRAVIS_BUILD_DIR}/ports/deploy/temp_priv
 export WINEPREFIX=/opt/.wine
 cd $TRAVIS_BUILD_DIR
 EOF
@@ -53,12 +52,15 @@ EOF
 
     cat << EOF >> ${DEPLOYSCRIPT}
 cd build-x64
-cmake --build . --target install 
+cmake --build . --target install
 cd ..
 cd build-x86
-cmake --build . --target install 
+cmake --build . --target install
 cd ..
-python ports/deploy/deploy.py
+python ports/deploy/deploy.py \
+        -d "\${INSTALL_PREFIX}" \
+        -c "\${BUILD_PATH}/package_info.conf" \
+        -o "\${PACKAGES_DIR}"
 EOF
     chmod +x ${DEPLOYSCRIPT}
     sudo cp -vf ${DEPLOYSCRIPT} root.x86_64/$HOME/
@@ -68,11 +70,15 @@ EOF
     sudo umount root.x86_64
 elif [ "${TRAVIS_OS_NAME}" = osx ]; then
     cd build
-    cmake --build . --target install 
+    cmake --build . --target install
     cd ..
 
-    export PYTHONPATH="${PWD}/ports/deploy/DeployTools"
+    export INSTALL_PREFIX="${PWD}/webcamoid-data"
+    export PACKAGES_DIR="${PWD}/webcamoid-packages/mac"
+    export PYTHONPATH="${PWD}/DeployTools"
     export BUILD_PATH="${PWD}/build"
-    export INSTALL_PATH=${TRAVIS_BUILD_DIR}/ports/deploy/temp_priv
-    python3 ports/deploy/deploy.py
+    python3 ports/deploy/deploy.py \
+        -d "${INSTALL_PREFIX}" \
+        -c "${BUILD_PATH}/package_info.conf" \
+        -o "${PACKAGES_DIR}"
 fi
