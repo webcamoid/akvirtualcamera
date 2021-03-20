@@ -115,7 +115,6 @@ EOF
     sudo umount root.x86_64/$HOME
     sudo umount root.x86_64
 elif [ "${TRAVIS_OS_NAME}" = osx ]; then
-    brew link --force qt5
     brew update
     brew upgrade
     brew link --overwrite numpy
