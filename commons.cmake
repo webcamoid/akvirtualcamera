@@ -32,11 +32,11 @@ set(VER_MIN 0)
 set(VER_PAT 0)
 set(VERSION ${VER_MAJ}.${VER_MIN}.${VER_PAT})
 
-add_definitions(-DCOMMONS_APPNAME="\\"${COMMONS_APPNAME}\\""
-                -DCOMMONS_TARGET="\\"${COMMONS_TARGET}\\""
-                -DCOMMONS_VER_MAJ="\\"${VER_MAJ}\\""
-                -DCOMMONS_VERSION="\\"${VERSION}\\""
-                -DPREFIX="\\"${PREFIX}\\"")
+add_definitions(-DCOMMONS_APPNAME="${COMMONS_APPNAME}"
+                -DCOMMONS_TARGET="${COMMONS_TARGET}"
+                -DCOMMONS_VER_MAJ="${VER_MAJ}"
+                -DCOMMONS_VERSION="${VERSION}"
+                -DPREFIX="${PREFIX}")
 
 if (APPLE)
     check_cxx_source_compiles("
