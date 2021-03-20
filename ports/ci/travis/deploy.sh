@@ -57,7 +57,7 @@ cd ..
 cd build-x86
 cmake --build . --target install
 cd ..
-python ports/deploy/deploy.py \
+python ./DeployTools/deploy.py \
         -d "\${INSTALL_PREFIX}" \
         -c "\${BUILD_PATH}/package_info.conf" \
         -o "\${PACKAGES_DIR}"
@@ -77,7 +77,7 @@ elif [ "${TRAVIS_OS_NAME}" = osx ]; then
     export PACKAGES_DIR="${PWD}/webcamoid-packages/mac"
     export PYTHONPATH="${PWD}/DeployTools"
     export BUILD_PATH="${PWD}/build"
-    python3 ports/deploy/deploy.py \
+    python3 ./DeployTools/deploy.py \
         -d "${INSTALL_PREFIX}" \
         -c "${BUILD_PATH}/package_info.conf" \
         -o "${PACKAGES_DIR}"
