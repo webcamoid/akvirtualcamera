@@ -22,7 +22,8 @@ setlocal
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" set PATH=C:\msys64\usr\bin;%PATH%
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
-    pacman -Syy
+    pacman --noconfirm -Syyu ^
+        --ignore filesystem,pacman,pacman-mirrors
     pacman --noconfirm --needed -S ^
         cmake ^
         git ^
@@ -34,5 +35,5 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
         mingw-w64-x86_64-pkg-config ^
         mingw-w64-i686-pkg-config
 )
-    
+
 endlocal

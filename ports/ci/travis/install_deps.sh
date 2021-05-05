@@ -84,12 +84,12 @@ EOF
         mingw-w64-gcc \
         mingw-w64-cmake
 
-    qtIFW=QtInstallerFramework-win-x86.exe
+        # Install NSIS
 
-    # Install Qt Installer Framework
-    ${DOWNLOAD_CMD} http://download.qt.io/official_releases/qt-installer-framework/${QTIFWVER}/${qtIFW} || true
+        nsis=nsis-${NSIS_VERSION}-setup.exe
+        ${DOWNLOAD_CMD} "https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
 
-    if [ -e ${qtIFW} ]; then
+        if [ -e ${nsis} ]; then
         INSTALLSCRIPT=installscript.sh
 
         cat << EOF > ${INSTALLSCRIPT}
@@ -100,10 +100,7 @@ export HOME=$HOME
 export WINEPREFIX=/opt/.wine
 cd $TRAVIS_BUILD_DIR
 
-wine ./${qtIFW} \
-    ${qtIinstallerVerbose} \
-    --script "ports/ci/travis/qtifw_non_interactive_install.qs" \
-    --no-force-installations
+wine ./${nsis} /S
 EOF
 
         chmod +x ${INSTALLSCRIPT}
@@ -126,20 +123,22 @@ elif [ "${TRAVIS_OS_NAME}" = osx ]; then
         python
     brew link --overwrite python
     brew link python
-    qtIFW=QtInstallerFramework-mac-x64.dmg
 
     # Install Qt Installer Framework
+    qtIFW=QtInstallerFramework-macOS-x86_64-${QTIFWVER}.dmg
     ${DOWNLOAD_CMD} http://download.qt.io/official_releases/qt-installer-framework/${QTIFWVER}/${qtIFW} || true
 
     if [ -e "${qtIFW}" ]; then
         hdiutil convert ${qtIFW} -format UDZO -o qtifw
         7z x -oqtifw qtifw.dmg -bb
         7z x -oqtifw qtifw/5.hfsx -bb
-        chmod +x qtifw/QtInstallerFramework-mac-x64/QtInstallerFramework-mac-x64.app/Contents/MacOS/QtInstallerFramework-mac-x64
+        chmod +x qtifw/QtInstallerFramework-macOS-x86_64-${QTIFWVER}/QtInstallerFramework-macOS-x86_64-${QTIFWVER}.app/Contents/MacOS/QtInstallerFramework-macOS-x86_64-${QTIFWVER}
 
-        qtifw/QtInstallerFramework-mac-x64/QtInstallerFramework-mac-x64.app/Contents/MacOS/QtInstallerFramework-mac-x64 \
-            ${qtIinstallerVerbose} \
-            --script "$PWD/ports/ci/travis/qtifw_non_interactive_install.qs" \
-            --no-force-installations
+        qtifw/QtInstallerFramework-macOS-x86_64-${QTIFWVER}/QtInstallerFramework-macOS-x86_64-${QTIFWVER}.app/Contents/MacOS/QtInstallerFramework-macOS-x86_64-${QTIFWVER} \
+            --verbose \
+            --accept-licenses \
+            --accept-messages \
+            --confirm-command \
+            install
     fi
 fi
