@@ -30,6 +30,11 @@ if [ "${TRAVIS_OS_NAME}" = linux ]; then
     sudo mount --bind root.x86_64 root.x86_64
     sudo mount --bind $HOME root.x86_64/$HOME
 
+    cat << EOF > package_info_strip.conf
+[System]
+stripCmd = x86_64-w64-mingw32-strip
+EOF
+
     cat << EOF > ${DEPLOYSCRIPT}
 #!/bin/sh
 
@@ -57,9 +62,14 @@ cd ..
 cd build-x86
 cmake --build . --target install
 cd ..
+
+i686-w64-mingw32-strip \${INSTALL_PREFIX}/x86/*
+x86_64-w64-mingw32-strip \${INSTALL_PREFIX}/x64/*
+
 python ./DeployTools/deploy.py \
         -d "\${INSTALL_PREFIX}" \
         -c "\${BUILD_PATH}/package_info.conf" \
+        -c "./package_info_strip.conf" \
         -o "\${PACKAGES_DIR}"
 EOF
     chmod +x ${DEPLOYSCRIPT}

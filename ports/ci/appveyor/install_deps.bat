@@ -30,6 +30,8 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
         make ^
         pkg-config ^
         python3 ^
+        mingw-w64-x86_64-binutils ^
+        mingw-w64-i686-binutils ^
         mingw-w64-x86_64-cmake ^
         mingw-w64-i686-cmake ^
         mingw-w64-x86_64-pkg-config ^
