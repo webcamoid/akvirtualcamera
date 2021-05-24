@@ -38,7 +38,7 @@ target_include_directories(Assistant
                            PRIVATE ..
                            PRIVATE ../..)
 target_link_libraries(Assistant
-                      PlatformUtils 
+                      PlatformUtils
                       advapi32
                       gdi32
                       ole32

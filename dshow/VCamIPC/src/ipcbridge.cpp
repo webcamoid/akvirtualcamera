@@ -49,6 +49,27 @@ namespace AkVCam
         Mutex mutex;
     };
 
+    class Hack
+    {
+        public:
+            using HackFunc = std::function<int (const std::vector<std::string> &args)>;
+
+            std::string name;
+            std::string description;
+            bool isSafe {false};
+            bool needsRoot {false};
+            HackFunc func;
+
+            Hack();
+            Hack(const std::string &name,
+                 const std::string &description,
+                 bool isSafe,
+                 bool needsRoot,
+                 const HackFunc &func);
+            Hack(const Hack &other);
+            Hack &operator =(const Hack &other);
+    };
+
     class IpcBridgePrivate
     {
         public:
@@ -87,9 +108,16 @@ namespace AkVCam
             int sudo(const std::vector<std::string> &parameters,
                      const std::string &directory={},
                      bool show=false);
+            std::string assistant() const;
             std::string manager() const;
             std::string alternativeManager() const;
             std::string alternativePlugin() const;
+            std::string service() const;
+
+            // Hacks
+            const std::vector<Hack> &hacks();
+            int setServiceUp(const std::vector<std::string> &args);
+            int setServiceDown(const std::vector<std::string> &args);
     };
 
     static const int maxFrameWidth = 1920;
@@ -178,7 +206,7 @@ bool AkVCam::IpcBridge::registerPeer()
         return false;
     }
 
-    AkLogDebug() << "Starting message server." << std::endl;    
+    AkLogDebug() << "Starting message server." << std::endl;
     auto pipeName = "\\\\.\\pipe\\" + portName;
     this->d->m_messageServer.setPipeName(pipeName);
     this->d->m_messageServer.setHandlers(this->d->m_messageHandlers);
@@ -244,7 +272,7 @@ void AkVCam::IpcBridge::unregisterPeer()
            (std::min<size_t>)(this->d->m_portName.size(), MAX_STRING));
     MessageServer::sendMessage("\\\\.\\pipe\\" DSHOW_PLUGIN_ASSISTANT_NAME,
                                &message);
-    this->d->m_messageServer.stop();    
+    this->d->m_messageServer.stop();
     this->d->m_sharedMemory.setName({});
     this->d->m_globalMutex = {};
     this->d->m_portName.clear();
@@ -465,7 +493,7 @@ std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
     std::vector<std::string> plugins;
 
     // First check for the existence of the main plugin binary.
-    auto path = pluginPath + "\\" DSHOW_PLUGIN_NAME ".dll";    
+    auto path = pluginPath + "\\" DSHOW_PLUGIN_NAME ".dll";
     AkLogDebug() << "Plugin binary: " << path << std::endl;
 
     if (fileExists(path))
@@ -826,15 +854,15 @@ bool AkVCam::IpcBridge::needsRoot(const std::string &operation) const
 {
     static const std::vector<std::string> operations {
         "add-device",
+        "add-format",
+        "load",
         "remove-device",
         "remove-devices",
-        "set-description",
-        "add-format",
         "remove-format",
         "remove-formats",
-        "update",
-        "load",
+        "set-description",
         "set-loglevel",
+        "update"
     };
 
     auto it = std::find(operations.begin(), operations.end(), operation);
@@ -851,6 +879,53 @@ int AkVCam::IpcBridge::sudo(int argc, char **argv) const
         arguments.push_back(argv[i]);
 
     return this->d->sudo(arguments);
+}
+
+std::vector<std::string> AkVCam::IpcBridge::hacks() const
+{
+    std::vector<std::string> hacks;
+
+    for (auto &hack: this->d->hacks())
+        hacks.push_back(hack.name);
+
+    return hacks;
+}
+
+std::string AkVCam::IpcBridge::hackDescription(const std::string &hack) const
+{
+    for (auto &hck: this->d->hacks())
+        if (hck.name == hack)
+            return hck.description;
+
+    return {};
+}
+
+bool AkVCam::IpcBridge::hackIsSafe(const std::string &hack) const
+{
+    for (auto &hck: this->d->hacks())
+        if (hck.name == hack)
+            return hck.isSafe;
+
+    return true;
+}
+
+bool AkVCam::IpcBridge::hackNeedsRoot(const std::string &hack) const
+{
+    for (auto &hck: this->d->hacks())
+        if (hck.name == hack)
+            return hck.needsRoot && !this->d->isRoot();
+
+    return false;
+}
+
+int AkVCam::IpcBridge::execHack(const std::string &hack,
+                                const std::vector<std::string> &args)
+{
+    for (auto &hck: this->d->hacks())
+        if (hck.name == hack)
+            return hck.func(args);
+
+    return 0;
 }
 
 AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
@@ -1180,6 +1255,31 @@ int AkVCam::IpcBridgePrivate::sudo(const std::vector<std::string> &parameters,
     return int(exitCode);
 }
 
+std::string AkVCam::IpcBridgePrivate::assistant() const
+{
+    AkLogFunction();
+    auto pluginPath = locatePluginPath();
+    auto path = realPath(pluginPath + "\\" DSHOW_PLUGIN_ASSISTANT_NAME ".exe");
+
+    if (fileExists(path))
+        return path;
+
+#ifdef _WIN64
+    path = realPath(pluginPath + "\\..\\x86\\" DSHOW_PLUGIN_ASSISTANT_NAME ".exe");
+#else
+    SYSTEM_INFO info;
+    memset(&info, 0, sizeof(SYSTEM_INFO));
+    GetNativeSystemInfo(&info);
+
+    if  (info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL)
+        return {};
+
+    path = realPath(pluginPath + "\\..\\x64\\" DSHOW_PLUGIN_ASSISTANT_NAME ".exe");
+#endif
+
+    return fileExists(path)? path: std::string();
+}
+
 std::string AkVCam::IpcBridgePrivate::manager() const
 {
     AkLogFunction();
@@ -1229,4 +1329,189 @@ std::string AkVCam::IpcBridgePrivate::alternativePlugin() const
 #endif
 
     return fileExists(path)? path: std::string();
+}
+
+std::string AkVCam::IpcBridgePrivate::service() const
+{
+    std::string path;
+    auto manager = OpenSCManager(nullptr, nullptr, GENERIC_READ);
+
+    if (manager) {
+        auto service = OpenServiceA(manager,
+                                    DSHOW_PLUGIN_ASSISTANT_NAME,
+                                    SERVICE_QUERY_CONFIG);
+
+        if (service) {
+            DWORD bytesNeeded = 0;
+            QueryServiceConfig(service, nullptr, 0, &bytesNeeded);
+            auto bufSize = bytesNeeded;
+            auto serviceConfig =
+                    reinterpret_cast<LPQUERY_SERVICE_CONFIGA>(LocalAlloc(LMEM_FIXED,
+                                                                         bufSize));
+            if (serviceConfig) {
+                if (QueryServiceConfigA(service,
+                                        serviceConfig,
+                                        bufSize,
+                                        &bytesNeeded)) {
+                    path = std::string(serviceConfig->lpBinaryPathName);
+                }
+
+                LocalFree(serviceConfig);
+            }
+
+            CloseServiceHandle(service);
+        }
+
+        CloseServiceHandle(manager);
+    }
+
+    return path;
+}
+
+const std::vector<AkVCam::Hack> &AkVCam::IpcBridgePrivate::hacks()
+{
+    static const std::vector<AkVCam::Hack> hacks {
+        {"set-service-up",
+         "Setup and start virtual camera service if isn't working",
+         true,
+         true,
+         AKVCAM_BIND_FUNC(IpcBridgePrivate::setServiceUp)},
+        {"set-service-down",
+         "Stop and unregister virtual camera service",
+         true,
+         true,
+         AKVCAM_BIND_FUNC(IpcBridgePrivate::setServiceDown)}
+    };
+
+    return hacks;
+}
+
+int AkVCam::IpcBridgePrivate::setServiceUp(const std::vector<std::string> &args)
+{
+    UNUSED(args);
+    AkLogFunction();
+
+    // If the service is not installed, install it.
+    auto servicePath = this->service();
+
+    if (servicePath.empty()) {
+        auto assistant = this->assistant();
+
+        if (assistant.empty())
+            return -1;
+
+        auto result = this->sudo({assistant, "--install"});
+
+        if (result < 0)
+            return result;
+    }
+
+    // Start the service.
+    bool result = false;
+    auto manager = OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT);
+
+    if (manager) {
+        auto service = OpenService(manager,
+                                   TEXT(DSHOW_PLUGIN_ASSISTANT_NAME),
+                                   SERVICE_START);
+
+        if (service) {
+            result = StartService(service, 0, nullptr);
+            CloseServiceHandle(service);
+        }
+
+        CloseServiceHandle(manager);
+    }
+
+    return result? 0: -1;
+}
+
+int AkVCam::IpcBridgePrivate::setServiceDown(const std::vector<std::string> &args)
+{
+    UNUSED(args);
+    AkLogFunction();
+    auto servicePath = this->service();
+
+    if (servicePath.empty())
+        return 0;
+
+    // Stop the service.
+    bool stopped = false;
+    auto manager = OpenSCManager(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
+
+    if (manager) {
+        auto service = OpenService(manager,
+                                   TEXT(DSHOW_PLUGIN_ASSISTANT_NAME),
+                                   SERVICE_STOP | SERVICE_QUERY_STATUS);
+
+        if (service) {
+            SERVICE_STATUS status;
+            memset(&status, 0, sizeof(SERVICE_STATUS));
+
+            if (ControlService(service, SERVICE_CONTROL_STOP, &status)) {
+                memset(&status, 0, sizeof(SERVICE_STATUS));
+
+                while(QueryServiceStatus(service, &status)) {
+                    if (status.dwCurrentState != SERVICE_STOP_PENDING)
+                        break;
+
+                    Sleep(1000);
+                }
+
+                stopped = status.dwCurrentState == SERVICE_STOPPED;
+            }
+
+            CloseServiceHandle(service);
+        }
+
+        CloseServiceHandle(manager);
+    }
+
+    if (!stopped)
+        return -1;
+
+    // Unistall the service.
+
+    return this->sudo({servicePath, "--uninstall"});
+}
+
+AkVCam::Hack::Hack()
+{
+
+}
+
+AkVCam::Hack::Hack(const std::string &name,
+                   const std::string &description,
+                   bool isSafe,
+                   bool needsRoot,
+                   const Hack::HackFunc &func):
+    name(name),
+    description(description),
+    isSafe(isSafe),
+    needsRoot(needsRoot),
+    func(func)
+{
+
+}
+
+AkVCam::Hack::Hack(const Hack &other):
+    name(other.name),
+    description(other.description),
+    isSafe(other.isSafe),
+    needsRoot(other.needsRoot),
+    func(other.func)
+{
+}
+
+AkVCam::Hack &AkVCam::Hack::operator =(const Hack &other)
+{
+    if (this != &other) {
+        this->name = other.name;
+        this->description = other.description;
+        this->isSafe = other.isSafe;
+        this->needsRoot = other.needsRoot;
+        this->func = other.func;
+    }
+
+    return *this;
 }

@@ -174,6 +174,15 @@ namespace AkVCam
             bool needsRoot(const std::string &operation) const;
             int sudo(int argc, char **argv) const;
 
+            /* Hacks */
+
+            std::vector<std::string> hacks() const;
+            std::string hackDescription(const std::string &hack) const;
+            bool hackIsSafe(const std::string &hack) const;
+            bool hackNeedsRoot(const std::string &hack) const;
+            int execHack(const std::string &hack,
+                         const std::vector<std::string> &args);
+
         private:
             IpcBridgePrivate *d;
 

@@ -203,7 +203,9 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
             return VFW_E_NOT_COMMITTED;
 
         self->d->updateTestFrame();
+        self->d->m_mutex.lock();
         self->d->m_currentFrame = self->d->m_testFrameAdapted;
+        self->d->m_mutex.unlock();
         self->d->m_pts = -1;
         self->d->m_ptsDrift = 0;
 
@@ -241,7 +243,9 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
         CloseHandle(self->d->m_sendFrameEvent);
         self->d->m_sendFrameEvent = nullptr;
         self->d->m_memAllocator->Decommit();
+        self->d->m_mutex.lock();
         self->d->m_currentFrame.clear();
+        self->d->m_mutex.unlock();
         self->d->m_testFrameAdapted.clear();
     }
 

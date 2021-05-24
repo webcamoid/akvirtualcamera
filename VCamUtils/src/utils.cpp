@@ -151,3 +151,11 @@ std::pair<std::string, std::string> AkVCam::splitOnce(const std::string &str,
 
     return {first, second};
 }
+
+void AkVCam::move(const std::string &from, const std::string &to)
+{
+    std::ifstream infile(from, std::ios::in | std::ios::binary);
+    std::ofstream outfile(to, std::ios::out | std::ios::binary);
+    outfile << infile.rdbuf();
+    std::remove(from.c_str());
+}

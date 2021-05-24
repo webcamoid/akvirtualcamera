@@ -45,8 +45,32 @@
 #define AKVCAM_BIND_FUNC(member) \
     std::bind(&member, this, std::placeholders::_1, std::placeholders::_2)
 
+#define AKVCAM_BIND_HACK_FUNC(member) \
+    std::bind(&member, this, std::placeholders::_1)
+
 namespace AkVCam
 {
+    class Hack
+    {
+        public:
+            using HackFunc = std::function<int (const std::vector<std::string> &args)>;
+
+            std::string name;
+            std::string description;
+            bool isSafe {false};
+            bool needsRoot {false};
+            HackFunc func;
+
+            Hack();
+            Hack(const std::string &name,
+                 const std::string &description,
+                 bool isSafe,
+                 bool needsRoot,
+                 const HackFunc &func);
+            Hack(const Hack &other);
+            Hack &operator =(const Hack &other);
+    };
+
     class IpcBridgePrivate
     {
         public:
@@ -81,6 +105,22 @@ namespace AkVCam
             // Utility methods
             bool fileExists(const std::string &path) const;
             static std::string locatePluginPath();
+            bool isRoot() const;
+            std::vector<std::string> listServices() const;
+            std::vector<std::string> listDisabledServices() const;
+            inline bool isServiceLoaded(const std::string &service) const;
+            inline bool isServiceDisabled(const std::string &service) const;
+            bool readEntitlements(const std::string &app,
+                                  const std::string &output) const;
+
+            // Hacks
+            const std::vector<Hack> &hacks();
+            int setServiceUp(const std::vector<std::string> &args);
+            int setServiceDown(const std::vector<std::string> &args);
+            int disableLibraryValidation(const std::vector<std::string> &args);
+            int codeResign(const std::vector<std::string> &args);
+            int unsign(const std::vector<std::string> &args);
+            int disableSIP(const std::vector<std::string> &args);
 
         private:
             std::vector<IpcBridge *> m_bridges;
@@ -763,15 +803,64 @@ bool AkVCam::IpcBridge::removeListener(const std::string &deviceId)
 
 bool AkVCam::IpcBridge::needsRoot(const std::string &operation) const
 {
-    UNUSED(operation);
+    static const std::vector<std::string> operations;
+    auto it = std::find(operations.begin(), operations.end(), operation);
 
-    return false;
+    return it != operations.end() && !this->d->isRoot();
 }
 
 int AkVCam::IpcBridge::sudo(int argc, char **argv) const
 {
     UNUSED(argc);
     UNUSED(argv);
+    std::cerr << "You must run this command with administrator privileges." << std::endl;
+
+    return -1;
+}
+
+std::vector<std::string> AkVCam::IpcBridge::hacks() const
+{
+    std::vector<std::string> hacks;
+
+    for (auto &hack: this->d->hacks())
+        hacks.push_back(hack.name);
+
+    return hacks;
+}
+
+std::string AkVCam::IpcBridge::hackDescription(const std::string &hack) const
+{
+    for (auto &hck: this->d->hacks())
+        if (hck.name == hack)
+            return hck.description;
+
+    return {};
+}
+
+bool AkVCam::IpcBridge::hackIsSafe(const std::string &hack) const
+{
+    for (auto &hck: this->d->hacks())
+        if (hck.name == hack)
+            return hck.isSafe;
+
+    return true;
+}
+
+bool AkVCam::IpcBridge::hackNeedsRoot(const std::string &hack) const
+{
+    for (auto &hck: this->d->hacks())
+        if (hck.name == hack)
+            return hck.needsRoot && !this->d->isRoot();
+
+    return false;
+}
+
+int AkVCam::IpcBridge::execHack(const std::string &hack,
+                                const std::vector<std::string> &args)
+{
+    for (auto &hck: this->d->hacks())
+        if (hck.name == hack)
+            return hck.func(args);
 
     return 0;
 }
@@ -1060,4 +1149,471 @@ std::string AkVCam::IpcBridgePrivate::locatePluginPath()
     std::string dirName = dirname(const_cast<char *>(info.dli_fname));
 
     return realPath(dirName + "/../..");
+}
+
+bool AkVCam::IpcBridgePrivate::isRoot() const
+{
+    AkLogFunction();
+
+    return getuid() == 0;
+}
+
+std::vector<std::string> AkVCam::IpcBridgePrivate::listServices() const
+{
+    std::vector<std::string> services;
+    auto proc = popen("launchctl list", "r");
+
+    if (proc) {
+        while (!feof(proc)) {
+            char line[1024];
+
+            if (!fgets(line, 1024, proc))
+                break;
+
+            if (strncmp(line, "PID", 3) == 0)
+                continue;
+
+            char *pline = strtok(line, " \n\r\t");
+
+            for (size_t i = 0; i < 3 && pline != nullptr; i++) {
+                if (i == 2)
+                    services.push_back(pline);
+
+                pline = strtok(nullptr, " \n\r\t");
+            }
+        }
+
+        pclose(proc);
+    }
+
+    return services;
+}
+
+std::vector<std::string> AkVCam::IpcBridgePrivate::listDisabledServices() const
+{
+    std::vector<std::string> services;
+    auto proc = popen("launchctl print-disabled system/", "r");
+
+    if (proc) {
+        while (!feof(proc)) {
+            char line[1024];
+
+            if (!fgets(line, 1024, proc))
+                break;
+
+            if (strncmp(line, "\t", 1) != 0)
+                continue;
+
+            std::string service;
+            char *pline = strtok(line, " ");
+
+            for (size_t i = 0; i < 3 && pline; i++) {
+                if (i == 0)
+                    service = std::string(pline).substr(1, strlen(pline) - 2);
+
+                if (i == 2 && strncmp(pline, "true", 4) == 0)
+                    services.push_back(service);
+
+                pline = strtok(nullptr, " ");
+            }
+        }
+
+        pclose(proc);
+    }
+
+    return services;
+}
+
+bool AkVCam::IpcBridgePrivate::isServiceLoaded(const std::string &service) const
+{
+    auto services = this->listServices();
+
+    return std::find(services.begin(), services.end(), service) != services.end();
+}
+
+bool AkVCam::IpcBridgePrivate::isServiceDisabled(const std::string &service) const
+{
+    auto services = this->listDisabledServices();
+
+    return std::find(services.begin(), services.end(), service) != services.end();
+}
+
+bool AkVCam::IpcBridgePrivate::readEntitlements(const std::string &app,
+                                                const std::string &output) const
+{
+    bool writen = false;
+    std::string cmd = "codesign -d --entitlements - \"" + app + "\"";
+    auto proc = popen(cmd.c_str(), "r");
+
+    if (proc) {
+        auto entitlements = fopen(output.c_str(), "w");
+
+        if (entitlements) {
+            for (size_t i = 0; !feof(proc); i++) {
+                char data[1024];
+                auto len = fread(data, 1, 1024, proc);
+
+                if (len < 1)
+                    break;
+
+                size_t offset = 0;
+
+                if (i == 0)
+                    offset = std::string(data, len).find("<?xml");
+
+                fwrite(data + offset, 1, len - offset, entitlements);
+                writen = true;
+            }
+
+            fclose(entitlements);
+        }
+
+        pclose(proc);
+    }
+
+    return writen;
+}
+
+const std::vector<AkVCam::Hack> &AkVCam::IpcBridgePrivate::hacks()
+{
+    static const std::vector<AkVCam::Hack> hacks {
+        {"set-service-up",
+         "Setup and start virtual camera service if isn't working",
+         true,
+         true,
+         AKVCAM_BIND_HACK_FUNC(IpcBridgePrivate::setServiceUp)},
+        {"set-service-down",
+         "Stop and unregister virtual camera service",
+         true,
+         true,
+         AKVCAM_BIND_HACK_FUNC(IpcBridgePrivate::setServiceDown)},
+        {"disable-library-validation",
+         "Disable external plugins validation in app bundle",
+         false,
+         false,
+         AKVCAM_BIND_HACK_FUNC(IpcBridgePrivate::disableLibraryValidation)},
+        {"code-re-sign",
+         "Remove app code signature and re-sign it with a developer signature",
+         false,
+         false,
+         AKVCAM_BIND_HACK_FUNC(IpcBridgePrivate::codeResign)},
+        {"unsign",
+         "Remove app code signature",
+         false,
+         false,
+         AKVCAM_BIND_HACK_FUNC(IpcBridgePrivate::unsign)},
+        {"disable-sip",
+         "Disable System Integrity Protection",
+         false,
+         false,
+         AKVCAM_BIND_HACK_FUNC(IpcBridgePrivate::disableSIP)}
+    };
+
+    return hacks;
+}
+
+int AkVCam::IpcBridgePrivate::setServiceUp(const std::vector<std::string> &args)
+{
+    UNUSED(args);
+    AkLogFunction();
+    std::string pluginPath = this->locatePluginPath();
+    static const std::string dstPluginPath =
+            "/Library/CoreMediaIO/Plug-Ins/DAL/" CMIO_PLUGIN_NAME ".plugin";
+
+    if (!fileExists(dstPluginPath))
+        if (symlink(pluginPath.c_str(), dstPluginPath.c_str()) != 0) {
+            std::cerr << strerror(errno) << std::endl;
+
+            return -1;
+        }
+
+    static const std::string daemonPlist =
+            "/Library/LaunchDaemons/" CMIO_ASSISTANT_NAME ".plist";
+
+    if (!fileExists(daemonPlist)) {
+        std::ofstream plist(daemonPlist);
+
+        if (!plist.is_open())
+            return -1;
+
+        plist << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+        plist << "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" ";
+        plist << "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">" << std::endl;
+        plist << "<plist version=\"1.0\">" << std::endl;
+        plist << "    <dict>" << std::endl;
+        plist << "        <key>Label</key>" << std::endl;
+        plist << "        <string>" CMIO_ASSISTANT_NAME "</string>" << std::endl;
+        plist << "        <key>ProgramArguments</key>" << std::endl;
+        plist << "        <array>" << std::endl;
+        plist << "            <string>";
+        plist <<                  pluginPath;
+        plist <<                  "/Contents/Resources/AkVCamAssistant";
+        plist <<             "</string>" << std::endl;
+        plist << "            <string>--timeout</string>" << std::endl;
+        plist << "            <string>300.0</string>" << std::endl;
+        plist << "        </array>" << std::endl;
+        plist << "        <key>MachServices</key>" << std::endl;
+        plist << "        <dict>" << std::endl;
+        plist << "            <key>" CMIO_ASSISTANT_NAME "</key>" << std::endl;
+        plist << "            <true/>" << std::endl;
+        plist << "        </dict>" << std::endl;
+        plist << "        <key>StandardOutPath</key>" << std::endl;
+        plist << "        <string>/tmp/AkVCamAssistant.log</string>" << std::endl;
+        plist << "        <key>StandardErrorPath</key>" << std::endl;
+        plist << "        <string>/tmp/AkVCamAssistant.log</string>" << std::endl;
+        plist << "    </dict>" << std::endl;
+        plist << "</plist>" << std::endl;
+        plist.close();
+    }
+
+    if (this->isServiceDisabled(CMIO_ASSISTANT_NAME)) {
+        int result = system("launchctl enable system/" CMIO_ASSISTANT_NAME);
+
+        if (result)
+            return result;
+    }
+
+    if (!this->isServiceLoaded(CMIO_ASSISTANT_NAME)) {
+        auto cmd = "launchctl bootstrap system " + daemonPlist;
+        int result = system(cmd.c_str());
+
+        if (result)
+            return result;
+    }
+
+    return 0;
+}
+
+int AkVCam::IpcBridgePrivate::setServiceDown(const std::vector<std::string> &args)
+{
+    UNUSED(args);
+    AkLogFunction();
+
+    static const std::string daemonPlist =
+            "/Library/LaunchDaemons/" CMIO_ASSISTANT_NAME ".plist";
+
+    if (fileExists(daemonPlist)) {
+        if (this->isServiceLoaded(CMIO_ASSISTANT_NAME)) {
+            auto cmd = "launchctl bootout system " + daemonPlist;
+            int result = system(cmd.c_str());
+
+            if (result)
+                return result;
+        }
+
+        std::remove(daemonPlist.c_str());
+    }
+
+    static const std::string dstPluginPath =
+            "/Library/CoreMediaIO/Plug-Ins/DAL/" CMIO_PLUGIN_NAME ".plugin";
+
+    if (this->fileExists(dstPluginPath))
+        if (unlink(dstPluginPath.c_str()) != 0) {
+            std::cerr << strerror(errno) << std::endl;
+
+            return -1;
+        }
+
+    return 0;
+}
+
+int AkVCam::IpcBridgePrivate::disableLibraryValidation(const std::vector<std::string> &args)
+{
+    if (args.size() < 1) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    if (!this->fileExists(args[0])) {
+        std::cerr << "No such file or directory." << std::endl;
+
+        return -1;
+    }
+
+    static const std::string entitlementsXml = "/tmp/entitlements.xml";
+    static const std::string dlv =
+            "com.apple.security.cs.disable-library-validation";
+
+    if (this->readEntitlements(args[0], entitlementsXml)) {
+        auto nsdlv = [NSString
+                      stringWithCString: dlv.c_str()
+                      encoding: [NSString defaultCStringEncoding]];
+        auto nsEntitlementsXml = [NSString
+                                  stringWithCString: entitlementsXml.c_str()
+                                  encoding: [NSString defaultCStringEncoding]];
+        auto nsEntitlementsXmlUrl = [NSURL
+                                    fileURLWithPath: nsEntitlementsXml];
+        NSError *error = nil;
+        auto entitlements =
+                [[NSXMLDocument alloc]
+                 initWithContentsOfURL: nsEntitlementsXmlUrl
+                 options: 0
+                 error: &error];
+        [nsEntitlementsXmlUrl release];
+        const std::string xpath =
+                "/plist/dict/key[contains(text(), \"" + dlv + "\")]";
+        auto nsxpath = [NSString
+                        stringWithCString: xpath.c_str()
+                        encoding: [NSString defaultCStringEncoding]];
+        auto nodes = [entitlements nodesForXPath: nsxpath error: &error];
+        [nsxpath release];
+
+        if ([nodes count] < 1) {
+            auto key = [[NSXMLElement alloc] initWithName: @"key" stringValue: nsdlv];
+            [(NSXMLElement *) entitlements.rootElement.children[0] addChild: key];
+            [key release];
+            auto value = [[NSXMLElement alloc] initWithName: @"true"];
+            [(NSXMLElement *) entitlements.rootElement.children[0] addChild: value];
+            [value release];
+        } else {
+            for (NSXMLNode *node: nodes) {
+                auto value = [[NSXMLElement alloc] initWithName: @"true"];
+                [(NSXMLElement *) node.parent replaceChildAtIndex: node.nextSibling.index withNode: value];
+                [value release];
+            }
+        }
+
+        auto data = [entitlements XMLDataWithOptions: NSXMLNodePrettyPrint
+                                                    | NSXMLNodeCompactEmptyElement];
+        [data writeToFile: nsEntitlementsXml atomically: YES];
+        [data release];
+        [entitlements release];
+        [nsEntitlementsXml release];
+        [nsdlv release];
+    } else {
+        std::ofstream entitlements(entitlementsXml);
+
+        if (entitlements.is_open()) {
+            entitlements << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+            entitlements << "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">" << std::endl;
+            entitlements << "<plist version=\"1.0\">" << std::endl;
+            entitlements << "\t<dict>" << std::endl;
+            entitlements << "\t\t<key>" << dlv << "</key>" << std::endl;
+            entitlements << "\t\t<true/>" << std::endl;
+            entitlements << "\t</dict>" << std::endl;
+            entitlements << "</plist>" << std::endl;
+            entitlements.close();
+        }
+    }
+
+    auto cmd = "codesign --entitlements \""
+               + entitlementsXml
+               + "\" -f -s - \""
+               + args[0]
+               + "\"";
+    int result = system(cmd.c_str());
+    std::remove(entitlementsXml.c_str());
+
+    return result;
+}
+
+int AkVCam::IpcBridgePrivate::codeResign(const std::vector<std::string> &args)
+{
+    if (args.size() < 1) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    if (!this->fileExists(args[0])) {
+        std::cerr << "No such file or directory." << std::endl;
+
+        return -1;
+    }
+
+    static const std::string entitlementsXml = "/tmp/entitlements.xml";
+    std::string cmd;
+
+    if (this->readEntitlements(args[0], entitlementsXml))
+        cmd = "codesign --entitlements \""
+                       + entitlementsXml
+                       + "\" -f -s - \""
+                       + args[0]
+                       + "\"";
+    else
+        cmd = "codesign -f -s - \"" + args[0] + "\"";
+
+    int result = system(cmd.c_str());
+    std::remove(entitlementsXml.c_str());
+
+    return result;
+}
+
+int AkVCam::IpcBridgePrivate::unsign(const std::vector<std::string> &args)
+{
+    if (args.size() < 1) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    if (!this->fileExists(args[0])) {
+        std::cerr << "No such file or directory." << std::endl;
+
+        return -1;
+    }
+
+    auto cmd = "codesign --remove-signature \"" + args[0] + "\"";
+
+    return system(cmd.c_str());
+}
+
+int AkVCam::IpcBridgePrivate::disableSIP(const std::vector<std::string> &args)
+{
+    std::cerr << "SIP (System Integrity Protection) can't be disbled from "
+                 "inside the system, you must reboot your system and then "
+                 "press and hold Command + R keys on boot to enter to the "
+                 "recovery mode, then go to Utilities > Terminal and run:"
+              << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "csrutil enable --without fs" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "If that does not works, then run:" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "csrutil disable" << std::endl;
+    std::cerr << std::endl;
+
+    return -1;
+}
+
+AkVCam::Hack::Hack()
+{
+
+}
+
+AkVCam::Hack::Hack(const std::string &name,
+                   const std::string &description,
+                   bool isSafe,
+                   bool needsRoot,
+                   const Hack::HackFunc &func):
+    name(name),
+    description(description),
+    isSafe(isSafe),
+    needsRoot(needsRoot),
+    func(func)
+{
+
+}
+
+AkVCam::Hack::Hack(const Hack &other):
+    name(other.name),
+    description(other.description),
+    isSafe(other.isSafe),
+    needsRoot(other.needsRoot),
+    func(other.func)
+{
+}
+
+AkVCam::Hack &AkVCam::Hack::operator =(const Hack &other)
+{
+    if (this != &other) {
+        this->name = other.name;
+        this->description = other.description;
+        this->isSafe = other.isSafe;
+        this->needsRoot = other.needsRoot;
+        this->func = other.func;
+    }
+
+    return *this;
 }

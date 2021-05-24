@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <codecvt>
 #include <csignal>
 #include <cstring>
@@ -61,6 +62,15 @@ namespace AkVCam {
         std::string helpString;
         ProgramOptionsFunc func;
         std::vector<CmdParserFlags> flags;
+        bool advanced {false};
+
+        CmdParserCommand();
+        CmdParserCommand(const std::string &command,
+                         const std::string &arguments,
+                         const std::string &helpString,
+                         const ProgramOptionsFunc &func,
+                         const std::vector<CmdParserFlags> flags,
+                         bool advanced);
     };
 
     class CmdParserPrivate
@@ -74,8 +84,8 @@ namespace AkVCam {
             std::string basename(const std::string &path);
             void printFlags(const std::vector<CmdParserFlags> &cmdFlags,
                             size_t indent);
-            size_t maxCommandLength();
-            size_t maxArgumentsLength();
+            size_t maxCommandLength(bool showAdvancedHelp);
+            size_t maxArgumentsLength(bool showAdvancedHelp);
             size_t maxFlagsLength(const std::vector<CmdParserFlags> &flags);
             size_t maxFlagsValueLength(const std::vector<CmdParserFlags> &flags);
             size_t maxColumnLength(const StringVector &table,
@@ -126,6 +136,9 @@ namespace AkVCam {
             int setLogLevel(const StringMap &flags, const StringVector &args);
             int showClients(const StringMap &flags, const StringVector &args);
             int dumpInfo(const StringMap &flags, const StringVector &args);
+            int hacks(const StringMap &flags, const StringVector &args);
+            int hackInfo(const StringMap &flags, const StringVector &args);
+            int hack(const StringMap &flags, const StringVector &args);
             void loadGenerals(Settings &settings);
             VideoFormatMatrix readFormats(Settings &settings);
             std::vector<VideoFormat> readFormat(Settings &settings);
@@ -154,6 +167,9 @@ AkVCam::CmdParser::CmdParser()
     this->addFlags("",
                    {"-h", "--help"},
                    "Show help.");
+    this->addFlags("",
+                   {"--help-all"},
+                   "Show advanced help.");
     this->addFlags("",
                    {"-v", "--version"},
                    "Show program version.");
@@ -236,6 +252,10 @@ AkVCam::CmdParser::CmdParser()
                      "DEVICE FORMAT WIDTH HEIGHT",
                      "Read frames from stdin and send them to the device.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::stream));
+    this->addFlags("stream",
+                   {"-f", "--fps"},
+                   "FPS",
+                   "Read stream input at a constant frame rate.");
     this->addCommand("listen-events",
                      "",
                      "Keep the manager running and listening to global events.",
@@ -297,6 +317,30 @@ AkVCam::CmdParser::CmdParser()
                      "",
                      "Show all information in a parseable XML format.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::dumpInfo));
+    this->addCommand("hacks",
+                     "",
+                     "List system hacks to make the virtual camera work.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::hacks),
+                     true);
+    this->addCommand("hack-info",
+                     "HACK",
+                     "Show hack information.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::hackInfo),
+                     true);
+    this->addFlags("hack-info",
+                   {"-s", "--issafe"},
+                   "Is hack safe?");
+    this->addFlags("hack-info",
+                   {"-c", "--description"},
+                   "Show hack description.");
+    this->addCommand("hack",
+                     "HACK PARAMS...",
+                     "Apply system hack.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::hack),
+                     true);
+    this->addFlags("hack",
+                   {"-y", "--yes"},
+                   "Accept all risks and continue anyway.");
 }
 
 AkVCam::CmdParser::~CmdParser()
@@ -374,7 +418,10 @@ int AkVCam::CmdParser::parse(int argc, char **argv)
         }
     }
 
-    if (this->d->m_ipcBridge.needsRoot(command->command))
+    if (this->d->m_ipcBridge.needsRoot(command->command)
+        || (command->command == "hack"
+            && arguments.size() >= 2
+            && this->d->m_ipcBridge.hackNeedsRoot(arguments[1])))
         return this->d->m_ipcBridge.sudo(argc, argv);
 
     return command->func(flags, arguments);
@@ -388,7 +435,8 @@ void AkVCam::CmdParser::setDefaultFuntion(const ProgramOptionsFunc &func)
 void AkVCam::CmdParser::addCommand(const std::string &command,
                                    const std::string &arguments,
                                    const std::string &helpString,
-                                   const ProgramOptionsFunc &func)
+                                   const ProgramOptionsFunc &func,
+                                   bool advanced)
 {
     auto it =
             std::find_if(this->d->m_commands.begin(),
@@ -402,12 +450,14 @@ void AkVCam::CmdParser::addCommand(const std::string &command,
                                        arguments,
                                        helpString,
                                        func,
-                                       {}});
+                                       {},
+                                       advanced});
     } else {
         it->command = command;
         it->arguments = arguments;
         it->helpString = helpString;
         it->func = func;
+        it->advanced = advanced;
     }
 }
 
@@ -497,22 +547,24 @@ void AkVCam::CmdParserPrivate::printFlags(const std::vector<CmdParserFlags> &cmd
     }
 }
 
-size_t AkVCam::CmdParserPrivate::maxCommandLength()
+size_t AkVCam::CmdParserPrivate::maxCommandLength(bool showAdvancedHelp)
 {
     size_t length = 0;
 
     for (auto &cmd: this->m_commands)
-        length = std::max(cmd.command.size(), length);
+        if (!cmd.advanced || showAdvancedHelp)
+            length = std::max(cmd.command.size(), length);
 
     return length;
 }
 
-size_t AkVCam::CmdParserPrivate::maxArgumentsLength()
+size_t AkVCam::CmdParserPrivate::maxArgumentsLength(bool showAdvancedHelp)
 {
     size_t length = 0;
 
     for (auto &cmd: this->m_commands)
-        length = std::max(cmd.arguments.size(), length);
+        if (!cmd.advanced || showAdvancedHelp)
+            length = std::max(cmd.arguments.size(), length);
 
     return length;
 }
@@ -674,7 +726,9 @@ std::string AkVCam::CmdParserPrivate::flagValue(const AkVCam::StringMap &flags,
 int AkVCam::CmdParserPrivate::defaultHandler(const StringMap &flags,
                                              const StringVector &args)
 {
-    if (flags.empty() || this->containsFlag(flags, "", "-h"))
+    if (flags.empty()
+        || this->containsFlag(flags, "", "-h")
+        || this->containsFlag(flags, "", "--help-all"))
         return this->showHelp(flags, args);
 
     if (this->containsFlag(flags, "", "-v")) {
@@ -707,11 +761,13 @@ int AkVCam::CmdParserPrivate::showHelp(const StringMap &flags,
     std::cout << "Commands:" << std::endl;
     std::cout << std::endl;
 
-    auto maxCmdLen = this->maxCommandLength();
-    auto maxArgsLen = this->maxArgumentsLength();
+    bool showAdvancedHelp = this->containsFlag(flags, "", "--help-all");
+    auto maxCmdLen = this->maxCommandLength(showAdvancedHelp);
+    auto maxArgsLen = this->maxArgumentsLength(showAdvancedHelp);
 
     for (auto &cmd: this->m_commands) {
-        if (cmd.command.empty())
+        if (cmd.command.empty()
+            || (cmd.advanced && !showAdvancedHelp))
             continue;
 
         std::cout << "    "
@@ -1230,6 +1286,30 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
         return -1;
     }
 
+    auto fpsStr = this->flagValue(flags, "stream", "-f");
+    double fps = std::numeric_limits<double>::quiet_NaN();
+
+    if (!fpsStr.empty()) {
+        p = nullptr;
+        fps = int(strtod(fpsStr.c_str(), &p));
+
+        if (*p) {
+            if (!Fraction::isFraction(fpsStr)) {
+                std::cerr << "The framerate must be a number or a fraction." << std::endl;
+
+                return -1;
+            }
+
+            fps = Fraction(fpsStr).value();
+        }
+
+        if (fps <= 0 || std::isinf(fps)) {
+            std::cerr << "The framerate is out of range." << std::endl;
+
+            return -1;
+        }
+    }
+
     VideoFormat fmt(format, int(width), int(height), {{30, 1}});
 
     if (!this->m_ipcBridge.deviceStart(deviceId, fmt)) {
@@ -1253,6 +1333,20 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     _setmode(_fileno(stdin), _O_BINARY);
 #endif
 
+    auto clock = [] (const std::chrono::time_point<std::chrono::high_resolution_clock> &since) -> double {
+        return std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - since).count();
+    };
+
+    const double minThreshold = 0.04;
+    const double maxThreshold = 0.1;
+    const double framedupThreshold = 0.1;
+    const double nosyncThreshold = 10.0;
+
+    double lastPts = 0.0;
+    auto t0 = std::chrono::high_resolution_clock::now();
+    double drift = 0;
+    uint64_t i = 0;
+
     do {
         std::cin.read(reinterpret_cast<char *>(frame.data().data()
                                                + bufferSize),
@@ -1260,7 +1354,46 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
         bufferSize += size_t(std::cin.gcount());
 
         if (bufferSize == frame.data().size()) {
-            this->m_ipcBridge.write(deviceId, frame);
+            if (fpsStr.empty()) {
+                this->m_ipcBridge.write(deviceId, frame);
+            } else {
+                double pts = double(i) / fps;
+
+                for (;;) {
+                    double clock_pts = clock(t0) + drift;
+                    double diff = pts - clock_pts;
+                    double delay = pts - lastPts;
+                    double syncThreshold =
+                            std::max(minThreshold,
+                                     std::min(delay, maxThreshold));
+
+                    if (!std::isnan(diff)
+                        && std::abs(diff) < nosyncThreshold
+                        && delay < framedupThreshold) {
+                        if (diff <= -syncThreshold) {
+                            lastPts = pts;
+
+                            break;
+                        }
+
+                        if (diff > syncThreshold) {
+                            std::this_thread::sleep_for(std::chrono::duration<double>(diff - syncThreshold));
+
+                            continue;
+                        }
+                    } else {
+                        drift = clock(t0) - pts;
+                    }
+
+                    this->m_ipcBridge.write(deviceId, frame);
+                    lastPts = pts;
+
+                    break;
+                }
+
+                i++;
+            }
+
             bufferSize = 0;
         }
     } while (!std::cin.eof() && !exit);
@@ -1365,8 +1498,6 @@ int AkVCam::CmdParserPrivate::showControls(const StringMap &flags,
 int AkVCam::CmdParserPrivate::readControl(const StringMap &flags,
                                           const StringVector &args)
 {
-    UNUSED(flags);
-
     if (args.size() < 3) {
         std::cerr << "Not enough arguments." << std::endl;
 
@@ -1389,9 +1520,9 @@ int AkVCam::CmdParserPrivate::readControl(const StringMap &flags,
                 std::cout << control.value << std::endl;
             } else {
                 if (this->containsFlag(flags, "get-control", "-c")) {
-                    auto typeStr = typeStrMap();
                     std::cout << control.description << std::endl;
                 }
+
                 if (this->containsFlag(flags, "get-control", "-t")) {
                     auto typeStr = typeStrMap();
                     std::cout << typeStr[control.type] << std::endl;
@@ -1871,6 +2002,146 @@ int AkVCam::CmdParserPrivate::dumpInfo(const AkVCam::StringMap &flags,
     return 0;
 }
 
+int AkVCam::CmdParserPrivate::hacks(const AkVCam::StringMap &flags,
+                                    const AkVCam::StringVector &args)
+{
+    UNUSED(flags);
+    UNUSED(args);
+
+    auto hacks = this->m_ipcBridge.hacks();
+
+    if (hacks.empty())
+        return 0;
+
+    if (this->m_parseable) {
+        for (auto &hack: hacks)
+            std::cout << hack << std::endl;
+    } else {
+        std::cout << "Hacks are intended to fix common problems with the "
+                     "virtual camera, and are intended to be used by developers "
+                     "and advanced users only." << std::endl;
+        std::cout << std::endl;
+        std::cout << "WARNING: Unsafe hacks can brick your system, make it "
+                     "unstable, or expose it to a serious security risk. You "
+                     "are solely responsible of whatever happens for using "
+                     "them. You been warned, don't come and cry later."
+                  << std::endl;
+        std::cout << std::endl;
+        std::vector<std::string> table {
+            "Hack",
+            "Is safe?",
+            "Description"
+        };
+        auto columns = table.size();
+
+        for (auto &hack: hacks) {
+            table.push_back(hack);
+            table.push_back(this->m_ipcBridge.hackIsSafe(hack)? "Yes": "No");
+            table.push_back(this->m_ipcBridge.hackDescription(hack));
+        }
+
+        this->drawTable(table, columns);
+    }
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::hackInfo(const AkVCam::StringMap &flags,
+                                       const AkVCam::StringVector &args)
+{
+    if (args.size() < 2) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    auto hack = args[1];
+    auto hacks = this->m_ipcBridge.hacks();
+    auto dit = std::find(hacks.begin(), hacks.end(), hack);
+
+    if (dit == hacks.end()) {
+        std::cerr << "Unknown hack: " << hack << "." << std::endl;
+
+        return -1;
+    }
+
+    if (this->containsFlag(flags, "hack-info", "-c"))
+        std::cout << this->m_ipcBridge.hackDescription(hack) << std::endl;
+
+    if (this->containsFlag(flags, "hack-info", "-s")) {
+        if (this->m_ipcBridge.hackIsSafe(hack))
+            std::cout << "Yes" << std::endl;
+        else
+            std::cout << "No" << std::endl;
+    }
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::hack(const AkVCam::StringMap &flags,
+                                   const AkVCam::StringVector &args)
+{
+    if (args.size() < 2) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -1;
+    }
+
+    auto hack = args[1];
+    auto hacks = this->m_ipcBridge.hacks();
+    auto dit = std::find(hacks.begin(), hacks.end(), hack);
+
+    if (dit == hacks.end()) {
+        std::cerr << "Unknown hack: " << hack << "." << std::endl;
+
+        return -1;
+    }
+
+    bool accepted = this->m_parseable | this->m_ipcBridge.hackIsSafe(hack);
+
+    if (!accepted && !this->m_parseable) {
+        std::cout << "WARNING: Applying this hack can brick your system, make "
+                     "it unstable, or expose it to a serious security risk. "
+                     "Agreeing to continue, you accept the full responsability "
+                     "of whatever happens from now on."
+                  << std::endl;
+        std::cout << std::endl;
+
+        if (this->containsFlag(flags, "hack", "-y")) {
+            std::cout << "You agreed to continue from command line."
+                      << std::endl;
+            std::cout << std::endl;
+            accepted = true;
+        } else {
+            std::cout << "If you agree to continue write YES: ";
+            std::string answer;
+            std::cin >> answer;
+            std::cout << std::endl;
+            accepted = answer == "YES";
+        }
+    }
+
+    if (!accepted) {
+        std::cerr << "Hack not applied." << std::endl;
+
+        return -1;
+    }
+
+    StringVector hargs;
+
+    for (size_t i = 2; i < args.size(); i++)
+        hargs.push_back(args[i]);
+
+    auto result = this->m_ipcBridge.execHack(hack, hargs);
+
+    if (result == 0)
+        std::cout << "Success" << std::endl;
+    else
+        std::cout << "Failed" << std::endl;
+
+    return result;
+}
+
 void AkVCam::CmdParserPrivate::loadGenerals(Settings &settings)
 {
     settings.beginGroup("General");
@@ -2080,4 +2351,23 @@ std::string AkVCam::operator *(size_t n, const std::string &str)
         ss << str;
 
     return ss.str();
+}
+
+AkVCam::CmdParserCommand::CmdParserCommand()
+{
+}
+
+AkVCam::CmdParserCommand::CmdParserCommand(const std::string &command,
+                                           const std::string &arguments,
+                                           const std::string &helpString,
+                                           const AkVCam::ProgramOptionsFunc &func,
+                                           const std::vector<AkVCam::CmdParserFlags> flags,
+                                           bool advanced):
+    command(command),
+    arguments(arguments),
+    helpString(helpString),
+    func(func),
+    flags(flags),
+    advanced(advanced)
+{
 }

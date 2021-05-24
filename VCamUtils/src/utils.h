@@ -154,6 +154,7 @@ namespace AkVCam
     std::vector<std::string> split(const std::string &str, char separator);
     std::pair<std::string, std::string> splitOnce(const std::string &str,
                                                   const std::string &separator);
+    void move(const std::string &from, const std::string &to);
 }
 
 #endif // AKVCAMUTILS_UTILS_H

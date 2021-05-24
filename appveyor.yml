@@ -2,7 +2,7 @@ version: 9.0.0.{build}-{branch}
 os: MinGW
 
 image: Visual Studio 2019
- 
+
 platform:
   - x64
 
@@ -20,7 +20,7 @@ environment:
 
   matrix:
     - CMAKE_GENERATOR: MSYS Makefiles
-    - CMAKE_GENERATOR: Visual Studio 16 2019 
+    - CMAKE_GENERATOR: Visual Studio 16 2019
 
 install:
   - ports\ci\appveyor\install_deps.bat

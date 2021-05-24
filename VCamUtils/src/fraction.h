@@ -47,6 +47,9 @@ namespace AkVCam
             int64_t &den();
             double value() const;
             std::string toString() const;
+            bool isInfinity() const;
+            int sign() const;
+            static bool isFraction(const std::string &str);
 
         private:
             FractionPrivate *d;

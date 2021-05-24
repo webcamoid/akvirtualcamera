@@ -42,7 +42,8 @@ namespace AkVCam {
             void addCommand(const std::string &command,
                             const std::string &arguments,
                             const std::string &helpString,
-                            const ProgramOptionsFunc &func);
+                            const ProgramOptionsFunc &func,
+                            bool advanced=false);
             void addFlags(const std::string &command,
                           const StringVector &flags,
                           const std::string &value,

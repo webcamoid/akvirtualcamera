@@ -31,7 +31,7 @@
 #include "VCamUtils/src/logger.h"
 
 namespace AkVCam
-{    
+{
     struct PipeThread
     {
         std::shared_ptr<std::thread> thread;
@@ -400,7 +400,7 @@ void AkVCam::MessageServerPrivate::messagesLoop()
     for (auto &thread: this->m_clientsThreads)
         thread->thread->join();
 
-    LocalFree(securityDescriptor);    
+    LocalFree(securityDescriptor);
     AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateStopped)
     AkLogDebug() << "Server stopped." << std::endl;
 }

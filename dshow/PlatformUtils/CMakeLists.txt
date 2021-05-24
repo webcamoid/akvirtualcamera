@@ -42,7 +42,7 @@ add_library(PlatformUtils STATIC
 add_dependencies(PlatformUtils VCamUtils)
 target_compile_definitions(PlatformUtils PRIVATE PLATFORMUTILS_LIBRARY)
 target_include_directories(PlatformUtils PRIVATE ../..)
-target_link_libraries(PlatformUtils 
+target_link_libraries(PlatformUtils
                       VCamUtils
                       advapi32
                       kernel32

@@ -17,6 +17,7 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <cmath>
 #include <cstdlib>
 #include <sstream>
 #include <string>
@@ -141,6 +142,42 @@ std::string AkVCam::Fraction::toString() const
     ss << this->d->m_num << '/' << this->d->m_den;
 
     return ss.str();
+}
+
+bool AkVCam::Fraction::isInfinity() const
+{
+    return this->d->m_num != 0 && this->d->m_den == 0;
+}
+
+int AkVCam::Fraction::sign() const
+{
+    return std::signbit(this->d->m_num) == std::signbit(this->d->m_den)? 1: -1;
+}
+
+bool AkVCam::Fraction::isFraction(const std::string &str)
+{
+    auto pos = str.find('/');
+
+    if (pos == std::string::npos) {
+        auto strCpy = trimmed(str);
+        char *p = nullptr;
+        strtol(strCpy.c_str(), &p, 10);
+
+        if (*p)
+            return false;
+    } else {
+        auto numStr = trimmed(str.substr(0, pos));
+        auto denStr = trimmed(str.substr(pos + 1));
+        char *p = nullptr;
+        char *q = nullptr;
+        strtol(numStr.c_str(), &p, 10);
+        strtol(denStr.c_str(), &q, 10);
+
+        if (*p || *q)
+            return false;
+    }
+
+    return true;
 }
 
 std::ostream &operator <<(std::ostream &os, const AkVCam::Fraction &fraction)

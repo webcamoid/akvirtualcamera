@@ -35,7 +35,7 @@ target_include_directories(VCamIPC
                            PRIVATE ..
                            PRIVATE ../..)
 target_link_libraries(VCamIPC
-                      PlatformUtils 
+                      PlatformUtils
                       advapi32
                       kernel32
                       psapi)
