@@ -23,7 +23,7 @@ INSTALL_PREFIX=${TRAVIS_BUILD_DIR}/webcamoid-data
 
 if [ "${TRAVIS_OS_NAME}" = linux ]; then
     sudo mount --bind root.x86_64 root.x86_64
-    sudo mount --bind $HOME root.x86_64/$HOME
+    sudo mount --bind "$HOME" "root.x86_64/$HOME"
     cat << EOF > ${BUILDSCRIPT}
 #!/bin/sh
 
@@ -53,12 +53,12 @@ i686-w64-mingw32-cmake \
 cmake --build .
 EOF
     chmod +x ${BUILDSCRIPT}
-    sudo cp -vf ${BUILDSCRIPT} root.x86_64/$HOME/
+    sudo cp -vf ${BUILDSCRIPT} "root.x86_64/$HOME/"
 
     EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
-    ${EXEC} bash $HOME/${BUILDSCRIPT}
+    ${EXEC} bash "$HOME/${BUILDSCRIPT}"
 
-    sudo umount root.x86_64/$HOME
+    sudo umount "root.x86_64/$HOME"
     sudo umount root.x86_64
 elif [ "${TRAVIS_OS_NAME}" = osx ]; then
     mkdir build

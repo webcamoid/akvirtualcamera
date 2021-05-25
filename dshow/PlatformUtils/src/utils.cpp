@@ -69,7 +69,7 @@ std::string AkVCam::locatePluginPath()
         GetModuleFileNameA(hmodule, path, MAX_PATH);
     }
 
-    if (strlen(path) < 1)
+    if (strnlen(path, MAX_PATH) < 1)
         return {};
 
     return dirname(path);

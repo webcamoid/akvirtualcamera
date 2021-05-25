@@ -28,7 +28,7 @@ DEPLOYSCRIPT=deployscript.sh
 
 if [ "${TRAVIS_OS_NAME}" = linux ]; then
     sudo mount --bind root.x86_64 root.x86_64
-    sudo mount --bind $HOME root.x86_64/$HOME
+    sudo mount --bind "$HOME" "root.x86_64/$HOME"
 
     cat << EOF > package_info_strip.conf
 [System]
@@ -73,10 +73,10 @@ python ./DeployTools/deploy.py \
         -o "\${PACKAGES_DIR}"
 EOF
     chmod +x ${DEPLOYSCRIPT}
-    sudo cp -vf ${DEPLOYSCRIPT} root.x86_64/$HOME/
+    sudo cp -vf ${DEPLOYSCRIPT} "root.x86_64/$HOME/"
 
-    ${EXEC} bash $HOME/${DEPLOYSCRIPT}
-    sudo umount root.x86_64/$HOME
+    ${EXEC} bash "$HOME/${DEPLOYSCRIPT}"
+    sudo umount "root.x86_64/$HOME"
     sudo umount root.x86_64
 elif [ "${TRAVIS_OS_NAME}" = osx ]; then
     cd build

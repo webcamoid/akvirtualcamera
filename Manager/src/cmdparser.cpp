@@ -69,7 +69,7 @@ namespace AkVCam {
                          const std::string &arguments,
                          const std::string &helpString,
                          const ProgramOptionsFunc &func,
-                         const std::vector<CmdParserFlags> flags,
+                         const std::vector<CmdParserFlags> &flags,
                          bool advanced);
     };
 
@@ -360,7 +360,7 @@ int AkVCam::CmdParser::parse(int argc, char **argv)
         char *p = nullptr;
         strtod(arg.c_str(), &p);
 
-        if (arg[0] == '-' && strlen(p) != 0) {
+        if (arg[0] == '-' && p && strnlen(p, 1024) != 0) {
             auto flag = this->d->parserFlag(command->flags, arg);
 
             if (!flag) {
@@ -2361,7 +2361,7 @@ AkVCam::CmdParserCommand::CmdParserCommand(const std::string &command,
                                            const std::string &arguments,
                                            const std::string &helpString,
                                            const AkVCam::ProgramOptionsFunc &func,
-                                           const std::vector<AkVCam::CmdParserFlags> flags,
+                                           const std::vector<AkVCam::CmdParserFlags> &flags,
                                            bool advanced):
     command(command),
     arguments(arguments),

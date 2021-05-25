@@ -34,7 +34,7 @@ if [ "${TRAVIS_OS_NAME}" = linux ]; then
     # Download chroot image
     archImage=archlinux-bootstrap-${ARCH_ROOT_DATE}-x86_64.tar.gz
     ${DOWNLOAD_CMD} ${ARCH_ROOT_URL}/iso/${ARCH_ROOT_DATE}/$archImage
-    sudo tar xzf $archImage
+    sudo tar xzf "$archImage"
 
     # Configure mirrors
     cp -vf root.x86_64/etc/pacman.conf .
@@ -59,9 +59,9 @@ EOF
     sudo cp -vf mirrorlist root.x86_64/etc/pacman.d/mirrorlist
 
     # Install packages
-    sudo mkdir -pv root.x86_64/$HOME
+    sudo mkdir -pv "root.x86_64/$HOME"
     sudo mount --bind root.x86_64 root.x86_64
-    sudo mount --bind $HOME root.x86_64/$HOME
+    sudo mount --bind "$HOME" "root.x86_64/$HOME"
 
     ${EXEC} pacman-key --init
     ${EXEC} pacman-key --populate archlinux
@@ -89,7 +89,7 @@ EOF
         nsis=nsis-${NSIS_VERSION}-setup.exe
         ${DOWNLOAD_CMD} "https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
 
-        if [ -e ${nsis} ]; then
+        if [ -e "${nsis}" ]; then
         INSTALLSCRIPT=installscript.sh
 
         cat << EOF > ${INSTALLSCRIPT}
@@ -104,12 +104,12 @@ wine ./${nsis} /S
 EOF
 
         chmod +x ${INSTALLSCRIPT}
-        sudo cp -vf ${INSTALLSCRIPT} root.x86_64/$HOME/
-        ${EXEC} bash $HOME/${INSTALLSCRIPT}
+        sudo cp -vf ${INSTALLSCRIPT} "root.x86_64/$HOME/"
+        ${EXEC} bash "$HOME/${INSTALLSCRIPT}"
     fi
 
     # Finish
-    sudo umount root.x86_64/$HOME
+    sudo umount "root.x86_64/$HOME"
     sudo umount root.x86_64
 elif [ "${TRAVIS_OS_NAME}" = osx ]; then
     brew update
@@ -126,7 +126,7 @@ elif [ "${TRAVIS_OS_NAME}" = osx ]; then
 
     # Install Qt Installer Framework
     qtIFW=QtInstallerFramework-macOS-x86_64-${QTIFWVER}.dmg
-    ${DOWNLOAD_CMD} http://download.qt.io/official_releases/qt-installer-framework/${QTIFWVER}/${qtIFW} || true
+    ${DOWNLOAD_CMD} "http://download.qt.io/official_releases/qt-installer-framework/${QTIFWVER}/${qtIFW}" || true
 
     if [ -e "${qtIFW}" ]; then
         hdiutil convert ${qtIFW} -format UDZO -o qtifw

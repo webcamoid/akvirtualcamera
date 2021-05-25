@@ -45,23 +45,23 @@ if [[ ! -z "$DAILY_BUILD" || ! -z "$RELEASE_BUILD" ]]; then
 
     ./jfrog bt config \
         --user=hipersayanx \
-        --key=$BT_KEY \
+        --key="$BT_KEY" \
         --licenses=GPL-3.0-or-later
 
     path=webcamoid-packages
 
     for f in $(find $path -type f); do
         packagePath=${f#$path/}
-        folder=$(dirname $packagePath)
+        folder=$(dirname "$packagePath")
 
         ./jfrog bt upload \
             --user=hipersayanx \
             --key=$BT_KEY \
             --override=true \
             --publish=$publish \
-            $f \
+            "$f" \
             webcamoid/webcamoid/akvirtualcamera/$version \
-            $folder/
+            "$folder/"
     done
 
     # Upload to Github Releases
@@ -76,11 +76,11 @@ if [[ ! -z "$DAILY_BUILD" || ! -z "$RELEASE_BUILD" ]]; then
             hub=hub-darwin-amd64-${GITHUB_HUBVER}
         fi
 
-        cd ${TRAVIS_BUILD_DIR}
-        ${DOWNLOAD_CMD} https://github.com/github/hub/releases/download/v${GITHUB_HUBVER}/${hub}.tgz || true
+        cd "${TRAVIS_BUILD_DIR}"
+        ${DOWNLOAD_CMD} "https://github.com/github/hub/releases/download/v${GITHUB_HUBVER}/${hub}.tgz" || true
         tar xzf ${hub}.tgz
         mkdir -p .local
-        cp -rf ${hub}/* .local/
+        cp -rf "${hub}"/* .local/
 
         export PATH="${PWD}/.local/bin:${PATH}"
 

@@ -702,7 +702,8 @@ HRESULT AkVCam::Pin::QueryPinInfo(PIN_INFO *pInfo)
         auto pinName = stringToWSTR(this->d->m_pinName);
         memcpy(pInfo->achName,
                pinName,
-               (std::min<size_t>)(wcslen(pinName) * sizeof(WCHAR),
+               (std::min<size_t>)(wcsnlen(pinName, MAX_PIN_NAME)
+                                  * sizeof(WCHAR),
                                   MAX_PIN_NAME));
         CoTaskMemFree(pinName);
     }

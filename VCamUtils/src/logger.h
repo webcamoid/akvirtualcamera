@@ -60,7 +60,7 @@ namespace AkVCam
         void setLogFile(const std::string &fileName);
         int logLevel();
         void setLogLevel(int logLevel);
-        std::string header(int logLevel, const std::string file, int line);
+        std::string header(int logLevel, const std::string &file, int line);
         std::ostream &log(int logLevel);
         int levelFromString(const std::string &level);
         std::string levelToString(int level);

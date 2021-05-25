@@ -311,7 +311,8 @@ HRESULT AkVCam::BaseFilter::QueryFilterInfo(FILTER_INFO *pInfo)
         auto filterName = stringToWSTR(this->d->m_filterName);
         memcpy(pInfo->achName,
                filterName,
-               (std::min<size_t>)(wcslen(filterName) * sizeof(WCHAR),
+               (std::min<size_t>)(wcsnlen(filterName, MAX_FILTER_NAME)
+                                  * sizeof(WCHAR),
                                   MAX_FILTER_NAME));
         CoTaskMemFree(filterName);
     }

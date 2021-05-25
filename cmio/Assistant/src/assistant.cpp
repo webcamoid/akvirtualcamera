@@ -553,7 +553,7 @@ void AkVCam::AssistantPrivate::controlsUpdated(xpc_connection_t client,
     AkLogFunction();
     std::string deviceId = xpc_dictionary_get_string(event, "device");
 
-    if (this->m_deviceConfigs.count(deviceId) <= 0) {
+    if (this->m_deviceConfigs.count(deviceId) < 1) {
         AkLogError() << "'"
                      << deviceId
                      << "' device in not in the devices list."

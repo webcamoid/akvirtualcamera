@@ -263,7 +263,7 @@ size_t AkVCam::VideoFormat::planeSize(size_t plane) const
 
 bool AkVCam::VideoFormat::isValid() const
 {
-    if (this->size() <= 0)
+    if (this->size() < 1)
         return false;
 
     if (this->d->m_frameRates.empty())

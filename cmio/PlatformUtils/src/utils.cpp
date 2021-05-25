@@ -187,7 +187,7 @@ std::string AkVCam::realPath(const std::string &path)
     memset(realPath, 0, PATH_MAX);
     readlink(resolvedPath, realPath, PATH_MAX);
 
-    if (strlen(realPath) < 1)
+    if (strnlen(realPath, PATH_MAX) < 1)
         return {resolvedPath};
 
     return {realPath};

@@ -92,7 +92,9 @@ void AkVCam::Logger::setLogLevel(int logLevel)
     loggerPrivate()->logLevel = logLevel;
 }
 
-std::string AkVCam::Logger::header(int logLevel, const std::string file, int line)
+std::string AkVCam::Logger::header(int logLevel,
+                                   const std::string &file,
+                                   int line)
 {
     auto now = std::chrono::system_clock::now();
     auto nowMSecs =

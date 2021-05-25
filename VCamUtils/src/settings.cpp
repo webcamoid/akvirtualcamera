@@ -436,7 +436,7 @@ std::string AkVCam::SettingsPrivate::parseString(const std::string &str)
     memset(hex, 0, 3);
 
     for (size_t i = start; i < end; i++) {
-        if (str[i] == '\\' && i < str.size() - 2) {
+        if (i < str.size() - 2 && str[i] == '\\') {
             auto key = strchr(escape_k, str[i + 1]);
 
             if (key) {
