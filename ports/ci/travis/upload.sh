@@ -56,11 +56,11 @@ if [[ ! -z "$DAILY_BUILD" || ! -z "$RELEASE_BUILD" ]]; then
 
         ./jfrog bt upload \
             --user=hipersayanx \
-            --key=$BT_KEY \
+            --key="$BT_KEY" \
             --override=true \
-            --publish=$publish \
+            --publish="$publish" \
             "$f" \
-            webcamoid/webcamoid/akvirtualcamera/$version \
+            "webcamoid/webcamoid/akvirtualcamera/$version" \
             "$folder/"
     done
 
@@ -78,7 +78,7 @@ if [[ ! -z "$DAILY_BUILD" || ! -z "$RELEASE_BUILD" ]]; then
 
         cd "${TRAVIS_BUILD_DIR}"
         ${DOWNLOAD_CMD} "https://github.com/github/hub/releases/download/v${GITHUB_HUBVER}/${hub}.tgz" || true
-        tar xzf ${hub}.tgz
+        tar xzf "${hub}.tgz"
         mkdir -p .local
         cp -rf "${hub}"/* .local/
 
