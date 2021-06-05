@@ -227,6 +227,7 @@ AkVCam::MessageServerPrivate::MessageServerPrivate(MessageServer *self):
 bool AkVCam::MessageServerPrivate::startReceive(bool wait)
 {
     AkLogFunction();
+    AkLogDebug() << "Wait: " << wait << std::endl;
     AKVCAM_EMIT(this->self, StateChanged, MessageServer::StateAboutToStart)
     this->m_running = true;
 

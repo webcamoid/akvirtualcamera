@@ -63,6 +63,7 @@ namespace AkVCam
             std::string m_filterName;
             IFilterGraph *m_filterGraph {nullptr};
             IpcBridge m_ipcBridge;
+            IpcBridge::ServerState m_serverState {IpcBridge::ServerStateGone};
 
             BaseFilterPrivate(BaseFilter *self,
                               const std::string &filterName,
@@ -457,6 +458,16 @@ void AkVCam::BaseFilterPrivate::serverStateChanged(void *userData,
 {
     AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
+
+    if (self->m_serverState == state)
+        return;
+
+    FILTER_STATE filterState = State_Stopped;
+    self->self->GetState(0, &filterState);
+
+    if (filterState != State_Stopped)
+        return;
+
     IEnumPins *pins = nullptr;
     self->self->EnumPins(&pins);
 
@@ -467,6 +478,8 @@ void AkVCam::BaseFilterPrivate::serverStateChanged(void *userData,
 
     if (state == IpcBridge::ServerStateAvailable)
         self->updatePins();
+
+    self->m_serverState = state;
 }
 
 void AkVCam::BaseFilterPrivate::frameReady(void *userData,

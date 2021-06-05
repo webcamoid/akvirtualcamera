@@ -39,6 +39,18 @@
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/logger.h"
 
+#ifndef SERVICE_NOTIFY_STOPPED
+#define SERVICE_NOTIFY_STOPPED 0x1
+#endif
+
+#ifndef SERVICE_NOTIFY_RUNNING
+#define SERVICE_NOTIFY_RUNNING 0x8
+#endif
+
+#ifndef SERVICE_NOTIFY_STATUS_CHANGE
+#define SERVICE_NOTIFY_STATUS_CHANGE 2
+#endif
+
 namespace AkVCam
 {
     using RegisterServerFunc = HRESULT (WINAPI *)();
@@ -82,6 +94,9 @@ namespace AkVCam
             MessageServer m_mainServer;
             SharedMemory m_sharedMemory;
             Mutex m_globalMutex;
+            SC_HANDLE m_scManager {nullptr};
+            SC_HANDLE m_assistantService {nullptr};
+            SERVICE_NOTIFY m_notifyBuffer;
 
             explicit IpcBridgePrivate(IpcBridge *self);
             ~IpcBridgePrivate();
@@ -91,8 +106,10 @@ namespace AkVCam
             void updateDeviceSharedProperties();
             void updateDeviceSharedProperties(const std::string &deviceId,
                                               const std::string &owner);
-            static void pipeStateChanged(void *userData,
-                                         MessageServer::PipeState state);
+            bool isServiceRunning() const;
+            void startServiceStatusCheck();
+            void stopServiceStatusCheck();
+            static void CALLBACK notifyCallback(void *parameter);
 
             // Message handling methods
             void isAlive(Message *message);
@@ -135,14 +152,12 @@ AkVCam::IpcBridge::IpcBridge()
     this->d->m_mainServer.start();
     this->registerPeer();
     this->d->updateDeviceSharedProperties();
-    this->d->m_mainServer.connectPipeStateChanged(this,
-                                                  &IpcBridgePrivate::pipeStateChanged);
+    this->d->startServiceStatusCheck();
 }
 
 AkVCam::IpcBridge::~IpcBridge()
 {
-    this->d->m_mainServer.disconnectPipeStateChanged(this,
-                                                     &IpcBridgePrivate::pipeStateChanged);
+    this->d->stopServiceStatusCheck();
     this->unregisterPeer();
     this->d->m_mainServer.stop();
     delete this->d;
@@ -1022,14 +1037,86 @@ void AkVCam::IpcBridgePrivate::updateDeviceSharedProperties(const std::string &d
     }
 }
 
-void AkVCam::IpcBridgePrivate::pipeStateChanged(void *userData,
-                                                MessageServer::PipeState state)
+bool AkVCam::IpcBridgePrivate::isServiceRunning() const
 {
     AkLogFunction();
-    auto self = reinterpret_cast<IpcBridgePrivate *>(userData);
+    bool isRunning = false;
+    auto manager = OpenSCManager(nullptr, nullptr, GENERIC_READ);
 
-    switch (state) {
-    case MessageServer::PipeStateAvailable:
+    if (manager) {
+        auto service = OpenService(manager,
+                                   TEXT(DSHOW_PLUGIN_ASSISTANT_NAME),
+                                   SERVICE_QUERY_STATUS);
+
+        if (service) {
+            SERVICE_STATUS status;
+            memset(&status, 0, sizeof(SERVICE_STATUS));
+            QueryServiceStatus(service, &status);
+            isRunning = status.dwCurrentState == SERVICE_RUNNING;
+            CloseServiceHandle(service);
+        }
+
+        CloseServiceHandle(manager);
+    }
+
+    return isRunning;
+}
+
+void AkVCam::IpcBridgePrivate::startServiceStatusCheck()
+{
+    AkLogFunction();
+    this->m_scManager = OpenSCManager(nullptr,
+                                      nullptr,
+                                      SC_MANAGER_CONNECT);
+
+    if (!this->m_scManager)
+        return;
+
+    this->m_assistantService =
+            OpenService(this->m_scManager,
+                        TEXT(DSHOW_PLUGIN_ASSISTANT_NAME),
+                        SERVICE_QUERY_STATUS);
+
+    if (!this->m_assistantService) {
+        CloseServiceHandle(this->m_scManager);
+        this->m_scManager = nullptr;
+
+        return;
+    }
+
+    memset(&this->m_notifyBuffer, 0, sizeof(SERVICE_NOTIFY));
+    this->m_notifyBuffer.dwVersion = SERVICE_NOTIFY_STATUS_CHANGE;
+    this->m_notifyBuffer.pfnNotifyCallback =
+            PFN_SC_NOTIFY_CALLBACK(notifyCallback);
+    this->m_notifyBuffer.pContext = this;
+    NotifyServiceStatusChange(this->m_assistantService,
+                              SERVICE_NOTIFY_RUNNING | SERVICE_NOTIFY_STOPPED,
+                              &this->m_notifyBuffer);
+}
+
+void AkVCam::IpcBridgePrivate::stopServiceStatusCheck()
+{
+    if (this->m_assistantService) {
+        CloseServiceHandle(this->m_assistantService);
+        this->m_assistantService = nullptr;
+    }
+
+    if (this->m_scManager) {
+        CloseServiceHandle(this->m_scManager);
+        this->m_scManager = nullptr;
+    }
+}
+
+void AkVCam::IpcBridgePrivate::notifyCallback(void *parameter)
+{
+    AkLogFunction();
+    auto serviceNotify = PSERVICE_NOTIFY(parameter);
+    auto self = reinterpret_cast<IpcBridgePrivate *>(serviceNotify->pContext);
+
+    if (!self)
+        return;
+
+    if (serviceNotify->ServiceStatus.dwCurrentState == SERVICE_RUNNING) {
         AkLogInfo() << "Server Available" << std::endl;
 
         if (self->self->registerPeer()) {
@@ -1037,17 +1124,12 @@ void AkVCam::IpcBridgePrivate::pipeStateChanged(void *userData,
                         ServerStateChanged,
                         IpcBridge::ServerStateAvailable)
         }
-
-        break;
-
-    case MessageServer::PipeStateGone:
+    } else {
         AkLogWarning() << "Server Gone" << std::endl;
         AKVCAM_EMIT(self->self,
                     ServerStateChanged,
                     IpcBridge::ServerStateGone)
         self->self->unregisterPeer();
-
-        break;
     }
 }
 

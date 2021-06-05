@@ -32,6 +32,11 @@ namespace AkVCam
         public:
             int64_t m_num;
             int64_t m_den;
+
+            template<typename T> inline static int sign(T value)
+            {
+                return value < 0? -1: 1;
+            }
     };
 }
 
@@ -151,7 +156,7 @@ bool AkVCam::Fraction::isInfinity() const
 
 int AkVCam::Fraction::sign() const
 {
-    return std::signbit(this->d->m_num) == std::signbit(this->d->m_den)? 1: -1;
+    return FractionPrivate::sign(this->d->m_num) == FractionPrivate::sign(this->d->m_den)? 1: -1;
 }
 
 bool AkVCam::Fraction::isFraction(const std::string &str)

@@ -24,6 +24,8 @@
 #include <string>
 #include <vector>
 
+#include "logger.h"
+
 #ifndef UNUSED
     #define UNUSED(x) (void)(x)
 #endif
@@ -131,11 +133,15 @@
         std::vector<CallbackName##Callback> m_##CallbackName##Callback;
 
 #define AKVCAM_EMIT(owner, CallbackName, ...) \
+    AkLogDebug() << "Emiting: " << #CallbackName << std::endl; \
+    \
     for (auto &callback: owner->m_##CallbackName##Callback) \
         if (callback.second) \
             callback.second(callback.first, __VA_ARGS__); \
 
 #define AKVCAM_EMIT_NOARGS(owner, CallbackName) \
+    AkLogDebug() << "Emiting: " << #CallbackName << std::endl; \
+    \
     for (auto &callback: owner->m_##CallbackName##Callback) \
         if (callback.second) \
             callback.second(callback.first); \
