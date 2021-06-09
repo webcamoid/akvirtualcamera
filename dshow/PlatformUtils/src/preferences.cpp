@@ -308,16 +308,16 @@ bool AkVCam::Preferences::removeCamera(const std::string &path)
     if (cameraIndex < 0)
         return false;
 
-    bool ok = true;
-    ok &= cameraSetFormats(size_t(cameraIndex), {});
-
     auto nCameras = camerasCount();
+    bool ok = true;
     ok &= deleteKey("Cameras\\" + std::to_string(cameraIndex + 1) + '\\', true);
 
     for (auto i = size_t(cameraIndex + 1); i < nCameras; i++)
         ok &= move("Cameras\\" + std::to_string(i + 1),
                    "Cameras\\" + std::to_string(i),
                    true);
+
+    ok &= deleteKey("Cameras\\" + std::to_string(nCameras) + '\\', true);
 
     if (nCameras > 1)
         ok &= write("Cameras\\size", int(nCameras - 1), true);

@@ -100,6 +100,7 @@ namespace AkVCam
             void setPicture(const std::string &picture);
             int logLevel() const;
             void setLogLevel(int logLevel);
+            std::string logPath(const std::string &logName={}) const;
 
             // Register the peer to the global server.
             bool registerPeer();

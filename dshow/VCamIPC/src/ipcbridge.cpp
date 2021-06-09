@@ -194,6 +194,16 @@ void AkVCam::IpcBridge::setLogLevel(int logLevel)
     Logger::setLogLevel(logLevel);
 }
 
+std::string AkVCam::IpcBridge::logPath(const std::string &logName) const
+{
+    if (logName.empty())
+        return {};
+
+    auto defaultLogFile = AkVCam::tempPath() + "\\" + logName + ".log";
+
+    return AkVCam::Preferences::readString("logfile", defaultLogFile);
+}
+
 bool AkVCam::IpcBridge::registerPeer()
 {
     AkLogFunction();

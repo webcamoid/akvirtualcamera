@@ -975,7 +975,7 @@ LSTATUS AkVCam::copyTree(HKEY src, LPCSTR subkey, HKEY dst, REGSAM samFlags)
         DWORD nameLen = len;
         DWORD dataType = 0;
         BYTE *data = new BYTE[maxValueLen];
-        DWORD dataSize = 0;
+        DWORD dataSize = maxValueLen;
         result = RegEnumValue(hkeyFrom,
                               i,
                               name,
