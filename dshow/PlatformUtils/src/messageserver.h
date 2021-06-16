@@ -52,14 +52,7 @@ namespace AkVCam
                 StateStopped
             };
 
-            enum PipeState
-            {
-                PipeStateAvailable,
-                PipeStateGone
-            };
-
             AKVCAM_SIGNAL(StateChanged, State state)
-            AKVCAM_SIGNAL(PipeStateChanged, PipeState state)
 
         public:
             MessageServer();
@@ -72,9 +65,6 @@ namespace AkVCam
             ServerMode mode() const;
             ServerMode &mode();
             void setMode(ServerMode mode);
-            int checkInterval() const;
-            int &checkInterval();
-            void setCheckInterval(int checkInterval);
             void setHandlers(const std::map<uint32_t,
                              MessageHandler> &handlers);
             bool start(bool wait=false);

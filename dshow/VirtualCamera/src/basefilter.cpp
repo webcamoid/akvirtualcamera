@@ -62,7 +62,7 @@ namespace AkVCam
             std::string m_vendor;
             std::string m_filterName;
             IFilterGraph *m_filterGraph {nullptr};
-            IpcBridge m_ipcBridge;
+            IpcBridge m_ipcBridge {true};
             IpcBridge::ServerState m_serverState {IpcBridge::ServerStateGone};
 
             BaseFilterPrivate(BaseFilter *self,

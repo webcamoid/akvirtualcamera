@@ -41,7 +41,9 @@ target_link_libraries(Assistant
                       PlatformUtils
                       advapi32
                       gdi32
+                      kernel32
                       ole32
+                      psapi
                       shell32
                       strmiids
                       uuid)

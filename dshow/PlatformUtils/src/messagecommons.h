@@ -53,6 +53,10 @@
 #define AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING  0x401
 #define AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED 0x402
 
+// Virtual camera clients
+#define AKVCAM_ASSISTANT_MSG_CLIENTS                 0x500
+#define AKVCAM_ASSISTANT_MSG_CLIENT                  0x501
+
 #define MSG_BUFFER_SIZE 4096
 #define MAX_STRING 1024
 
@@ -133,6 +137,8 @@ namespace AkVCam
     {
         char port[MAX_STRING];
         char pipeName[MAX_STRING];
+        uint64_t pid;
+        bool isVCam;
         bool status;
     };
 
@@ -180,6 +186,13 @@ namespace AkVCam
     struct MsgControlsUpdated
     {
         char device[MAX_STRING];
+    };
+
+    struct MsgClients
+    {
+        uint64_t pid;
+        size_t nclient;
+        bool status;
     };
 }
 

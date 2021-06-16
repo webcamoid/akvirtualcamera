@@ -134,14 +134,14 @@ namespace AkVCam
     }
 }
 
-AkVCam::IpcBridge::IpcBridge()
+AkVCam::IpcBridge::IpcBridge(bool isVCam)
 {
     AkLogFunction();
     this->d = new IpcBridgePrivate(this);
     auto loglevel = AkVCam::Preferences::logLevel();
     AkVCam::Logger::setLogLevel(loglevel);
     ipcBridgePrivate().add(this);
-    this->registerPeer();
+    this->registerPeer(isVCam);
 }
 
 AkVCam::IpcBridge::~IpcBridge()
@@ -191,7 +191,7 @@ std::string AkVCam::IpcBridge::logPath(const std::string &logName) const
                                            "/tmp/" + logName + ".log");
 }
 
-bool AkVCam::IpcBridge::registerPeer()
+bool AkVCam::IpcBridge::registerPeer(bool isVCam)
 {
     AkLogFunction();
 
@@ -271,6 +271,7 @@ bool AkVCam::IpcBridge::registerPeer()
     xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_ADD_PORT);
     xpc_dictionary_set_string(dictionary, "port", portName.c_str());
     xpc_dictionary_set_connection(dictionary, "connection", messagePort);
+    xpc_dictionary_set_bool(dictionary, "isvcam", isVCam);
     reply = xpc_connection_send_message_with_reply_sync(serverMessagePort,
                                                         dictionary);
     xpc_release(dictionary);
@@ -808,6 +809,26 @@ bool AkVCam::IpcBridge::removeListener(const std::string &deviceId)
     xpc_release(reply);
 
     return status;
+}
+
+bool AkVCam::IpcBridge::isBusyFor(const std::string &operation) const
+{
+    static const std::vector<std::string> operations {
+        "add-device",
+        "add-format",
+        "load",
+        "remove-device",
+        "remove-devices",
+        "remove-format",
+        "remove-formats",
+        "set-description",
+        "update",
+        "hack"
+    };
+
+    auto it = std::find(operations.begin(), operations.end(), operation);
+
+    return it != operations.end() && !this->clientsPids().empty();
 }
 
 bool AkVCam::IpcBridge::needsRoot(const std::string &operation) const

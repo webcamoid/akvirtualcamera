@@ -91,7 +91,7 @@ namespace AkVCam
                           const std::map<std::string, int> &controls)
 
         public:
-            IpcBridge();
+            IpcBridge(bool isVCam=false);
             ~IpcBridge();
 
             /* Server & Client */
@@ -103,7 +103,7 @@ namespace AkVCam
             std::string logPath(const std::string &logName={}) const;
 
             // Register the peer to the global server.
-            bool registerPeer();
+            bool registerPeer(bool isVCam=false);
 
             // Unregister the peer to the global server.
             void unregisterPeer();
@@ -171,6 +171,8 @@ namespace AkVCam
 
             // Decrement the count of device listeners
             bool removeListener(const std::string &deviceId);
+
+            bool isBusyFor(const std::string &operation) const;
 
             bool needsRoot(const std::string &operation) const;
             int sudo(int argc, char **argv) const;

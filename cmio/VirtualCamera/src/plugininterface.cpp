@@ -39,7 +39,7 @@ namespace AkVCam
             PluginInterface *self;
             ULONG m_ref;
             ULONG m_reserved;
-            IpcBridge m_ipcBridge;
+            IpcBridge m_ipcBridge {true};
 
             void updateDevices();
             static HRESULT QueryInterface(void *self,

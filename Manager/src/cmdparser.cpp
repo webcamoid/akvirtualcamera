@@ -93,8 +93,11 @@ namespace AkVCam {
                                    size_t column);
             std::vector<size_t> maxColumnsLength(const StringVector &table,
                                                  size_t width);
-            void drawTableHLine(const std::vector<size_t> &columnsLength);
-            void drawTable(const StringVector &table, size_t width);
+            void drawTableHLine(const std::vector<size_t> &columnsLength,
+                                bool toStdErr=false);
+            void drawTable(const StringVector &table,
+                           size_t width,
+                           bool toStdErr=false);
             CmdParserCommand *parserCommand(const std::string &command);
             const CmdParserFlags *parserFlag(const std::vector<CmdParserFlags> &cmdFlags,
                                              const std::string &flag);
@@ -422,6 +425,31 @@ int AkVCam::CmdParser::parse(int argc, char **argv)
         }
     }
 
+    if (this->d->m_ipcBridge.isBusyFor(command->command)) {
+        std::cerr << "This operation is not permitted." << std::endl;
+        std::cerr << "The virtual camera is in use. Stop or close the virtual "
+                  << "camera clients and try again." << std::endl;
+        std::cerr << std::endl;
+        auto clients = this->d->m_ipcBridge.clientsPids();
+
+        if (!clients.empty()) {
+            std::vector<std::string> table {
+                "Pid",
+                "Executable"
+            };
+            auto columns = table.size();
+
+            for (auto &pid: clients) {
+                table.push_back(std::to_string(pid));
+                table.push_back(this->d->m_ipcBridge.clientExe(pid));
+            }
+
+            this->d->drawTable(table, columns, true);
+        }
+
+        return -1;
+    }
+
     if (this->d->m_ipcBridge.needsRoot(command->command)
         || (command->command == "hack"
             && arguments.size() >= 2
@@ -619,38 +647,49 @@ std::vector<size_t> AkVCam::CmdParserPrivate::maxColumnsLength(const AkVCam::Str
     return lengths;
 }
 
-void AkVCam::CmdParserPrivate::drawTableHLine(const std::vector<size_t> &columnsLength)
+void AkVCam::CmdParserPrivate::drawTableHLine(const std::vector<size_t> &columnsLength,
+                                              bool toStdErr)
 {
-    std::cout << '+';
+    std::ostream *out = &std::cout;
+
+    if (toStdErr)
+        out = &std::cerr;
+
+    *out << '+';
 
     for (auto &len: columnsLength)
-        std::cout << std::string("-") * (len + 2) << '+';
+        *out << std::string("-") * (len + 2) << '+';
 
-    std::cout << std::endl;
+    *out << std::endl;
 }
 
 void AkVCam::CmdParserPrivate::drawTable(const AkVCam::StringVector &table,
-                                         size_t width)
+                                         size_t width,
+                                         bool toStdErr)
 {
     size_t height = table.size() / width;
     auto columnsLength = this->maxColumnsLength(table, width);
-    this->drawTableHLine(columnsLength);
+    this->drawTableHLine(columnsLength, toStdErr);
+    std::ostream *out = &std::cout;
+
+    if (toStdErr)
+        out = &std::cerr;
 
     for (size_t y = 0; y < height; y++) {
-        std::cout << "|";
+        *out << "|";
 
         for (size_t x = 0; x < width; x++) {
             auto &element = table[x + y * width];
-            std::cout << " " << fill(element, columnsLength[x]) << " |";
+            *out << " " << fill(element, columnsLength[x]) << " |";
         }
 
-        std::cout << std::endl;
+        *out << std::endl;
 
         if (y == 0 && height > 1)
-            this->drawTableHLine(columnsLength);
+            this->drawTableHLine(columnsLength, toStdErr);
     }
 
-    this->drawTableHLine(columnsLength);
+    this->drawTableHLine(columnsLength, toStdErr);
 }
 
 AkVCam::CmdParserCommand *AkVCam::CmdParserPrivate::parserCommand(const std::string &command)
@@ -2026,7 +2065,8 @@ int AkVCam::CmdParserPrivate::hacks(const AkVCam::StringMap &flags,
                      "and advanced users only." << std::endl;
         std::cout << std::endl;
         std::cout << "WARNING: Unsafe hacks can brick your system, make it "
-                     "unstable, or expose it to a serious security risk. You "
+                     "unstable, or expose it to a serious security risk, "
+                     "remember to make a backup of your files and system. You "
                      "are solely responsible of whatever happens for using "
                      "them. You been warned, don't come and cry later."
                   << std::endl;
@@ -2105,7 +2145,8 @@ int AkVCam::CmdParserPrivate::hack(const AkVCam::StringMap &flags,
 
     if (!accepted && !this->m_parseable) {
         std::cout << "WARNING: Applying this hack can brick your system, make "
-                     "it unstable, or expose it to a serious security risk. "
+                     "it unstable, or expose it to a serious security risk, "
+                     "remember to make a backup of your files and system. "
                      "Agreeing to continue, you accept the full responsability "
                      "of whatever happens from now on."
                   << std::endl;

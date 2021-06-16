@@ -47,22 +47,17 @@ namespace AkVCam
             std::string m_pipeName;
             std::map<uint32_t, MessageHandler> m_handlers;
             MessageServer::ServerMode m_mode {MessageServer::ServerModeReceive};
-            MessageServer::PipeState m_pipeState {MessageServer::PipeStateGone};
             std::thread m_mainThread;
             std::vector<PipeThreadPtr> m_clientsThreads;
             std::mutex m_mutex;
             std::condition_variable_any m_exitCheckLoop;
-            int m_checkInterval {5000};
             bool m_running {false};
 
             explicit MessageServerPrivate(MessageServer *self);
             bool startReceive(bool wait=false);
             void stopReceive(bool wait=false);
-            bool startSend();
-            void stopSend();
             void messagesLoop();
             void processPipe(PipeThreadPtr pipeThread, HANDLE pipe);
-            void checkLoop();
     };
 }
 
@@ -107,21 +102,6 @@ void AkVCam::MessageServer::setMode(ServerMode mode)
     this->d->m_mode = mode;
 }
 
-int AkVCam::MessageServer::checkInterval() const
-{
-    return this->d->m_checkInterval;
-}
-
-int &AkVCam::MessageServer::checkInterval()
-{
-    return this->d->m_checkInterval;
-}
-
-void AkVCam::MessageServer::setCheckInterval(int checkInterval)
-{
-    this->d->m_checkInterval = checkInterval;
-}
-
 void AkVCam::MessageServer::setHandlers(const std::map<uint32_t, MessageHandler> &handlers)
 {
     this->d->m_handlers = handlers;
@@ -139,8 +119,6 @@ bool AkVCam::MessageServer::start(bool wait)
 
     case ServerModeSend:
         AkLogInfo() << "Starting mode send" << std::endl;
-
-        return this->d->startSend();
     }
 
     return false;
@@ -152,8 +130,6 @@ void AkVCam::MessageServer::stop(bool wait)
 
     if (this->d->m_mode == ServerModeReceive)
         this->d->stopReceive(wait);
-    else
-        this->d->stopSend();
 }
 
 BOOL AkVCam::MessageServer::sendMessage(Message *message,
@@ -263,32 +239,6 @@ void AkVCam::MessageServerPrivate::stopReceive(bool wait)
 
     if (!wait)
         this->m_mainThread.join();
-}
-
-bool AkVCam::MessageServerPrivate::startSend()
-{
-    AkLogFunction();
-    AkLogDebug() << "Pipe: " << this->m_pipeName << std::endl;
-    this->m_running = true;
-    this->m_mainThread = std::thread(&MessageServerPrivate::checkLoop, this);
-
-    return true;
-}
-
-void AkVCam::MessageServerPrivate::stopSend()
-{
-    AkLogFunction();
-
-    if (!this->m_running)
-        return;
-
-    AkLogDebug() << "Pipe: " << this->m_pipeName << std::endl;
-    this->m_running = false;
-    this->m_mutex.lock();
-    this->m_exitCheckLoop.notify_all();
-    this->m_mutex.unlock();
-    this->m_mainThread.join();
-    this->m_pipeState = MessageServer::PipeStateGone;
 }
 
 void AkVCam::MessageServerPrivate::messagesLoop()
@@ -459,35 +409,4 @@ void AkVCam::MessageServerPrivate::processPipe(PipeThreadPtr pipeThread,
     CloseHandle(pipe);
     pipeThread->finished = true;
     AkLogDebug() << "Pipe thread finished." << std::endl;
-}
-
-void AkVCam::MessageServerPrivate::checkLoop()
-{
-    AkLogFunction();
-
-    while (this->m_running) {
-        AkLogDebug() << "Waiting for pipe: " << this->m_pipeName << std::endl;
-        auto result = WaitNamedPipeA(this->m_pipeName.c_str(), NMPWAIT_NOWAIT);
-
-        if (result
-            && this->m_pipeState != AkVCam::MessageServer::PipeStateAvailable) {
-            AkLogInfo() << "Pipe Available: " << this->m_pipeName << std::endl;
-            this->m_pipeState = AkVCam::MessageServer::PipeStateAvailable;
-            AKVCAM_EMIT(this->self, PipeStateChanged, this->m_pipeState)
-        } else if (!result
-                   && this->m_pipeState != AkVCam::MessageServer::PipeStateGone
-                   && GetLastError() != ERROR_SEM_TIMEOUT) {
-            AkLogInfo() << "Pipe Gone: " << this->m_pipeName << std::endl;
-            this->m_pipeState = AkVCam::MessageServer::PipeStateGone;
-            AKVCAM_EMIT(this->self, PipeStateChanged, this->m_pipeState)
-        }
-
-        if (!this->m_running)
-            break;
-
-        this->m_mutex.lock();
-        this->m_exitCheckLoop.wait_for(this->m_mutex,
-                                       std::chrono::milliseconds(this->m_checkInterval));
-        this->m_mutex.unlock();
-    }
 }

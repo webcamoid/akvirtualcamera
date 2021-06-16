@@ -51,7 +51,7 @@ namespace AkVCam
     class AssistantPrivate
     {
         public:
-            AssistantPeers m_clients;
+            AssistantPeers m_peers;
             DeviceConfigs m_deviceConfigs;
             std::map<int64_t, XpcMessage> m_messageHandlers;
             CFRunLoopTimerRef m_timer {nullptr};
@@ -203,10 +203,10 @@ void AkVCam::AssistantPrivate::peerDied()
     AkLogFunction();
     std::vector<std::string> deadPeers;
 
-    for (auto &client: this->m_clients) {
+    for (auto &peer: this->m_peers) {
         auto dictionary = xpc_dictionary_create(nullptr, nullptr, 0);
         xpc_dictionary_set_int64(dictionary, "message", AKVCAM_ASSISTANT_MSG_ISALIVE);
-        auto reply = xpc_connection_send_message_with_reply_sync(client.second,
+        auto reply = xpc_connection_send_message_with_reply_sync(peer.second,
                                                                  dictionary);
         xpc_release(dictionary);
         auto replyType = xpc_get_type(reply);
@@ -218,7 +218,7 @@ void AkVCam::AssistantPrivate::peerDied()
         xpc_release(reply);
 
         if (!alive)
-            deadPeers.push_back(client.first);
+            deadPeers.push_back(peer.first);
     }
 
     for (auto &peer: deadPeers)
@@ -230,15 +230,15 @@ void AkVCam::AssistantPrivate::removePortByName(const std::string &portName)
     AkLogFunction();
     AkLogInfo() << "Port: " << portName << std::endl;
 
-    for (auto &peer: this->m_clients)
+    for (auto &peer: this->m_peers)
         if (peer.first == portName) {
             xpc_release(peer.second);
-            this->m_clients.erase(portName);
+            this->m_peers.erase(portName);
 
             break;
         }
 
-    if (this->m_clients.empty())
+    if (this->m_peers.empty())
         this->startTimer();
 
     this->releaseDevicesFromPeer(portName);
@@ -257,8 +257,8 @@ void AkVCam::AssistantPrivate::releaseDevicesFromPeer(const std::string &portNam
             xpc_dictionary_set_string(dictionary, "device", config.first.c_str());
             xpc_dictionary_set_string(dictionary, "broadcaster", "");
 
-            for (auto &client: this->m_clients)
-                xpc_connection_send_message(client.second, dictionary);
+            for (auto &peer: this->m_peers)
+                xpc_connection_send_message(peer.second, dictionary);
 
             xpc_release(dictionary);
         } else {
@@ -298,8 +298,8 @@ void AkVCam::AssistantPrivate::addPort(xpc_connection_t client,
     xpc_connection_resume(connection);
     bool ok = true;
 
-    for (auto &client: this->m_clients)
-        if (client.first == portName) {
+    for (auto &peer: this->m_peers)
+        if (peer.first == portName) {
             ok = false;
 
             break;
@@ -307,7 +307,7 @@ void AkVCam::AssistantPrivate::addPort(xpc_connection_t client,
 
     if (ok) {
         AkLogInfo() << "Adding Peer: " << portName << std::endl;
-        this->m_clients[portName] = connection;
+        this->m_peers[portName] = connection;
         this->stopTimer();
     }
 
@@ -349,8 +349,8 @@ void AkVCam::AssistantPrivate::devicesUpdate(xpc_connection_t client,
     if (xpc_dictionary_get_bool(event, "propagate")) {
         auto notification = xpc_copy(event);
 
-        for (auto &client: this->m_clients)
-            xpc_connection_send_message(client.second, notification);
+        for (auto &peer: this->m_peers)
+            xpc_connection_send_message(peer.second, notification);
 
         xpc_release(notification);
     }
@@ -371,8 +371,8 @@ void AkVCam::AssistantPrivate::setBroadcasting(xpc_connection_t client,
             this->m_deviceConfigs[deviceId].broadcaster = broadcaster;
             auto notification = xpc_copy(event);
 
-            for (auto &client: this->m_clients)
-                xpc_connection_send_message(client.second, notification);
+            for (auto &peer: this->m_peers)
+                xpc_connection_send_message(peer.second, notification);
 
             xpc_release(notification);
         }
@@ -387,9 +387,9 @@ void AkVCam::AssistantPrivate::frameReady(xpc_connection_t client,
     auto reply = xpc_dictionary_create_reply(event);
     bool ok = true;
 
-    for (auto &client: this->m_clients) {
-        AkLogDebug() << "Sending frame to " << client.first << std::endl;
-        auto reply = xpc_connection_send_message_with_reply_sync(client.second,
+    for (auto &peer: this->m_peers) {
+        AkLogDebug() << "Sending frame to " << peer.first << std::endl;
+        auto reply = xpc_connection_send_message_with_reply_sync(peer.second,
                                                                  event);
         auto replyType = xpc_get_type(reply);
         bool isOk = false;
@@ -417,8 +417,8 @@ void AkVCam::AssistantPrivate::pictureUpdated(xpc_connection_t client,
     AkLogFunction();
     auto notification = xpc_copy(event);
 
-    for (auto &client: this->m_clients)
-        xpc_connection_send_message(client.second, notification);
+    for (auto &peer: this->m_peers)
+        xpc_connection_send_message(peer.second, notification);
 
     xpc_release(notification);
 }
@@ -502,8 +502,8 @@ void AkVCam::AssistantPrivate::listenerAdd(xpc_connection_t client,
             listeners.push_back(listener);
             auto notification = xpc_copy(event);
 
-            for (auto &client: this->m_clients)
-                xpc_connection_send_message(client.second, notification);
+            for (auto &peer: this->m_peers)
+                xpc_connection_send_message(peer.second, notification);
 
             xpc_release(notification);
             ok = true;
@@ -532,8 +532,8 @@ void AkVCam::AssistantPrivate::listenerRemove(xpc_connection_t client,
             listeners.erase(it);
             auto notification = xpc_copy(event);
 
-            for (auto &client: this->m_clients)
-                xpc_connection_send_message(client.second, notification);
+            for (auto &peer: this->m_peers)
+                xpc_connection_send_message(peer.second, notification);
 
             xpc_release(notification);
             ok = true;
@@ -564,8 +564,8 @@ void AkVCam::AssistantPrivate::controlsUpdated(xpc_connection_t client,
 
     auto notification = xpc_copy(event);
 
-    for (auto &client: this->m_clients)
-        xpc_connection_send_message(client.second, notification);
+    for (auto &peer: this->m_peers)
+        xpc_connection_send_message(peer.second, notification);
 
     xpc_release(notification);
 }

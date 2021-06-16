@@ -143,14 +143,14 @@ namespace AkVCam
     static const size_t maxBufferSize = sizeof(Frame) + 3 * maxFrameSize;
 }
 
-AkVCam::IpcBridge::IpcBridge()
+AkVCam::IpcBridge::IpcBridge(bool isVCam)
 {
     AkLogFunction();
     this->d = new IpcBridgePrivate(this);
     auto loglevel = AkVCam::Preferences::logLevel();
     AkVCam::Logger::setLogLevel(loglevel);
     this->d->m_mainServer.start();
-    this->registerPeer();
+    this->registerPeer(isVCam);
     this->d->updateDeviceSharedProperties();
     this->d->startServiceStatusCheck();
 }
@@ -204,7 +204,7 @@ std::string AkVCam::IpcBridge::logPath(const std::string &logName) const
     return AkVCam::Preferences::readString("logfile", defaultLogFile);
 }
 
-bool AkVCam::IpcBridge::registerPeer()
+bool AkVCam::IpcBridge::registerPeer(bool isVCam)
 {
     AkLogFunction();
 
@@ -254,6 +254,8 @@ bool AkVCam::IpcBridge::registerPeer()
     memcpy(addData->pipeName,
            pipeName.c_str(),
            (std::min<size_t>)(pipeName.size(), MAX_STRING));
+    addData->pid = GetCurrentProcessId();
+    addData->isVCam = isVCam;
 
     if (!MessageServer::sendMessage("\\\\.\\pipe\\" DSHOW_PLUGIN_ASSISTANT_NAME,
                                     &message)) {
@@ -488,10 +490,11 @@ std::vector<std::string> AkVCam::IpcBridge::listeners(const std::string &deviceI
     if (!data->status)
         return {};
 
-    message.messageId = AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER;
+    size_t nlisteners = data->nlistener;
+    message.messageId = AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER;    
     std::vector<std::string> listeners;
 
-    for (size_t i = 0; i < data->nlistener; i++) {
+    for (size_t i = 0; i < nlisteners; i++) {
         data->nlistener = i;
 
         if (!this->d->m_mainServer.sendMessage(&message))
@@ -509,98 +512,36 @@ std::vector<std::string> AkVCam::IpcBridge::listeners(const std::string &deviceI
 std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
 {
     AkLogFunction();
-    auto pluginPath = locatePluginPath();
-    AkLogDebug() << "Plugin path: " << pluginPath << std::endl;
 
-    if (pluginPath.empty())
+    Message message;
+    message.messageId = AKVCAM_ASSISTANT_MSG_CLIENTS;
+    message.dataSize = sizeof(MsgClients);
+    auto data = messageData<MsgClients>(&message);
+
+    if (!this->d->m_mainServer.sendMessage(&message))
         return {};
 
-    std::vector<std::string> plugins;
-
-    // First check for the existence of the main plugin binary.
-    auto path = pluginPath + "\\" DSHOW_PLUGIN_NAME ".dll";
-    AkLogDebug() << "Plugin binary: " << path << std::endl;
-
-    if (fileExists(path))
-        plugins.push_back(path);
-
-    // Check if the alternative architecture plugin exists.
-    auto altPlugin = this->d->alternativePlugin();
-
-    if (!altPlugin.empty())
-        plugins.push_back(path);
-
-    if (plugins.empty())
+    if (!data->status)
         return {};
 
+    auto currentPid = GetCurrentProcessId();
+    size_t nclients = data->nclient;
+    message.messageId = AKVCAM_ASSISTANT_MSG_CLIENT;
     std::vector<uint64_t> pids;
 
-    const DWORD nElements = 4096;
-    DWORD process[nElements];
-    memset(process, 0, nElements * sizeof(DWORD));
-    DWORD needed = 0;
+    for (size_t i = 0; i < nclients; i++) {
+        data->nclient = i;
 
-    if (!EnumProcesses(process, nElements * sizeof(DWORD), &needed))
-        return {};
-
-    size_t nProcess = needed / sizeof(DWORD);
-    auto currentPid = GetCurrentProcessId();
-
-    for (size_t i = 0; i < nProcess; i++) {
-        auto processHnd = OpenProcess(PROCESS_QUERY_INFORMATION
-                                      | PROCESS_VM_READ,
-                                      FALSE,
-                                      process[i]);
-
-        if (!processHnd)
+        if (!this->d->m_mainServer.sendMessage(&message))
             continue;
 
-        char processName[MAX_PATH];
-        memset(&processName, 0, sizeof(MAX_PATH));
+        if (!data->status)
+            continue;
 
-        if (GetModuleBaseNameA(processHnd,
-                               nullptr,
-                               processName,
-                               MAX_PATH))
-            AkLogDebug() << "Enumerating modules for '" << processName << "'" << std::endl;
+        if (data->pid == currentPid)
+            continue;
 
-        HMODULE modules[nElements];
-        memset(modules, 0, nElements * sizeof(HMODULE));
-
-        if (EnumProcessModules(processHnd,
-                               modules,
-                               nElements * sizeof(HMODULE),
-                               &needed)) {
-            size_t nModules =
-                    std::min<DWORD>(needed / sizeof(HMODULE), nElements);
-
-            for (size_t j = 0; j < nModules; j++) {
-                CHAR moduleName[MAX_PATH];
-                memset(moduleName, 0, MAX_PATH * sizeof(CHAR));
-
-                if (GetModuleFileNameExA(processHnd,
-                                         modules[j],
-                                         moduleName,
-                                         MAX_PATH)) {
-                    auto it = std::find(plugins.begin(),
-                                        plugins.end(),
-                                        moduleName);
-
-                    if (it != plugins.end()) {
-                        auto pidsIt = std::find(pids.begin(),
-                                                pids.end(),
-                                                process[i]);
-
-                        if (process[i] > 0
-                            && pidsIt == pids.end()
-                            && process[i] != currentPid)
-                            pids.push_back(process[i]);
-                    }
-                }
-            }
-        }
-
-        CloseHandle(processHnd);
+        pids.push_back(data->pid);
     }
 
     return pids;
@@ -873,6 +814,26 @@ bool AkVCam::IpcBridge::removeListener(const std::string &deviceId)
         return false;
 
     return data->status;
+}
+
+bool AkVCam::IpcBridge::isBusyFor(const std::string &operation) const
+{
+    static const std::vector<std::string> operations {
+        "add-device",
+        "add-format",
+        "load",
+        "remove-device",
+        "remove-devices",
+        "remove-format",
+        "remove-formats",
+        "set-description",
+        "update",
+        "hack"
+    };
+
+    auto it = std::find(operations.begin(), operations.end(), operation);
+
+    return it != operations.end() && !this->clientsPids().empty();
 }
 
 bool AkVCam::IpcBridge::needsRoot(const std::string &operation) const
