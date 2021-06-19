@@ -191,6 +191,10 @@ AkVCam::CmdParser::CmdParser()
                      "DESCRIPTION",
                      "Add a new device.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::addDevice));
+    this->addFlags("add-device",
+                   {"-i", "--id"},
+                   "DEVICEID",
+                   "Create device as DEVICEID.");
     this->addCommand("remove-device",
                      "DEVICE",
                      "Remove a device.",
@@ -843,6 +847,8 @@ int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,
     if (devices.empty())
         return 0;
 
+    std::sort(devices.begin(), devices.end());
+
     if (this->m_parseable) {
         for (auto &device: devices)
             std::cout << device << std::endl;
@@ -875,7 +881,8 @@ int AkVCam::CmdParserPrivate::addDevice(const StringMap &flags,
         return -1;
     }
 
-    auto deviceId = this->m_ipcBridge.addDevice(args[1]);
+    auto deviceId = this->flagValue(flags, "add-device", "-i");
+    deviceId = this->m_ipcBridge.addDevice(args[1], deviceId);
 
     if (deviceId.empty()) {
         std::cerr << "Failed to create device." << std::endl;

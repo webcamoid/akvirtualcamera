@@ -285,10 +285,20 @@ void AkVCam::Preferences::sync()
                              kCFPreferencesAnyHost);
 }
 
-std::string AkVCam::Preferences::addDevice(const std::string &description)
+std::string AkVCam::Preferences::addDevice(const std::string &description,
+                                           const std::string &deviceId)
 {
     AkLogFunction();
-    auto path = createDevicePath();
+    std::string path;
+
+    if (deviceId.empty())
+        path = createDevicePath();
+    else if (!idDeviceIdTaken(deviceId))
+        path = deviceId;
+
+    if (path.empty())
+        return {};
+
     int cameraIndex = readInt("cameras");
     write("cameras", cameraIndex + 1);
     write("cameras."
@@ -388,6 +398,21 @@ size_t AkVCam::Preferences::camerasCount()
     return size_t(nCameras);
 }
 
+bool AkVCam::Preferences::idDeviceIdTaken(const std::string &deviceId)
+{
+    AkLogFunction();
+
+    // List device paths in use.
+    std::vector<std::string> cameraPaths;
+
+    for (size_t i = 0; i < camerasCount(); i++)
+        cameraPaths.push_back(cameraPath(i));
+
+    return std::find(cameraPaths.begin(),
+                     cameraPaths.end(),
+                     deviceId) != cameraPaths.end();
+}
+
 std::string AkVCam::Preferences::createDevicePath()
 {
     AkLogFunction();
@@ -401,7 +426,7 @@ std::string AkVCam::Preferences::createDevicePath()
     const int maxId = 64;
 
     for (int i = 0; i < maxId; i++) {
-        /* There are no rules for device paths in Windows. Just append an
+        /* There are no rules for device paths in Mac. Just append an
          * incremental index to a common prefix.
          */
         auto path = CMIO_PLUGIN_DEVICE_PREFIX + std::to_string(i);

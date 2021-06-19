@@ -295,7 +295,7 @@ void AkVCam::Pin::frameReady(const VideoFrame &frame)
 void AkVCam::Pin::setPicture(const std::string &picture)
 {
     AkLogFunction();
-    AkLogDebug() << "Picture: " << picture;
+    AkLogDebug() << "Picture: " << picture << std::endl;
     this->d->m_testFrame = loadPicture(picture);
     this->d->updateTestFrame();
     this->d->m_mutex.lock();

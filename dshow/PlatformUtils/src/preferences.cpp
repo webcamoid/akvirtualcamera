@@ -223,10 +223,16 @@ bool AkVCam::Preferences::move(const std::string &keyFrom,
     return ok;
 }
 
-std::string AkVCam::Preferences::addDevice(const std::string &description)
+std::string AkVCam::Preferences::addDevice(const std::string &description,
+                                           const std::string &deviceId)
 {
     AkLogFunction();
-    auto path = createDevicePath();
+    std::string path;
+
+    if (deviceId.empty())
+        path = createDevicePath();
+    else if (!idDeviceIdTaken(deviceId))
+        path = deviceId;
 
     if (path.empty())
         return {};
@@ -334,6 +340,26 @@ size_t AkVCam::Preferences::camerasCount()
     AkLogInfo() << "Cameras: " << nCameras << std::endl;
 
     return size_t(nCameras);
+}
+
+bool AkVCam::Preferences::idDeviceIdTaken(const std::string &deviceId)
+{
+    AkLogFunction();
+
+    // List device paths in use.
+    std::vector<std::string> cameraPaths;
+
+    for (size_t i = 0; i < camerasCount(); i++)
+        cameraPaths.push_back(cameraPath(i));
+
+    // List device CLSIDs in use.
+    auto cameraClsids = listAllCameras();
+
+    auto clsid = createClsidFromStr(deviceId);
+    auto pit = std::find(cameraPaths.begin(), cameraPaths.end(), deviceId);
+    auto cit = std::find(cameraClsids.begin(), cameraClsids.end(), clsid);
+
+    return pit != cameraPaths.end() || cit != cameraClsids.end();
 }
 
 std::string AkVCam::Preferences::createDevicePath()

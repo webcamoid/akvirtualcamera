@@ -55,7 +55,8 @@ namespace AkVCam
         bool move(const std::string &keyFrom,
                   const std::string &keyTo,
                   bool global=false);
-        std::string addDevice(const std::string &description);
+        std::string addDevice(const std::string &description,
+                              const std::string &deviceId);
         std::string addCamera(const std::string &description,
                               const std::vector<VideoFormat> &formats);
         std::string addCamera(const std::string &path,
@@ -63,6 +64,7 @@ namespace AkVCam
                               const std::vector<VideoFormat> &formats);
         bool removeCamera(const std::string &path);
         size_t camerasCount();
+        bool idDeviceIdTaken(const std::string &deviceId);
         std::string createDevicePath();
         int cameraFromCLSID(const CLSID &clsid);
         int cameraFromPath(const std::string &path);

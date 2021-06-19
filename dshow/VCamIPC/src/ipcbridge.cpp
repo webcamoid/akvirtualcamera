@@ -568,11 +568,12 @@ std::string AkVCam::IpcBridge::clientExe(uint64_t pid) const
     return exe;
 }
 
-std::string AkVCam::IpcBridge::addDevice(const std::string &description)
+std::string AkVCam::IpcBridge::addDevice(const std::string &description,
+                                         const std::string &deviceId)
 {
     AkLogFunction();
 
-    return Preferences::addDevice(description);
+    return Preferences::addDevice(description, deviceId);
 }
 
 void AkVCam::IpcBridge::removeDevice(const std::string &deviceId)
