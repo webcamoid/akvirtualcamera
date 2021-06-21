@@ -122,7 +122,7 @@ namespace AkVCam
             void listenerRemove (Message *message);
 
             bool isRoot() const;
-            int sudo(const std::vector<std::string> &parameters,
+            int exec(const std::vector<std::string> &parameters,
                      const std::string &directory={},
                      bool show=false);
             std::string assistant() const;
@@ -313,7 +313,7 @@ std::vector<std::string> AkVCam::IpcBridge::devices() const
     AkLogInfo() << "Devices:" << std::endl;
 
     for (size_t i = 0; i < nCameras; i++) {
-        auto deviceId = Preferences::cameraPath(i);
+        auto deviceId = Preferences::cameraId(i);
         devices.push_back(deviceId);
         AkLogInfo() << "    " << deviceId << std::endl;
     }
@@ -324,7 +324,7 @@ std::vector<std::string> AkVCam::IpcBridge::devices() const
 std::string AkVCam::IpcBridge::description(const std::string &deviceId) const
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex < 0)
         return {};
@@ -336,7 +336,7 @@ void AkVCam::IpcBridge::setDescription(const std::string &deviceId,
                                        const std::string &description)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex >= 0)
         Preferences::cameraSetDescription(size_t(cameraIndex), description);
@@ -368,7 +368,7 @@ AkVCam::PixelFormat AkVCam::IpcBridge::defaultPixelFormat(StreamType type) const
 std::vector<AkVCam::VideoFormat> AkVCam::IpcBridge::formats(const std::string &deviceId) const
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex < 0)
         return {};
@@ -380,7 +380,7 @@ void AkVCam::IpcBridge::setFormats(const std::string &deviceId,
                                    const std::vector<VideoFormat> &formats)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex >= 0)
         Preferences::cameraSetFormats(size_t(cameraIndex), formats);
@@ -415,7 +415,7 @@ std::string AkVCam::IpcBridge::broadcaster(const std::string &deviceId) const
 std::vector<AkVCam::DeviceControl> AkVCam::IpcBridge::controls(const std::string &deviceId)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex < 0)
         return {};
@@ -435,7 +435,7 @@ void AkVCam::IpcBridge::setControls(const std::string &deviceId,
                                     const std::map<std::string, int> &controls)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex < 0)
         return;
@@ -588,7 +588,7 @@ void AkVCam::IpcBridge::addFormat(const std::string &deviceId,
                                   int index)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex >= 0)
         Preferences::cameraAddFormat(size_t(cameraIndex),
@@ -599,7 +599,7 @@ void AkVCam::IpcBridge::addFormat(const std::string &deviceId,
 void AkVCam::IpcBridge::removeFormat(const std::string &deviceId, int index)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex >= 0)
         Preferences::cameraRemoveFormat(size_t(cameraIndex),
@@ -643,7 +643,7 @@ void AkVCam::IpcBridge::updateDevices()
                 auto altManager = this->d->alternativeManager();
 
                 if (!altManager.empty())
-                    this->d->sudo({altManager, "update"});
+                    this->d->exec({altManager, "update"});
 
                 DeleteFileA(lockFileName.c_str());
             }
@@ -857,17 +857,6 @@ bool AkVCam::IpcBridge::needsRoot(const std::string &operation) const
     return it != operations.end() && !this->d->isRoot();
 }
 
-int AkVCam::IpcBridge::sudo(int argc, char **argv) const
-{
-    AkLogFunction();
-    std::vector<std::string> arguments;
-
-    for (int i = 0; i < argc; i++)
-        arguments.push_back(argv[i]);
-
-    return this->d->sudo(arguments);
-}
-
 std::vector<std::string> AkVCam::IpcBridge::hacks() const
 {
     std::vector<std::string> hacks;
@@ -978,16 +967,16 @@ void AkVCam::IpcBridgePrivate::updateDeviceSharedProperties()
     AkLogFunction();
 
     for (size_t i = 0; i < Preferences::camerasCount(); i++) {
-        auto path = Preferences::cameraPath(i);
+        auto deviceId = Preferences::cameraId(i);
         Message message;
         message.messageId = AKVCAM_ASSISTANT_MSG_DEVICE_BROADCASTING;
         message.dataSize = sizeof(MsgBroadcasting);
         auto data = messageData<MsgBroadcasting>(&message);
         memcpy(data->device,
-               path.c_str(),
-               (std::min<size_t>)(path.size(), MAX_STRING));
+               deviceId.c_str(),
+               (std::min<size_t>)(deviceId.size(), MAX_STRING));
         this->m_mainServer.sendMessage(&message);
-        this->updateDeviceSharedProperties(path,
+        this->updateDeviceSharedProperties(deviceId,
                                            std::string(data->broadcaster));
     }
 }
@@ -1120,7 +1109,7 @@ void AkVCam::IpcBridgePrivate::deviceUpdate(Message *message)
     auto nCameras = Preferences::camerasCount();
 
     for (size_t i = 0; i < nCameras; i++)
-        devices.push_back(Preferences::cameraPath(i));
+        devices.push_back(Preferences::cameraId(i));
 
     AKVCAM_EMIT(this->self, DevicesChanged, devices)
 }
@@ -1174,7 +1163,7 @@ void AkVCam::IpcBridgePrivate::controlsUpdated(Message *message)
     AkLogFunction();
     auto data = messageData<MsgControlsUpdated>(message);
     std::string deviceId(data->device);
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex < 0)
         return;
@@ -1237,7 +1226,7 @@ bool AkVCam::IpcBridgePrivate::isRoot() const
     return elevationInfo.TokenIsElevated;
 }
 
-int AkVCam::IpcBridgePrivate::sudo(const std::vector<std::string> &parameters,
+int AkVCam::IpcBridgePrivate::exec(const std::vector<std::string> &parameters,
                                    const std::string &directory,
                                    bool show)
 {
@@ -1276,7 +1265,7 @@ int AkVCam::IpcBridgePrivate::sudo(const std::vector<std::string> &parameters,
     execInfo.cbSize = sizeof(SHELLEXECUTEINFO);
     execInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
     execInfo.hwnd = nullptr;
-    execInfo.lpVerb = "runas";
+    execInfo.lpVerb = "";
     execInfo.lpFile = command.data();
     execInfo.lpParameters = params.data();
     execInfo.lpDirectory = directory.data();
@@ -1454,30 +1443,41 @@ int AkVCam::IpcBridgePrivate::setServiceUp(const std::vector<std::string> &args)
         if (assistant.empty())
             return -1;
 
-        auto result = this->sudo({assistant, "--install"});
+        auto result = this->exec({assistant, "--install"});
 
         if (result < 0)
             return result;
     }
 
     // Start the service.
-    bool result = false;
-    auto manager = OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT);
 
-    if (manager) {
-        auto service = OpenService(manager,
-                                   TEXT(DSHOW_PLUGIN_ASSISTANT_NAME),
-                                   SERVICE_START);
+    if (!this->isServiceRunning()) {
+        bool result = false;
+        auto manager = OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT);
 
-        if (service) {
-            result = StartService(service, 0, nullptr);
-            CloseServiceHandle(service);
+        if (manager) {
+            auto service = OpenService(manager,
+                                       TEXT(DSHOW_PLUGIN_ASSISTANT_NAME),
+                                       SERVICE_START);
+
+            if (service) {
+                result = StartService(service, 0, nullptr);
+                CloseServiceHandle(service);
+            }
+
+            CloseServiceHandle(manager);
         }
 
-        CloseServiceHandle(manager);
+        if (!result)
+            return -1;
     }
 
-    return result? 0: -1;
+    auto pluginPath = locatePluginPath();
+    bool ok = Preferences::write("installPath",
+                                 realPath(pluginPath + "\\.."),
+                                 true);
+
+    return ok? 0: -1;
 }
 
 int AkVCam::IpcBridgePrivate::setServiceDown(const std::vector<std::string> &args)
@@ -1526,7 +1526,7 @@ int AkVCam::IpcBridgePrivate::setServiceDown(const std::vector<std::string> &arg
 
     // Unistall the service.
 
-    return this->sudo({servicePath, "--uninstall"});
+    return this->exec({servicePath, "--uninstall"});
 }
 
 AkVCam::Hack::Hack()

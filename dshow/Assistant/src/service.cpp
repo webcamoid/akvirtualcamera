@@ -503,7 +503,7 @@ void AkVCam::ServicePrivate::devicesUpdate(AkVCam::Message *message)
     DeviceConfigs configs;
 
     for (size_t i = 0; i < Preferences::camerasCount(); i++) {
-        auto device = Preferences::cameraPath(i);
+        auto device = Preferences::cameraId(i);
 
         if (this->m_deviceConfigs.count(device) > 0)
             configs[device] = this->m_deviceConfigs[device];

@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <codecvt>
@@ -387,7 +388,7 @@ int AkVCam::CmdParser::parse(int argc, char **argv)
                               << "'"
                               << std::endl;
 
-                return -1;
+                return -EINVAL;
             }
 
             std::string value;
@@ -421,7 +422,7 @@ int AkVCam::CmdParser::parse(int argc, char **argv)
                 } else {
                     std::cout << "Unknown command '" << arg << "'" << std::endl;
 
-                    return -1;
+                    return -EINVAL;
                 }
             } else {
                 arguments.push_back(arg);
@@ -451,14 +452,17 @@ int AkVCam::CmdParser::parse(int argc, char **argv)
             this->d->drawTable(table, columns, true);
         }
 
-        return -1;
+        return -EBUSY;
     }
 
     if (this->d->m_ipcBridge.needsRoot(command->command)
         || (command->command == "hack"
             && arguments.size() >= 2
-            && this->d->m_ipcBridge.hackNeedsRoot(arguments[1])))
-        return this->d->m_ipcBridge.sudo(argc, argv);
+            && this->d->m_ipcBridge.hackNeedsRoot(arguments[1]))) {
+        std::cerr << "You must run this command with administrator privileges." << std::endl;
+
+        return -EPERM;
+    }
 
     return command->func(flags, arguments);
 }
@@ -878,7 +882,7 @@ int AkVCam::CmdParserPrivate::addDevice(const StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Device description not provided." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = this->flagValue(flags, "add-device", "-i");
@@ -887,7 +891,7 @@ int AkVCam::CmdParserPrivate::addDevice(const StringMap &flags,
     if (deviceId.empty()) {
         std::cerr << "Failed to create device." << std::endl;
 
-        return -1;
+        return -EIO;
     }
 
     if (this->m_parseable)
@@ -906,7 +910,7 @@ int AkVCam::CmdParserPrivate::removeDevice(const StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Device not provided." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -916,7 +920,7 @@ int AkVCam::CmdParserPrivate::removeDevice(const StringMap &flags,
     if (it == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     this->m_ipcBridge.removeDevice(args[1]);
@@ -945,7 +949,7 @@ int AkVCam::CmdParserPrivate::showDeviceDescription(const StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Device not provided." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -955,7 +959,7 @@ int AkVCam::CmdParserPrivate::showDeviceDescription(const StringMap &flags,
     if (it == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     std::cout << this->m_ipcBridge.description(args[1]) << std::endl;
@@ -971,7 +975,7 @@ int AkVCam::CmdParserPrivate::setDeviceDescription(const AkVCam::StringMap &flag
     if (args.size() < 3) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -981,7 +985,7 @@ int AkVCam::CmdParserPrivate::setDeviceDescription(const AkVCam::StringMap &flag
     if (dit == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     this->m_ipcBridge.setDescription(deviceId, args[2]);
@@ -1038,7 +1042,7 @@ int AkVCam::CmdParserPrivate::showFormats(const StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Device not provided." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -1048,7 +1052,7 @@ int AkVCam::CmdParserPrivate::showFormats(const StringMap &flags,
     if (it == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     if (this->m_parseable) {
@@ -1093,7 +1097,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
     if (args.size() < 6) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -1103,7 +1107,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
     if (dit == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     auto format = VideoFormat::fourccFromString(args[2]);
@@ -1111,7 +1115,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
     if (!format) {
         std::cerr << "Invalid pixel format." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto formats =
@@ -1121,7 +1125,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
     if (fit == formats.end()) {
         std::cerr << "Format not supported." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     char *p = nullptr;
@@ -1130,7 +1134,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
     if (*p) {
         std::cerr << "Width must be an unsigned integer." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     p = nullptr;
@@ -1139,7 +1143,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
     if (*p) {
         std::cerr << "Height must be an unsigned integer." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     Fraction fps(args[5]);
@@ -1147,7 +1151,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
     if (fps.num() < 1 || fps.den() < 1) {
         std::cerr << "Invalid frame rate." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto indexStr = this->flagValue(flags, "add-format", "-i");
@@ -1160,7 +1164,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
         if (*p) {
             std::cerr << "Index must be an unsigned integer." << std::endl;
 
-            return -1;
+            return -EINVAL;
         }
     }
 
@@ -1178,7 +1182,7 @@ int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
     if (args.size() < 3) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -1188,7 +1192,7 @@ int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
     if (dit == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     char *p = nullptr;
@@ -1197,7 +1201,7 @@ int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
     if (*p) {
         std::cerr << "Index must be an unsigned integer." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto formats = this->m_ipcBridge.formats(deviceId);
@@ -1205,7 +1209,7 @@ int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
     if (index >= formats.size()) {
         std::cerr << "Index is out of range." << std::endl;
 
-        return -1;
+        return -ERANGE;
     }
 
     this->m_ipcBridge.removeFormat(deviceId, int(index));
@@ -1221,7 +1225,7 @@ int AkVCam::CmdParserPrivate::removeFormats(const AkVCam::StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -1231,7 +1235,7 @@ int AkVCam::CmdParserPrivate::removeFormats(const AkVCam::StringMap &flags,
     if (dit == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     this->m_ipcBridge.setFormats(deviceId, {});
@@ -1257,7 +1261,7 @@ int AkVCam::CmdParserPrivate::loadSettings(const AkVCam::StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Settings file not provided." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     Settings settings;
@@ -1265,7 +1269,7 @@ int AkVCam::CmdParserPrivate::loadSettings(const AkVCam::StringMap &flags,
     if (!settings.load(args[1])) {
         std::cerr << "Settings file not valid." << std::endl;
 
-        return -1;
+        return -EIO;
     }
 
     this->loadGenerals(settings);
@@ -1287,7 +1291,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     if (args.size() < 5) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -1297,7 +1301,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     if (dit == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     auto format = VideoFormat::fourccFromString(args[2]);
@@ -1305,7 +1309,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     if (!format) {
         std::cerr << "Invalid pixel format." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto formats =
@@ -1315,7 +1319,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     if (fit == formats.end()) {
         std::cerr << "Format not supported." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     char *p = nullptr;
@@ -1324,7 +1328,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     if (*p) {
         std::cerr << "Width must be an unsigned integer." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     p = nullptr;
@@ -1333,7 +1337,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     if (*p) {
         std::cerr << "Height must be an unsigned integer." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto fpsStr = this->flagValue(flags, "stream", "-f");
@@ -1347,7 +1351,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
             if (!Fraction::isFraction(fpsStr)) {
                 std::cerr << "The framerate must be a number or a fraction." << std::endl;
 
-                return -1;
+                return -EINVAL;
             }
 
             fps = Fraction(fpsStr).value();
@@ -1356,7 +1360,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
         if (fps <= 0 || std::isinf(fps)) {
             std::cerr << "The framerate is out of range." << std::endl;
 
-            return -1;
+            return -ERANGE;
         }
     }
 
@@ -1365,7 +1369,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     if (!this->m_ipcBridge.deviceStart(deviceId, fmt)) {
         std::cerr << "Can't start stream." << std::endl;
 
-        return -1;
+        return -EIO;
     }
 
     static bool exit = false;
@@ -1497,7 +1501,7 @@ int AkVCam::CmdParserPrivate::showControls(const StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Device not provided." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -1507,7 +1511,7 @@ int AkVCam::CmdParserPrivate::showControls(const StringMap &flags,
     if (dit == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     if (this->m_parseable) {
@@ -1551,7 +1555,7 @@ int AkVCam::CmdParserPrivate::readControl(const StringMap &flags,
     if (args.size() < 3) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -1561,7 +1565,7 @@ int AkVCam::CmdParserPrivate::readControl(const StringMap &flags,
     if (dit == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     for (auto &control: this->m_ipcBridge.controls(deviceId))
@@ -1611,7 +1615,7 @@ int AkVCam::CmdParserPrivate::readControl(const StringMap &flags,
 
     std::cerr << "'" << args[2] << "' control not available." << std::endl;
 
-    return -1;
+    return -ENOSYS;
 }
 
 int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
@@ -1622,7 +1626,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
     if (args.size() < 3) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto deviceId = args[1];
@@ -1632,7 +1636,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
     if (dit == devices.end()) {
         std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
 
-        return -1;
+        return -ENODEV;
     }
 
     std::map<std::string, int> controls;
@@ -1644,7 +1648,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                       << " is not in the form KEY=VALUE."
                       << std::endl;
 
-            return -1;
+            return -EINVAL;
         }
 
         auto pair = splitOnce(args[i], "=");
@@ -1655,7 +1659,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                       << " is emty."
                       << std::endl;
 
-            return -1;
+            return -EINVAL;
         }
 
         auto key = trimmed(pair.first);
@@ -1675,7 +1679,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                                       << " must be an integer."
                                       << std::endl;
 
-                            return -1;
+                            return -EINVAL;
                         }
 
                         controls[key] = val;
@@ -1702,7 +1706,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                                       << " must be a boolean."
                                       << std::endl;
 
-                            return -1;
+                            return -EINVAL;
                         }
 
                         break;
@@ -1723,7 +1727,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                                           << " is not valid."
                                           << std::endl;
 
-                                return -1;
+                                return -EINVAL;
                             }
 
                             controls[key] = int(it - control.menu.begin());
@@ -1734,7 +1738,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                                           << " is out of range."
                                           << std::endl;
 
-                                return -1;
+                                return -ERANGE;
                             }
 
                             controls[key] = int(val);
@@ -1760,7 +1764,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                       << "."
                       << std::endl;
 
-            return -1;
+            return -ENOSYS;
         }
     }
 
@@ -1788,7 +1792,7 @@ int AkVCam::CmdParserPrivate::setPicture(const AkVCam::StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     this->m_ipcBridge.setPicture(args[1]);
@@ -1820,7 +1824,7 @@ int AkVCam::CmdParserPrivate::setLogLevel(const AkVCam::StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto levelStr = args[1];
@@ -2103,7 +2107,7 @@ int AkVCam::CmdParserPrivate::hackInfo(const AkVCam::StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto hack = args[1];
@@ -2113,7 +2117,7 @@ int AkVCam::CmdParserPrivate::hackInfo(const AkVCam::StringMap &flags,
     if (dit == hacks.end()) {
         std::cerr << "Unknown hack: " << hack << "." << std::endl;
 
-        return -1;
+        return -ENOSYS;
     }
 
     if (this->containsFlag(flags, "hack-info", "-c"))
@@ -2135,7 +2139,7 @@ int AkVCam::CmdParserPrivate::hack(const AkVCam::StringMap &flags,
     if (args.size() < 2) {
         std::cerr << "Not enough arguments." << std::endl;
 
-        return -1;
+        return -EINVAL;
     }
 
     auto hack = args[1];
@@ -2145,7 +2149,7 @@ int AkVCam::CmdParserPrivate::hack(const AkVCam::StringMap &flags,
     if (dit == hacks.end()) {
         std::cerr << "Unknown hack: " << hack << "." << std::endl;
 
-        return -1;
+        return -ENOSYS;
     }
 
     bool accepted = this->m_parseable | this->m_ipcBridge.hackIsSafe(hack);
@@ -2176,7 +2180,7 @@ int AkVCam::CmdParserPrivate::hack(const AkVCam::StringMap &flags,
     if (!accepted) {
         std::cerr << "Hack not applied." << std::endl;
 
-        return -1;
+        return -EIO;
     }
 
     StringVector hargs;
@@ -2346,7 +2350,8 @@ void AkVCam::CmdParserPrivate::createDevice(Settings &settings,
         return;
     }
 
-    auto deviceId = this->m_ipcBridge.addDevice(description);
+    auto deviceId = settings.value("id");
+    deviceId = this->m_ipcBridge.addDevice(description, deviceId);
     auto supportedFormats =
             this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamTypeOutput);
 

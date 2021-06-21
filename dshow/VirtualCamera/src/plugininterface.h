@@ -44,7 +44,7 @@ namespace AkVCam
                                 const std::string &description) const;
             void unregisterFilter(const std::string &deviceId) const;
             void unregisterFilter(const CLSID &clsid) const;
-            bool setDevicePath(const std::string &deviceId) const;
+            bool setDeviceId(const std::string &deviceId) const;
             bool createDevice(const std::string &deviceId,
                               const std::string &description);
             void destroyDevice(const std::string &deviceId);

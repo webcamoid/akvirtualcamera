@@ -160,7 +160,7 @@ std::string AkVCam::BaseFilter::deviceId()
     if (cameraIndex < 0)
         return {};
 
-    return Preferences::cameraPath(size_t(cameraIndex));
+    return Preferences::cameraId(size_t(cameraIndex));
 }
 
 std::string AkVCam::BaseFilter::broadcaster()
@@ -363,12 +363,12 @@ void AkVCam::BaseFilter::stateChanged(FILTER_STATE state)
     if (cameraIndex < 0)
         return;
 
-    auto path = Preferences::cameraPath(size_t(cameraIndex));
+    auto deviceId = Preferences::cameraId(size_t(cameraIndex));
 
     if (state == State_Running)
-        this->d->m_ipcBridge.addListener(path);
+        this->d->m_ipcBridge.addListener(deviceId);
     else
-        this->d->m_ipcBridge.removeListener(path);
+        this->d->m_ipcBridge.removeListener(deviceId);
 }
 
 AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self,
@@ -417,9 +417,9 @@ IEnumPins *AkVCam::BaseFilterPrivate::pinsForDevice(const std::string &deviceId)
     if (cameraIndex < 0)
         return nullptr;
 
-    auto path = Preferences::cameraPath(size_t(cameraIndex));
+    auto id = Preferences::cameraId(size_t(cameraIndex));
 
-    if (path.empty() || path != deviceId)
+    if (id.empty() || id != deviceId)
         return nullptr;
 
     IEnumPins *pins = nullptr;
@@ -437,20 +437,20 @@ void AkVCam::BaseFilterPrivate::updatePins()
     if (cameraIndex < 0)
         return;
 
-    auto path = Preferences::cameraPath(size_t(cameraIndex));
+    auto deviceId = Preferences::cameraId(size_t(cameraIndex));
 
-    auto broadcaster = this->m_ipcBridge.broadcaster(path);
-    AkVCamDevicePinCall(path,
+    auto broadcaster = this->m_ipcBridge.broadcaster(deviceId);
+    AkVCamDevicePinCall(deviceId,
                         this,
                         setBroadcasting,
                         broadcaster)
-    auto controlsList = this->m_ipcBridge.controls(path);
+    auto controlsList = this->m_ipcBridge.controls(deviceId);
     std::map<std::string, int> controls;
 
     for (auto &control: controlsList)
         controls[control.id] = control.value;
 
-    AkVCamDevicePinCall(path, this, setControls, controls)
+    AkVCamDevicePinCall(deviceId, this, setControls, controls)
 }
 
 void AkVCam::BaseFilterPrivate::serverStateChanged(void *userData,

@@ -340,7 +340,7 @@ std::vector<std::string> AkVCam::IpcBridge::devices() const
     AkLogInfo() << "Devices:" << std::endl;
 
     for (size_t i = 0; i < nCameras; i++) {
-        auto deviceId = Preferences::cameraPath(i);
+        auto deviceId = Preferences::cameraId(i);
         devices.push_back(deviceId);
         AkLogInfo() << "    " << deviceId << std::endl;
     }
@@ -351,7 +351,7 @@ std::vector<std::string> AkVCam::IpcBridge::devices() const
 std::string AkVCam::IpcBridge::description(const std::string &deviceId) const
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex < 0)
         return {};
@@ -363,7 +363,7 @@ void AkVCam::IpcBridge::setDescription(const std::string &deviceId,
                                        const std::string &description)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex >= 0)
         Preferences::cameraSetDescription(size_t(cameraIndex), description);
@@ -392,7 +392,7 @@ AkVCam::PixelFormat AkVCam::IpcBridge::defaultPixelFormat(StreamType type) const
 std::vector<AkVCam::VideoFormat> AkVCam::IpcBridge::formats(const std::string &deviceId) const
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex < 0)
         return {};
@@ -403,7 +403,7 @@ std::vector<AkVCam::VideoFormat> AkVCam::IpcBridge::formats(const std::string &d
 void AkVCam::IpcBridge::setFormats(const std::string &deviceId,
                                    const std::vector<VideoFormat> &formats)
 {
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex >= 0)
         Preferences::cameraSetFormats(size_t(cameraIndex), formats);
@@ -442,7 +442,7 @@ std::string AkVCam::IpcBridge::broadcaster(const std::string &deviceId) const
 std::vector<AkVCam::DeviceControl> AkVCam::IpcBridge::controls(const std::string &deviceId)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex < 0)
         return {};
@@ -462,7 +462,7 @@ void AkVCam::IpcBridge::setControls(const std::string &deviceId,
                                     const std::map<std::string, int> &controls)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex < 0)
         return;
@@ -602,7 +602,7 @@ void AkVCam::IpcBridge::addFormat(const std::string &deviceId,
                                   int index)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex >= 0)
         Preferences::cameraAddFormat(size_t(cameraIndex),
@@ -613,7 +613,7 @@ void AkVCam::IpcBridge::addFormat(const std::string &deviceId,
 void AkVCam::IpcBridge::removeFormat(const std::string &deviceId, int index)
 {
     AkLogFunction();
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex >= 0)
         Preferences::cameraRemoveFormat(size_t(cameraIndex),
@@ -840,15 +840,6 @@ bool AkVCam::IpcBridge::needsRoot(const std::string &operation) const
     return it != operations.end() && !this->d->isRoot();
 }
 
-int AkVCam::IpcBridge::sudo(int argc, char **argv) const
-{
-    UNUSED(argc);
-    UNUSED(argv);
-    std::cerr << "You must run this command with administrator privileges." << std::endl;
-
-    return -1;
-}
-
 std::vector<std::string> AkVCam::IpcBridge::hacks() const
 {
     std::vector<std::string> hacks;
@@ -977,7 +968,7 @@ void AkVCam::IpcBridgePrivate::updateDevices(xpc_connection_t port, bool propaga
     auto devices = xpc_array_create(nullptr, 0);
 
     for (size_t i = 0; i < Preferences::camerasCount(); i++) {
-        auto path = Preferences::cameraPath(i);
+        auto path = Preferences::cameraId(i);
         auto pathObj = xpc_string_create(path.c_str());
         xpc_array_append_value(devices, pathObj);
         AkLogDebug() << "Device " << i << ": " << path << std::endl;
@@ -1009,7 +1000,7 @@ void AkVCam::IpcBridgePrivate::deviceUpdate(xpc_connection_t client,
     auto nCameras = Preferences::camerasCount();
 
     for (size_t i = 0; i < nCameras; i++)
-        devices.push_back(Preferences::cameraPath(i));
+        devices.push_back(Preferences::cameraId(i));
 
     for (auto bridge: this->m_bridges)
         AKVCAM_EMIT(bridge, DevicesChanged, devices)
@@ -1085,7 +1076,7 @@ void AkVCam::IpcBridgePrivate::controlsUpdated(xpc_connection_t client,
 
     std::string deviceId =
             xpc_dictionary_get_string(event, "device");
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
 
     if (cameraIndex < 0)
         return;

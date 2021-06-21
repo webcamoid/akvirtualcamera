@@ -259,7 +259,7 @@ unregisterFilter_failed:
     AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
 }
 
-bool AkVCam::PluginInterface::setDevicePath(const std::string &deviceId) const
+bool AkVCam::PluginInterface::setDeviceId(const std::string &deviceId) const
 {
     AkLogFunction();
 
@@ -279,7 +279,7 @@ bool AkVCam::PluginInterface::setDevicePath(const std::string &deviceId) const
     bool ok = false;
 
     if (result != ERROR_SUCCESS)
-        goto setDevicePath_failed;
+        goto setDeviceId_failed;
 
     result = RegSetValueExA(hKey,
                             "DevicePath",
@@ -289,11 +289,11 @@ bool AkVCam::PluginInterface::setDevicePath(const std::string &deviceId) const
                             DWORD(deviceId.size() + 1));
 
     if (result != ERROR_SUCCESS)
-        goto setDevicePath_failed;
+        goto setDeviceId_failed;
 
     ok = true;
 
-setDevicePath_failed:
+setDeviceId_failed:
     if (hKey)
         RegCloseKey(hKey);
 
@@ -313,7 +313,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
     if (!this->registerFilter(deviceId, description))
         goto createDevice_failed;
 
-    if (!this->setDevicePath(deviceId))
+    if (!this->setDeviceId(deviceId))
         goto createDevice_failed;
 
     return true;

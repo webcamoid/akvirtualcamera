@@ -45,6 +45,13 @@ Function InstallPlugin
 
         ExecShellWait "" "sc" "start AkVCamAssistant" SW_HIDE
     ${Next}
+    
+    ${If} ${RunningX64}
+        SetRegView 64
+    ${EndIf}
+
+    WriteRegStr HKLM "SOFTWARE\Webcamoid\VirtualCamera" "installPath" "$INSTDIR"
+    SetRegView default
 FunctionEnd
 
 Function un.InstallPlugin

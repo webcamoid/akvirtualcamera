@@ -387,7 +387,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
     device->connectRemoveListener(this, &PluginInterface::removeListener);
     this->m_devices.push_back(device);
 
-    auto cameraIndex = Preferences::cameraFromPath(deviceId);
+    auto cameraIndex = Preferences::cameraFromId(deviceId);
     auto hflip = Preferences::cameraControlValue(cameraIndex, "hflip");
     auto vflip = Preferences::cameraControlValue(cameraIndex, "vflip");
     auto scaling = Preferences::cameraControlValue(cameraIndex, "scaling");
@@ -493,7 +493,7 @@ void AkVCam::PluginInterfacePrivate::updateDevices()
 {
     for (auto &device: this->self->m_devices) {
         device->setBroadcasting(this->m_ipcBridge.broadcaster(device->deviceId()));
-        auto cameraIndex = Preferences::cameraFromPath(device->deviceId());
+        auto cameraIndex = Preferences::cameraFromId(device->deviceId());
         auto hflip = Preferences::cameraControlValue(cameraIndex, "hflip");
         auto vflip = Preferences::cameraControlValue(cameraIndex, "vflip");
         auto scaling = Preferences::cameraControlValue(cameraIndex, "scaling");

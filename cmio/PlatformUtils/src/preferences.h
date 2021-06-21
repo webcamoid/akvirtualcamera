@@ -55,19 +55,19 @@ namespace AkVCam
                               const std::string &deviceId);
         std::string addCamera(const std::string &description,
                               const std::vector<VideoFormat> &formats);
-        std::string addCamera(const std::string &path,
+        std::string addCamera(const std::string &deviceId,
                               const std::string &description,
                               const std::vector<VideoFormat> &formats);
-        void removeCamera(const std::string &path);
+        void removeCamera(const std::string &deviceId);
         size_t camerasCount();
         bool idDeviceIdTaken(const std::string &deviceId);
-        std::string createDevicePath();
-        int cameraFromPath(const std::string &path);
-        bool cameraExists(const std::string &path);
+        std::string createDeviceId();
+        int cameraFromId(const std::string &deviceId);
+        bool cameraExists(const std::string &deviceId);
         std::string cameraDescription(size_t cameraIndex);
         void cameraSetDescription(size_t cameraIndex,
                                   const std::string &description);
-        std::string cameraPath(size_t cameraIndex);
+        std::string cameraId(size_t cameraIndex);
         size_t formatsCount(size_t cameraIndex);
         VideoFormat cameraFormat(size_t cameraIndex, size_t formatIndex);
         std::vector<VideoFormat> cameraFormats(size_t cameraIndex);

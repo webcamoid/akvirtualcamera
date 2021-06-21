@@ -176,7 +176,6 @@ namespace AkVCam
             bool isBusyFor(const std::string &operation) const;
 
             bool needsRoot(const std::string &operation) const;
-            int sudo(int argc, char **argv) const;
 
             /* Hacks */
 

@@ -103,15 +103,15 @@ STDAPI DllRegisterServer()
 
     for (size_t i = 0; i < AkVCam::Preferences::camerasCount(); i++) {
         auto description = AkVCam::Preferences::cameraDescription(i);
-        auto path = AkVCam::Preferences::cameraPath(i);
-        auto clsid = AkVCam::createClsidFromStr(path);
+        auto deviceId = AkVCam::Preferences::cameraId(i);
+        auto clsid = AkVCam::createClsidFromStr(deviceId);
 
         AkLogInfo() << "Creating Camera" << std::endl;
         AkLogInfo() << "\tDescription: " << description << std::endl;
-        AkLogInfo() << "\tPath: " << path << std::endl;
+        AkLogInfo() << "\tID: " << deviceId << std::endl;
         AkLogInfo() << "\tCLSID: " << AkVCam::stringFromIid(clsid) << std::endl;
 
-        ok &= pluginInterface()->createDevice(path, description);
+        ok &= pluginInterface()->createDevice(deviceId, description);
     }
 
     return ok? S_OK: E_UNEXPECTED;

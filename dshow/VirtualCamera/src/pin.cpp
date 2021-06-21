@@ -112,7 +112,7 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     this->d->m_mediaTypes = new AkVCam::EnumMediaTypes(formats);
     this->d->m_mediaTypes->AddRef();
 
-    auto cameraIndex = Preferences::cameraFromPath(baseFilter->deviceId());
+    auto cameraIndex = Preferences::cameraFromId(baseFilter->deviceId());
     this->d->m_broadcaster = baseFilter->broadcaster();
     this->d->m_controls["hflip"] =
             Preferences::cameraControlValue(cameraIndex, "hflip");
