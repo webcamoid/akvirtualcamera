@@ -125,7 +125,7 @@ int main()
     }
 
     // Release the frame buffer.
-    malloc(buffer);
+    free(buffer);
 
     // Close the standard input and standard output handles.
     CloseHandle(streamProc.stdinWritePipe);

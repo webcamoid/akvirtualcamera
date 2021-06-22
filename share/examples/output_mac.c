@@ -75,7 +75,7 @@ int main()
     }
 
     // Release the frame buffer.
-    malloc(buffer);
+    free(buffer);
 
     // Stop the stream.
     pclose(proc);
