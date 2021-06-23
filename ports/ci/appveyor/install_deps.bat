@@ -22,7 +22,20 @@ setlocal
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" set PATH=C:\msys64\usr\bin;%PATH%
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
-    bash -lc "cd /c/projects/akvirtualcamera && ./ports/ci/appveyor/install_deps.sh"
+    pacman --noconfirm -Syyu ^
+        --ignore filesystem,pacman,pacman-mirrors
+    pacman --noconfirm --needed -S ^
+        cmake ^
+        git ^
+        make ^
+        pkgconf ^
+        python3 ^
+        mingw-w64-x86_64-binutils ^
+        mingw-w64-i686-binutils ^
+        mingw-w64-x86_64-cmake ^
+        mingw-w64-i686-cmake ^
+        mingw-w64-x86_64-pkgconf ^
+        mingw-w64-i686-pkgconf
 )
 
 endlocal
