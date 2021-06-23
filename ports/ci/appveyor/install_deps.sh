@@ -24,11 +24,11 @@ yes | pacman --noconfirm --needed -S \
     cmake \
     git \
     make \
-    pkg-config \
+    pkgconf \
     python3 \
     mingw-w64-x86_64-binutils \
     mingw-w64-i686-binutils \
     mingw-w64-x86_64-cmake \
     mingw-w64-i686-cmake \
-    mingw-w64-x86_64-pkg-config \
-    mingw-w64-i686-pkg-config
+    mingw-w64-x86_64-pkgconf \
+    mingw-w64-i686-pkgconf
