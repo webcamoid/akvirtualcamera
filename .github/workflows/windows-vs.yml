@@ -15,8 +15,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: ports\ci\appveyor\build.bat
+      run: ports\ci\windows-vs\build.bat
     - name: Deploy
-      run: ports\ci\appveyor\deploy.bat
+      run: ports\ci\windows-vs\deploy.bat
     - name: Upload
-      run: ports\ci\appveyor\upload.bat
+      run: ports\ci\windows-vs\upload.bat

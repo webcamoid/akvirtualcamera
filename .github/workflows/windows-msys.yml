@@ -25,8 +25,8 @@ jobs:
           mingw-w64-x86_64-pkgconf
           mingw-w64-i686-pkgconf
     - name: Build
-      run: ports/ci/appveyor/build.sh
+      run: ./ports/ci/windows-msys/build.sh
     - name: Deploy
-      run: ports/ci/appveyor/deploy.sh
+      run: ./ports/ci/windows-msys/deploy.sh
     - name: Upload
-      run: ports/ci/appveyor/upload.sh
+      run: ./ports/ci/windows-msys/upload.sh
