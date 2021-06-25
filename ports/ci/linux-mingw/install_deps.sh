@@ -106,6 +106,7 @@ EOF
 fi
 
 # Finish
+ps -aux | grep wine
 lsof | grep "root.x86_64/$HOME"
 lsof | grep root.x86_64
 
