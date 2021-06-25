@@ -29,9 +29,6 @@ set PACKAGES_DIR=%SOURCES_DIR%\webcamoid-packages
 
 git clone https://github.com/webcamoid/DeployTools.git
 
-C:\msys64\mingw32\bin\strip.exe "%INSTALL_PREFIX%"\x86\*
-C:\msys64\mingw64\bin\strip.exe "%INSTALL_PREFIX%"\x64\*
-
 set PYTHONPATH=%cd%\DeployTools
 set BUILD_PATH=%cd%\build-x64
 %PYTHON_PATH%\python.exe DeployTools\deploy.py ^

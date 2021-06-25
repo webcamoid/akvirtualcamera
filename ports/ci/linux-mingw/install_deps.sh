@@ -106,5 +106,8 @@ EOF
 fi
 
 # Finish
+lsof | grep "root.x86_64/$HOME"
+lsof | grep root.x86_64
+
 sudo umount "root.x86_64/$HOME"
 sudo umount root.x86_64
