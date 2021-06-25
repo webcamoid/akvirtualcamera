@@ -30,7 +30,7 @@ mkdir build-x64
 cd build-x64
 
 export PATH=/c/msys64/mingw64/bin:/c/msys64/usr/bin:${ORIG_PATH}
-cmake ^
+cmake \
     -G "MSYS Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
@@ -48,7 +48,7 @@ mkdir build-x86
 cd build-x86
 
 export PATH=/c/msys64/mingw32/bin:/c/msys64/usr/bin:${ORIG_PATH}
-cmake ^
+cmake \
     -G "MSYS Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \

@@ -28,7 +28,7 @@ if not "%USE_WGET%" == "" (
 set upload=
 if not "%DAILY_BUILD%" == "" set upload=true
 if not "%RELEASE_BUILD%" == "" set upluad=true
-if defined upload (
+if "%upload%" == "true" (
     REM Upload to Github Releases
     set hub=hub-windows-amd64-%GITHUB_HUBVER%
 
@@ -38,7 +38,7 @@ if defined upload (
     mkdir .local
     xcopy "%hub%"\* .local /i /y
 
-    set PATH="%cd%/.local/bin;%PATH%"
+    set PATH=%cd%/.local/bin;%PATH%
     set path=webcamoid-packages
 
     for %%f in (%path%\*) do (
