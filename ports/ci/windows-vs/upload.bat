@@ -25,23 +25,23 @@ if not "%USE_WGET%" == "" (
     set DOWNLOAD_CMD="curl --retry 10 -sS -kLOC -"
 )
 
-set upload=
-if not "%DAILY_BUILD%" == "" set upload=true
-if not "%RELEASE_BUILD%" == "" set upluad=true
-if "%upload%" == "true" (
-    REM Upload to Github Releases
-    set hub=hub-windows-amd64-%GITHUB_HUBVER%
-
-    cd "%SOURCES_DIR%"
-    %DOWNLOAD_CMD% "https://github.com/github/hub/releases/download/v%GITHUB_HUBVER%/%hub%.zip"
-    unzip "%hub%.zip"
-    mkdir .local
-    xcopy "%hub%"\* .local /i /y
-
-    set PATH=%cd%/.local/bin;%PATH%
-    set path=webcamoid-packages
-
-    for %%f in (%path%\*) do (
-        hub release edit -m "Daily Build" -a %%f daily-build
-    )
-)
+REM set upload=
+REM if not "%DAILY_BUILD%" == "" set upload=true
+REM if not "%RELEASE_BUILD%" == "" set upluad=true
+REM if "%upload%" == "true" (
+REM     REM Upload to Github Releases
+REM     set hub=hub-windows-amd64-%GITHUB_HUBVER%
+REM
+REM     cd "%SOURCES_DIR%"
+REM     %DOWNLOAD_CMD% "https://github.com/github/hub/releases/download/v%GITHUB_HUBVER%/%hub%.zip"
+REM     unzip "%hub%.zip"
+REM     mkdir .local
+REM     xcopy "%hub%"\* .local /i /y
+REM
+REM     set PATH=%cd%/.local/bin;%PATH%
+REM     set path=webcamoid-packages
+REM
+REM     for %%f in (%path%\*) do (
+REM         hub release edit -m "Daily Build" -a %%f daily-build
+REM     )
+REM )
