@@ -17,13 +17,6 @@ REM
 REM Web-Site: http://webcamoid.github.io/
 
 set SOURCES_DIR=%cd%
-
-if "%PLATFORM%" == "x86" (
-    set PYTHON_PATH=C:\%PYTHON_VERSION%
-) else (
-    set PYTHON_PATH=C:\%PYTHON_VERSION%-x64
-)
-
 set INSTALL_PREFIX=%SOURCES_DIR%\webcamoid-data
 set PACKAGES_DIR=%SOURCES_DIR%\webcamoid-packages
 
@@ -31,7 +24,7 @@ git clone https://github.com/webcamoid/DeployTools.git
 
 set PYTHONPATH=%cd%\DeployTools
 set BUILD_PATH=%cd%\build-x64
-%PYTHON_PATH%\python.exe DeployTools\deploy.py ^
+python DeployTools\deploy.py ^
     -d "%INSTALL_PREFIX%" ^
     -c "%BUILD_PATH%\package_info.conf" ^
     -o "%PACKAGES_DIR%"
