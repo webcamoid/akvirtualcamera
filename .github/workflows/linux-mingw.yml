@@ -1,0 +1,31 @@
+name: Linux MinGW
+
+on: [push, pull_request]
+
+env:
+  QTIFWVER: 4.1.0
+  ARCH_ROOT_DATE: 2021.05.01
+  ARCH_ROOT_URL: https://mirror.rackspace.com/archlinux
+  NSIS_VERSION: 3.06.1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: |
+        chmod +x ports/ci/travis/install_deps.sh
+        ports/ci/travis/install_deps.sh
+    - name: Build
+      run: |
+        chmod +x ports/ci/travis/build.sh
+        ports/ci/travis/build.sh
+    - name: Deploy
+      run: |
+        chmod +x ports/ci/travis/deploy.sh
+        ports/ci/travis/deploy.sh
+    - name: Upload
+      run: |
+        chmod +x ports/ci/travis/upload.sh
+        ports/ci/travis/upload.sh
