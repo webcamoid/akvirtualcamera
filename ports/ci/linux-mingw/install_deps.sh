@@ -83,10 +83,10 @@ ${EXEC} pacman --noconfirm --needed -S \
 
     # Install NSIS
 
-    nsis=nsis-${NSIS_VERSION}-setup.exe
-    ${DOWNLOAD_CMD} "https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
+nsis=nsis-${NSIS_VERSION}-setup.exe
+${DOWNLOAD_CMD} "https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
 
-    if [ -e "${nsis}" ]; then
+if [ -e "${nsis}" ]; then
     INSTALLSCRIPT=installscript.sh
 
     cat << EOF > ${INSTALLSCRIPT}
@@ -106,9 +106,6 @@ EOF
 fi
 
 # Finish
-ps -aux | grep wine
-lsof | grep "root.x86_64/$HOME"
-lsof | grep root.x86_64
 
-sudo umount "root.x86_64/$HOME"
-sudo umount root.x86_64
+sudo umount -f "root.x86_64/$HOME" || true
+sudo umount -f root.x86_64 || true
