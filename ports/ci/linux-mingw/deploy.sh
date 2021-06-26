@@ -64,10 +64,6 @@ cd ..
 i686-w64-mingw32-strip \${INSTALL_PREFIX}/x86/*
 x86_64-w64-mingw32-strip \${INSTALL_PREFIX}/x64/*
 
-echo Is NSIS installed?
-ls -l "\${WINEPREFIX}/drive_c/Program Files"
-ls -l "\${WINEPREFIX}/drive_c/Program Files (x86)"
-
 python ./DeployTools/deploy.py \
     -d "\${INSTALL_PREFIX}" \
     -c "\${BUILD_PATH}/package_info.conf" \

@@ -27,6 +27,11 @@ git clone https://github.com/webcamoid/DeployTools.git
 /c/msys64/mingw32/bin/strip "${INSTALL_PREFIX}"/x86/*
 /c/msys64/mingw64/bin/strip "${INSTALL_PREFIX}"/x64/*
 
+echo Is NSIS locatable inside MSYS?
+which makensis
+# C:\Program Files (x86)\NSIS\makensis.exe
+ls "/c/Program Files (x86)/NSIS"
+
 PYTHONPATH=${SOURCES_DIR}/DeployTools
 BUILD_PATH=${SOURCES_DIR}/build-x64
 python DeployTools/deploy.py \
