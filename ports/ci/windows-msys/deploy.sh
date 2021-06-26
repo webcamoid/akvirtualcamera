@@ -20,7 +20,9 @@
 
 SOURCES_DIR=${PWD}
 INSTALL_PREFIX=${SOURCES_DIR}/webcamoid-data
+INSTALL_PREFIX_W=$(cygpath -w "${INSTALL_PREFIX}")
 PACKAGES_DIR=${SOURCES_DIR}/webcamoid-packages
+PACKAGES_DIR_W=$(cygpath -w "${PACKAGES_DIR}")
 
 git clone https://github.com/webcamoid/DeployTools.git
 
@@ -31,7 +33,8 @@ export PATH="/c/Program Files (x86)/NSIS:${PATH}"
 
 PYTHONPATH=${SOURCES_DIR}/DeployTools
 BUILD_PATH=${SOURCES_DIR}/build-x64
+BUILD_PATH_W=$(cygpath -w "${BUILD_PATH}")
 python DeployTools/deploy.py \
-    -d "${INSTALL_PREFIX}" \
-    -c "${BUILD_PATH}\package_info.conf" \
-    -o "${PACKAGES_DIR}"
+    -d "${INSTALL_PREFIX_W}" \
+    -c "${BUILD_PATH_W}/package_info.conf" \
+    -o "${PACKAGES_DIR_W}"
