@@ -3,7 +3,7 @@ name: Linux MinGW
 on: [push, pull_request]
 
 env:
-  QTIFWVER: 4.1.0
+  QTIFWVER: 4.1.1
   ARCH_ROOT_DATE: 2021.05.01
   ARCH_ROOT_URL: https://mirror.rackspace.com/archlinux
   NSIS_VERSION: 3.06.1

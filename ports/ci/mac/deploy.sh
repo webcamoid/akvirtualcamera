@@ -38,4 +38,4 @@ python3 ./DeployTools/deploy.py \
     -o "${PACKAGES_DIR}"
 
 echo Checking packages directory
-ls -l ${PACKAGES_DIR}
+find ${PACKAGES_DIR} -type f
