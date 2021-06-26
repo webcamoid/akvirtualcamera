@@ -36,6 +36,3 @@ python3 ./DeployTools/deploy.py \
     -d "${INSTALL_PREFIX}" \
     -c "${BUILD_PATH}/package_info.conf" \
     -o "${PACKAGES_DIR}"
-
-echo Checking packages directory
-find ${PACKAGES_DIR} -type f
