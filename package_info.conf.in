@@ -32,3 +32,4 @@ license = COPYING
 requiresAdminRights = true
 multiUserInstall = false
 script = ports/deploy/installscript.nsi
+verbose = true
