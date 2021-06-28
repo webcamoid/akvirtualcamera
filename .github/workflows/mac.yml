@@ -26,3 +26,8 @@ jobs:
       run: |
         chmod +x ports/ci/mac/upload.sh
         ./ports/ci/mac/upload.sh
+    - name: MacOS daily build packages
+      uses: actions/upload-artifact@v2
+      with:
+        name: mac-daily-build
+        path: webcamoid-packages/*

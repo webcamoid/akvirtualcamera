@@ -31,3 +31,8 @@ jobs:
       run: ./ports/ci/windows-msys/deploy.sh
     - name: Upload
       run: ./ports/ci/windows-msys/upload.sh
+    - name: Windows MSYS daily build packages
+      uses: actions/upload-artifact@v2
+      with:
+        name: windows-msys-daily-build
+        path: webcamoid-packages/*

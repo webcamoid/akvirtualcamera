@@ -29,3 +29,8 @@ jobs:
       run: |
         chmod +x ports/ci/linux-mingw/upload.sh
         ./ports/ci/linux-mingw/upload.sh
+    - name: Linux MinGW daily build packages
+      uses: actions/upload-artifact@v2
+      with:
+        name: linux-mingw-daily-build
+        path: webcamoid-packages/*
