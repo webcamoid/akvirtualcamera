@@ -17,18 +17,38 @@ jobs:
       run: |
         chmod +x ports/ci/linux-mingw/install_deps.sh
         ./ports/ci/linux-mingw/install_deps.sh
-    - name: Build
+    - name: Release Build
+      if: startsWith(github.ref, 'refs/tags/')
+      env:
+        RELEASE_BUILD: 1
       run: |
         chmod +x ports/ci/linux-mingw/build.sh
         ./ports/ci/linux-mingw/build.sh
-    - name: Deploy
+    - name: Release Deploy
+      if: startsWith(github.ref, 'refs/tags/')
+      env:
+        RELEASE_BUILD: 1
       run: |
         chmod +x ports/ci/linux-mingw/deploy.sh
         ./ports/ci/linux-mingw/deploy.sh
-    - name: Upload
+    - name: Daily Build
+      if: !startsWith(github.ref, 'refs/tags/')
+      env:
+        DAILY_BUILD: 1
       run: |
-        chmod +x ports/ci/linux-mingw/upload.sh
-        ./ports/ci/linux-mingw/upload.sh
+        chmod +x ports/ci/linux-mingw/build.sh
+        ./ports/ci/linux-mingw/build.sh
+    - name: Daily Deploy
+      if: !startsWith(github.ref, 'refs/tags/')
+      env:
+        DAILY_BUILD: 1
+      run: |
+        chmod +x ports/ci/linux-mingw/deploy.sh
+        ./ports/ci/linux-mingw/deploy.sh
+#    - name: Upload
+#      run: |
+#        #chmod +x ports/ci/linux-mingw/upload.sh
+#        #./ports/ci/linux-mingw/upload.sh
     - name: Linux MinGW daily build packages
       uses: actions/upload-artifact@v2
       with:
