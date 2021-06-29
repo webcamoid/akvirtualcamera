@@ -40,12 +40,13 @@ cmake --build . --target install
 
 cd ..
 
+echo Current directory: ${PWD}
 echo
 echo Building x86 virtual camera driver
 echo
 
-mkdir build-x86
 ls -l
+mkdir build-x86
 cd build-x86
 
 export PATH=/c/msys64/mingw32/bin:/c/msys64/usr/bin:${ORIG_PATH}
