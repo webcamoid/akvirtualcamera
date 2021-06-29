@@ -45,6 +45,7 @@ echo Building x86 virtual camera driver
 echo
 
 mkdir build-x86
+ls -l
 cd build-x86
 
 export PATH=/c/msys64/mingw32/bin:/c/msys64/usr/bin:${ORIG_PATH}
