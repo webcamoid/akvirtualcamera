@@ -27,33 +27,29 @@ echo Building x64 virtual camera driver
 echo
 
 mkdir build-x64
-cd build-x64
 
 export PATH=/c/msys64/mingw64/bin:/c/msys64/usr/bin:${ORIG_PATH}
 cmake \
+    -S . \
+    -B build-x64 \
     -G "MSYS Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    ..
-cmake --build .
-cmake --build . --target install
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
+cmake --build build-x64
+cmake --build build-x64 --target install
 
-cd ..
-
-echo Current directory: ${PWD}
 echo
 echo Building x86 virtual camera driver
 echo
 
-ls -l
 mkdir build-x86
-cd build-x86
 
 export PATH=/c/msys64/mingw32/bin:/c/msys64/usr/bin:${ORIG_PATH}
 cmake \
+    -S . \
+    -B build-x86 \
     -G "MSYS Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    ..
-cmake --build .
-cmake --build . --target install
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
+cmake --build build-x86
+cmake --build build-x86 --target install
