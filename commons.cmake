@@ -31,6 +31,7 @@ set(VER_MAJ 9)
 set(VER_MIN 0)
 set(VER_PAT 0)
 set(VERSION ${VER_MAJ}.${VER_MIN}.${VER_PAT})
+set(DAILY_BUILD OFF CACHE BOOL "Mark this as a daily build")
 
 add_definitions(-DCOMMONS_APPNAME="${COMMONS_APPNAME}"
                 -DCOMMONS_TARGET="${COMMONS_TARGET}"
@@ -71,3 +72,7 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
 endif()
+
+if (DAILY_BUILD)
+    add_definitions(-DDAILY_BUILD)
+endif ()
