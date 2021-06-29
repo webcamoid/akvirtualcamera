@@ -18,8 +18,6 @@ jobs:
       run: ports\ci\windows-vs\build.bat
     - name: Deploy
       run: ports\ci\windows-vs\deploy.bat
-    - name: Upload
-      run: ports\ci\windows-vs\upload.bat
     - name: Windows MSVC daily build packages
       uses: actions/upload-artifact@v2
       with:
