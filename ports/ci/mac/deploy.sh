@@ -22,8 +22,6 @@ SOURCES_DIR=${PWD}
 
 git clone https://github.com/webcamoid/DeployTools.git
 
-DEPLOYSCRIPT=deployscript.sh
-
 cd build
 cmake --build . --target install
 cd ..

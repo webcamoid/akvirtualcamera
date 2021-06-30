@@ -31,7 +31,7 @@ git clone https://github.com/webcamoid/DeployTools.git
 
 export PATH="/c/Program Files (x86)/NSIS:${PATH}"
 
-PYTHONPATH=${SOURCES_DIR}/DeployTools
+export PYTHONPATH=${SOURCES_DIR}/DeployTools
 BUILD_PATH=${SOURCES_DIR}/build-x64
 BUILD_PATH_W=$(cygpath -w "${BUILD_PATH}")
 python DeployTools/deploy.py \

@@ -13,10 +13,6 @@ build:
 environment:
   global:
     PYTHON_VERSION: Python39
-    # api key from https://bintray.com/profile/edit
-    # encrypted in https://ci.appveyor.com/tools/encrypt
-    BT_KEY:
-      secure: seneRk4ppI4bquIsdweI8pd8FT0RXUvU2LOUNGSBEA28IhFQijypil2CfC3WtJxa
 
   matrix:
     - CMAKE_GENERATOR: MSYS Makefiles
@@ -30,11 +26,6 @@ build_script:
 
 after_build:
   - ports\ci\appveyor\deploy.bat
-
-#  - ports\ci\appveyor\push_artifacts.bat
-#
-#deploy_script:
-#  - ports\ci\appveyor\upload.bat
 
 notifications:
   - provider: Email

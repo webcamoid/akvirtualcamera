@@ -18,7 +18,6 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-BUILDSCRIPT=dockerbuild.sh
 SOURCES_DIR=${PWD}
 INSTALL_PREFIX=${SOURCES_DIR}/webcamoid-data
 
