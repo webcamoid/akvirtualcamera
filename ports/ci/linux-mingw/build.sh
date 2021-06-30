@@ -34,23 +34,25 @@ echo
 echo "Building x64 virtual camera driver"
 echo
 mkdir build-x64
-cd build-x64
 x86_64-w64-mingw32-cmake \
+    -S . \
+    -B build-x64 \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    ..
-cmake --build .
-cd ..
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
+cmake --build build-x64
+cmake --build build-x64 --target install
 echo
 echo "Building x86 virtual camera driver"
 echo
 mkdir build-x86
 cd build-x86
 i686-w64-mingw32-cmake \
+    -S . \
+    -B build-x86 \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    ..
-cmake --build .
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
+cmake --build build-x86
+cmake --build build-x86 --target install
 EOF
 chmod +x ${BUILDSCRIPT}
 sudo cp -vf ${BUILDSCRIPT} "root.x86_64/$HOME/"

@@ -22,9 +22,10 @@ SOURCES_DIR=${PWD}
 INSTALL_PREFIX=${SOURCES_DIR}/webcamoid-data
 
 mkdir build
-cd build
 cmake \
+    -S . \
+    -B build \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    ..
-cmake --build .
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
+cmake --build build
+cmake --build build --target install

@@ -23,65 +23,63 @@ echo Building x64 virtual camera driver
 echo.
 
 mkdir build-x64
-cd build-x64
 setlocal
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;%PATH%
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
     cmake ^
+        -S . ^
+        -B build-x64 ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_BUILD_TYPE=Release ^
-        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
-        ..
-    cmake --build .
-    cmake --build . --target install
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+    cmake --build build-x64
+    cmake --build build-x64 --target install
 )
 
 endlocal
 
 if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
     cmake ^
+        -S . ^
+        -B build-x64 ^
         -G "%CMAKE_GENERATOR%" ^
         -A x64 ^
         -DCMAKE_BUILD_TYPE=Release ^
-        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
-        ..
-    cmake --build . --config Release
-    cmake --build . --config Release --target install
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+    cmake --build build-x64 --config Release
+    cmake --build build-x64 --config Release --target install
 )
-
-cd ..
 
 echo.
 echo Building x86 virtual camera driver
 echo.
 
 mkdir build-x86
-cd build-x86
 setlocal
 
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" set PATH=C:\msys64\mingw32\bin;C:\msys64\usr\bin;%PATH%
 if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
     cmake ^
+        -S . ^
+        -B build-x86 ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_BUILD_TYPE=Release ^
-        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
-        ..
-    cmake --build .
-    cmake --build . --target install
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+    cmake --build build-x86
+    cmake --build build-x86 --target install
 )
 
 endlocal
 
 if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
     cmake ^
+        -S . ^
+        -B build-x86 ^
         -G "%CMAKE_GENERATOR%" ^
         -A Win32 ^
         -DCMAKE_BUILD_TYPE=Release ^
-        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
-        ..
-    cmake --build . --config Release
-    cmake --build . --config Release --target install
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+    cmake --build build-x86 --config Release
+    cmake --build build-x86 --config Release --target install
 )
-
-cd ..

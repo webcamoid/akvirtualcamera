@@ -24,33 +24,29 @@ echo Building x64 virtual camera driver
 echo.
 
 mkdir build-x64
-cd build-x64
 
 cmake ^
+    -S . ^
+    -B build-x64 ^
     -G "%CMAKE_GENERATOR%" ^
     -A x64 ^
     -DCMAKE_BUILD_TYPE=Release ^
-    -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
-    ..
-cmake --build . --config Release
-cmake --build . --config Release --target install
-
-cd ..
+    -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+cmake --build build-x64 --config Release
+cmake --build build-x64 --config Release --target install
 
 echo.
 echo Building x86 virtual camera driver
 echo.
 
 mkdir build-x86
-cd build-x86
 
 cmake ^
+    -S . ^
+    -B build-x86 ^
     -G "%CMAKE_GENERATOR%" ^
     -A Win32 ^
     -DCMAKE_BUILD_TYPE=Release ^
-    -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
-    ..
-cmake --build . --config Release
-cmake --build . --config Release --target install
-
-cd ..
+    -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+cmake --build build-x86 --config Release
+cmake --build build-x86 --config Release --target install

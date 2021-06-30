@@ -22,10 +22,6 @@ SOURCES_DIR=${PWD}
 
 git clone https://github.com/webcamoid/DeployTools.git
 
-cd build
-cmake --build . --target install
-cd ..
-
 export INSTALL_PREFIX="${SOURCES_DIR}/webcamoid-data"
 export PACKAGES_DIR="${SOURCES_DIR}/webcamoid-packages"
 export PYTHONPATH="${SOURCES_DIR}/DeployTools"

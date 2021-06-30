@@ -54,13 +54,6 @@ EOF
 fi
 
 cat << EOF >> ${DEPLOYSCRIPT}
-cd build-x64
-cmake --build . --target install
-cd ..
-cd build-x86
-cmake --build . --target install
-cd ..
-
 i686-w64-mingw32-strip \${INSTALL_PREFIX}/x86/*
 x86_64-w64-mingw32-strip \${INSTALL_PREFIX}/x64/*
 
