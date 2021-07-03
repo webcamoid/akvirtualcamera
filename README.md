@@ -17,6 +17,13 @@ Visit the [wiki](https://github.com/webcamoid/akvirtualcamera/wiki) for a compre
 [![Daily Build](https://img.shields.io/badge/Download-Daily%20Build-3f2a7e.svg)](https://github.com/webcamoid/akvirtualcamera/releases/tag/daily-build)
 [![Total Downloads](https://img.shields.io/github/downloads/webcamoid/akvirtualcamera/total.svg?label=Total%20Downloads&color=3f2a7e)](https://tooomm.github.io/github-release-stats/?username=webcamoid&repository=akvirtualcamera)
 
+## Donations ##
+
+I'm accepting donations in crypto currencies, any donation amount is welcome and very appreciated.
+
+Bitcoin: bc1q43ygwnfjq5e4k35x9kedqhe57p97v985p5mhke  
+Monero: 41wpsZWaZ7Mj83RFUbTapM1PvAFiMKbgk8ecJ7W7s36ZVydMWy9rMU1M4khiU4QpY9M9x4cUBxgDxdYwX4WYahENQ8JjVaz
+
 ## Status
 
 [![Linux MinGW](https://github.com/webcamoid/akvirtualcamera/actions/workflows/linux-mingw.yml/badge.svg)](https://github.com/webcamoid/akvirtualcamera/actions/workflows/linux-mingw.yml)
