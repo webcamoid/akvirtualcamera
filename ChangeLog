@@ -1,0 +1,10 @@
+akvirtualcamera 9.0.0:
+
+- Code forked from Webcamoid. This virtual camera isn't compatible with
+  Webcamoid 8.x and older releases.
+- Build system switched to Cmake.
+- Fixed plugins installers and switched to NSIS in Windows.
+- Added a command line tool to communicate with the virtual camera
+  (AkVCamManager).
+- Added support for PNG and JPG for the placeholder picture.
+- Added documentation and example usages.
