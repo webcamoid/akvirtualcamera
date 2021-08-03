@@ -35,8 +35,6 @@ INSTALL_PREFIX=${PWD}/package-data-${COMPILER}
 echo
 echo "Building x64 virtual camera driver"
 echo
-COMPILER_C=x86_64-w64-mingw32-${COMPILER_C}
-COMPILER_CXX=x86_64-w64-mingw32-${COMPILER_CXX}
 buildDir=build-${COMPILER}-x64
 mkdir ${buildDir}
 x86_64-w64-mingw32-cmake \
@@ -45,16 +43,14 @@ x86_64-w64-mingw32-cmake \
     -B ${buildDir} \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCMAKE_C_COMPILER="${COMPILER_C}" \
-    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+    -DCMAKE_C_COMPILER="x86_64-w64-mingw32-${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="x86_64-w64-mingw32-${COMPILER_CXX}" \
     ${EXTRA_PARAMS}
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install
 echo
 echo "Building x86 virtual camera driver"
 echo
-COMPILER_C=i686-w64-mingw32-${COMPILER_C}
-COMPILER_CXX=i686-w64-mingw32-${COMPILER_CXX}
 buildDir=build-${COMPILER}-x86
 mkdir ${buildDir}
 i686-w64-mingw32-cmake \
@@ -63,8 +59,8 @@ i686-w64-mingw32-cmake \
     -B ${buildDir} \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCMAKE_C_COMPILER="${COMPILER_C}" \
-    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+    -DCMAKE_C_COMPILER="i686-w64-mingw32-${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="i686-w64-mingw32-${COMPILER_CXX}" \
     ${EXTRA_PARAMS}
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install

@@ -26,7 +26,7 @@ else
     COMPILER_CXX=g++
 fi
 
-if [ -z "${DISABLE_CCACHE}" ]; then
+if [ "${DISABLE_CCACHE}" != 1 ]; then
     EXTRA_PARAMS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache"
 fi
 

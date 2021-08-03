@@ -3,6 +3,7 @@ name: Windows MSYS
 on: [push, pull_request]
 
 env:
+  DISABLE_CCACHE: 1
   NJOBS: 4
 
 jobs:
