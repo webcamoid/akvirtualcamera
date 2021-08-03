@@ -31,8 +31,9 @@ export PYTHONPATH="${PWD}/DeployTools"
 
 /c/msys64/mingw32/bin/strip "${INSTALL_PREFIX}"/x86/*
 /c/msys64/mingw64/bin/strip "${INSTALL_PREFIX}"/x64/*
+mkdir -p "${PACKAGES_DIR}"
 
 python3 DeployTools/deploy.py \
-    -d "${INSTALL_PREFIX}" \
-    -c "${BUILD_PATH}/package_info.conf" \
-    -o "${PACKAGES_DIR}"
+    -d "${INSTALL_PREFIX_W}" \
+    -c "${BUILD_PATH_W}/package_info.conf" \
+    -o "${PACKAGES_DIR_W}"
