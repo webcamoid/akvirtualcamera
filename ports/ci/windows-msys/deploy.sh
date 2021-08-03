@@ -32,6 +32,12 @@ export PYTHONPATH="${PWD}/DeployTools"
 
 /c/msys64/mingw32/bin/strip "${INSTALL_PREFIX}"/x86/*
 /c/msys64/mingw64/bin/strip "${INSTALL_PREFIX}"/x64/*
+
+cat << EOF > package_info_fix_srcdir.conf
+[Package]
+sourcesDir = ${PWD}
+EOF
+
 # mkdir -p "${PACKAGES_DIR}"
 
 # python3 DeployTools/deploy.py \
@@ -41,4 +47,5 @@ export PYTHONPATH="${PWD}/DeployTools"
 python3 DeployTools/deploy.py \
     -d "${INSTALL_PREFIX}" \
     -c "${BUILD_PATH}/package_info.conf" \
+    -c "${PWD}/package_info_fix_srcdir.conf" \
     -o "${PACKAGES_DIR}"
