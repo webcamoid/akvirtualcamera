@@ -18,24 +18,15 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-SOURCES_DIR=${PWD}
-
 if [ ! -z "${USE_WGET}" ]; then
     export DOWNLOAD_CMD="wget -nv -c"
 else
     export DOWNLOAD_CMD="curl --retry 10 -sS -kLOC -"
 fi
 
-EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
-
-# Download chroot image
-archImage=archlinux-bootstrap-${ARCH_ROOT_DATE}-x86_64.tar.gz
-${DOWNLOAD_CMD} "${ARCH_ROOT_URL}/iso/${ARCH_ROOT_DATE}/$archImage"
-sudo tar xzf "$archImage"
-
 # Configure mirrors
-cp -vf root.x86_64/etc/pacman.conf .
-cat << EOF >> pacman.conf
+
+cat << EOF >> /etc/pacman.conf
 
 [multilib]
 Include = /etc/pacman.d/mirrorlist
@@ -44,31 +35,24 @@ Include = /etc/pacman.d/mirrorlist
 Server = https://ftp.f3l.de/~martchus/\$repo/os/\$arch
 Server = http://martchus.no-ip.biz/repo/arch/\$repo/os/\$arch
 EOF
-sed -i 's/Required DatabaseOptional/Never/g' pacman.conf
-sed -i 's/#TotalDownload/TotalDownload/g' pacman.conf
-sudo cp -vf pacman.conf root.x86_64/etc/pacman.conf
+sed -i 's/Required DatabaseOptional/Never/g' /etc/pacman.conf
 
-cp -vf root.x86_64/etc/pacman.d/mirrorlist .
-cat << EOF >> mirrorlist
+cat << EOF >> /etc/pacman.d/mirrorlist
 
 Server = ${ARCH_ROOT_URL}/\$repo/os/\$arch
 EOF
-sudo cp -vf mirrorlist root.x86_64/etc/pacman.d/mirrorlist
 
 # Install packages
-sudo mkdir -pv "root.x86_64/$HOME"
-sudo mount --bind root.x86_64 root.x86_64
-sudo mount --bind "$HOME" "root.x86_64/$HOME"
 
-${EXEC} pacman-key --init
-${EXEC} pacman-key --populate archlinux
-${EXEC} pacman -Syu \
+pacman-key --init
+pacman-key --populate archlinux
+pacman -Syu \
     --noconfirm \
     --ignore linux,linux-api-headers,linux-docs,linux-firmware,linux-headers,pacman
-
-${EXEC} pacman --noconfirm --needed -S \
+pacman --noconfirm --needed -S \
     ccache \
     clang \
+    cmake \
     file \
     git \
     make \
@@ -78,34 +62,16 @@ ${EXEC} pacman --noconfirm --needed -S \
     xorg-server-xvfb \
     wine \
     mingw-w64-pkg-config \
-    mingw-w64-gcc \
-    mingw-w64-cmake
+    mingw-w64-cmake \
+    mingw-w64-gcc
 
-    # Install NSIS
+# Install NSIS
 
 nsis=nsis-${NSIS_VERSION}-setup.exe
 ${DOWNLOAD_CMD} "https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
 
-if [ -e "${nsis}" ]; then
-    INSTALLSCRIPT=installscript.sh
+if [ -e ${nsis} ]; then
+    export WINEPREFIX=/opt/.wine
 
-    cat << EOF > ${INSTALLSCRIPT}
-#!/bin/sh
-
-export LC_ALL=C
-export HOME=$HOME
-export WINEPREFIX=/opt/.wine
-cd "${SOURCES_DIR}"
-
-wine ./${nsis} /S
-EOF
-
-    chmod +x ${INSTALLSCRIPT}
-    sudo cp -vf ${INSTALLSCRIPT} "root.x86_64/$HOME/"
-    ${EXEC} bash "$HOME/${INSTALLSCRIPT}"
+    wine ./${nsis} /S
 fi
-
-# Finish
-
-sudo umount -f "root.x86_64/$HOME" || true
-sudo umount -f root.x86_64 || true

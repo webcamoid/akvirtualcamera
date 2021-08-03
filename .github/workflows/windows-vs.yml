@@ -5,6 +5,7 @@ on: [push, pull_request]
 env:
   CMAKE_GENERATOR: Visual Studio 16 2019
   PYTHON_VERSION: Python39
+  NJOBS: 4
 
 jobs:
   build:
@@ -18,8 +19,3 @@ jobs:
       run: ports\ci\windows-vs\build.bat
     - name: Deploy
       run: ports\ci\windows-vs\deploy.bat
-    - name: Windows MSVC daily build packages
-      uses: actions/upload-artifact@v2
-      with:
-        name: windows-vs-daily-build
-        path: webcamoid-packages/*

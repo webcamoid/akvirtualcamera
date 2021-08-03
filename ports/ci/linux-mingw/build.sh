@@ -18,47 +18,53 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-BUILDSCRIPT=dockerbuild.sh
-SOURCES_DIR=${PWD}
-INSTALL_PREFIX=${SOURCES_DIR}/webcamoid-data
+if [ "${COMPILER}" = clang ]; then
+    COMPILER_C=clang
+    COMPILER_CXX=clang++
+else
+    COMPILER_C=gcc
+    COMPILER_CXX=g++
+fi
 
-sudo mount --bind root.x86_64 root.x86_64
-sudo mount --bind "$HOME" "root.x86_64/$HOME"
-cat << EOF > ${BUILDSCRIPT}
-#!/bin/sh
+if [ -z "${DISABLE_CCACHE}" ]; then
+    EXTRA_PARAMS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache"
+fi
 
-export LC_ALL=C
-export HOME=$HOME
-cd "${SOURCES_DIR}"
+INSTALL_PREFIX=${PWD}/package-data-${COMPILER}
+
 echo
 echo "Building x64 virtual camera driver"
 echo
-mkdir build-x64
+COMPILER_C=x86_64-w64-mingw32-${COMPILER_C}
+COMPILER_CXX=x86_64-w64-mingw32-${COMPILER_CXX}
+buildDir=build-${COMPILER}-x64
+mkdir ${buildDir}
 x86_64-w64-mingw32-cmake \
+    -LA \
     -S . \
-    -B build-x64 \
+    -B ${buildDir} \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
-cmake --build build-x64
-cmake --build build-x64 --target install
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCMAKE_C_COMPILER="${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+    ${EXTRA_PARAMS}
+cmake --build ${buildDir} --parallel ${NJOBS}
+cmake --build ${buildDir} --target install
 echo
 echo "Building x86 virtual camera driver"
 echo
-mkdir build-x86
-cd build-x86
+COMPILER_C=i686-w64-mingw32-${COMPILER_C}
+COMPILER_CXX=i686-w64-mingw32-${COMPILER_CXX}
+buildDir=build-${COMPILER}-x86
+mkdir ${buildDir}
 i686-w64-mingw32-cmake \
+    -LA \
     -S . \
-    -B build-x86 \
+    -B ${buildDir} \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
-cmake --build build-x86
-cmake --build build-x86 --target install
-EOF
-chmod +x ${BUILDSCRIPT}
-sudo cp -vf ${BUILDSCRIPT} "root.x86_64/$HOME/"
-
-EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
-${EXEC} bash "$HOME/${BUILDSCRIPT}"
-
-sudo umount "root.x86_64/$HOME"
-sudo umount root.x86_64
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCMAKE_C_COMPILER="${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+    ${EXTRA_PARAMS}
+cmake --build ${buildDir} --parallel ${NJOBS}
+cmake --build ${buildDir} --target install

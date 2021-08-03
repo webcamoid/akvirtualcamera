@@ -18,22 +18,20 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-SOURCES_DIR=${PWD}
-INSTALL_PREFIX=${SOURCES_DIR}/webcamoid-data
-INSTALL_PREFIX_W=$(cygpath -w "${INSTALL_PREFIX}")
-PACKAGES_DIR=${SOURCES_DIR}/webcamoid-packages
-PACKAGES_DIR_W=$(cygpath -w "${PACKAGES_DIR}")
-
 git clone https://github.com/webcamoid/DeployTools.git
+
+export PATH="/c/Program Files (x86)/NSIS:${PATH}"
+export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
+export INSTALL_PREFIX_W=$(cygpath -w "${INSTALL_PREFIX}")
+export PACKAGES_DIR="${PWD}/packages/windows-${COMPILER}"
+export PACKAGES_DIR_W=$(cygpath -w "${PACKAGES_DIR}")
+export PYTHONPATH="${PWD}/DeployTools"
+export BUILD_PATH="${PWD}/build-${COMPILER}-x64"
+export BUILD_PATH_W=$(cygpath -w "${BUILD_PATH}")
 
 /c/msys64/mingw32/bin/strip "${INSTALL_PREFIX}"/x86/*
 /c/msys64/mingw64/bin/strip "${INSTALL_PREFIX}"/x64/*
 
-export PATH="/c/Program Files (x86)/NSIS:${PATH}"
-
-export PYTHONPATH=${SOURCES_DIR}/DeployTools
-BUILD_PATH=${SOURCES_DIR}/build-x64
-BUILD_PATH_W=$(cygpath -w "${BUILD_PATH}")
 python DeployTools/deploy.py \
     -d "${INSTALL_PREFIX_W}" \
     -c "${BUILD_PATH_W}/package_info.conf" \

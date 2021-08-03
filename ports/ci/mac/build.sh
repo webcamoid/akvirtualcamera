@@ -19,13 +19,14 @@
 # Web-Site: http://webcamoid.github.io/
 
 SOURCES_DIR=${PWD}
-INSTALL_PREFIX=${SOURCES_DIR}/webcamoid-data
+INSTALL_PREFIX=${SOURCES_DIR}/package-data
 
 mkdir build
 cmake \
+    -LA \
     -S . \
     -B build \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
-cmake --build build
+cmake --build build --parallel ${NJOBS}
 cmake --build build --target install

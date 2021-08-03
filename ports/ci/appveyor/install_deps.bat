@@ -25,6 +25,8 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
     pacman --noconfirm -Syyu ^
         --ignore filesystem,pacman,pacman-mirrors
     pacman --noconfirm --needed -S ^
+        ccache ^
+        clang ^
         cmake ^
         git ^
         make ^

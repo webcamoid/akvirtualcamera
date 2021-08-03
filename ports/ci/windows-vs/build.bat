@@ -17,7 +17,7 @@ REM
 REM Web-Site: http://webcamoid.github.io/
 
 set SOURCES_DIR=%cd%
-set INSTALL_PREFIX=%SOURCES_DIR%\webcamoid-data
+set INSTALL_PREFIX=%SOURCES_DIR%\package-data
 
 echo.
 echo Building x64 virtual camera driver
@@ -26,13 +26,14 @@ echo.
 mkdir build-x64
 
 cmake ^
+    -LA ^
     -S . ^
     -B build-x64 ^
     -G "%CMAKE_GENERATOR%" ^
     -A x64 ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
-cmake --build build-x64 --config Release
+cmake --build build-x64 --config Release --parallel "%NJOBS%"
 cmake --build build-x64 --config Release --target install
 
 echo.
@@ -42,11 +43,12 @@ echo.
 mkdir build-x86
 
 cmake ^
+    -LA ^
     -S . ^
     -B build-x86 ^
     -G "%CMAKE_GENERATOR%" ^
     -A Win32 ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
-cmake --build build-x86 --config Release
+cmake --build build-x86 --config Release --parallel "%NJOBS%"
 cmake --build build-x86 --config Release --target install

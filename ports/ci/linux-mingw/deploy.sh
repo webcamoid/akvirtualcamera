@@ -18,54 +18,25 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-SOURCES_DIR=${PWD}
-EXEC='sudo ./root.x86_64/bin/arch-chroot root.x86_64'
-
 git clone https://github.com/webcamoid/DeployTools.git
-
-DEPLOYSCRIPT=deployscript.sh
-
-sudo mount --bind root.x86_64 root.x86_64
-sudo mount --bind "$HOME" "root.x86_64/$HOME"
 
 cat << EOF > package_info_strip.conf
 [System]
 stripCmd = x86_64-w64-mingw32-strip
 EOF
 
-cat << EOF > ${DEPLOYSCRIPT}
-#!/bin/sh
-
-export LC_ALL=C
-export HOME=${HOME}
-export PATH="${SOURCES_DIR}/.local/bin:\$PATH"
-export INSTALL_PREFIX="${SOURCES_DIR}/webcamoid-data"
-export PACKAGES_DIR="${SOURCES_DIR}/webcamoid-packages"
-export PYTHONPATH="${SOURCES_DIR}/DeployTools"
-export BUILD_PATH="${SOURCES_DIR}/build-x64"
 export WINEPREFIX=/opt/.wine
-cd "${SOURCES_DIR}"
-EOF
+export PATH="${PWD}/.local/bin:${PATH}"
+export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
+export PACKAGES_DIR="${PWD}/packages/windows-${COMPILER}"
+export PYTHONPATH="${PWD}/DeployTools"
+export BUILD_PATH="${PWD}/build-${COMPILER}-x64"
 
-if [ ! -z "${DAILY_BUILD}" ]; then
-    cat << EOF >> ${DEPLOYSCRIPT}
-export DAILY_BUILD=1
-EOF
-fi
-
-cat << EOF >> ${DEPLOYSCRIPT}
-i686-w64-mingw32-strip \${INSTALL_PREFIX}/x86/*
-x86_64-w64-mingw32-strip \${INSTALL_PREFIX}/x64/*
+i686-w64-mingw32-strip ${INSTALL_PREFIX}/x86/*
+x86_64-w64-mingw32-strip ${INSTALL_PREFIX}/x64/*
 
 python ./DeployTools/deploy.py \
-    -d "\${INSTALL_PREFIX}" \
-    -c "\${BUILD_PATH}/package_info.conf" \
-    -c "./package_info_strip.conf" \
-    -o "\${PACKAGES_DIR}"
-EOF
-chmod +x ${DEPLOYSCRIPT}
-sudo cp -vf ${DEPLOYSCRIPT} "root.x86_64/$HOME/"
-
-${EXEC} bash "$HOME/${DEPLOYSCRIPT}"
-sudo umount "root.x86_64/$HOME"
-sudo umount root.x86_64
+    -d "${INSTALL_PREFIX}" \
+    -c "${BUILD_PATH}/package_info.conf" \
+    -c "${PWD}/package_info_strip.conf" \
+    -o "${PACKAGES_DIR}"

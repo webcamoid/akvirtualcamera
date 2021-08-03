@@ -18,38 +18,57 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-SOURCES_DIR=${PWD}
-INSTALL_PREFIX=${SOURCES_DIR}/webcamoid-data
+if [ "${COMPILER}" = clang ]; then
+    COMPILER_C=clang
+    COMPILER_CXX=clang++
+else
+    COMPILER_C=gcc
+    COMPILER_CXX=g++
+fi
+
+if [ -z "${DISABLE_CCACHE}" ]; then
+    EXTRA_PARAMS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache"
+fi
+
+INSTALL_PREFIX=${PWD}/package-data-${COMPILER}
 ORIG_PATH=${PATH}
 
 echo
-echo Building x64 virtual camera driver
+echo "Building x64 virtual camera driver"
 echo
-
-mkdir build-x64
 
 export PATH=/c/msys64/mingw64/bin:/c/msys64/usr/bin:${ORIG_PATH}
+buildDir=build-${COMPILER}-x64
+mkdir ${buildDir}
 cmake \
+    -LA \
     -S . \
-    -B build-x64 \
+    -B ${buildDir} \
     -G "MSYS Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
-cmake --build build-x64
-cmake --build build-x64 --target install
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCMAKE_C_COMPILER="${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+    ${EXTRA_PARAMS}
+cmake --build ${buildDir} --parallel ${NJOBS}
+cmake --build ${buildDir} --target install
 
 echo
-echo Building x86 virtual camera driver
+echo "Building x86 virtual camera driver"
 echo
-
-mkdir build-x86
 
 export PATH=/c/msys64/mingw32/bin:/c/msys64/usr/bin:${ORIG_PATH}
+buildDir=build-${COMPILER}-x86
+mkdir ${buildDir}
 cmake \
+    -LA \
     -S . \
-    -B build-x86 \
+    -B ${buildDir} \
     -G "MSYS Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
-cmake --build build-x86
-cmake --build build-x86 --target install
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCMAKE_C_COMPILER="${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+    ${EXTRA_PARAMS}
+cmake --build ${buildDir} --parallel ${NJOBS}
+cmake --build ${buildDir} --target install

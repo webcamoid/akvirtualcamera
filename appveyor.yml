@@ -13,7 +13,7 @@ build:
 environment:
   global:
     PYTHON_VERSION: Python39
-
+    NJOBS: 4
   matrix:
     - CMAKE_GENERATOR: MSYS Makefiles
     - CMAKE_GENERATOR: Visual Studio 16 2019

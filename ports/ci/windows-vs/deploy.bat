@@ -17,8 +17,8 @@ REM
 REM Web-Site: http://webcamoid.github.io/
 
 set SOURCES_DIR=%cd%
-set INSTALL_PREFIX=%SOURCES_DIR%\webcamoid-data
-set PACKAGES_DIR=%SOURCES_DIR%\webcamoid-packages
+set INSTALL_PREFIX=%SOURCES_DIR%\package-data
+set PACKAGES_DIR=%SOURCES_DIR%\packages\windows
 
 git clone https://github.com/webcamoid/DeployTools.git
 
