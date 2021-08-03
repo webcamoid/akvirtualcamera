@@ -20,7 +20,7 @@
 
 git clone https://github.com/webcamoid/DeployTools.git
 
-export PATH=/mingw64/bin:${PATH}
+export PATH="/c/Program Files (x86)/NSIS:/mingw64/bin:${PATH}"
 # export PATH="/c/Program Files (x86)/NSIS:${PATH}"
 export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 # export INSTALL_PREFIX_W=$(cygpath -w "${INSTALL_PREFIX}")
