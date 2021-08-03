@@ -18,8 +18,14 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-SOURCES_DIR=${PWD}
-INSTALL_PREFIX=${SOURCES_DIR}/package-data
+COMPILER_C=clang
+COMPILER_CXX=clang++
+
+if [ -z "${DISABLE_CCACHE}" ]; then
+    EXTRA_PARAMS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache"
+fi
+
+INSTALL_PREFIX=${PWD}/package-data
 
 mkdir build
 cmake \
@@ -27,6 +33,8 @@ cmake \
     -S . \
     -B build \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCMAKE_C_COMPILER="${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}"
 cmake --build build --parallel ${NJOBS}
 cmake --build build --target install

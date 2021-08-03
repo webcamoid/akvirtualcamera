@@ -33,7 +33,7 @@ jobs:
           -v ${{ github.workspace }}:/sources
           -e NSIS_VERSION=${{ env.NSIS_VERSION }}
           -e TARGET_ARCH=${{ matrix.target_arch }}
-          -e COMPILER=${{ matrix.COMPILER }}
+          -e COMPILER=${{ matrix.compiler }}
           -e DOCKERIMG=${{ env.DOCKERIMG }}
           -e ARCH_ROOT_URL=${{ env.ARCH_ROOT_URL }}
           -e NJOBS=${{ env.NJOBS }}
@@ -66,7 +66,7 @@ jobs:
           -v ${{ github.workspace }}:/sources
           -e NSIS_VERSION=${{ env.NSIS_VERSION }}
           -e TARGET_ARCH=${{ matrix.target_arch }}
-          -e COMPILER=${{ matrix.COMPILER }}
+          -e COMPILER=${{ matrix.compiler }}
           -e DOCKERIMG=${{ env.DOCKERIMG }}
           -e ARCH_ROOT_URL=${{ env.ARCH_ROOT_URL }}
           -e NJOBS=${{ env.NJOBS }}
@@ -89,14 +89,14 @@ jobs:
           chmod +x ports/ci/linux-mingw/deploy.sh
           ./ports/ci/linux-mingw/deploy.sh
     - name: Release Upload
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v0.1.6
       if: ${{ startsWith(github.ref, 'refs/tags/') }}
       with:
         files: packages/windows-gcc/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Daily Build Upload
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v0.1.6
       if: ${{ !startsWith(github.ref, 'refs/tags/') }}
       with:
         body: "${{ github.event.head_commit.message }} (commit: ${{ github.sha }})"

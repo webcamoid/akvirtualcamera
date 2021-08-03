@@ -11,7 +11,6 @@ jobs:
     defaults:
       run:
         shell: msys2 {0}
-    steps:
     strategy:
       max-parallel: 10
       fail-fast: false
@@ -21,6 +20,7 @@ jobs:
          - compiler: clang
     env:
       COMPILER: ${{ matrix.compiler }}
+    steps:
     - uses: actions/checkout@v2
     - uses: msys2/setup-msys2@v2
       with:
