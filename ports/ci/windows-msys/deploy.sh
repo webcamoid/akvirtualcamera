@@ -20,13 +20,13 @@
 
 git clone https://github.com/webcamoid/DeployTools.git
 
-# export PATH="/c/Program Files (x86)/NSIS:${PATH}"
+export PATH="/c/Program Files (x86)/NSIS:${PATH}"
 export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
-# export INSTALL_PREFIX_W=$(cygpath -w "${INSTALL_PREFIX}")
+export INSTALL_PREFIX_W=$(cygpath -w "${INSTALL_PREFIX}")
 export PACKAGES_DIR="${PWD}/packages/windows-${COMPILER}"
-# export PACKAGES_DIR_W=$(cygpath -w "${PACKAGES_DIR}")
+export PACKAGES_DIR_W=$(cygpath -w "${PACKAGES_DIR}")
 export BUILD_PATH="${PWD}/build-${COMPILER}-x64"
-# export BUILD_PATH_W=$(cygpath -w "${BUILD_PATH}")
+export BUILD_PATH_W=$(cygpath -w "${BUILD_PATH}")
 export PYTHONPATH="${PWD}/DeployTools"
 
 /c/msys64/mingw32/bin/strip "${INSTALL_PREFIX}"/x86/*
