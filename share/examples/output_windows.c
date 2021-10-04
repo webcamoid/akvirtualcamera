@@ -40,18 +40,19 @@ struct StreamProcess
 {
     HANDLE stdinReadPipe;
     HANDLE stdinWritePipe;
-    SECURITY_ATTRIBUTES pipeAttributes;
-    STARTUPINFOA startupInfo;
-    PROCESS_INFORMATION procInfo;
+    struct SECURITY_ATTRIBUTES pipeAttributes;
+    struct STARTUPINFOA startupInfo;
+    struct PROCESS_INFORMATION procInfo;
 };
 
 int main()
 {
     // Set the parameters of the stream.
-    const char cmd[1024];
+    char cmd[1024];
     const char format[] = "RGB24";
     int width = 640;
     int height = 480;
+    memset(cmd, 0, 1024);
     snprintf(cmd,
              1024,
              "AkVCamManager stream %s %s %d %d",
