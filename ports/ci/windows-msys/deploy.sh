@@ -34,6 +34,6 @@ export PYTHONPATH="${PWD}/DeployTools"
 mkdir -p "${PACKAGES_DIR}"
 
 python3 DeployTools/deploy.py \
-    -d "${INSTALL_PREFIX_W}" \
-    -c "${BUILD_PATH_W}/package_info.conf" \
-    -o "${PACKAGES_DIR_W}"
+    -d "${INSTALL_PREFIX}" \
+    -c "${BUILD_PATH}/package_info.conf" \
+    -o "${PACKAGES_DIR}"
