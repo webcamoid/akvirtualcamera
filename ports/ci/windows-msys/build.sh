@@ -39,7 +39,7 @@ echo
 
 export PATH=/c/msys64/mingw64/bin:/c/msys64/usr/bin:${ORIG_PATH}
 buildDir=build-${COMPILER}-x64
-mkdir ${buildDir}
+mkdir -p ${buildDir}
 cmake \
     -LA \
     -S . \
@@ -59,7 +59,7 @@ echo
 
 export PATH=/c/msys64/mingw32/bin:/c/msys64/usr/bin:${ORIG_PATH}
 buildDir=build-${COMPILER}-x86
-mkdir ${buildDir}
+mkdir -p ${buildDir}
 cmake \
     -LA \
     -S . \

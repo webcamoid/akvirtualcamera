@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest
     defaults:
       run:
-        shell: msys2 {0}
+        shell: mingw64 {0}
     strategy:
       max-parallel: 10
       fail-fast: false
