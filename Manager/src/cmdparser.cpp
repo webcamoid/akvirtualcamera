@@ -80,6 +80,7 @@ namespace AkVCam {
             std::vector<CmdParserCommand> m_commands;
             IpcBridge m_ipcBridge;
             bool m_parseable {false};
+            bool m_force {false};
 
             static const std::map<ControlType, std::string> &typeStrMap();
             std::string basename(const std::string &path);
@@ -184,6 +185,9 @@ AkVCam::CmdParser::CmdParser()
     this->addFlags("",
                    {"-p", "--parseable"},
                    "Show parseable output.");
+    this->addFlags("",
+                   {"-f", "--force"},
+                   "Force command.");
     this->addCommand("devices",
                      "",
                      "List devices.",
@@ -430,7 +434,7 @@ int AkVCam::CmdParser::parse(int argc, char **argv)
         }
     }
 
-    if (this->d->m_ipcBridge.isBusyFor(command->command)) {
+    if (!this->d->m_force && this->d->m_ipcBridge.isBusyFor(command->command)) {
         std::cerr << "This operation is not permitted." << std::endl;
         std::cerr << "The virtual camera is in use. Stop or close the virtual "
                   << "camera clients and try again." << std::endl;
@@ -790,6 +794,9 @@ int AkVCam::CmdParserPrivate::defaultHandler(const StringMap &flags,
 
     if (this->containsFlag(flags, "", "-p"))
         this->m_parseable = true;
+
+    if (this->containsFlag(flags, "", "-f"))
+        this->m_force = true;
 
     return 0;
 }

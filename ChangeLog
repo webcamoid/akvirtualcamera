@@ -1,3 +1,8 @@
+akvirtualcamera 9.1.0:
+
+- Added -f, --force flags to the manager, this bypass the virtual camera usage
+  check.
+
 akvirtualcamera 9.0.0:
 
 - Code forked from Webcamoid. This virtual camera isn't compatible with
