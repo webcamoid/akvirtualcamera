@@ -27,7 +27,7 @@ fi
 
 INSTALL_PREFIX=${PWD}/package-data
 
-mkdir build
+mkdir -p build
 cmake \
     -LA \
     -S . \

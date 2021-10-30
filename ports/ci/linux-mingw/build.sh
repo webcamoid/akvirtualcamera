@@ -36,7 +36,7 @@ echo
 echo "Building x64 virtual camera driver"
 echo
 buildDir=build-${COMPILER}-x64
-mkdir ${buildDir}
+mkdir -p ${buildDir}
 x86_64-w64-mingw32-cmake \
     -LA \
     -S . \
@@ -52,7 +52,7 @@ echo
 echo "Building x86 virtual camera driver"
 echo
 buildDir=build-${COMPILER}-x86
-mkdir ${buildDir}
+mkdir -p ${buildDir}
 i686-w64-mingw32-cmake \
     -LA \
     -S . \
