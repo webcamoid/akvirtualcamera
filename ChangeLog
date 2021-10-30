@@ -2,6 +2,7 @@ akvirtualcamera 9.1.0:
 
 - Added -f, --force flags to the manager, this bypass the virtual camera usage
   check.
+- Fixed output example in Windows.
 
 akvirtualcamera 9.0.0:
 
