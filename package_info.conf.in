@@ -11,17 +11,12 @@ outputFormats = @OUTPUT_FORMATS@
 hideArch = true
 writeLauncher = false
 
-[QtIFW]
-organization = org.webcamoidprj
+[MacPkg]
 appName = AkVirtualCamera
-title = AkVirtualCamera, virtual camera for Mac and Windows
-description = Install AkVirtualCamera
-url = https://github.com/webcamoid/akvirtualcamera
-targetDir = @QTIFW_TARGET_DIR@
-license = COPYING
-licenseName = GNU General Public License v3.0
-script = ports/deploy/installscript.@TARGET_PLATFORM@.qs
-changeLog = ChangeLog
+identifier = org.webcamoidprj.AkVirtualCamera
+targetDir = /Applications/AkVirtualCamera
+installScripts = ports/deploy/mac/installScripts
+uninstallScript = ports/deploy/mac/uninstall.sh
 
 [Nsis]
 organization = Webcamoid

@@ -1,0 +1,50 @@
+#!/bin/sh
+
+appName=AkVirtualCamera
+targetDir=/Applications/${appName}
+
+# Remove old plugin
+rm -rf "/Library/CoreMediaIO/Plug-Ins/DAL/${appName}.plugin"
+
+resourcesDir=${targetDir}/${appName}.plugin/Contents/Resources
+
+# Reset permissions
+chmod a+x "${resourcesDir}/AkVCamAssistant"
+chmod a+x "${resourcesDir}/AkVCamManager"
+
+# Create a symlink to the plugin.
+ln -s "${targetDir}/${appName}.plugin" "/Library/CoreMediaIO/Plug-Ins/DAL/${appName}.plugin"
+
+// Set assistant daemon.
+service=org.webcamoid.cmio.AkVCam.Assistant
+daemonPlist=/Library/LaunchDaemons/${service}.plist
+cat << EOF > "${daemonPlist}"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>${service}</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>${resourcesDir}/AkVCamAssistant</string>
+            <string>--timeout</string>
+            <string>300.0</string>
+        </array>
+        <key>MachServices</key>
+        <dict>
+            <key>${service}</key>
+            <true/>
+        </dict>
+        <key>StandardOutPath</key>
+        <string>/tmp/AkVCamAssistant.log</string>
+        <key>StandardErrorPath</key>
+        <string>/tmp/AkVCamAssistant.log</string>
+    </dict>
+</plist>
+EOF
+
+# Load assistant daemon.
+launchctl enable "system/${service}"
+launchctl bootstrap system "${daemonPlist}"
