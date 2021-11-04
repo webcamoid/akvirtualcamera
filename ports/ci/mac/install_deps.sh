@@ -35,21 +35,3 @@ brew install \
     python
 brew link --overwrite python
 brew link python
-
-# Install Qt Installer Framework
-qtIFW=QtInstallerFramework-macOS-x86_64-${QTIFWVER}.dmg
-${DOWNLOAD_CMD} "http://download.qt.io/official_releases/qt-installer-framework/${QTIFWVER}/${qtIFW}" || true
-
-if [ -e "${qtIFW}" ]; then
-    hdiutil convert "${qtIFW}" -format UDZO -o qtifw
-    7z x -oqtifw qtifw.dmg -bb
-    7z x -oqtifw qtifw/5.hfsx -bb
-    installer=qtifw/QtInstallerFramework-macOS-x86_64-${QTIFWVER}/QtInstallerFramework-macOS-x86_64-${QTIFWVER}.app/Contents/MacOS/QtInstallerFramework-macOS-x86_64-${QTIFWVER}
-    chmod +x "${installer}"
-    ${installer} \
-        --verbose \
-        --accept-licenses \
-        --accept-messages \
-        --confirm-command \
-        install
-fi
