@@ -15,7 +15,7 @@ chmod a+x "${resourcesDir}/AkVCamManager"
 # Create a symlink to the plugin.
 ln -s "${targetDir}/${appName}.plugin" "/Library/CoreMediaIO/Plug-Ins/DAL/${appName}.plugin"
 
-// Set assistant daemon.
+# Set assistant daemon.
 service=org.webcamoid.cmio.AkVCam.Assistant
 daemonPlist=/Library/LaunchDaemons/${service}.plist
 cat << EOF > "${daemonPlist}"
