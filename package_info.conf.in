@@ -14,7 +14,7 @@ writeLauncher = false
 [MacPkg]
 appName = AkVirtualCamera
 identifier = org.webcamoidprj.AkVirtualCamera
-targetDir = /Applications/AkVirtualCamera
+subFolder = AkVirtualCamera
 installScripts = ports/deploy/mac/installScripts
 uninstallScript = ports/deploy/mac/uninstall.sh
 
