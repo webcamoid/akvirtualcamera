@@ -1,7 +1,11 @@
 #!/bin/sh
 
+packagePath=$1
+installDir=$2
+volumeInstallDir=$3
+
 appName=AkVirtualCamera
-targetDir=/Applications/${appName}
+targetDir=${volumeInstallDir}/${installDir}/${appName}
 
 # Remove old plugin
 rm -rf "/Library/CoreMediaIO/Plug-Ins/DAL/${appName}.plugin"
