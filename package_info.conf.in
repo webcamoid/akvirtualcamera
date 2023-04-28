@@ -8,7 +8,7 @@ buildInfoFile = @BUILD_INFO_FILE@
 targetArch = @PACKET_TARGET_ARCH@
 version = @VERSION@
 outputFormats = @OUTPUT_FORMATS@
-hideArch = true
+hideArch = @PACKET_HIDE_ARCH@
 writeLauncher = false
 
 [MacPkg]

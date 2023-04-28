@@ -170,13 +170,13 @@ namespace AkVCam
             }
 
             template<typename T>
-            static inline T bound(T min, T value, T max)
+            static inline T bound(T min, T value, T max) const
             {
                 return value < min? min: value > max? max: value;
             }
 
             template<typename T>
-            inline T mod(T value, T mod)
+            inline T mod(T value, T mod) const
             {
                 return (value % mod + mod) % mod;
             }
@@ -1681,9 +1681,9 @@ void AkVCam::VideoFramePrivate::hslToRgb(int h, int s, int l, int *r, int *g, in
 
     int m = 2 * l - c;
 
-    *r = (2 * (*r) + m) / 2;
-    *g = (2 * (*g) + m) / 2;
-    *b = (2 * (*b) + m) / 2;
+    *r = (2 * (*r) + m) >> 1;
+    *g = (2 * (*g) + m) >> 1;
+    *b = (2 * (*b) + m) >> 1;
 }
 
 std::vector<uint8_t> AkVCam::initGammaTable()

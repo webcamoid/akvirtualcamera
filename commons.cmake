@@ -41,6 +41,15 @@ add_definitions(-DCOMMONS_APPNAME="${COMMONS_APPNAME}"
 
 if (APPLE)
     check_cxx_source_compiles("
+    #ifndef __arm__
+        #error Not ARM
+    #endif
+
+    int main()
+    {
+        return 0;
+    }" IS_ARM_TARGET)
+    check_cxx_source_compiles("
     #ifndef __x86_64__
         #error Not x64
     #endif
