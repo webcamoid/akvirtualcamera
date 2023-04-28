@@ -170,13 +170,13 @@ namespace AkVCam
             }
 
             template<typename T>
-            static inline T bound(T min, T value, T max) const
+            static inline T bound(T min, T value, T max)
             {
                 return value < min? min: value > max? max: value;
             }
 
             template<typename T>
-            inline T mod(T value, T mod) const
+            static inline T mod(T value, T mod)
             {
                 return (value % mod + mod) % mod;
             }
@@ -754,7 +754,7 @@ AkVCam::VideoFrame AkVCam::VideoFrame::adjustHsl(int hue,
             this->d->rgbToHsl(srcLine[x].r, srcLine[x].g, srcLine[x].b,
                               &h, &s, &l);
 
-            h = this->d->mod(h + hue, 360);
+            h = VideoFramePrivate::mod(h + hue, 360);
             s = VideoFramePrivate::bound(0, s + saturation, 255);
             l = VideoFramePrivate::bound(0, l + luminance, 255);
 
@@ -910,7 +910,7 @@ AkVCam::VideoFrame AkVCam::VideoFrame::adjust(int hue,
                 int l;
                 this->d->rgbToHsl(r, g, b, &h, &s, &l);
 
-                h = this->d->mod(h + hue, 360);
+                h = VideoFramePrivate::mod(h + hue, 360);
                 s = VideoFramePrivate::bound(0, s + saturation, 255);
                 l = VideoFramePrivate::bound(0, l + luminance, 255);
                 this->d->hslToRgb(h, s, l, &r, &g, &b);
@@ -1633,7 +1633,7 @@ void AkVCam::VideoFramePrivate::rgbToHsl(int r, int g, int b, int *h, int *s, in
         *s = 0;
     } else {
         if (max == r)
-            *h = this->mod(g - b, 6 * c);
+            *h = VideoFramePrivate::mod(g - b, 6 * c);
         else if (max == g)
             *h = b - r + 2 * c;
         else
