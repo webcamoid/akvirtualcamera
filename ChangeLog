@@ -1,3 +1,7 @@
+akvirtualcamera 9.1.1:
+
+- Mark Mac packages architecture.
+
 akvirtualcamera 9.1.0:
 
 - Added -f, --force flags to the manager, this bypass the virtual camera usage
