@@ -28,7 +28,7 @@ if (APPLE)
     set(INSTALLPATH ${CMIO_PLUGIN_NAME}.plugin/Contents/Resources)
 elseif (WIN32)
     include(../dshow/dshow.cmake)
-    set(INSTALLPATH ${TARGET_ARCH})
+    set(INSTALLPATH ${WIN_TARGET_ARCH})
 endif ()
 
 add_executable(Manager

@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(../dshow.cmake)
-set(INSTALLPATH ${TARGET_ARCH})
+set(INSTALLPATH ${WIN_TARGET_ARCH})
 
 add_executable(Assistant
                src/main.cpp
