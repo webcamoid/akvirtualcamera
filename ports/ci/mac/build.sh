@@ -25,6 +25,12 @@ if [ -z "${DISABLE_CCACHE}" ]; then
     EXTRA_PARAMS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache"
 fi
 
+if [ "${ARCHITECTURE}" == arm64 ]; then
+    EXTRA_PARAMS="${EXTRA_PARAMS} -DCMAKE_OSX_ARCHITECTURES=arm64"
+    export CFLAGS="-arch arm64"
+    export CXXFLAGS="-arch arm64"
+fi
+
 INSTALL_PREFIX=${PWD}/package-data
 
 mkdir -p build
