@@ -28,6 +28,7 @@ If you are interested in donating to the project you can look at all available m
 [![Windows MSYS](https://github.com/webcamoid/akvirtualcamera/actions/workflows/windows-msys.yml/badge.svg)](https://github.com/webcamoid/akvirtualcamera/actions/workflows/windows-msys.yml)
 [![Windows MSVC](https://github.com/webcamoid/akvirtualcamera/actions/workflows/windows-vs.yml/badge.svg)](https://github.com/webcamoid/akvirtualcamera/actions/workflows/windows-vs.yml)  
 [![Build status](https://ci.appveyor.com/api/projects/status/rwd4of9casmfmmys?svg=true)](https://ci.appveyor.com/project/hipersayanX/akvirtualcamera)
+[![Build status](https://api.cirrus-ci.com/github/webcamoid/akvirtualcamera.svg)](https://cirrus-ci.com/github/webcamoid/akvirtualcamera)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/1cee2645a3604633a506a203fb8c3161)](https://www.codacy.com/gh/webcamoid/akvirtualcamera/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=webcamoid/akvirtualcamera&amp;utm_campaign=Badge_Grade)
 [![Project Stats](https://www.openhub.net/p/akvirtualcamera/widgets/project_thin_badge.gif)](https://www.openhub.net/p/akvirtualcamera)
 
