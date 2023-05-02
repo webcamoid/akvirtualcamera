@@ -1,0 +1,38 @@
+mac_task:
+  matrix:
+    - name: MacOS Ventura (13.0)
+      macos_instance:
+        image: ghcr.io/cirruslabs/macos-ventura-base:latest
+      env:
+        UPLOAD: 0
+    - name: MacOS Monterrey (12.0)
+      macos_instance:
+        image: ghcr.io/cirruslabs/macos-monterey-base:latest
+      env:
+        UPLOAD: 1
+  env:
+    GITHUB_TOKEN: ENCRYPTED[80867839ea1cae036c24d6491696b07aeee67dee7e558714d0031f84e338ec415d266fb19e482d7430826121cfe39d2c]
+    HOMEBREW_PATH: /opt/homebrew
+    NJOBS: 4
+  env:
+    only_if: ${CIRRUS_TAG} == ""
+    DAILY_BUILD: 1
+  env:
+    only_if: ${CIRRUS_TAG} != ""
+    DAILY_BUILD: 0
+  macos_instance:
+    cpu: 2
+    memory: 4G
+  timeout_in: 60m
+  install_script:
+    - chmod +x ports/ci/mac/install_deps.sh
+    - ./ports/ci/mac/install_deps.sh
+  script:
+    - chmod +x ports/ci/mac/build.sh
+    - ./ports/ci/mac/build.sh
+  deploy_script:
+    - chmod +x ports/ci/mac/deploy.sh
+    - ./ports/ci/mac/deploy.sh
+  upload_script:
+    - chmod +x ports/ci/mac/upload.sh
+    - ./ports/ci/mac/upload.sh

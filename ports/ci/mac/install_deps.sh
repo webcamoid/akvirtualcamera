@@ -26,12 +26,9 @@ fi
 
 brew update
 brew upgrade
-brew link --overwrite numpy
 brew install \
     ccache \
     cmake \
     p7zip \
     pkg-config \
     python
-brew link --overwrite python
-brew link python
