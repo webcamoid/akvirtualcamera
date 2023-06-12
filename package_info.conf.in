@@ -10,6 +10,7 @@ version = @VERSION@
 outputFormats = @OUTPUT_FORMATS@
 hideArch = @PACKET_HIDE_ARCH@
 writeLauncher = false
+dailyBuild = @DAILY_BUILD@
 
 [MacPkg]
 appName = AkVirtualCamera
