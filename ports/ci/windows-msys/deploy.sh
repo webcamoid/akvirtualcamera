@@ -26,8 +26,8 @@ export PACKAGES_DIR="${PWD}/packages/windows-${COMPILER}"
 export BUILD_PATH="${PWD}/build-${COMPILER}-x64"
 export PYTHONPATH="${PWD}/DeployTools"
 
-/c/msys64/mingw32/bin/strip "${INSTALL_PREFIX}"/x86/*
-/c/msys64/mingw64/bin/strip "${INSTALL_PREFIX}"/x64/*
+/mingw32/bin/strip "${INSTALL_PREFIX}/x86"/*
+/mingw64/bin/strip "${INSTALL_PREFIX}/x64"/*
 mkdir -p "${PACKAGES_DIR}"
 
 python3 DeployTools/deploy.py \
