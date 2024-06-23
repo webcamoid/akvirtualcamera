@@ -13,11 +13,11 @@ jobs:
       fail-fast: false
       matrix:
        include:
+         - os: macos-14
+           upload: 1
          - os: macos-13
            upload: 0
          - os: macos-12
-           upload: 0
-         - os: macos-11
            upload: 1
     runs-on: ${{ matrix.os }}
     env:
@@ -63,7 +63,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       if: ${{ !startsWith(github.ref, 'refs/tags/') && matrix.upload }}
       with:
-        body: "${{ github.event.head_commit.message }} (commit: ${{ github.sha }})"
+        body: "${{ github.event.head_commit.message }} (commit: [${{ github.sha }}](https://github.com/webcamoid/akvirtualcamera/commit/${{ github.sha }}))<hr>**Note**: Ignore the commit information of the tag, the files in the release keep updating with every new build, these packages were built from [${{ github.sha }}](https://github.com/webcamoid/akvirtualcamera/commit/${{ github.sha }}) commit."
         prerelease: true
         files: packages/mac/*
         name: Daily Build
