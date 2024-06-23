@@ -63,7 +63,8 @@ pacman --noconfirm --needed -S \
     wine \
     mingw-w64-pkg-config \
     mingw-w64-cmake \
-    mingw-w64-gcc
+    mingw-w64-gcc \
+    xorg-server-xvfb
 
 # Install NSIS
 
@@ -73,5 +74,5 @@ ${DOWNLOAD_CMD} "https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSI
 if [ -e ${nsis} ]; then
     export WINEPREFIX=/opt/.wine
 
-    wine ./${nsis} /S
+    xvfb-run --auto-servernum wine ./${nsis} /S
 fi
