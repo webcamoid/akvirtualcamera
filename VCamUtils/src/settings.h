@@ -19,6 +19,7 @@
 #ifndef AKVCAM_SETTINGS_H
 #define AKVCAM_SETTINGS_H
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
