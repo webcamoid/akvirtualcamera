@@ -37,7 +37,7 @@ echo
 echo "Building x64 virtual camera driver"
 echo
 
-export PATH=/c/msys64/mingw64/bin:/c/msys64/usr/bin:${ORIG_PATH}
+export PATH=/mingw64/bin:/c/msys64/mingw64/bin:/c/msys64/usr/bin:${ORIG_PATH}
 buildDir=build-${COMPILER}-x64
 mkdir -p ${buildDir}
 cmake \
@@ -47,8 +47,8 @@ cmake \
     -G "MSYS Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCMAKE_C_COMPILER="/c/msys64/mingw64/bin/${COMPILER_C}" \
-    -DCMAKE_CXX_COMPILER="/c/msys64/mingw64/bin/${COMPILER_CXX}" \
+    -DCMAKE_C_COMPILER="${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
     ${EXTRA_PARAMS}
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install
@@ -57,7 +57,7 @@ echo
 echo "Building x86 virtual camera driver"
 echo
 
-export PATH=/c/msys64/mingw32/bin:/c/msys64/usr/bin:${ORIG_PATH}
+export PATH=/mingw32/bin:/c/msys64/mingw32/bin:/c/msys64/usr/bin:${ORIG_PATH}
 buildDir=build-${COMPILER}-x86
 mkdir -p ${buildDir}
 cmake \
@@ -67,8 +67,8 @@ cmake \
     -G "MSYS Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCMAKE_C_COMPILER="/c/msys64/mingw32/bin/${COMPILER_C}" \
-    -DCMAKE_CXX_COMPILER="/c/msys64/mingw32/bin/${COMPILER_CXX}" \
+    -DCMAKE_C_COMPILER="${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
     ${EXTRA_PARAMS}
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install
