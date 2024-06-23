@@ -47,8 +47,8 @@ cmake \
     -G "MSYS Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCMAKE_C_COMPILER="/mingw64/bin/${COMPILER_C}" \
-    -DCMAKE_CXX_COMPILER="/mingw64/bin/${COMPILER_CXX}" \
+    -DCMAKE_C_COMPILER="/c/msys64/mingw64/bin/${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="/c/msys64/mingw64/bin/${COMPILER_CXX}" \
     ${EXTRA_PARAMS}
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install
@@ -67,8 +67,8 @@ cmake \
     -G "MSYS Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCMAKE_C_COMPILER="/mingw32/bin/${COMPILER_C}" \
-    -DCMAKE_CXX_COMPILER="/mingw32/bin/${COMPILER_CXX}" \
+    -DCMAKE_C_COMPILER="/c/msys64/mingw32/bin/${COMPILER_C}" \
+    -DCMAKE_CXX_COMPILER="/c/msys64/mingw32/bin/${COMPILER_CXX}" \
     ${EXTRA_PARAMS}
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install
