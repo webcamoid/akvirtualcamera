@@ -101,4 +101,5 @@ target_link_libraries(VirtualCamera
                       user32
                       uuid
                       winmm)
+add_definitions(-DSTRSAFE_NO_DEPRECATE)
 install(TARGETS VirtualCamera DESTINATION ${INSTALLPATH})
