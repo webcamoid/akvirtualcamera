@@ -74,6 +74,7 @@ ${DOWNLOAD_CMD} "https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSI
 if [ -e "${nsis}" ]; then
     export WINEPREFIX=/opt/.wine
 
+    export DISPLAY=:0.0
     xvfb-run --auto-servernum wineboot --init
     xvfb-run --auto-servernum wine ./${nsis} /S
 fi
