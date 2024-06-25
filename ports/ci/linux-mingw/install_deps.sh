@@ -56,14 +56,14 @@ pacman --noconfirm --needed -S \
     file \
     git \
     make \
+    mingw-w64-cmake \
+    mingw-w64-gcc \
+    mingw-w64-pkg-config \
     pkgconf \
     python \
     sed \
-    xorg-server-xvfb \
+    vulkan-icd-loader \
     wine \
-    mingw-w64-pkg-config \
-    mingw-w64-cmake \
-    mingw-w64-gcc \
     xorg-server-xvfb
 
 # Install NSIS
@@ -71,7 +71,7 @@ pacman --noconfirm --needed -S \
 nsis=nsis-${NSIS_VERSION}-setup.exe
 ${DOWNLOAD_CMD} "https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
 
-if [ -e ${nsis} ]; then
+if [ -e "${nsis}" ]; then
     export WINEPREFIX=/opt/.wine
 
     xvfb-run --auto-servernum wine ./${nsis} /S
