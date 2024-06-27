@@ -45,7 +45,37 @@ jobs:
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-gcc
           mingw-w64-x86_64-pkgconf
-    - name: Build
+    - name: Release Build
+      if: ${{ startsWith(github.ref, 'refs/tags/') }}
       run: ./ports/ci/windows-msys/build.sh
-    - name: Deploy
+    - name: Release Deploy
+      if: ${{ startsWith(github.ref, 'refs/tags/') }}
       run: ./ports/ci/windows-msys/deploy.sh
+    - name: Daily Build
+      if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+      env:
+        DAILY_BUILD: 1
+      run: ./ports/ci/windows-msys/build.sh
+    - name: Daily Deploy
+      if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+      env:
+        DAILY_BUILD: 1
+      run: ./ports/ci/windows-msys/deploy.sh
+    - name: Release Upload
+      uses: softprops/action-gh-release@v1
+      if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      with:
+        files: packages/windows-gcc/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Daily Build Upload
+      uses: softprops/action-gh-release@v1
+      if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+      with:
+        body: "${{ github.event.head_commit.message }} (commit: [${{ github.sha }}](https://github.com/webcamoid/akvirtualcamera/commit/${{ github.sha }}))<hr>**Note**: Ignore the commit information of the tag, the files in the release keep updating with every new build, these packages were built from [${{ github.sha }}](https://github.com/webcamoid/akvirtualcamera/commit/${{ github.sha }}) commit."
+        prerelease: true
+        files: packages/windows-gcc/*
+        name: Daily Build
+        tag_name: daily-build
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
