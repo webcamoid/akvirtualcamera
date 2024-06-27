@@ -49,6 +49,7 @@ cmake \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_C_COMPILER="${COMPILER_C}" \
     -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+    -DDAILY_BUILD="${DAILY_BUILD}" \
     ${EXTRA_PARAMS}
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install
@@ -69,6 +70,7 @@ cmake \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_C_COMPILER="${COMPILER_C}" \
     -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+    -DDAILY_BUILD="${DAILY_BUILD}" \
     ${EXTRA_PARAMS}
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install

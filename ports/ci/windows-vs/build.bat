@@ -32,7 +32,8 @@ cmake ^
     -G "%CMAKE_GENERATOR%" ^
     -A x64 ^
     -DCMAKE_BUILD_TYPE=Release ^
-    -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+    -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
+    -DDAILY_BUILD="%DAILY_BUILD%"
 cmake --build build-x64 --config Release --parallel "%NJOBS%"
 cmake --build build-x64 --config Release --target install
 
@@ -49,6 +50,7 @@ cmake ^
     -G "%CMAKE_GENERATOR%" ^
     -A Win32 ^
     -DCMAKE_BUILD_TYPE=Release ^
-    -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+    -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
+    -DDAILY_BUILD="%DAILY_BUILD%"
 cmake --build build-x86 --config Release --parallel "%NJOBS%"
 cmake --build build-x86 --config Release --target install

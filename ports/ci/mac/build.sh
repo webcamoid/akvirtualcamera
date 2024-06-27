@@ -35,6 +35,8 @@ cmake \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_C_COMPILER="${COMPILER_C}" \
-    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}"
+    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+    -DDAILY_BUILD="${DAILY_BUILD}" \
+    ${EXTRA_PARAMS}
 cmake --build build --parallel ${NJOBS}
 cmake --build build --target install

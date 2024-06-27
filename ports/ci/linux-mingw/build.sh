@@ -45,6 +45,7 @@ x86_64-w64-mingw32-cmake \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_C_COMPILER="x86_64-w64-mingw32-${COMPILER_C}" \
     -DCMAKE_CXX_COMPILER="x86_64-w64-mingw32-${COMPILER_CXX}" \
+    -DDAILY_BUILD="${DAILY_BUILD}" \
     ${EXTRA_PARAMS}
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install
@@ -61,6 +62,7 @@ i686-w64-mingw32-cmake \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_C_COMPILER="i686-w64-mingw32-${COMPILER_C}" \
     -DCMAKE_CXX_COMPILER="i686-w64-mingw32-${COMPILER_CXX}" \
+    -DDAILY_BUILD="${DAILY_BUILD}" \
     ${EXTRA_PARAMS}
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install

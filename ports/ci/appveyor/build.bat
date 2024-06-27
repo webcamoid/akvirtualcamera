@@ -33,7 +33,8 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
         -B build-x64 ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_BUILD_TYPE=Release ^
-        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
+        -DDAILY_BUILD="%DAILY_BUILD%"
     cmake --build build-x64 --parallel "%NJOBS%"
     cmake --build build-x64 --target install
 )
@@ -48,7 +49,8 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
         -G "%CMAKE_GENERATOR%" ^
         -A x64 ^
         -DCMAKE_BUILD_TYPE=Release ^
-        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
+        -DDAILY_BUILD="%DAILY_BUILD%"
     cmake --build build-x64 --config Release  --parallel "%NJOBS%"
     cmake --build build-x64 --config Release --target install
 )
@@ -68,7 +70,8 @@ if "%CMAKE_GENERATOR%" == "MSYS Makefiles" (
         -B build-x86 ^
         -G "%CMAKE_GENERATOR%" ^
         -DCMAKE_BUILD_TYPE=Release ^
-        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
+        -DDAILY_BUILD="%DAILY_BUILD%"
     cmake --build build-x86 --parallel "%NJOBS%"
     cmake --build build-x86 --target install
 )
@@ -83,7 +86,8 @@ if "%CMAKE_GENERATOR:~0,13%" == "Visual Studio" (
         -G "%CMAKE_GENERATOR%" ^
         -A Win32 ^
         -DCMAKE_BUILD_TYPE=Release ^
-        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%"
+        -DCMAKE_INSTALL_PREFIX="%INSTALL_PREFIX%" ^
+        -DDAILY_BUILD="%DAILY_BUILD%"
     cmake --build build-x86 --config Release --parallel "%NJOBS%"
     cmake --build build-x86 --config Release --target install
 )
