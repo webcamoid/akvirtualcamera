@@ -51,6 +51,27 @@ if (DAILY_BUILD)
     add_definitions(-DDAILY_BUILD)
 endif ()
 
+set(GIT_COMMIT_HASH "" CACHE STRING "Set the alternative commit hash if not detected by git")
+
+find_program(GIT_BIN git)
+
+if (GIT_BIN)
+    execute_process(COMMAND ${GIT_BIN} rev-parse HEAD
+                    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+                    OUTPUT_VARIABLE GIT_COMMIT_HASH_RESULT
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    ERROR_QUIET)
+
+endif ()
+
+if ("${GIT_COMMIT_HASH_RESULT}" STREQUAL "")
+    set(GIT_COMMIT_HASH_RESULT "${GIT_COMMIT_HASH}")
+endif ()
+
+if (NOT "${GIT_COMMIT_HASH_RESULT}" STREQUAL "")
+    add_definitions(-DGIT_COMMIT_HASH="${GIT_COMMIT_HASH_RESULT}")
+endif ()
+
 # NOTE for other developers: TARGET_ARCH is intended to be used as a reference
 # for the deploy tool, so don't rush on adding new architectures unless you
 # want to create a binary distributable for that architecture.

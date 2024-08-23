@@ -42,6 +42,8 @@
 #include "VCamUtils/src/videoframe.h"
 #include "VCamUtils/src/logger.h"
 
+#define COMMONS_PROJECT_COMMIT_URL "https://github.com/webcamoid/akvirtualcamera/commit"
+
 #define AKVCAM_BIND_FUNC(member) \
     std::bind(&member, this->d, std::placeholders::_1, std::placeholders::_2)
 
@@ -188,6 +190,9 @@ AkVCam::CmdParser::CmdParser()
     this->addFlags("",
                    {"-f", "--force"},
                    "Force command.");
+    this->addFlags("",
+                   {"--build-info"},
+                   "Show build information.");
     this->addCommand("devices",
                      "",
                      "List devices.",
@@ -783,11 +788,33 @@ int AkVCam::CmdParserPrivate::defaultHandler(const StringMap &flags,
 {
     if (flags.empty()
         || this->containsFlag(flags, "", "-h")
-        || this->containsFlag(flags, "", "--help-all"))
+        || this->containsFlag(flags, "", "--help-all")) {
         return this->showHelp(flags, args);
+    }
 
     if (this->containsFlag(flags, "", "-v")) {
         std::cout << COMMONS_VERSION << std::endl;
+
+        return 0;
+    }
+
+    if (this->containsFlag(flags, "", "--build-info")) {
+#ifdef GIT_COMMIT_HASH
+        std::string commitHash = GIT_COMMIT_HASH;
+        std::string commitUrl = COMMONS_PROJECT_COMMIT_URL "/" GIT_COMMIT_HASH;
+
+        if (commitHash.empty())
+            commitHash = "Unknown";
+
+        if (commitUrl.empty())
+            commitUrl = "Unknown";
+#else
+        std::string commitHash;
+        std::string commitUrl;
+#endif
+
+        std::cout << "Commit hash: " << commitHash << std::endl;
+        std::cout << "Commit URL: " << commitUrl << std::endl;
 
         return 0;
     }
