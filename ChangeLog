@@ -1,6 +1,7 @@
 akvirtualcamera 9.1.3:
 
 - Quote file path if it contains spaces (issue #75).
+- Added --build-info flag.
 
 akvirtualcamera 9.1.2:
 
