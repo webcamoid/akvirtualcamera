@@ -16,14 +16,20 @@ REM along with akvirtualcamera. If not, see <http://www.gnu.org/licenses/>.
 REM
 REM Web-Site: http://webcamoid.github.io/
 
-set SOURCES_DIR=%cd%
-set INSTALL_PREFIX=%SOURCES_DIR%\package-data
-set PACKAGES_DIR=%SOURCES_DIR%\packages\windows
+if not "%GITHUB_SHA%" == "" set GIT_COMMIT_HASH="%GITHUB_SHA%"
+if not "%CIRRUS_CHANGE_IN_REPO%" == "" set GIT_COMMIT_HASH="%CIRRUS_CHANGE_IN_REPO%"
+
+if not "%GITHUB_REF_NAME%" == "" set GIT_BRANCH_NAME="%GITHUB_REF_NAME%"
+if not "%CIRRUS_BRANCH%" == "" set GIT_BRANCH_NAME="%CIRRUS_BRANCH%"
+if not "%GIT_BRANCH_NAME%" == "" set GIT_BRANCH_NAME=master
 
 git clone https://github.com/webcamoid/DeployTools.git
 
-set PYTHONPATH=%cd%\DeployTools
-set BUILD_PATH=%cd%\build-x64
+set INSTALL_PREFIX=%CD%\package-data
+set PACKAGES_DIR=%CD%\packages\windows
+set BUILD_PATH=%CD%\build-x64
+set PYTHONPATH=%CD%\DeployTools
+
 python DeployTools\deploy.py ^
     -d "%INSTALL_PREFIX%" ^
     -c "%BUILD_PATH%\package_info.conf" ^

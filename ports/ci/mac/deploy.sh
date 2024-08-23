@@ -18,14 +18,31 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-SOURCES_DIR=${PWD}
+if [ ! -z "${GITHUB_SHA}" ]; then
+    export GIT_COMMIT_HASH="${GITHUB_SHA}"
+elif [ ! -z "${CIRRUS_CHANGE_IN_REPO}" ]; then
+    export GIT_COMMIT_HASH="${CIRRUS_CHANGE_IN_REPO}"
+fi
+
+export GIT_BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+if [ -z "${GIT_BRANCH_NAME}" ]; then
+    if [ ! -z "${GITHUB_REF_NAME}" ]; then
+        export GIT_BRANCH_NAME="${GITHUB_REF_NAME}"
+    elif [ ! -z "${CIRRUS_BRANCH}" ]; then
+        export GIT_BRANCH_NAME="${CIRRUS_BRANCH}"
+    else
+        export GIT_BRANCH_NAME=master
+    fi
+fi
+
 
 git clone https://github.com/webcamoid/DeployTools.git
 
-export INSTALL_PREFIX="${SOURCES_DIR}/package-data"
-export PACKAGES_DIR="${SOURCES_DIR}/packages/mac"
-export PYTHONPATH="${SOURCES_DIR}/DeployTools"
-export BUILD_PATH="${SOURCES_DIR}/build"
+export INSTALL_PREFIX="${PWD}/package-data"
+export PACKAGES_DIR="${PWD}/packages/mac"
+export PYTHONPATH="${PWD}/DeployTools"
+export BUILD_PATH="${PWD}/build"
 python3 ./DeployTools/deploy.py \
     -d "${INSTALL_PREFIX}" \
     -c "${BUILD_PATH}/package_info.conf" \
