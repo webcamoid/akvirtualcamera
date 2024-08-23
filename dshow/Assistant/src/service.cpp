@@ -29,6 +29,7 @@
 #include <psapi.h>
 #include <shellapi.h>
 #include <sddl.h>
+#include <tchar.h>
 
 #include "service.h"
 #include "PlatformUtils/src/messageserver.h"
@@ -127,6 +128,12 @@ BOOL AkVCam::Service::install()
         AkLogError() << "Can't open SCManager" << std::endl;
 
         return false;
+    }
+
+    if (_tcschr(fileName, TEXT(' '))) {
+        TCHAR tempFileName[MAX_PATH];
+        _sntprintf(tempFileName, MAX_PATH, TEXT("\"%s\""), fileName);
+        _tcsncpy(fileName, tempFileName, MAX_PATH);
     }
 
     auto service =
