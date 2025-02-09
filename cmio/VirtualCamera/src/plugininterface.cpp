@@ -39,7 +39,7 @@ namespace AkVCam
             PluginInterface *self;
             ULONG m_ref;
             ULONG m_reserved;
-            IpcBridge m_ipcBridge {true};
+            IpcBridge m_ipcBridge;
 
             void updateDevices();
             static HRESULT QueryInterface(void *self,
@@ -170,11 +170,9 @@ AkVCam::PluginInterface::PluginInterface():
     this->d->m_ref = 0;
     this->d->m_reserved = 0;
 
-    this->d->m_ipcBridge.connectServerStateChanged(this, &PluginInterface::serverStateChanged);
     this->d->m_ipcBridge.connectDevicesChanged(this, &PluginInterface::devicesChanged);
     this->d->m_ipcBridge.connectFrameReady(this, &PluginInterface::frameReady);
     this->d->m_ipcBridge.connectPictureChanged(this, &PluginInterface::pictureChanged);
-    this->d->m_ipcBridge.connectBroadcastingChanged(this, &PluginInterface::setBroadcasting);
     this->d->m_ipcBridge.connectControlsChanged(this, &PluginInterface::controlsChanged);
 }
 
@@ -268,19 +266,6 @@ OSStatus AkVCam::PluginInterface::Teardown()
     return kCMIOHardwareNoError;
 }
 
-void AkVCam::PluginInterface::serverStateChanged(void *userData,
-                                                 IpcBridge::ServerState state)
-{
-    AkLogFunction();
-    auto self = reinterpret_cast<PluginInterface *>(userData);
-
-    for (auto device: self->m_devices)
-        device->serverStateChanged(state);
-
-    if (state == IpcBridge::ServerStateAvailable)
-        self->d->updateDevices();
-}
-
 void AkVCam::PluginInterface::devicesChanged(void *userData,
                                              const std::vector<std::string> &devices)
 {
@@ -308,14 +293,15 @@ void AkVCam::PluginInterface::devicesChanged(void *userData,
 
 void AkVCam::PluginInterface::frameReady(void *userData,
                                          const std::string &deviceId,
-                                         const VideoFrame &frame)
+                                         const VideoFrame &frame,
+                                         bool isAvailable)
 {
     AkLogFunction();
     auto self = reinterpret_cast<PluginInterface *>(userData);
 
     for (auto device: self->m_devices)
         if (device->deviceId() == deviceId)
-            device->frameReady(frame);
+            device->frameReady(frame, isAvailable);
 }
 
 void AkVCam::PluginInterface::pictureChanged(void *userData,
@@ -326,20 +312,6 @@ void AkVCam::PluginInterface::pictureChanged(void *userData,
 
     for (auto device: self->m_devices)
         device->setPicture(picture);
-}
-
-void AkVCam::PluginInterface::setBroadcasting(void *userData,
-                                              const std::string &deviceId,
-                                              const std::string &broadcaster)
-{
-    AkLogFunction();
-    AkLogInfo() << "Device: " << deviceId << std::endl;
-    AkLogInfo() << "Broadcaster: " << broadcaster << std::endl;
-    auto self = reinterpret_cast<PluginInterface *>(userData);
-
-    for (auto device: self->m_devices)
-        if (device->deviceId() == deviceId)
-            device->setBroadcasting(broadcaster);
 }
 
 void AkVCam::PluginInterface::controlsChanged(void *userData,
@@ -369,22 +341,6 @@ void AkVCam::PluginInterface::controlsChanged(void *userData,
         }
 }
 
-void AkVCam::PluginInterface::addListener(void *userData,
-                                          const std::string &deviceId)
-{
-    AkLogFunction();
-    auto self = reinterpret_cast<PluginInterface *>(userData);
-    self->d->m_ipcBridge.addListener(deviceId);
-}
-
-void AkVCam::PluginInterface::removeListener(void *userData,
-                                             const std::string &deviceId)
-{
-    AkLogFunction();
-    auto self = reinterpret_cast<PluginInterface *>(userData);
-    self->d->m_ipcBridge.removeListener(deviceId);
-}
-
 bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
                                            const std::string &description,
                                            const std::vector<VideoFormat> &formats)
@@ -396,8 +352,6 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
     auto pluginRef = reinterpret_cast<CMIOHardwarePlugInRef>(this->d);
     auto device = std::make_shared<Device>(pluginRef, false);
     device->setDeviceId(deviceId);
-    device->connectAddListener(this, &PluginInterface::addListener);
-    device->connectRemoveListener(this, &PluginInterface::removeListener);
     this->m_devices.push_back(device);
 
     auto cameraIndex = Preferences::cameraFromId(deviceId);
@@ -465,7 +419,6 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
         goto createDevice_failed;
     }
 
-    device->setBroadcasting(this->d->m_ipcBridge.broadcaster(deviceId));
     device->setHorizontalMirror(hflip);
     device->setVerticalMirror(vflip);
     device->setScaling(Scaling(scaling));
@@ -505,7 +458,6 @@ void AkVCam::PluginInterface::destroyDevice(const std::string &deviceId)
 void AkVCam::PluginInterfacePrivate::updateDevices()
 {
     for (auto &device: this->self->m_devices) {
-        device->setBroadcasting(this->m_ipcBridge.broadcaster(device->deviceId()));
         auto cameraIndex = Preferences::cameraFromId(device->deviceId());
         auto hflip = Preferences::cameraControlValue(cameraIndex, "hflip");
         auto vflip = Preferences::cameraControlValue(cameraIndex, "vflip");

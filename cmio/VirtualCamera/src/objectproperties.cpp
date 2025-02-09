@@ -558,7 +558,7 @@ bool AkVCam::ObjectProperties::getProperty(UInt32 property,
                         CFRelease(CMFormatDescriptionRef(value));
                     };
                     array = CFArrayCreate(kCFAllocatorDefault,
-                                          reinterpret_cast<const void **>(formats.data()),
+                                          const_cast<const void **>(reinterpret_cast<void **>(formats.data())),
                                           UInt32(formats.size()),
                                           &callbacks);
                 }

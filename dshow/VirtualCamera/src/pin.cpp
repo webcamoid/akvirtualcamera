@@ -70,8 +70,6 @@ namespace AkVCam
             std::mutex m_controlsMutex;
             VideoFrame m_currentFrame;
             VideoFrame m_testFrame;
-            VideoFrame m_testFrameAdapted;
-            std::string m_broadcaster;
             bool m_horizontalFlip {false};   // Controlled by client
             bool m_verticalFlip {false};
             std::map<std::string, int> m_controls;
@@ -85,7 +83,6 @@ namespace AkVCam
             void sendFrameOneShot();
             void sendFrameLoop();
             HRESULT sendFrame();
-            void updateTestFrame();
             VideoFrame applyAdjusts(const VideoFrame &frame);
             static void propertyChanged(void *userData,
                                         LONG Property,
@@ -113,7 +110,6 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     this->d->m_mediaTypes->AddRef();
 
     auto cameraIndex = Preferences::cameraFromId(baseFilter->deviceId());
-    this->d->m_broadcaster = baseFilter->broadcaster();
     this->d->m_controls["hflip"] =
             Preferences::cameraControlValue(cameraIndex, "hflip");
     this->d->m_controls["vflip"] =
@@ -202,10 +198,6 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
         if (FAILED(self->d->m_memAllocator->Commit()))
             return VFW_E_NOT_COMMITTED;
 
-        self->d->updateTestFrame();
-        self->d->m_mutex.lock();
-        self->d->m_currentFrame = self->d->m_testFrameAdapted;
-        self->d->m_mutex.unlock();
         self->d->m_pts = -1;
         self->d->m_ptsDrift = 0;
 
@@ -246,7 +238,6 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
         self->d->m_mutex.lock();
         self->d->m_currentFrame.clear();
         self->d->m_mutex.unlock();
-        self->d->m_testFrameAdapted.clear();
     }
 
     self->d->m_prevState = state;
@@ -254,40 +245,20 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
     return S_OK;
 }
 
-void AkVCam::Pin::serverStateChanged(IpcBridge::ServerState state)
-{
-    AkLogFunction();
-
-    if (state == IpcBridge::ServerStateGone) {
-        this->d->m_broadcaster.clear();
-        this->d->m_controlsMutex.lock();
-        this->d->m_controls = {};
-        this->d->m_controlsMutex.unlock();
-        this->d->updateTestFrame();
-
-        this->d->m_mutex.lock();
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-        this->d->m_mutex.unlock();
-    }
-}
-
-void AkVCam::Pin::frameReady(const VideoFrame &frame)
+void AkVCam::Pin::frameReady(const VideoFrame &frame, bool isActive)
 {
     AkLogFunction();
     AkLogInfo() << "Running: " << this->d->m_running << std::endl;
-    AkLogInfo() << "Broadcaster: " << this->d->m_broadcaster << std::endl;
 
     if (!this->d->m_running)
         return;
 
     this->d->m_mutex.lock();
+    auto frameAdjusted =
+            this->d->applyAdjusts(isActive? frame: this->d->m_testFrame);
 
-    if (!this->d->m_broadcaster.empty()) {
-        auto frameAdjusted = this->d->applyAdjusts(frame);
-
-        if (frameAdjusted.format().size() > 0)
-            this->d->m_currentFrame = frameAdjusted;
-    }
+    if (frameAdjusted.format().size() > 0)
+        this->d->m_currentFrame = frameAdjusted;
 
     this->d->m_mutex.unlock();
 }
@@ -296,30 +267,8 @@ void AkVCam::Pin::setPicture(const std::string &picture)
 {
     AkLogFunction();
     AkLogDebug() << "Picture: " << picture << std::endl;
+    this->d->m_mutex.lock();
     this->d->m_testFrame = loadPicture(picture);
-    this->d->updateTestFrame();
-    this->d->m_mutex.lock();
-
-    if (this->d->m_broadcaster.empty())
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-
-    this->d->m_mutex.unlock();
-}
-
-void AkVCam::Pin::setBroadcasting(const std::string &broadcaster)
-{
-    AkLogFunction();
-    AkLogInfo() << "Broadcaster: " << broadcaster << std::endl;
-
-    if (this->d->m_broadcaster == broadcaster)
-        return;
-
-    this->d->m_mutex.lock();
-    this->d->m_broadcaster = broadcaster;
-
-    if (broadcaster.empty())
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-
     this->d->m_mutex.unlock();
 }
 
@@ -339,13 +288,6 @@ void AkVCam::Pin::setControls(const std::map<std::string, int> &controls)
 
     this->d->m_controls = controls;
     this->d->m_controlsMutex.unlock();
-    this->d->updateTestFrame();
-    this->d->m_mutex.lock();
-
-    if (this->d->m_broadcaster.empty())
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-
-    this->d->m_mutex.unlock();
 }
 
 bool AkVCam::Pin::horizontalFlip() const
@@ -933,17 +875,6 @@ HRESULT AkVCam::PinPrivate::sendFrame()
     return result;
 }
 
-void AkVCam::PinPrivate::updateTestFrame()
-{
-    AkLogFunction();
-    auto frame = this->applyAdjusts(this->m_testFrame);
-
-    if (frame.format().size() < 1)
-        return;
-
-    this->m_testFrameAdapted = frame;
-}
-
 AkVCam::VideoFrame AkVCam::PinPrivate::applyAdjusts(const VideoFrame &frame)
 {
     AM_MEDIA_TYPE *mediaType = nullptr;
@@ -1079,11 +1010,6 @@ void AkVCam::PinPrivate::propertyChanged(void *userData,
     default:
         break;
     }
-
-    self->updateTestFrame();
-    self->m_mutex.lock();
-    self->m_currentFrame = self->m_testFrameAdapted;
-    self->m_mutex.unlock();
 }
 
 AkVCam::VideoFrame AkVCam::PinPrivate::randomFrame()

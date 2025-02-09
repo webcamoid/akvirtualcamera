@@ -21,17 +21,23 @@
 #define COREFOUNDATION_CFTYPE_H
 
 #include <cstdint>
+#include <cstddef>
+#include <cstring>
 #include <functional>
 
 using CFTypeID = unsigned long;
 using CFTypeDeleter = void (*)(void *data);
 
+using SInt32 = int32_t;
 using UInt8 = uint8_t;
 using UInt32 = uint32_t;
 using UInt64 = uint64_t;
+using Float32 = float;
 using Float64 = double;
 using Boolean = bool;
 using OSStatus = int32_t;
+
+#define CFTYPE_FOURCC(a, b, c, d) ((int32_t(a) << 24) | (int32_t(b) << 16) | (int32_t(c) << 8) | int32_t(d))
 
 enum OSStatus_status
 {
@@ -77,6 +83,13 @@ inline CFTypeRef CFRetain(CFTypeRef cf)
     ++cf->ref;
 
     return cf;
+}
+
+inline Boolean CFEqual(CFTypeRef cf1, CFTypeRef cf2)
+{
+    return (cf1->type == cf2->type)
+            && (cf1->size == cf2->size)
+            && memcmp(cf1->data, cf2->data, cf1->size) == 0;
 }
 
 #endif // COREFOUNDATION_CFTYPE_H

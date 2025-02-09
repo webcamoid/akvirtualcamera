@@ -17,14 +17,23 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef COREMEDIA_CMFORMATDESCRIPTION_H
-#define COREMEDIA_CMFORMATDESCRIPTION_H
+#ifndef COREMEDIAIO_CMIOCOM_H
+#define COREMEDIAIO_CMIOCOM_H
 
-#include "CoreFoundation/CFDictionary.h"
+#include "CoreFoundation/Allocators.h"
+#include "CoreFoundation/CFType.h"
 
-using CMFormatDescription = CFType;
-using CMFormatDescriptionRef = CFTypeRef;
+#define STDMETHODCALLTYPE
 
-using FourCharCode = UInt32;
+using LPVOID = void *;
+using HRESULT = SInt32;
+using ULONG = UInt32;
 
-#endif // COREMEDIA_CMFORMATDESCRIPTION_H
+#define S_OK           0
+#define E_FAIL        -1
+#define E_POINTER     -2
+#define E_NOINTERFACE -3
+
+#define IUnknownUUID CFUUIDGetConstantUUIDWithBytes(kCFAllocatorDefault, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46)
+
+#endif // COREMEDIAIO_CMIOCOM_H

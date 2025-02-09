@@ -48,25 +48,17 @@ namespace AkVCam
             CMIOObjectID m_objectID;
             std::vector<DevicePtr> m_devices;
 
-            static void serverStateChanged(void *userData,
-                                           IpcBridge::ServerState state);
             static void devicesChanged(void *userData,
                                        const std::vector<std::string> &devices);
             static void frameReady(void *userData,
                                    const std::string &deviceId,
-                                   const VideoFrame &frame);
+                                   const VideoFrame &frame,
+                                   bool isAvailable);
             static void pictureChanged(void *userData,
                                        const std::string &picture);
-            static void setBroadcasting(void *userData,
-                                        const std::string &deviceId,
-                                        const std::string &broadcaster);
             static void controlsChanged(void *userData,
                                         const std::string &deviceId,
                                         const std::map<std::string, int> &controls);
-            static void addListener(void *userData,
-                                    const std::string &deviceId);
-            static void removeListener(void *userData,
-                                       const std::string &deviceId);
             bool createDevice(const std::string &deviceId,
                               const std::string &description,
                               const std::vector<VideoFormat> &formats);

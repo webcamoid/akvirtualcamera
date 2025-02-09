@@ -22,6 +22,12 @@
 
 #include <cstdint>
 
+#include "Allocators.h"
+#include "CFType.h"
+
+using CFUUID = CFType;
+using CFUUIDRef = CFTypeRef;
+
 typedef struct _GUID {
     unsigned long  Data1;
     unsigned short Data2;
@@ -58,17 +64,71 @@ struct CFRuntimeBase {
     uint32_t _rc;
 };
 
-struct CFUUID
+struct _CFUUIDData
 {
     CFRuntimeBase base;
     CFUUIDBytes bytes;
 };
 
-using CFUUIDRef = CFUUID *;
+using _CFUUIDDataRef = _CFUUIDData *;
+
+inline CFTypeID CFUUIDGetTypeID()
+{
+    return 0x7;
+}
+
+inline CFUUIDRef CFUUIDGetConstantUUIDWithBytes(CFAllocatorRef alloc,
+                                                UInt8 byte0,
+                                                UInt8 byte1,
+                                                UInt8 byte2,
+                                                UInt8 byte3,
+                                                UInt8 byte4,
+                                                UInt8 byte5,
+                                                UInt8 byte6,
+                                                UInt8 byte7,
+                                                UInt8 byte8,
+                                                UInt8 byte9,
+                                                UInt8 byte10,
+                                                UInt8 byte11,
+                                                UInt8 byte12,
+                                                UInt8 byte13,
+                                                UInt8 byte14,
+                                                UInt8 byte15)
+{
+    auto uuid = new CFUUID;
+    uuid->type = CFUUIDGetTypeID();
+    uuid->data = new _CFUUIDData;
+    memset(uuid->data, 0, sizeof(_CFUUIDData));
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte0  = byte0 ;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte1  = byte1 ;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte2  = byte2 ;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte3  = byte3 ;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte4  = byte4 ;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte5  = byte5 ;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte6  = byte6 ;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte7  = byte7 ;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte8  = byte8 ;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte9  = byte9 ;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte10 = byte10;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte11 = byte11;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte12 = byte12;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte13 = byte13;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte14 = byte14;
+    reinterpret_cast<_CFUUIDDataRef>(uuid->data)->bytes.byte15 = byte15;
+    uuid->size = sizeof(_CFUUIDData);
+    uuid->deleter = [] (void *data) {
+        delete reinterpret_cast<CFUUIDRef>(data);
+    };
+    uuid->ref = 1;
+
+    return uuid;
+
+    return uuid;
+}
 
 inline CFUUIDBytes CFUUIDGetUUIDBytes(CFUUIDRef uuid)
 {
-    return uuid->bytes;
+    return reinterpret_cast<_CFUUIDDataRef>(uuid)->bytes;
 }
 
 #endif // COREFOUNDATION_CFUUID_H

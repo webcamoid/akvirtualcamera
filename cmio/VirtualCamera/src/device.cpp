@@ -44,8 +44,7 @@ OSStatus AkVCam::Device::createObject()
 {
     AkLogFunction();
 
-    if (!this->m_pluginInterface
-        || !*this->m_pluginInterface)
+    if (!this->m_pluginInterface || !*this->m_pluginInterface)
         return kCMIOHardwareUnspecifiedError;
 
     CMIOObjectID deviceID = 0;
@@ -194,28 +193,16 @@ void AkVCam::Device::stopStreams()
         stream.second->stop();
 }
 
-void AkVCam::Device::serverStateChanged(IpcBridge::ServerState state)
+void AkVCam::Device::frameReady(const AkVCam::VideoFrame &frame, bool isActive)
 {
     for (auto &stream: this->m_streams)
-        stream.second->serverStateChanged(state);
-}
-
-void AkVCam::Device::frameReady(const AkVCam::VideoFrame &frame)
-{
-    for (auto &stream: this->m_streams)
-        stream.second->frameReady(frame);
+        stream.second->frameReady(frame, isActive);
 }
 
 void AkVCam::Device::setPicture(const std::string &picture)
 {
     for (auto &stream: this->m_streams)
         stream.second->setPicture(picture);
-}
-
-void AkVCam::Device::setBroadcasting(const std::string &broadcaster)
-{
-    for (auto &stream: this->m_streams)
-        stream.second->setBroadcasting(broadcaster);
 }
 
 void AkVCam::Device::setHorizontalMirror(bool horizontalMirror)

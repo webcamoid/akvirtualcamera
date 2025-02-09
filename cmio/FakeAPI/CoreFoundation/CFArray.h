@@ -80,7 +80,7 @@ inline CFArrayRef CFArrayCreate(CFAllocatorRef allocator,
         for (auto &item: self->items)
             self->callBacks.release(kCFAllocatorDefault, item);
 
-        delete reinterpret_cast<_CFArrayDataRef>(data);
+        delete self;
     };
     arrayType->ref = 1;
 

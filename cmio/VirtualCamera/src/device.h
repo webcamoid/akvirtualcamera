@@ -50,10 +50,8 @@ namespace AkVCam
             void setDeviceId(const std::string &deviceId);
             void stopStreams();
 
-            void serverStateChanged(IpcBridge::ServerState state);
-            void frameReady(const VideoFrame &frame);
+            void frameReady(const VideoFrame &frame, bool isActive);
             void setPicture(const std::string &picture);
-            void setBroadcasting(const std::string &broadcaster);
             void setHorizontalMirror(bool horizontalMirror);
             void setVerticalMirror(bool verticalMirror);
             void setScaling(Scaling scaling);

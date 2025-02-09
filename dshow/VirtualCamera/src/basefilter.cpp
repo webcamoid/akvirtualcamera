@@ -62,8 +62,7 @@ namespace AkVCam
             std::string m_vendor;
             std::string m_filterName;
             IFilterGraph *m_filterGraph {nullptr};
-            IpcBridge m_ipcBridge {true};
-            IpcBridge::ServerState m_serverState {IpcBridge::ServerStateGone};
+            IpcBridge m_ipcBridge;
 
             BaseFilterPrivate(BaseFilter *self,
                               const std::string &filterName,
@@ -72,18 +71,14 @@ namespace AkVCam
             ~BaseFilterPrivate();
             IEnumPins *pinsForDevice(const std::string &deviceId);
             void updatePins();
-            static void serverStateChanged(void *userData,
-                                           IpcBridge::ServerState state);
             static void frameReady(void *userData,
                                    const std::string &deviceId,
-                                   const VideoFrame &frame);
+                                   const VideoFrame &frame,
+                                   bool isActive);
             static void pictureChanged(void *userData,
                                        const std::string &picture);
             static void devicesChanged(void *userData,
                                        const std::vector<std::string> &devices);
-            static void setBroadcasting(void *userData,
-                                        const std::string &deviceId,
-                                        const std::string &broadcasting);
             static void setControls(void *userData,
                                     const std::string &deviceId,
                                     const std::map<std::string, int> &controls);
@@ -161,16 +156,6 @@ std::string AkVCam::BaseFilter::deviceId()
         return {};
 
     return Preferences::cameraId(size_t(cameraIndex));
-}
-
-std::string AkVCam::BaseFilter::broadcaster()
-{
-    auto deviceId = this->deviceId();
-
-    if (deviceId.empty())
-        return {};
-
-    return this->d->m_ipcBridge.broadcaster(deviceId);
 }
 
 HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppvObject)
@@ -354,23 +339,6 @@ HRESULT AkVCam::BaseFilter::QueryVendorInfo(LPWSTR *pVendorInfo)
     return S_OK;
 }
 
-void AkVCam::BaseFilter::stateChanged(FILTER_STATE state)
-{
-    CLSID clsid;
-    this->GetClassID(&clsid);
-    auto cameraIndex = Preferences::cameraFromCLSID(clsid);
-
-    if (cameraIndex < 0)
-        return;
-
-    auto deviceId = Preferences::cameraId(size_t(cameraIndex));
-
-    if (state == State_Running)
-        this->d->m_ipcBridge.addListener(deviceId);
-    else
-        this->d->m_ipcBridge.removeListener(deviceId);
-}
-
 AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self,
                                              const std::string &filterName,
                                              const std::string &vendor):
@@ -385,16 +353,12 @@ AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self,
     this->m_videoProcAmp->AddRef();
     this->m_referenceClock->AddRef();
 
-    this->m_ipcBridge.connectServerStateChanged(this,
-                                                &BaseFilterPrivate::serverStateChanged);
     this->m_ipcBridge.connectDevicesChanged(this,
                                             &BaseFilterPrivate::devicesChanged);
     this->m_ipcBridge.connectFrameReady(this,
                                         &BaseFilterPrivate::frameReady);
     this->m_ipcBridge.connectPictureChanged(this,
                                             &BaseFilterPrivate::pictureChanged);
-    this->m_ipcBridge.connectBroadcastingChanged(this,
-                                                 &BaseFilterPrivate::setBroadcasting);
     this->m_ipcBridge.connectControlsChanged(this,
                                              &BaseFilterPrivate::setControls);
 }
@@ -439,11 +403,6 @@ void AkVCam::BaseFilterPrivate::updatePins()
 
     auto deviceId = Preferences::cameraId(size_t(cameraIndex));
 
-    auto broadcaster = this->m_ipcBridge.broadcaster(deviceId);
-    AkVCamDevicePinCall(deviceId,
-                        this,
-                        setBroadcasting,
-                        broadcaster)
     auto controlsList = this->m_ipcBridge.controls(deviceId);
     std::map<std::string, int> controls;
 
@@ -453,42 +412,14 @@ void AkVCam::BaseFilterPrivate::updatePins()
     AkVCamDevicePinCall(deviceId, this, setControls, controls)
 }
 
-void AkVCam::BaseFilterPrivate::serverStateChanged(void *userData,
-                                                   IpcBridge::ServerState state)
-{
-    AkLogFunction();
-    auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-
-    if (self->m_serverState == state)
-        return;
-
-    FILTER_STATE filterState = State_Stopped;
-    self->self->GetState(0, &filterState);
-
-    if (filterState != State_Stopped)
-        return;
-
-    IEnumPins *pins = nullptr;
-    self->self->EnumPins(&pins);
-
-    if (pins) {
-        AkVCamPinCall(pins, serverStateChanged, state)
-        pins->Release();
-    }
-
-    if (state == IpcBridge::ServerStateAvailable)
-        self->updatePins();
-
-    self->m_serverState = state;
-}
-
 void AkVCam::BaseFilterPrivate::frameReady(void *userData,
                                            const std::string &deviceId,
-                                           const VideoFrame &frame)
+                                           const VideoFrame &frame,
+                                           bool isActive)
 {
     AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-    AkVCamDevicePinCall(deviceId, self, frameReady, frame)
+    AkVCamDevicePinCall(deviceId, self, frameReady, frame, isActive)
 }
 
 void AkVCam::BaseFilterPrivate::pictureChanged(void *userData,
@@ -516,15 +447,6 @@ void AkVCam::BaseFilterPrivate::devicesChanged(void *userData,
 
     for (auto &handler: handlers)
         SendMessage(handler, WM_DEVICECHANGE, DBT_DEVNODES_CHANGED, 0);
-}
-
-void AkVCam::BaseFilterPrivate::setBroadcasting(void *userData,
-                                                const std::string &deviceId,
-                                                const std::string &broadcaster)
-{
-    AkLogFunction();
-    auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-    AkVCamDevicePinCall(deviceId, self, setBroadcasting, broadcaster)
 }
 
 void AkVCam::BaseFilterPrivate::setControls(void *userData,

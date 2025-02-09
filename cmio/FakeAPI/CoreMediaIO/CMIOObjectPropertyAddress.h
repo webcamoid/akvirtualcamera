@@ -17,14 +17,29 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef COREMEDIA_CMFORMATDESCRIPTION_H
-#define COREMEDIA_CMFORMATDESCRIPTION_H
+#ifndef COREMEDIAIO_CMIOOBJECTPROPERTYADDRESS_H
+#define COREMEDIAIO_CMIOOBJECTPROPERTYADDRESS_H
 
-#include "CoreFoundation/CFDictionary.h"
+#include "CoreFoundation/CFType.h"
 
-using CMFormatDescription = CFType;
-using CMFormatDescriptionRef = CFTypeRef;
+using CMIOObjectPropertySelector = UInt32;
+using CMIOObjectPropertyScope = UInt32;
+using CMIOObjectPropertyElement = UInt32;
 
-using FourCharCode = UInt32;
+struct CMIOObjectPropertyAddress
+{
+    CMIOObjectPropertySelector mSelector;
+    CMIOObjectPropertyScope mScope;
+    CMIOObjectPropertyElement mElement;
+};
 
-#endif // COREMEDIA_CMFORMATDESCRIPTION_H
+enum CMIOObjectPropertyScopes
+{
+    kCMIOObjectPropertyScopeGlobal = CFTYPE_FOURCC('g', 'l', 'o', 'b'),
+    kCMIOObjectPropertyElementMaster = 0,
+    kCMIOObjectClassID = CFTYPE_FOURCC('a', 'o', 'b', 'j'),
+    kCMIOObjectClassIDWildcard = CFTYPE_FOURCC('*', '*', '*', '*'),
+    kCMIOObjectUnknown = 0
+};
+
+#endif // COREMEDIAIO_CMIOOBJECTPROPERTYADDRESS_H

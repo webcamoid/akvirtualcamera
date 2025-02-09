@@ -17,14 +17,12 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef COREMEDIA_CMFORMATDESCRIPTION_H
-#define COREMEDIA_CMFORMATDESCRIPTION_H
+#ifndef COREMEDIAIO_CMIOHARDWARESYSTEM_H
+#define COREMEDIAIO_CMIOHARDWARESYSTEM_H
 
-#include "CoreFoundation/CFDictionary.h"
+enum CMIOObjectTypes
+{
+    kCMIOObjectSystemObject = 1
+};
 
-using CMFormatDescription = CFType;
-using CMFormatDescriptionRef = CFTypeRef;
-
-using FourCharCode = UInt32;
-
-#endif // COREMEDIA_CMFORMATDESCRIPTION_H
+#endif // COREMEDIAIO_CMIOHARDWARESYSTEM_H

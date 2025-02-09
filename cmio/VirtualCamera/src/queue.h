@@ -49,8 +49,7 @@ namespace AkVCam
 
             void enqueue(const T &t)
             {
-                CMSimpleQueueEnqueue(this->m_queue,
-                                     t);
+                CMSimpleQueueEnqueue(this->m_queue, t);
             }
 
             T dequeue()

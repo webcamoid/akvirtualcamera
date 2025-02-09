@@ -47,10 +47,8 @@ namespace AkVCam
             CMIODeviceStreamQueueAlteredProc m_queueAltered {nullptr};
             VideoFrame m_currentFrame;
             VideoFrame m_testFrame;
-            VideoFrame m_testFrameAdapted;
             void *m_queueAlteredRefCon {nullptr};
             CFRunLoopTimerRef m_timer {nullptr};
-            std::string m_broadcaster;
             std::mutex m_mutex;
             Scaling m_scaling {ScalingFast};
             AspectRatio m_aspectRatio {AspectRatioIgnore};
@@ -64,7 +62,6 @@ namespace AkVCam
             void stopTimer();
             static void streamLoop(CFRunLoopTimerRef timer, void *info);
             void sendFrame(const VideoFrame &frame);
-            void updateTestFrame();
             VideoFrame applyAdjusts(const VideoFrame &frame);
             VideoFrame randomFrame();
     };
@@ -163,13 +160,8 @@ void AkVCam::Stream::setPicture(const std::string &picture)
 {
     AkLogFunction();
     AkLogDebug() << "Picture: " << picture;
+
     this->d->m_testFrame = loadPicture(picture);
-    this->d->updateTestFrame();
-    this->d->m_mutex.lock();
-
-    if (this->d->m_broadcaster.empty())
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-
     this->d->m_mutex.unlock();
 }
 
@@ -242,8 +234,6 @@ bool AkVCam::Stream::start()
     if (this->d->m_running)
         return false;
 
-    this->d->updateTestFrame();
-    this->d->m_currentFrame = this->d->m_testFrameAdapted;
     this->d->m_sequence = 0;
     memset(&this->d->m_pts, 0, sizeof(CMTime));
     this->d->m_running = this->d->startTimer();
@@ -262,7 +252,6 @@ void AkVCam::Stream::stop()
     this->d->m_running = false;
     this->d->stopTimer();
     this->d->m_currentFrame.clear();
-    this->d->m_testFrameAdapted.clear();
 }
 
 bool AkVCam::Stream::running()
@@ -270,55 +259,21 @@ bool AkVCam::Stream::running()
     return this->d->m_running;
 }
 
-void AkVCam::Stream::serverStateChanged(IpcBridge::ServerState state)
-{
-    AkLogFunction();
-
-    if (state == IpcBridge::ServerStateGone) {
-        this->d->m_broadcaster.clear();
-        this->d->m_horizontalMirror = false;
-        this->d->m_verticalMirror = false;
-        this->d->m_scaling = ScalingFast;
-        this->d->m_aspectRatio = AspectRatioIgnore;
-        this->d->m_swapRgb = false;
-        this->d->updateTestFrame();
-
-        this->d->m_mutex.lock();
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-        this->d->m_mutex.unlock();
-    }
-}
-
-void AkVCam::Stream::frameReady(const AkVCam::VideoFrame &frame)
+void AkVCam::Stream::frameReady(const AkVCam::VideoFrame &frame, bool isActive)
 {
     AkLogFunction();
     AkLogInfo() << "Running: " << this->d->m_running << std::endl;
-    AkLogInfo() << "Broadcaster: " << this->d->m_broadcaster << std::endl;
 
     if (!this->d->m_running)
         return;
 
     this->d->m_mutex.lock();
 
-    if (!this->d->m_broadcaster.empty())
-        this->d->m_currentFrame = this->d->applyAdjusts(frame);
+    auto frameAdjusted =
+            this->d->applyAdjusts(isActive? frame: this->d->m_testFrame);
 
-    this->d->m_mutex.unlock();
-}
-
-void AkVCam::Stream::setBroadcasting(const std::string &broadcaster)
-{
-    AkLogFunction();
-    AkLogDebug() << "Broadcaster: " << broadcaster << std::endl;
-
-    if (this->d->m_broadcaster == broadcaster)
-        return;
-
-    this->d->m_mutex.lock();
-    this->d->m_broadcaster = broadcaster;
-
-    if (broadcaster.empty())
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
+    if (frameAdjusted.format().size() > 0)
+        this->d->m_currentFrame = frameAdjusted;
 
     this->d->m_mutex.unlock();
 }
@@ -332,13 +287,6 @@ void AkVCam::Stream::setHorizontalMirror(bool horizontalMirror)
         return;
 
     this->d->m_horizontalMirror = horizontalMirror;
-    this->d->updateTestFrame();
-    this->d->m_mutex.lock();
-
-    if (this->d->m_broadcaster.empty())
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-
-    this->d->m_mutex.unlock();
 }
 
 void AkVCam::Stream::setVerticalMirror(bool verticalMirror)
@@ -350,13 +298,6 @@ void AkVCam::Stream::setVerticalMirror(bool verticalMirror)
         return;
 
     this->d->m_verticalMirror = verticalMirror;
-    this->d->updateTestFrame();
-    this->d->m_mutex.lock();
-
-    if (this->d->m_broadcaster.empty())
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-
-    this->d->m_mutex.unlock();
 }
 
 void AkVCam::Stream::setScaling(Scaling scaling)
@@ -368,13 +309,6 @@ void AkVCam::Stream::setScaling(Scaling scaling)
         return;
 
     this->d->m_scaling = scaling;
-    this->d->updateTestFrame();
-    this->d->m_mutex.lock();
-
-    if (this->d->m_broadcaster.empty())
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-
-    this->d->m_mutex.unlock();
 }
 
 void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
@@ -386,13 +320,6 @@ void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
         return;
 
     this->d->m_aspectRatio = aspectRatio;
-    this->d->updateTestFrame();
-    this->d->m_mutex.lock();
-
-    if (this->d->m_broadcaster.empty())
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-
-    this->d->m_mutex.unlock();
 }
 
 void AkVCam::Stream::setSwapRgb(bool swap)
@@ -404,13 +331,6 @@ void AkVCam::Stream::setSwapRgb(bool swap)
         return;
 
     this->d->m_swapRgb = swap;
-    this->d->updateTestFrame();
-    this->d->m_mutex.lock();
-
-    if (this->d->m_broadcaster.empty())
-        this->d->m_currentFrame = this->d->m_testFrameAdapted;
-
-    this->d->m_mutex.unlock();
 }
 
 OSStatus AkVCam::Stream::copyBufferQueue(CMIODeviceStreamQueueAlteredProc queueAlteredProc,
@@ -557,7 +477,7 @@ void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
 
     bool resync = false;
     UInt64 hostTime =
-            std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
+            std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     auto pts = CMTimeMake(int64_t(hostTime), 1e9);
     auto ptsDiff = CMTimeGetSeconds(CMTimeSubtract(this->m_pts, pts));
 
@@ -628,12 +548,6 @@ void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
         this->m_queueAltered(this->self->m_objectID,
                              buffer,
                              this->m_queueAlteredRefCon);
-}
-
-void AkVCam::StreamPrivate::updateTestFrame()
-{
-    AkLogFunction();
-    this->m_testFrameAdapted = this->applyAdjusts(this->m_testFrame);
 }
 
 AkVCam::VideoFrame AkVCam::StreamPrivate::applyAdjusts(const VideoFrame &frame)
