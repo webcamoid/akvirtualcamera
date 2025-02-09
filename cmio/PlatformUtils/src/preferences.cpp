@@ -18,6 +18,8 @@
  */
 
 #include <algorithm>
+#include <cstring>
+#include <CoreFoundation/CoreFoundation.h>
 
 #include "preferences.h"
 #include "utils.h"
@@ -25,6 +27,7 @@
 #include "VCamUtils/src/logger.h"
 
 #define PREFERENCES_ID CFSTR(CMIO_ASSISTANT_NAME)
+#define AKVCAM_SERVICETIMEOUT_DEFAULT 10
 
 std::vector<std::string> AkVCam::Preferences::keys()
 {
@@ -39,8 +42,31 @@ std::vector<std::string> AkVCam::Preferences::keys()
         auto size = CFArrayGetCount(cfKeys);
 
         for (CFIndex i = 0; i < size; i++) {
-            auto key = CFStringRef(CFArrayGetValueAtIndex(cfKeys, i));
-            keys.push_back(stringFromCFType(key));
+            std::string key;
+            auto cfKey = CFStringRef(CFArrayGetValueAtIndex(cfKeys, i));
+            auto len = size_t(CFStringGetLength(cfKey));
+            auto data = CFStringGetCStringPtr(cfKey, kCFStringEncodingUTF8);
+
+            if (data) {
+                key = std::string(data, len);
+            } else {
+                auto maxLen =
+                        CFStringGetMaximumSizeForEncoding(len, kCFStringEncodingUTF8)  + 1;
+                auto cstr = new char[maxLen];
+                memset(cstr, 0, maxLen);
+
+                if (CFStringGetCString(CFStringRef(cfKey),
+                                       cstr,
+                                       maxLen,
+                                       kCFStringEncodingUTF8)) {
+                    key = std::string(cstr, len);
+                }
+
+                delete [] cstr;
+            }
+
+            if (!key.empty())
+                keys.push_back(key);
         }
 
         CFRelease(cfKeys);
@@ -56,56 +82,61 @@ std::vector<std::string> AkVCam::Preferences::keys()
 }
 
 void AkVCam::Preferences::write(const std::string &key,
-                                const std::shared_ptr<CFTypeRef> &value)
-{
-    AkLogFunction();
-    AkLogInfo() << "Writing: " << key << " = " << *value << std::endl;
-    auto cfKey = cfTypeFromStd(key);
-    CFPreferencesSetValue(CFStringRef(*cfKey),
-                          *value,
-                          PREFERENCES_ID,
-                          kCFPreferencesCurrentUser,
-                          kCFPreferencesAnyHost);
-}
-
-void AkVCam::Preferences::write(const std::string &key,
                                 const std::string &value)
 {
     AkLogFunction();
     AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
-    auto cfKey = cfTypeFromStd(key);
-    auto cfValue = cfTypeFromStd(value);
-    CFPreferencesSetValue(CFStringRef(*cfKey),
-                          *cfValue,
+    auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
+                                           key.c_str(),
+                                           kCFStringEncodingUTF8);
+    auto cfValue = CFStringCreateWithCString(kCFAllocatorDefault,
+                                             value.c_str(),
+                                             kCFStringEncodingUTF8);
+    CFPreferencesSetValue(cfKey,
+                          CFTypeRef(cfValue),
                           PREFERENCES_ID,
                           kCFPreferencesCurrentUser,
                           kCFPreferencesAnyHost);
+    CFRelease(cfValue);
+    CFRelease(cfKey);
 }
 
 void AkVCam::Preferences::write(const std::string &key, int value)
 {
     AkLogFunction();
     AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
-    auto cfKey = cfTypeFromStd(key);
-    auto cfValue = cfTypeFromStd(value);
-    CFPreferencesSetValue(CFStringRef(*cfKey),
-                          *cfValue,
+    auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
+                                           key.c_str(),
+                                           kCFStringEncodingUTF8);
+    auto cfValue = CFNumberCreate(kCFAllocatorDefault,
+                                  kCFNumberIntType,
+                                  &value);
+    CFPreferencesSetValue(cfKey,
+                          CFTypeRef(cfValue),
                           PREFERENCES_ID,
                           kCFPreferencesCurrentUser,
                           kCFPreferencesAnyHost);
+    CFRelease(cfValue);
+    CFRelease(cfKey);
 }
 
 void AkVCam::Preferences::write(const std::string &key, double value)
 {
     AkLogFunction();
     AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
-    auto cfKey = cfTypeFromStd(key);
-    auto cfValue = cfTypeFromStd(value);
-    CFPreferencesSetValue(CFStringRef(*cfKey),
-                          *cfValue,
+    auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
+                                           key.c_str(),
+                                           kCFStringEncodingUTF8);
+    auto cfValue = CFNumberCreate(kCFAllocatorDefault,
+                                  kCFNumberDoubleType,
+                                  &value);
+    CFPreferencesSetValue(cfKey,
+                          CFTypeRef(cfValue),
                           PREFERENCES_ID,
                           kCFPreferencesCurrentUser,
                           kCFPreferencesAnyHost);
+    CFRelease(cfValue);
+    CFRelease(cfKey);
 }
 
 void AkVCam::Preferences::write(const std::string &key,
@@ -115,41 +146,45 @@ void AkVCam::Preferences::write(const std::string &key,
     write(key, join(value, ","));
 }
 
-std::shared_ptr<CFTypeRef> AkVCam::Preferences::read(const std::string &key)
-{
-    AkLogFunction();
-    auto cfKey = cfTypeFromStd(key);
-    auto cfValue = CFTypeRef(CFPreferencesCopyValue(CFStringRef(*cfKey),
-                                                    PREFERENCES_ID,
-                                                    kCFPreferencesCurrentUser,
-                                                    kCFPreferencesAnyHost));
-
-    if (!cfValue)
-        return {};
-
-    return std::shared_ptr<CFTypeRef>(new CFTypeRef(cfValue),
-                                      [] (CFTypeRef *ptr) {
-                                          CFRelease(*ptr);
-                                          delete ptr;
-                                      });
-}
-
 std::string AkVCam::Preferences::readString(const std::string &key,
                                             const std::string &defaultValue)
 {
     AkLogFunction();
-    auto cfKey = cfTypeFromStd(key);
-    auto cfValue =
-            CFStringRef(CFPreferencesCopyValue(CFStringRef(*cfKey),
-                                               PREFERENCES_ID,
-                                               kCFPreferencesCurrentUser,
-                                               kCFPreferencesAnyHost));
+    auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
+                                           key.c_str(),
+                                           kCFStringEncodingUTF8);
+    auto cfValue = CFPreferencesCopyValue(cfKey,
+                                          PREFERENCES_ID,
+                                          kCFPreferencesCurrentUser,
+                                          kCFPreferencesAnyHost);
     auto value = defaultValue;
 
     if (cfValue) {
-        value = stringFromCFType(cfValue);
+        auto len = size_t(CFStringGetLength(cfValue));
+        auto data = CFStringGetCStringPtr(cfValue, kCFStringEncodingUTF8);
+
+        if (data) {
+            value = std::string(data, len);
+        } else {
+            auto maxLen =
+                    CFStringGetMaximumSizeForEncoding(len, kCFStringEncodingUTF8)  + 1;
+            auto cstr = new char[maxLen];
+            memset(cstr, 0, maxLen);
+
+            if (CFStringGetCString(CFStringRef(cfValue),
+                                   cstr,
+                                   maxLen,
+                                   kCFStringEncodingUTF8)) {
+                value = std::string(cstr, len);
+            }
+
+            delete [] cstr;
+        }
+
         CFRelease(cfValue);
     }
+
+    CFRelease(cfKey);
 
     return value;
 }
@@ -157,18 +192,21 @@ std::string AkVCam::Preferences::readString(const std::string &key,
 int AkVCam::Preferences::readInt(const std::string &key, int defaultValue)
 {
     AkLogFunction();
-    auto cfKey = cfTypeFromStd(key);
-    auto cfValue =
-            CFNumberRef(CFPreferencesCopyValue(CFStringRef(*cfKey),
-                                               PREFERENCES_ID,
-                                               kCFPreferencesCurrentUser,
-                                               kCFPreferencesAnyHost));
+    auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
+                                           key.c_str(),
+                                           kCFStringEncodingUTF8);
+    auto cfValue = CFPreferencesCopyValue(cfKey,
+                                          PREFERENCES_ID,
+                                          kCFPreferencesCurrentUser,
+                                          kCFPreferencesAnyHost);
     auto value = defaultValue;
 
     if (cfValue) {
-        CFNumberGetValue(cfValue, kCFNumberIntType, &value);
+        CFNumberGetValue(CFNumberRef(cfValue), kCFNumberIntType, &value);
         CFRelease(cfValue);
     }
+
+    CFRelease(cfKey);
 
     return value;
 }
@@ -177,37 +215,21 @@ double AkVCam::Preferences::readDouble(const std::string &key,
                                        double defaultValue)
 {
     AkLogFunction();
-    auto cfKey = cfTypeFromStd(key);
-    auto cfValue =
-            CFNumberRef(CFPreferencesCopyValue(CFStringRef(*cfKey),
-                                               PREFERENCES_ID,
-                                               kCFPreferencesCurrentUser,
-                                               kCFPreferencesAnyHost));
+    auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
+                                           key.c_str(),
+                                           kCFStringEncodingUTF8);
+    auto cfValue = CFPreferencesCopyValue(cfKey,
+                                          PREFERENCES_ID,
+                                          kCFPreferencesCurrentUser,
+                                          kCFPreferencesAnyHost);
     auto value = defaultValue;
 
     if (cfValue) {
-        CFNumberGetValue(cfValue, kCFNumberDoubleType, &value);
+        CFNumberGetValue(CFNumberRef(cfValue), kCFNumberDoubleType, &value);
         CFRelease(cfValue);
     }
 
-    return value;
-}
-
-bool AkVCam::Preferences::readBool(const std::string &key, bool defaultValue)
-{
-    AkLogFunction();
-    auto cfKey = cfTypeFromStd(key);
-    auto cfValue =
-            CFBooleanRef(CFPreferencesCopyValue(CFStringRef(*cfKey),
-                                                PREFERENCES_ID,
-                                                kCFPreferencesCurrentUser,
-                                                kCFPreferencesAnyHost));
-    auto value = defaultValue;
-
-    if (cfValue) {
-        value = CFBooleanGetValue(cfValue);
-        CFRelease(cfValue);
-    }
+    CFRelease(cfKey);
 
     return value;
 }
@@ -227,12 +249,15 @@ void AkVCam::Preferences::deleteKey(const std::string &key)
 {
     AkLogFunction();
     AkLogInfo() << "Deleting " << key << std::endl;
-    auto cfKey = cfTypeFromStd(key);
-    CFPreferencesSetValue(CFStringRef(*cfKey),
+    auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
+                                           key.c_str(),
+                                           kCFStringEncodingUTF8);
+    CFPreferencesSetValue(cfKey,
                           nullptr,
                           PREFERENCES_ID,
                           kCFPreferencesCurrentUser,
                           kCFPreferencesAnyHost);
+    CFRelease(cfKey);
 }
 
 void AkVCam::Preferences::deleteAllKeys(const std::string &key)
@@ -251,12 +276,28 @@ void AkVCam::Preferences::move(const std::string &keyFrom,
     AkLogFunction();
     AkLogInfo() << "From: " << keyFrom << std::endl;
     AkLogInfo() << "To: " << keyTo << std::endl;
-    auto value = read(keyFrom);
+    auto cfKeyFrom = CFStringCreateWithCString(kCFAllocatorDefault,
+                                               keyFrom.c_str(),
+                                               kCFStringEncodingUTF8);
+    auto cfValue = CFPreferencesCopyValue(cfKeyFrom,
+                                          PREFERENCES_ID,
+                                          kCFPreferencesCurrentUser,
+                                          kCFPreferencesAnyHost);
 
-    if (!value)
-        return;
+    if (cfValue) {
+        auto cfKeyTo = CFStringCreateWithCString(kCFAllocatorDefault,
+                                                 keyTo.c_str(),
+                                                 kCFStringEncodingUTF8);
+        CFPreferencesSetValue(cfKeyTo,
+                              cfValue,
+                              PREFERENCES_ID,
+                              kCFPreferencesCurrentUser,
+                              kCFPreferencesAnyHost);
+        CFRelease(cfKeyTo);
+        CFRelease(cfValue);
+    }
 
-    write(keyTo, value);
+    CFRelease(cfKeyFrom);
     deleteKey(keyFrom);
 }
 
@@ -279,10 +320,12 @@ void AkVCam::Preferences::moveAll(const std::string &keyFrom,
 
 void AkVCam::Preferences::sync()
 {
+#ifndef FAKE_APPLE
     AkLogFunction();
     CFPreferencesSynchronize(PREFERENCES_ID,
                              kCFPreferencesCurrentUser,
                              kCFPreferencesAnyHost);
+#endif
 }
 
 std::string AkVCam::Preferences::addDevice(const std::string &description,
@@ -363,14 +406,14 @@ std::string AkVCam::Preferences::addCamera(const std::string &deviceId,
     return id;
 }
 
-void AkVCam::Preferences::removeCamera(const std::string &deviceId)
+bool AkVCam::Preferences::removeCamera(const std::string &deviceId)
 {
     AkLogFunction();
     AkLogInfo() << "Device: " << deviceId << std::endl;
     int cameraIndex = cameraFromId(deviceId);
 
     if (cameraIndex < 0)
-        return;
+        return false;
 
     cameraSetFormats(size_t(cameraIndex), {});
 
@@ -387,6 +430,8 @@ void AkVCam::Preferences::removeCamera(const std::string &deviceId)
         deleteKey("cameras");
 
     sync();
+
+    return true;
 }
 
 size_t AkVCam::Preferences::camerasCount()
@@ -429,7 +474,7 @@ std::string AkVCam::Preferences::createDeviceId()
         /* There are no rules for device IDs in Mac. Just append an
          * incremental index to a common prefix.
          */
-        auto id = CMIO_PLUGIN_DEVICE_PREFIX + std::to_string(i);
+        auto id = AKVCAM_DEVICE_PREFIX + std::to_string(i);
 
         // Check if the ID is being used, if not return it.
         if (std::find(cameraIds.begin(),
@@ -469,15 +514,17 @@ std::string AkVCam::Preferences::cameraDescription(size_t cameraIndex)
                       + ".description");
 }
 
-void AkVCam::Preferences::cameraSetDescription(size_t cameraIndex,
+bool AkVCam::Preferences::cameraSetDescription(size_t cameraIndex,
                                                const std::string &description)
 {
     if (cameraIndex >= camerasCount())
-        return;
+        return false;
 
     write("cameras." + std::to_string(cameraIndex) + ".description",
           description);
     sync();
+
+    return true;
 }
 
 std::string AkVCam::Preferences::cameraId(size_t cameraIndex)
@@ -526,13 +573,13 @@ std::vector<AkVCam::VideoFormat> AkVCam::Preferences::cameraFormats(size_t camer
     return formats;
 }
 
-void AkVCam::Preferences::cameraSetFormats(size_t cameraIndex,
+bool AkVCam::Preferences::cameraSetFormats(size_t cameraIndex,
                                            const std::vector<AkVCam::VideoFormat> &formats)
 {
     AkLogFunction();
 
     if (cameraIndex >= camerasCount())
-        return;
+        return false;
 
     write("cameras."
               + std::to_string(cameraIndex)
@@ -553,16 +600,18 @@ void AkVCam::Preferences::cameraSetFormats(size_t cameraIndex,
     }
 
     sync();
+
+    return true;
 }
 
-void AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
+bool AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
                                           const AkVCam::VideoFormat &format,
                                           int index)
 {
     AkLogFunction();
     auto formats = cameraFormats(cameraIndex);
 
-    if (index < 0 || index > int(formats.size()))
+    if ((index < 0) || (index > int(formats.size())))
         index = int(formats.size());
 
     formats.insert(formats.begin() + index, format);
@@ -585,15 +634,17 @@ void AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
     }
 
     sync();
+
+    return false;
 }
 
-void AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
+bool AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
 {
     AkLogFunction();
     auto formats = cameraFormats(cameraIndex);
 
     if (index < 0 || index >= int(formats.size()))
-        return;
+        return false;
 
     formats.erase(formats.begin() + index);
 
@@ -616,6 +667,8 @@ void AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
     }
 
     sync();
+
+    return true;
 }
 
 int AkVCam::Preferences::cameraControlValue(size_t cameraIndex,
@@ -624,12 +677,14 @@ int AkVCam::Preferences::cameraControlValue(size_t cameraIndex,
     return readInt("cameras." + std::to_string(cameraIndex) + ".controls." + key);
 }
 
-void AkVCam::Preferences::cameraSetControlValue(size_t cameraIndex,
+bool AkVCam::Preferences::cameraSetControlValue(size_t cameraIndex,
                                                 const std::string &key,
                                                 int value)
 {
     write("cameras." + std::to_string(cameraIndex) + ".controls." + key, value);
     sync();
+
+    return true;
 }
 
 std::string AkVCam::Preferences::picture()
@@ -637,10 +692,12 @@ std::string AkVCam::Preferences::picture()
     return readString("picture");
 }
 
-void AkVCam::Preferences::setPicture(const std::string &picture)
+bool AkVCam::Preferences::setPicture(const std::string &picture)
 {
     write("picture", picture);
     sync();
+
+    return true;
 }
 
 int AkVCam::Preferences::logLevel()
@@ -648,8 +705,36 @@ int AkVCam::Preferences::logLevel()
     return readInt("loglevel", AKVCAM_LOGLEVEL_DEFAULT);
 }
 
-void AkVCam::Preferences::setLogLevel(int logLevel)
+bool AkVCam::Preferences::setLogLevel(int logLevel)
 {
     write("loglevel", logLevel);
     sync();
+
+    return true;
+}
+
+int AkVCam::Preferences::servicePort()
+{
+    return readInt("servicePort", atoi(AKVCAM_SERVICEPORT_DEFAULT));
+}
+
+bool AkVCam::Preferences::setServicePort(int servicePort)
+{
+    write("servicePort", servicePort);
+    sync();
+
+    return true;
+}
+
+int AkVCam::Preferences::serviceTimeout()
+{
+    return readInt("serviceTimeout", AKVCAM_SERVICETIMEOUT_DEFAULT);
+}
+
+bool AkVCam::Preferences::setServiceTimeout(int timeoutSecs)
+{
+    write("serviceTimeout", timeoutSecs);
+    sync();
+
+    return true;
 }

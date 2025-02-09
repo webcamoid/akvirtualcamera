@@ -17,13 +17,13 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <csignal>
 #include <sstream>
 #include <algorithm>
 #include <sys/stat.h>
 #include <IOKit/audio/IOAudioTypes.h>
 
 #include "plugininterface.h"
-#include "Assistant/src/assistantglobals.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/videoformat.h"
@@ -114,12 +114,25 @@ namespace AkVCam
                                             Float64 frameNumber,
                                             Boolean playOnCue);
     };
+
+    static void installSigPipeCatcher()
+    {
+        static bool akvcamSigPipeCatcherInstalled = false;
+
+        if (!akvcamSigPipeCatcherInstalled) {
+            signal(SIGPIPE, [] (int) {
+            });
+
+            akvcamSigPipeCatcherInstalled = true;
+        }
+    }
 }
 
 AkVCam::PluginInterface::PluginInterface():
     ObjectInterface(),
     m_objectID(0)
 {
+    installSigPipeCatcher();
     this->m_className = "PluginInterface";
     this->d = new PluginInterfacePrivate;
     this->d->self = this;

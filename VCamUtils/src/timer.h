@@ -40,6 +40,8 @@ namespace AkVCam
             void setInterval(int msec);
             void start();
             void stop();
+            void singleShot();
+            void singleShot(int msec);
 
         private:
             TimerPrivate *d;

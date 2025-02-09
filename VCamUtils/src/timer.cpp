@@ -29,8 +29,9 @@ namespace AkVCam
         public:
             Timer *self;
             std::thread m_thread;
-            int m_interval;
-            bool m_running;
+            int m_interval {0};
+            bool m_running {false};
+            bool m_singleShot {false};
 
             explicit TimerPrivate(Timer *self);
             void timerLoop();
@@ -67,6 +68,7 @@ void AkVCam::Timer::start()
 {
     this->stop();
     this->d->m_running = true;
+    this->d->m_singleShot = false;
     this->d->m_thread = std::thread(&TimerPrivate::timerLoop, this->d);
 }
 
@@ -77,6 +79,23 @@ void AkVCam::Timer::stop()
 
     this->d->m_running = false;
     this->d->m_thread.join();
+}
+
+void AkVCam::Timer::singleShot()
+{
+    this->stop();
+    this->d->m_running = true;
+    this->d->m_singleShot = true;
+    this->d->m_thread = std::thread(&TimerPrivate::timerLoop, this->d);
+}
+
+void AkVCam::Timer::singleShot(int msec)
+{
+    this->stop();
+    this->d->m_running = true;
+    this->d->m_singleShot = true;
+    this->d->m_interval = msec;
+    this->d->m_thread = std::thread(&TimerPrivate::timerLoop, this->d);
 }
 
 AkVCam::TimerPrivate::TimerPrivate(AkVCam::Timer *self):
@@ -90,9 +109,15 @@ AkVCam::TimerPrivate::TimerPrivate(AkVCam::Timer *self):
 void AkVCam::TimerPrivate::timerLoop()
 {
     while (this->m_running) {
-        if (this->m_interval)
+        if (this->m_interval > 0)
             std::this_thread::sleep_for(std::chrono::milliseconds(this->m_interval));
 
         AKVCAM_EMIT_NOARGS(this->self, Timeout)
+
+        if (this->m_singleShot) {
+            this->m_running = false;
+
+            break;
+        }
     }
 }

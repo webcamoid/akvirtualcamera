@@ -22,5 +22,4 @@ project(dshow)
 
 add_subdirectory(PlatformUtils)
 add_subdirectory(VCamIPC)
-add_subdirectory(Assistant)
 add_subdirectory(VirtualCamera)

@@ -23,11 +23,13 @@
 #include <dshow.h>
 #include <dvdmedia.h>
 #include <comdef.h>
+#include <psapi.h>
 #include <shlobj.h>
 #include <wincodec.h>
 
 #include "utils.h"
-#include "messagecommons.h"
+#include "preferences.h"
+#include "VCamUtils/src/messageclient.h"
 #include "VCamUtils/src/utils.h"
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/videoframe.h"
@@ -48,6 +50,10 @@ namespace AkVCam
             static inline const VideoFormatSpecsPrivate *byGuid(const GUID &guid);
             static inline const VideoFormatSpecsPrivate *byPixelFormat(FourCC pixelFormat);
     };
+
+    std::string currentArchitecture();
+    std::string altArchitecture();
+    std::string pluginInstallPath();
 }
 
 bool operator <(const CLSID &a, const CLSID &b)
@@ -55,24 +61,66 @@ bool operator <(const CLSID &a, const CLSID &b)
     return AkVCam::stringFromIid(a) < AkVCam::stringFromIid(b);
 }
 
+std::string AkVCam::locateManagerPath()
+{
+    auto file = pluginInstallPath()
+                + "\\" + currentArchitecture()
+                + "\\" AKVCAM_MANAGER_NAME ".exe";
+
+    /* If for whatever reason the program for the current architecture is not
+     * available, try using the alternative version if available.
+     */
+
+    return fileExists(file)? file: locateAltServicePath();
+}
+
+std::string AkVCam::locateServicePath()
+{
+    auto file = pluginInstallPath()
+                + "\\" + currentArchitecture()
+                + "\\" AKVCAM_SERVICE_NAME ".exe";
+
+    // Same as above.
+
+    return fileExists(file)? file: locateAltServicePath();
+}
+
 std::string AkVCam::locatePluginPath()
 {
-    AkLogFunction();
-    char path[MAX_PATH];
-    memset(path, 0, MAX_PATH);
-    HMODULE hmodule = nullptr;
+    auto file = pluginInstallPath()
+                + "\\" + currentArchitecture()
+                + "\\" AKVCAM_PLUGIN_NAME ".dll";
 
-    if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                          GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                          LPCTSTR(&locatePluginPath),
-                          &hmodule)) {
-        GetModuleFileNameA(hmodule, path, MAX_PATH);
-    }
+    // We can't use the alt version here.
 
-    if (strnlen(path, MAX_PATH) < 1)
-        return {};
+    return fileExists(file)? file: std::string();
+}
 
-    return dirname(path);
+std::string AkVCam::locateAltManagerPath()
+{
+    auto file = pluginInstallPath()
+                + "\\" + altArchitecture()
+                + "\\" AKVCAM_MANAGER_NAME ".exe";
+
+    return fileExists(file)? file: std::string();
+}
+
+std::string AkVCam::locateAltServicePath()
+{
+    auto file = pluginInstallPath()
+                + "\\" + altArchitecture()
+                + "\\" AKVCAM_SERVICE_NAME ".exe";
+
+    return fileExists(file)? file: std::string();
+}
+
+std::string AkVCam::locateAltPluginPath()
+{
+    auto file = pluginInstallPath()
+                + "\\" + altArchitecture()
+                + "\\" AKVCAM_PLUGIN_NAME ".dll";
+
+    return fileExists(file)? file: std::string();
 }
 
 std::string AkVCam::tempPath()
@@ -178,32 +226,6 @@ clsidFromStr_failed:
 std::string AkVCam::createClsidStrFromStr(const std::string &str)
 {
     return stringFromIid(createClsidFromStr(str));
-}
-
-std::string AkVCam::stringFromMessageId(uint32_t messageId)
-{
-    static const std::map<uint32_t, std::string> clsidToString {
-        {AKVCAM_ASSISTANT_MSG_ISALIVE                , "ISALIVE"                },
-        {AKVCAM_ASSISTANT_MSG_FRAME_READY            , "FRAME_READY"            },
-        {AKVCAM_ASSISTANT_MSG_PICTURE_UPDATED        , "PICTURE_UPDATED"        },
-        {AKVCAM_ASSISTANT_MSG_REQUEST_PORT           , "REQUEST_PORT"           },
-        {AKVCAM_ASSISTANT_MSG_ADD_PORT               , "ADD_PORT"               },
-        {AKVCAM_ASSISTANT_MSG_REMOVE_PORT            , "REMOVE_PORT"            },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_UPDATE          , "DEVICE_UPDATE"          },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENERS       , "DEVICE_LISTENERS"       },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER        , "DEVICE_LISTENER"        },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_ADD    , "DEVICE_LISTENER_ADD"    },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_LISTENER_REMOVE , "DEVICE_LISTENER_REMOVE" },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_BROADCASTING    , "DEVICE_BROADCASTING"    },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_SETBROADCASTING , "DEVICE_SETBROADCASTING" },
-        {AKVCAM_ASSISTANT_MSG_DEVICE_CONTROLS_UPDATED, "DEVICE_CONTROLS_UPDATED"},
-    };
-
-    for (auto &id: clsidToString)
-        if (id.first == messageId)
-            return id.second;
-
-    return  "AKVCAM_ASSISTANT_MSG_(" + std::to_string(messageId) + ")";
 }
 
 std::string AkVCam::stringFromIid(const IID &iid)
@@ -449,7 +471,8 @@ AM_MEDIA_TYPE *AkVCam::mediaTypeFromFormat(const AkVCam::VideoFormat &format)
         break;
 
     case BI_BITFIELDS: {
-            auto masks = VideoFormatSpecsPrivate::byPixelFormat(format.fourcc())->masks;
+            auto masks =
+                    VideoFormatSpecsPrivate::byPixelFormat(format.fourcc())->masks;
 
             if (masks)
                 memcpy(videoInfo->TrueColorInfo.dwBitMasks, masks, 3);
@@ -1161,7 +1184,7 @@ std::vector<CLSID> AkVCam::listRegisteredCameras()
     if (pluginFolder.empty())
         return {};
 
-    auto pluginPath = pluginFolder + "\\" DSHOW_PLUGIN_NAME ".dll";
+    auto pluginPath = pluginFolder + "\\" AKVCAM_PLUGIN_NAME ".dll";
     AkLogDebug() << "Plugin binary: " << pluginPath << std::endl;
 
     if (!fileExists(pluginPath)) {
@@ -1192,6 +1215,89 @@ std::vector<CLSID> AkVCam::listRegisteredCameras()
     }
 
     return cameras;
+}
+
+std::vector<uint64_t> AkVCam::systemProcesses()
+{
+    std::vector<uint64_t> pids;
+
+    const DWORD nElements = 4096;
+    DWORD process[nElements];
+    memset(process, 0, nElements * sizeof(DWORD));
+    DWORD needed = 0;
+
+    if (!EnumProcesses(process, nElements * sizeof(DWORD), &needed))
+        return {};
+
+    size_t nProcess = needed / sizeof(DWORD);
+
+    for (size_t i = 0; i < nProcess; i++)
+        if (process[i] > 0)
+            pids.push_back(process[i]);
+
+    return pids;
+}
+
+uint64_t AkVCam::currentPid()
+{
+    return GetCurrentProcessId();
+}
+
+std::string AkVCam::exePath(uint64_t pid)
+{
+    std::string exe;
+    auto processHnd = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,
+                                  FALSE,
+                                  DWORD(pid));
+    if (processHnd) {
+        CHAR exeName[MAX_PATH];
+        memset(exeName, 0, MAX_PATH * sizeof(CHAR));
+        auto size =
+                GetModuleFileNameExA(processHnd, nullptr, exeName, MAX_PATH);
+
+        if (size > 0)
+            exe = std::string(exeName, size);
+
+        CloseHandle(processHnd);
+    }
+
+    return exe;
+}
+
+std::string AkVCam::currentBinaryPath()
+{
+    AkLogFunction();
+    char path[MAX_PATH];
+    memset(path, 0, MAX_PATH);
+    HMODULE hmodule = nullptr;
+
+    if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                          GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                          LPCTSTR(&currentBinaryPath),
+                          &hmodule)) {
+        GetModuleFileNameA(hmodule, path, MAX_PATH);
+    }
+
+    if (strnlen(path, MAX_PATH) < 1)
+        return {};
+
+    return {path};
+}
+
+bool AkVCam::isServiceRunning()
+{
+    auto service = locateServicePath();
+
+    for (auto &pid: systemProcesses())
+        if (exePath(pid) == service)
+            return true;
+
+    return false;
+}
+
+bool AkVCam::isServicePortUp()
+{
+    return MessageClient::isUp(Preferences::servicePort());
 }
 
 const std::vector<AkVCam::VideoFormatSpecsPrivate> &AkVCam::VideoFormatSpecsPrivate::formats()
@@ -1228,4 +1334,42 @@ const AkVCam::VideoFormatSpecsPrivate *AkVCam::VideoFormatSpecsPrivate::byPixelF
             return &format;
 
     return nullptr;
+}
+
+std::string AkVCam::currentArchitecture()
+{
+#ifdef _WIN64
+#ifdef __ARM_ARCH
+    return {"arm64"};
+#else
+    return {"x64"};
+#endif
+#else
+#ifdef __ARM_ARCH
+    return {"arm32"};
+#else
+    return {"x86"};
+#endif
+#endif
+}
+
+std::string AkVCam::altArchitecture()
+{
+    /* 32 bits binaries can be used in 64 bits architectures, but not in the
+     * other direction.
+     */
+#ifdef _WIN64
+#ifdef __ARM_ARCH
+    return {"arm32"};
+#else
+    return {"x86"};
+#endif
+#else
+    return {};
+#endif
+}
+
+std::string AkVCam::pluginInstallPath()
+{
+    return realPath(dirname(currentBinaryPath()) + "\\..");
 }

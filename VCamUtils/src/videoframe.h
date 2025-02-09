@@ -41,6 +41,8 @@ namespace AkVCam
             VideoFrame(const VideoFormat &format);
             VideoFrame(const VideoFrame &other);
             VideoFrame &operator =(const VideoFrame &other);
+            bool operator ==(const VideoFrame &other) const;
+            operator bool() const;
             ~VideoFrame();
 
             bool load(const std::string &fileName);

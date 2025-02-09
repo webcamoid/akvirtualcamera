@@ -18,66 +18,106 @@
 
 cmake_minimum_required(VERSION 3.14)
 
-project(VirtualCamera LANGUAGES CXX)
+project(VirtualCamera_cmio LANGUAGES CXX)
+
+include(../../commons.cmake)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(../cmio.cmake)
+set(SOURCES
+    src/clock.cpp
+    src/clock.h
+    src/device.cpp
+    src/device.h
+    src/object.cpp
+    src/object.h
+    src/objectinterface.cpp
+    src/objectinterface.h
+    src/objectproperties.cpp
+    src/objectproperties.h
+    src/plugin.cpp
+    src/plugin.h
+    src/plugininterface.cpp
+    src/plugininterface.h
+    src/queue.h
+    src/stream.cpp
+    src/stream.h)
 
-set(CONTENTSPATH ${CMIO_PLUGIN_NAME}.plugin/Contents)
-set(MACBINPATH ${CONTENTSPATH}/MacOS)
+if (APPLE OR FAKE_APPLE)
+    add_library(VirtualCamera_cmio SHARED ${SOURCES})
+else ()
+    add_library(VirtualCamera_cmio SHARED EXCLUDE_FROM_ALL ${SOURCES})
+endif ()
 
-add_library(VirtualCamera SHARED
-            src/clock.cpp
-            src/clock.h
-            src/device.cpp
-            src/device.h
-            src/object.cpp
-            src/object.h
-            src/objectinterface.cpp
-            src/objectinterface.h
-            src/objectproperties.cpp
-            src/objectproperties.h
-            src/plugin.cpp
-            src/plugin.h
-            src/plugininterface.cpp
-            src/plugininterface.h
-            src/queue.h
-            src/stream.cpp
-            src/stream.h)
-configure_file(Info.plist.in ${CMAKE_BINARY_DIR}/build/${CONTENTSPATH}/Info.plist)
-set_target_properties(VirtualCamera PROPERTIES
-                      OUTPUT_NAME ${CMIO_PLUGIN_NAME}
-                      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${MACBINPATH}
-                      PREFIX ""
-                      SUFFIX "")
-add_dependencies(VirtualCamera VCamIPC PlatformUtils VCamUtils)
-target_compile_definitions(VirtualCamera PRIVATE VIRTUALCAMERA_LIBRARY)
-target_include_directories(VirtualCamera
+if (APPLE OR FAKE_APPLE)
+    configure_file(Info.plist.in ${CMAKE_BINARY_DIR}/${BUILDDIR}/${EXECPREFIX}/Info.plist)
+endif ()
+
+set_target_properties(VirtualCamera_cmio PROPERTIES
+                      OUTPUT_NAME ${AKVCAM_PLUGIN_NAME}
+                      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR}
+                      PREFIX "")
+
+if (APPLE)
+    set_target_properties(VirtualCamera_cmio PROPERTIES
+                          SUFFIX "")
+endif ()
+
+add_dependencies(VirtualCamera_cmio VCamIPC_cmio PlatformUtils_cmio VCamUtils)
+target_compile_definitions(VirtualCamera_cmio PRIVATE VIRTUALCAMERA_LIBRARY)
+target_include_directories(VirtualCamera_cmio
                            PRIVATE ..
                            PRIVATE ../..)
-find_library(COREFOUNDATION_FRAMEWORK NAMES CoreFoundation)
-find_library(COREGRAPHICS_FRAMEWORK NAMES CoreGraphics)
-find_library(COREMEDIA_FRAMEWORK NAMES CoreMedia)
-find_library(COREMEDIAIO_FRAMEWORK NAMES CoreMediaIO)
-find_library(COREVIDEO_FRAMEWORK NAMES CoreVideo)
-find_library(FOUNDATION_FRAMEWORK NAMES Foundation)
-find_library(IOKIT_FRAMEWORK NAMES IOKit)
-find_library(IOSURFACE_FRAMEWORK NAMES IOSurface)
-set(EXTRA_LIBS ${COREFOUNDATION_FRAMEWORK}
-               ${COREGRAPHICS_FRAMEWORK}
-               ${COREMEDIA_FRAMEWORK}
-               ${COREMEDIAIO_FRAMEWORK}
-               ${COREVIDEO_FRAMEWORK}
-               ${FOUNDATION_FRAMEWORK}
-               ${IOKIT_FRAMEWORK}
-               ${IOSURFACE_FRAMEWORK})
-target_link_libraries(VirtualCamera
-                      PlatformUtils
+
+if (FAKE_APPLE)
+    target_include_directories(VirtualCamera_cmio
+                               PRIVATE
+                               ../FakeAPI)
+endif ()
+
+set(CMIO_PLUGIN_VENDOR "Webcamoid Project")
+set(CMIO_PLUGIN_PRODUCT ${AKVCAM_PLUGIN_NAME})
+add_definitions(-DCMIO_PLUGIN_VENDOR="${CMIO_PLUGIN_VENDOR}"
+                -DCMIO_PLUGIN_PRODUCT="${CMIO_PLUGIN_PRODUCT}")
+
+if (APPLE OR FAKE_APPLE)
+    if (APPLE)
+        find_library(COREFOUNDATION_FRAMEWORK NAMES CoreFoundation)
+        find_library(COREGRAPHICS_FRAMEWORK NAMES CoreGraphics)
+        find_library(COREMEDIA_FRAMEWORK NAMES CoreMedia)
+        find_library(COREMEDIAIO_FRAMEWORK NAMES CoreMediaIO)
+        find_library(COREVIDEO_FRAMEWORK NAMES CoreVideo)
+        find_library(FOUNDATION_FRAMEWORK NAMES Foundation)
+        find_library(IOKIT_FRAMEWORK NAMES IOKit)
+    else ()
+        set(COREFOUNDATION_FRAMEWORK -lCoreFoundation)
+        set(COREGRAPHICS_FRAMEWORK -lCoreGraphics)
+        set(COREMEDIA_FRAMEWORK -lCoreMedia)
+        set(COREMEDIAIO_FRAMEWORK -lCoreMediaIO)
+        set(COREVIDEO_FRAMEWORK -lCoreVideo)
+        set(FOUNDATION_FRAMEWORK -lFoundation)
+        set(IOKIT_FRAMEWORK -lIOKit)
+    endif ()
+
+    set(EXTRA_LIBS
+        ${COREFOUNDATION_FRAMEWORK}
+        ${COREGRAPHICS_FRAMEWORK}
+        ${COREMEDIA_FRAMEWORK}
+        ${COREMEDIAIO_FRAMEWORK}
+        ${COREVIDEO_FRAMEWORK}
+        ${FOUNDATION_FRAMEWORK}
+        ${IOKIT_FRAMEWORK})
+endif ()
+
+target_link_libraries(VirtualCamera_cmio
+                      VCamIPC_cmio
+                      PlatformUtils_cmio
                       VCamUtils
-                      VCamIPC
                       ${EXTRA_LIBS})
-install(TARGETS VirtualCamera DESTINATION ${MACBINPATH})
-install(FILES ${CMAKE_BINARY_DIR}/build/${CONTENTSPATH}/Info.plist DESTINATION ${CONTENTSPATH})
+
+if (APPLE OR FAKE_APPLE)
+    install(TARGETS VirtualCamera_cmio DESTINATION ${BINDIR})
+    install(FILES ${CMAKE_BINARY_DIR}/${BUILDDIR}/${EXECPREFIX}/Info.plist DESTINATION ${EXECPREFIX})
+endif ()

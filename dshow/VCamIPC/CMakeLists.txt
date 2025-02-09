@@ -18,24 +18,36 @@
 
 cmake_minimum_required(VERSION 3.14)
 
-project(VCamIPC LANGUAGES CXX)
+project(VCamIPC_dshow LANGUAGES CXX)
+
+include(../../commons.cmake)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(../dshow.cmake)
+set(SOURCES
+    src/ipcbridge.cpp)
 
-add_library(VCamIPC STATIC
-            src/ipcbridge.cpp)
+if (WIN32)
+    add_library(VCamIPC_dshow STATIC ${SOURCES})
+else ()
+    add_library(VCamIPC_dshow STATIC EXCLUDE_FROM_ALL ${SOURCES})
+endif ()
 
-add_dependencies(VCamIPC PlatformUtils VCamUtils)
-target_compile_definitions(VCamIPC PRIVATE VCAMIPC_LIBRARY)
-target_include_directories(VCamIPC
+add_dependencies(VCamIPC_dshow PlatformUtils_dshow VCamUtils)
+target_compile_definitions(VCamIPC_dshow PRIVATE VCAMIPC_LIBRARY)
+target_include_directories(VCamIPC_dshow
                            PRIVATE ..
                            PRIVATE ../..)
-target_link_libraries(VCamIPC
-                      PlatformUtils
-                      advapi32
-                      kernel32
-                      psapi)
+
+if (WIN32)
+    set(EXTRA_LIBS
+        advapi32
+        kernel32
+        psapi)
+endif ()
+
+target_link_libraries(VCamIPC_dshow
+                      PlatformUtils_dshow
+                      ${EXTRA_LIBS})

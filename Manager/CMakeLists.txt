@@ -20,58 +20,84 @@ cmake_minimum_required(VERSION 3.5)
 
 project(Manager LANGUAGES CXX)
 
+include(../commons.cmake)
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-if (APPLE)
-    include(../cmio/cmio.cmake)
-    set(INSTALLPATH ${CMIO_PLUGIN_NAME}.plugin/Contents/Resources)
-elseif (WIN32)
-    include(../dshow/dshow.cmake)
-    set(INSTALLPATH ${WIN_TARGET_ARCH})
-endif ()
 
 add_executable(Manager
                src/cmdparser.h
                src/main.cpp
                src/cmdparser.cpp)
-set_target_properties(Manager PROPERTIES
-                      OUTPUT_NAME AkVCamManager
-                      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${INSTALLPATH})
-add_dependencies(Manager VCamIPC PlatformUtils VCamUtils)
+
+if (APPLE OR FAKE_APPLE)
+    set_target_properties(Manager PROPERTIES
+                          OUTPUT_NAME ${AKVCAM_MANAGER_NAME}
+                          RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${DATAROOTDIR})
+else ()
+    set_target_properties(Manager PROPERTIES
+                          OUTPUT_NAME ${AKVCAM_MANAGER_NAME}
+                          LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR}
+                          RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR})
+endif ()
+
+add_dependencies(Manager VCamUtils)
+
+if (APPLE OR FAKE_APPLE)
+    add_dependencies(Manager
+                     VCamIPC_cmio
+                     PlatformUtils_cmio)
+elseif (WIN32)
+    add_dependencies(Manager
+                     VCamIPC_dshow
+                     PlatformUtils_dshow)
+endif ()
+
 target_include_directories(Manager
                            PRIVATE ..)
 target_link_libraries(Manager
-                      VCamIPC
-                      PlatformUtils
                       VCamUtils)
 
-if (APPLE)
-    find_library(COREFOUNDATION_FRAMEWORK NAMES CoreFoundation)
-    find_library(COREMEDIA_FRAMEWORK NAMES CoreMedia)
-    find_library(COREMEDIAIO_FRAMEWORK NAMES CoreMediaIO)
-    find_library(COREVIDEO_FRAMEWORK NAMES CoreVideo)
-    find_library(FOUNDATION_FRAMEWORK NAMES Foundation)
-    find_library(IOKIT_FRAMEWORK NAMES IOKit)
-    find_library(IOSURFACE_FRAMEWORK NAMES IOSurface)
-    set(EXTRA_LIBS ${COREFOUNDATION_FRAMEWORK}
-                   ${COREMEDIA_FRAMEWORK}
-                   ${COREMEDIAIO_FRAMEWORK}
-                   ${COREVIDEO_FRAMEWORK}
-                   ${FOUNDATION_FRAMEWORK}
-                   ${IOKIT_FRAMEWORK}
-                   ${IOSURFACE_FRAMEWORK})
+if (APPLE OR FAKE_APPLE)
     target_link_libraries(Manager
-                          ${EXTRA_LIBS})
+                          VCamIPC_cmio
+                          PlatformUtils_cmio)
+elseif (WIN32)
+    target_link_libraries(Manager
+                          VCamIPC_dshow
+                          PlatformUtils_dshow)
+endif ()
+
+if (APPLE OR FAKE_APPLE)
+    if (APPLE)
+        find_library(COREFOUNDATION_FRAMEWORK NAMES CoreFoundation)
+        find_library(COREMEDIA_FRAMEWORK NAMES CoreMedia)
+        find_library(COREMEDIAIO_FRAMEWORK NAMES CoreMediaIO)
+        find_library(COREVIDEO_FRAMEWORK NAMES CoreVideo)
+        find_library(FOUNDATION_FRAMEWORK NAMES Foundation)
+        find_library(IOKIT_FRAMEWORK NAMES IOKit)
+
+        set(EXTRA_LIBS ${COREFOUNDATION_FRAMEWORK}
+                       ${COREMEDIA_FRAMEWORK}
+                       ${COREMEDIAIO_FRAMEWORK}
+                       ${COREVIDEO_FRAMEWORK}
+                       ${FOUNDATION_FRAMEWORK}
+                       ${IOKIT_FRAMEWORK})
+        target_link_libraries(Manager ${EXTRA_LIBS})
+    endif ()
 elseif (WIN32)
     target_link_libraries(Manager
                           advapi32
                           gdi32
-                          strmiids
-                          uuid
                           ole32
                           oleaut32
-                          shell32)
+                          shell32
+                          strmiids
+                          uuid)
 endif ()
 
-install(TARGETS Manager DESTINATION ${INSTALLPATH})
+if (APPLE OR FAKE_APPLE)
+    install(TARGETS Manager DESTINATION ${DATAROOTDIR})
+elseif (WIN32)
+    install(TARGETS Manager DESTINATION ${BINDIR})
+endif ()

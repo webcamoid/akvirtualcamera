@@ -38,7 +38,7 @@ extern "C" void *akPluginMain(CFAllocatorRef allocator,
 
     auto logFile =
             AkVCam::Preferences::readString("logfile",
-                                            "/tmp/" CMIO_PLUGIN_NAME ".log");
+                                            "/tmp/" AKVCAM_PLUGIN_NAME ".log");
     AkVCam::Logger::setLogFile(logFile);
 
     if (!CFEqual(requestedTypeUUID, kCMIOHardwarePlugInTypeID))

@@ -34,7 +34,12 @@ namespace AkVCam
     class VideoFormat;
     class VideoFrame;
 
+    std::string locateManagerPath();
+    std::string locateServicePath();
     std::string locatePluginPath();
+    std::string locateAltManagerPath();
+    std::string locateAltServicePath();
+    std::string locateAltPluginPath();
     std::string tempPath();
     std::string moduleFileName(HINSTANCE hinstDLL);
     std::string dirname(const std::string &path);
@@ -43,7 +48,6 @@ namespace AkVCam
     std::string stringFromError(DWORD errorCode);
     CLSID createClsidFromStr(const std::string &str);
     std::string createClsidStrFromStr(const std::string &str);
-    std::string stringFromMessageId(uint32_t messageId);
     std::string stringFromIid(const IID &iid);
     std::string stringFromResult(HRESULT result);
     std::string stringFromClsid(const CLSID &clsid);
@@ -74,6 +78,12 @@ namespace AkVCam
     VideoFrame loadPicture(const std::string &fileName);
     std::vector<CLSID> listAllCameras();
     std::vector<CLSID> listRegisteredCameras();
+    std::vector<uint64_t> systemProcesses();
+    uint64_t currentPid();
+    std::string exePath(uint64_t pid);
+    std::string currentBinaryPath();
+    bool isServiceRunning();
+    bool isServicePortUp();
 }
 
 #endif // PLATFORM_UTILS_H

@@ -169,18 +169,6 @@ namespace AkVCam
                 };
             }
 
-            template<typename T>
-            static inline T bound(T min, T value, T max)
-            {
-                return value < min? min: value > max? max: value;
-            }
-
-            template<typename T>
-            static inline T mod(T value, T mod)
-            {
-                return (value % mod + mod) % mod;
-            }
-
             inline int grayval(int r, int g, int b);
 
             // YUV utility functions
@@ -326,6 +314,17 @@ AkVCam::VideoFrame &AkVCam::VideoFrame::operator =(const AkVCam::VideoFrame &oth
     }
 
     return *this;
+}
+
+bool AkVCam::VideoFrame::operator ==(const VideoFrame &other) const
+{
+    return this->d->m_format == other.d->m_format
+           && this->d->m_data == other.d->m_data;
+}
+
+AkVCam::VideoFrame::operator bool() const
+{
+    return this->d->m_format && !this->d->m_data.empty();
 }
 
 AkVCam::VideoFrame::~VideoFrame()
@@ -754,9 +753,9 @@ AkVCam::VideoFrame AkVCam::VideoFrame::adjustHsl(int hue,
             this->d->rgbToHsl(srcLine[x].r, srcLine[x].g, srcLine[x].b,
                               &h, &s, &l);
 
-            h = VideoFramePrivate::mod(h + hue, 360);
-            s = VideoFramePrivate::bound(0, s + saturation, 255);
-            l = VideoFramePrivate::bound(0, l + luminance, 255);
+            h = mod(h + hue, 360);
+            s = bound(0, s + saturation, 255);
+            l = bound(0, l + luminance, 255);
 
             int r;
             int g;
@@ -786,7 +785,7 @@ AkVCam::VideoFrame AkVCam::VideoFrame::adjustGamma(int gamma)
 
     VideoFrame dst(this->d->m_format);
     auto dataGt = gammaTable()->data();
-    gamma = VideoFramePrivate::bound(-255, gamma, 255);
+    gamma = bound(-255, gamma, 255);
     size_t gammaOffset = size_t(gamma + 255) << 8;
 
     for (int y = 0; y < this->d->m_format.height(); y++) {
@@ -817,7 +816,7 @@ AkVCam::VideoFrame AkVCam::VideoFrame::adjustContrast(int contrast)
 
     VideoFrame dst(this->d->m_format);
     auto dataCt = contrastTable()->data();
-    contrast = VideoFramePrivate::bound(-255, contrast, 255);
+    contrast = bound(-255, contrast, 255);
     size_t contrastOffset = size_t(contrast + 255) << 8;
 
     for (int y = 0; y < this->d->m_format.height(); y++) {
@@ -889,10 +888,10 @@ AkVCam::VideoFrame AkVCam::VideoFrame::adjust(int hue,
     auto dataGt = gammaTable()->data();
     auto dataCt = contrastTable()->data();
 
-    gamma = VideoFramePrivate::bound(-255, gamma, 255);
+    gamma = bound(-255, gamma, 255);
     size_t gammaOffset = size_t(gamma + 255) << 8;
 
-    contrast = VideoFramePrivate::bound(-255, contrast, 255);
+    contrast = bound(-255, contrast, 255);
     size_t contrastOffset = size_t(contrast + 255) << 8;
 
     for (int y = 0; y < this->d->m_format.height(); y++) {
@@ -910,9 +909,9 @@ AkVCam::VideoFrame AkVCam::VideoFrame::adjust(int hue,
                 int l;
                 this->d->rgbToHsl(r, g, b, &h, &s, &l);
 
-                h = VideoFramePrivate::mod(h + hue, 360);
-                s = VideoFramePrivate::bound(0, s + saturation, 255);
-                l = VideoFramePrivate::bound(0, l + luminance, 255);
+                h = mod(h + hue, 360);
+                s = bound(0, s + saturation, 255);
+                l = bound(0, l + luminance, 255);
                 this->d->hslToRgb(h, s, l, &r, &g, &b);
             }
 
@@ -1633,7 +1632,7 @@ void AkVCam::VideoFramePrivate::rgbToHsl(int r, int g, int b, int *h, int *s, in
         *s = 0;
     } else {
         if (max == r)
-            *h = VideoFramePrivate::mod(g - b, 6 * c);
+            *h = mod(g - b, 6 * c);
         else if (max == g)
             *h = b - r + 2 * c;
         else
@@ -1716,7 +1715,7 @@ std::vector<uint8_t> AkVCam::initContrastTable()
 
         for (int i = 0; i < 256; i++) {
             int ic = int(f * (i - 128) + 128.);
-            contrastTable.push_back(uint8_t(VideoFramePrivate::bound(0, ic, 255)));
+            contrastTable.push_back(uint8_t(bound(0, ic, 255)));
         }
     }
 

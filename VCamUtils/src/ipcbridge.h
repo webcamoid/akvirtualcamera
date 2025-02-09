@@ -56,42 +56,26 @@ namespace AkVCam
     class IpcBridge
     {
         public:
-            enum ServerState
-            {
-                ServerStateAvailable,
-                ServerStateGone
-            };
-
             enum StreamType
             {
-                StreamTypeOutput,
-                StreamTypeInput
+                StreamType_Output,
+                StreamType_Input
             };
 
-            AKVCAM_SIGNAL(ServerStateChanged,
-                          ServerState state)
             AKVCAM_SIGNAL(FrameReady,
                           const std::string &deviceId,
-                          const VideoFrame &frame)
+                          const VideoFrame &frame,
+                          bool isActive)
             AKVCAM_SIGNAL(PictureChanged,
                           const std::string &picture)
             AKVCAM_SIGNAL(DevicesChanged,
                           const std::vector<std::string> &devices)
-            AKVCAM_SIGNAL(ListenerAdded,
-                          const std::string &deviceId,
-                          const std::string &listener)
-            AKVCAM_SIGNAL(ListenerRemoved,
-                          const std::string &deviceId,
-                          const std::string &listener)
-            AKVCAM_SIGNAL(BroadcastingChanged,
-                          const std::string &deviceId,
-                          const std::string &broadcaster)
             AKVCAM_SIGNAL(ControlsChanged,
                           const std::string &deviceId,
                           const std::map<std::string, int> &controls)
 
         public:
-            IpcBridge(bool isVCam=false);
+            IpcBridge();
             ~IpcBridge();
 
             /* Server & Client */
@@ -101,12 +85,6 @@ namespace AkVCam
             int logLevel() const;
             void setLogLevel(int logLevel);
             std::string logPath(const std::string &logName={}) const;
-
-            // Register the peer to the global server.
-            bool registerPeer(bool isVCam=false);
-
-            // Unregister the peer to the global server.
-            void unregisterPeer();
 
             // List available devices.
             std::vector<std::string> devices() const;
@@ -127,15 +105,9 @@ namespace AkVCam
             void setFormats(const std::string &deviceId,
                             const std::vector<VideoFormat> &formats);
 
-            // Return return the status of the device.
-            std::string broadcaster(const std::string &deviceId) const;
-
             std::vector<DeviceControl> controls(const std::string &deviceId);
             void setControls(const std::string &deviceId,
                              const std::map<std::string, int> &controls);
-
-            // Returns the clients that are capturing from a virtual camera.
-            std::vector<std::string> listeners(const std::string &deviceId);
 
             // Returns clients PIDs using the virtual devices.
             std::vector<uint64_t> clientsPids() const;
@@ -155,26 +127,17 @@ namespace AkVCam
             void updateDevices();
 
             // Start frame transfer to the device.
-            bool deviceStart(const std::string &deviceId,
-                             const VideoFormat &format);
+            bool deviceStart(StreamType type, const std::string &deviceId);
 
             // Stop frame transfer to the device.
             void deviceStop(const std::string &deviceId);
 
             // Transfer a frame to the device.
-            bool write(const std::string &deviceId,
-                       const VideoFrame &frame);
+            bool write(const std::string &deviceId, const VideoFrame &frame);
 
             /* Client */
 
-            // Increment the count of device listeners
-            bool addListener(const std::string &deviceId);
-
-            // Decrement the count of device listeners
-            bool removeListener(const std::string &deviceId);
-
             bool isBusyFor(const std::string &operation) const;
-
             bool needsRoot(const std::string &operation) const;
 
             /* Hacks */

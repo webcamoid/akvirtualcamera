@@ -556,7 +556,8 @@ void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
                 << std::endl;
 
     bool resync = false;
-    auto hostTime = CFAbsoluteTimeGetCurrent();
+    UInt64 hostTime =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
     auto pts = CMTimeMake(int64_t(hostTime), 1e9);
     auto ptsDiff = CMTimeGetSeconds(CMTimeSubtract(this->m_pts, pts));
 
@@ -567,8 +568,8 @@ void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
     this->self->m_properties.getProperty(kCMIOStreamPropertyFrameRate, &fps);
 
     if (CMTIME_IS_INVALID(this->m_pts)
-        || ptsDiff < 0
-        || ptsDiff > 2. / fps) {
+        || (ptsDiff < 0)
+        || (ptsDiff > 2. / fps)) {
         this->m_pts = pts;
         resync = true;
     }

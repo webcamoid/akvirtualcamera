@@ -31,6 +31,7 @@
 #include "VCamUtils/src/logger.h"
 
 #define REG_PREFIX "SOFTWARE\\Webcamoid\\VirtualCamera"
+#define AKVCAM_SERVICETIMEOUT_DEFAULT 10
 
 namespace AkVCam
 {
@@ -136,15 +137,6 @@ double AkVCam::Preferences::readDouble(const std::string &key,
     std::string::size_type sz;
 
     return std::stod(value, &sz);
-}
-
-bool AkVCam::Preferences::readBool(const std::string &key,
-                                   bool defaultValue,
-                                   bool global)
-{
-    AkLogFunction();
-
-    return readInt(key, defaultValue, global) != 0;
 }
 
 bool AkVCam::Preferences::deleteKey(const std::string &key, bool global)
@@ -380,7 +372,7 @@ std::string AkVCam::Preferences::createDeviceId()
         /* There are no rules for device IDs in Windows. Just append an
          * incremental index to a common prefix.
          */
-        auto id = DSHOW_PLUGIN_DEVICE_PREFIX + std::to_string(i);
+        auto id = AKVCAM_DEVICE_PREFIX + std::to_string(i);
         auto clsid = createClsidFromStr(id);
         auto pit = std::find(cameraIds.begin(), cameraIds.end(), id);
         auto cit = std::find(cameraClsids.begin(), cameraClsids.end(), clsid);
@@ -539,7 +531,7 @@ bool AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
     AkLogFunction();
     auto formats = cameraFormats(cameraIndex);
 
-    if (index < 0 || index > int(formats.size()))
+    if ((index < 0) || (index > int(formats.size())))
         index = int(formats.size());
 
     bool ok = true;
@@ -638,6 +630,26 @@ int AkVCam::Preferences::logLevel()
 bool AkVCam::Preferences::setLogLevel(int logLevel)
 {
     return write("loglevel", logLevel, true);
+}
+
+int AkVCam::Preferences::servicePort()
+{
+    return readInt("servicePort", atoi(AKVCAM_SERVICEPORT_DEFAULT), true);
+}
+
+bool AkVCam::Preferences::setServicePort(int servicePort)
+{
+    return write("servicePort", servicePort, true);
+}
+
+int AkVCam::Preferences::serviceTimeout()
+{
+    return readInt("serviceTimeout", AKVCAM_SERVICETIMEOUT_DEFAULT, true);
+}
+
+bool AkVCam::Preferences::setServiceTimeout(int timeoutSecs)
+{
+    return write("serviceTimeout", timeoutSecs, true);
 }
 
 void AkVCam::Preferences::splitSubKey(const std::string &key,

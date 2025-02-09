@@ -30,7 +30,7 @@
 
 namespace AkVCam
 {
-    using FourCC = uint32_t;
+    using FourCC = int32_t;
 
     enum PixelFormat
     {

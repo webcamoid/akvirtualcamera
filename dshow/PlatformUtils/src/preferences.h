@@ -48,9 +48,6 @@ namespace AkVCam
         double readDouble(const std::string &key,
                           double defaultValue=0.0,
                           bool global=false);
-        bool readBool(const std::string &key,
-                      bool defaultValue=false,
-                      bool global=false);
         bool deleteKey(const std::string &key, bool global=false);
         bool move(const std::string &keyFrom,
                   const std::string &keyTo,
@@ -91,6 +88,10 @@ namespace AkVCam
         bool setPicture(const std::string &picture);
         int logLevel();
         bool setLogLevel(int logLevel);
+        int servicePort();
+        bool setServicePort(int servicePort);
+        int serviceTimeout();
+        bool setServiceTimeout(int timeoutSecs);
     }
 }
 

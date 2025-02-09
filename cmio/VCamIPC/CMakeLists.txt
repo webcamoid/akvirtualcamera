@@ -18,24 +18,57 @@
 
 cmake_minimum_required(VERSION 3.14)
 
-project(VCamIPC LANGUAGES CXX OBJCXX)
+project(VCamIPC_cmio LANGUAGES CXX)
+
+include(../../commons.cmake)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(../cmio.cmake)
+set(SOURCES
+    src/ipcbridge.cpp)
 
-add_library(VCamIPC STATIC
-            src/ipcbridge.mm)
+if (APPLE OR FAKE_APPLE)
+    add_library(VCamIPC_cmio STATIC ${SOURCES})
+else ()
+    add_library(VCamIPC_cmio STATIC EXCLUDE_FROM_ALL ${SOURCES})
+endif ()
 
-add_dependencies(VCamIPC VCamUtils)
-target_compile_definitions(VCamIPC PRIVATE VCAMIPC_LIBRARY)
-target_include_directories(VCamIPC
-                           PRIVATE ..
-                           PRIVATE ../..)
-find_library(FOUNDATION_FRAMEWORK NAMES Foundation)
-set(EXTRA_LIBS ${FOUNDATION_FRAMEWORK})
-target_link_libraries(VCamIPC
+add_dependencies(VCamIPC_cmio VCamUtils)
+
+if (APPLE)
+    add_dependencies(VCamIPC_cmio PlatformUtilsObjC_cmio)
+endif ()
+
+target_compile_definitions(VCamIPC_cmio PRIVATE VCAMIPC_LIBRARY)
+target_include_directories(VCamIPC_cmio
+                           PRIVATE
+                           ..
+                           ../..)
+
+if (FAKE_APPLE)
+    target_include_directories(VCamIPC_cmio
+                               PRIVATE
+                               ../FakeAPI)
+endif ()
+
+if (APPLE OR FAKE_APPLE)
+    if (APPLE)
+        find_library(FOUNDATION_FRAMEWORK NAMES Foundation)
+        set(EXTRA_LIBS ${FOUNDATION_FRAMEWORK})
+    endif ()
+endif ()
+
+if (APPLE)
+    set(EXTRA_OBJC PlatformUtilsObjC_cmio)
+endif ()
+
+target_link_libraries(VCamIPC_cmio
                       VCamUtils
-                      ${EXTRA_LIBS})
+                      ${EXTRA_LIBS}
+                      ${EXTRA_OBJC})
+
+if (FAKE_APPLE)
+    add_definitions(-DFAKE_APPLE)
+endif ()

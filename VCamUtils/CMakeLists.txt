@@ -20,6 +20,8 @@ cmake_minimum_required(VERSION 3.14)
 
 project(VCamUtils LANGUAGES CXX)
 
+include(../commons.cmake)
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,8 +33,17 @@ add_library(VCamUtils STATIC
             src/ipcbridge.h
             src/logger.cpp
             src/logger.h
+            src/message.cpp
+            src/message.h
+            src/messageclient.cpp
+            src/messageclient.h
+            src/messageserver.cpp
+            src/messageserver.h
+            src/servicemsg.h
             src/settings.cpp
             src/settings.h
+            src/sockets.cpp
+            src/sockets.h
             src/timer.cpp
             src/timer.h
             src/utils.cpp
@@ -43,5 +54,10 @@ add_library(VCamUtils STATIC
             src/videoframe.cpp
             src/videoframe.h
             src/videoframetypes.h)
+
+if (WIN32)
+    target_link_libraries(VCamUtils
+                          ws2_32)
+endif ()
 
 target_compile_definitions(VCamUtils PRIVATE VCAMUTILS_LIBRARY)

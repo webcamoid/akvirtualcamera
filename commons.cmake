@@ -18,7 +18,14 @@
 
 cmake_minimum_required(VERSION 3.5)
 
-if (NOT APPLE AND NOT WIN32)
+# Allow to build the virtual camera in Linux and other POSIX systems as if you
+# were building it for APPLE
+# NOTE: No, this option isn't for cross compile, the resulting binaries are not
+# compatible with Mac, this option allows to test the virtual camera outside
+# Mac.
+set(FAKE_APPLE OFF CACHE BOOL "Virtual camera in Linux and other POSIX systems as if you were building it for APPLE")
+
+if (NOT (APPLE OR FAKE_APPLE) AND NOT WIN32)
     message(FATAL_ERROR "This driver only works in Mac an Windows. For Linux check 'akvcam' instead.")
 endif ()
 
@@ -38,6 +45,17 @@ add_definitions(-DCOMMONS_APPNAME="${COMMONS_APPNAME}"
                 -DCOMMONS_VER_MAJ="${VER_MAJ}"
                 -DCOMMONS_VERSION="${VERSION}"
                 -DPREFIX="${PREFIX}")
+
+set(AKVCAM_PLUGIN_NAME AkVirtualCamera)
+set(AKVCAM_SERVICE_NAME AkVCamAssistant)
+set(AKVCAM_MANAGER_NAME AkVCamManager)
+set(AKVCAM_DEVICE_PREFIX AkVCamVideoDevice)
+set(AKVCAM_SERVICEPORT "8226" CACHE STRING "Virtual camera service port")
+
+add_definitions(-DAKVCAM_PLUGIN_NAME="${AKVCAM_PLUGIN_NAME}"
+                -DAKVCAM_SERVICE_NAME="${AKVCAM_SERVICE_NAME}"
+                -DAKVCAM_MANAGER_NAME="${AKVCAM_MANAGER_NAME}"
+                -DAKVCAM_DEVICE_PREFIX="${AKVCAM_DEVICE_PREFIX}")
 
 if (WIN32)
     add_definitions(-DUNICODE -D_UNICODE)
@@ -75,8 +93,8 @@ endif ()
 # NOTE for other developers: TARGET_ARCH is intended to be used as a reference
 # for the deploy tool, so don't rush on adding new architectures unless you
 # want to create a binary distributable for that architecture.
-# Webcamoid build is not affected in anyway by the value of TARGET_ARCH, if the
-# build fails its something else and totally unrelated to that variable.
+# AkVirtualCamera build is not affected in anyway by the value of TARGET_ARCH,
+# if the build fails its something else and totally unrelated to that variable.
 
 if (WIN32)
     include(CheckCXXSourceCompiles)
@@ -129,9 +147,9 @@ if (WIN32)
     }" IS_WIN32_ARM_TARGET)
 
     if (IS_WIN64_TARGET OR IS_WIN64_ARM_TARGET)
-        set(QTIFW_TARGET_DIR "\@ApplicationsDirX64\@/Webcamoid")
+        set(QTIFW_TARGET_DIR "\@ApplicationsDirX64\@/${AKVCAM_PLUGIN_NAME}")
     else ()
-        set(QTIFW_TARGET_DIR "\@ApplicationsDirX86\@/Webcamoid")
+        set(QTIFW_TARGET_DIR "\@ApplicationsDirX86\@/${AKVCAM_PLUGIN_NAME}")
     endif()
 
     if (IS_WIN64_TARGET)
@@ -219,4 +237,38 @@ elseif (UNIX)
             set(TARGET_ARCH unknown)
         endif ()
     endif ()
+endif ()
+
+if (APPLE OR FAKE_APPLE)
+    set(BUILDDIR build)
+    set(EXECPREFIX ${AKVCAM_PLUGIN_NAME}.plugin/Contents)
+    set(BINDIR ${EXECPREFIX}/MacOS)
+    set(LIBDIR ${EXECPREFIX}/Frameworks)
+    set(DATAROOTDIR ${EXECPREFIX}/Resources)
+    set(LICENSEDIR ${DATAROOTDIR})
+elseif (WIN32)
+    include(GNUInstallDirs)
+    set(BUILDDIR build)
+    set(EXECPREFIX "")
+    set(BINDIR ${WIN_TARGET_ARCH})
+    set(LIBDIR ${CMAKE_INSTALL_LIBDIR}/${WIN_TARGET_ARCH})
+    set(DATAROOTDIR ${CMAKE_INSTALL_DATAROOTDIR})
+    set(LICENSEDIR ${DATAROOTDIR}/licenses/${AKVCAM_PLUGIN_NAME})
+endif ()
+
+if (APPLE OR FAKE_APPLE)
+    set(TARGET_PLATFORM mac)
+    set(BUILD_INFO_FILE ${DATAROOTDIR}/build-info.txt)
+    set(APP_LIBDIR ${LIBDIR})
+    set(MAIN_EXECUTABLE ${BINDIR}/${AKVCAM_PLUGIN_NAME})
+    set(PACKET_HIDE_ARCH false)
+    set(QTIFW_TARGET_DIR "\@ApplicationsDir\@/${AKVCAM_PLUGIN_NAME}")
+    set(OUTPUT_FORMATS "MacPkg")
+elseif (WIN32)
+    set(TARGET_PLATFORM windows)
+    set(BUILD_INFO_FILE ${DATAROOTDIR}/build-info.txt)
+    set(MAIN_EXECUTABLE ${BINDIR}/${AKVCAM_MANAGER_NAME}.exe)
+    set(APP_LIBDIR ${WIN_TARGET_ARCH})
+    set(PACKET_HIDE_ARCH true)
+    set(OUTPUT_FORMATS "Nsis")
 endif ()

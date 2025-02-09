@@ -21,11 +21,16 @@
 #include <sstream>
 #include <algorithm>
 #include <unistd.h>
-#import <CoreGraphics/CGImage.h>
-#import <CoreGraphics/CGDataProvider.h>
+#include <dlfcn.h>
+#include <CoreGraphics/CGImage.h>
+#include <CoreGraphics/CGDataProvider.h>
+#include <libproc.h>
 
 #include "utils.h"
+#include "preferences.h"
 #include "VCamUtils/src/logger.h"
+#include "VCamUtils/src/messageclient.h"
+#include "VCamUtils/src/utils.h"
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/videoframe.h"
 
@@ -60,6 +65,34 @@ namespace AkVCam {
             return &formatsTable;
         }
     }
+
+    std::string pluginInstallPath();
+}
+
+std::string AkVCam::locateManagerPath()
+{
+    auto file = pluginInstallPath() + "/" + DATAROOTDIR "/" AKVCAM_MANAGER_NAME;
+
+    return fileExists(file)? file: std::string();
+}
+
+std::string AkVCam::locateServicePath()
+{
+    auto file = pluginInstallPath() + "/" + DATAROOTDIR "/" AKVCAM_SERVICE_NAME;
+
+    return fileExists(file)? file: std::string();
+}
+
+std::string AkVCam::locatePluginPath()
+{
+    auto file = pluginInstallPath() + "/" + BINDIR "/" AKVCAM_PLUGIN_NAME;
+
+    return fileExists(file)? file: std::string();
+}
+
+std::string AkVCam::tempPath()
+{
+    return {"/tmp"};
 }
 
 bool AkVCam::uuidEqual(const REFIID &uuid1, const CFUUIDRef uuid2)
@@ -75,7 +108,7 @@ bool AkVCam::uuidEqual(const REFIID &uuid1, const CFUUIDRef uuid2)
     return true;
 }
 
-std::string AkVCam::enumToString(UInt32 value)
+std::string AkVCam::enumToString(uint32_t value)
 {
     auto valueChr = reinterpret_cast<char *>(&value);
     std::stringstream ss;
@@ -109,85 +142,22 @@ AkVCam::PixelFormat AkVCam::formatFromCM(FourCharCode format)
     return PixelFormat(0);
 }
 
-std::shared_ptr<CFTypeRef> AkVCam::cfTypeFromStd(const std::string &str)
+std::string AkVCam::dirname(const std::string &path)
 {
-    auto ref =
-            new CFTypeRef(CFStringCreateWithCString(kCFAllocatorDefault,
-                                                    str.c_str(),
-                                                    kCFStringEncodingUTF8));
-
-    return std::shared_ptr<CFTypeRef>(ref, [] (CFTypeRef *ptr) {
-        CFRelease(*ptr);
-        delete ptr;
-    });
-}
-
-std::shared_ptr<CFTypeRef> AkVCam::cfTypeFromStd(int num)
-{
-    auto ref =
-            new CFTypeRef(CFNumberCreate(kCFAllocatorDefault,
-                                         kCFNumberIntType,
-                                         &num));
-
-    return std::shared_ptr<CFTypeRef>(ref, [] (CFTypeRef *ptr) {
-        CFRelease(*ptr);
-        delete ptr;
-    });
-}
-
-std::shared_ptr<CFTypeRef> AkVCam::cfTypeFromStd(double num)
-{
-    auto ref =
-            new CFTypeRef(CFNumberCreate(kCFAllocatorDefault,
-                                         kCFNumberDoubleType,
-                                         &num));
-
-    return std::shared_ptr<CFTypeRef>(ref, [] (CFTypeRef *ptr) {
-        CFRelease(*ptr);
-        delete ptr;
-    });
-}
-
-std::string AkVCam::stringFromCFType(CFTypeRef cfType)
-{
-    auto len = size_t(CFStringGetLength(CFStringRef(cfType)));
-    auto data = CFStringGetCStringPtr(CFStringRef(cfType),
-                                      kCFStringEncodingUTF8);
-
-    if (data)
-        return std::string(data, len);
-
-    auto maxLen =
-            CFStringGetMaximumSizeForEncoding(len, kCFStringEncodingUTF8)  + 1;
-    auto cstr = new char[maxLen];
-    memset(cstr, 0, maxLen);
-
-    if (!CFStringGetCString(CFStringRef(cfType),
-                            cstr,
-                            maxLen,
-                            kCFStringEncodingUTF8)) {
-        delete [] cstr;
-
-        return {};
-    }
-
-    std::string str(cstr, len);
-    delete [] cstr;
-
-    return str;
+    return path.substr(0, path.rfind("/"));
 }
 
 std::string AkVCam::realPath(const std::string &path)
 {
-    char resolvedPath[PATH_MAX];
-    memset(resolvedPath, 0, PATH_MAX);
+    char resolvedPath[4096];
+    memset(resolvedPath, 0, 4096);
     ::realpath(path.c_str(), resolvedPath);
 
-    char realPath[PATH_MAX];
-    memset(realPath, 0, PATH_MAX);
-    readlink(resolvedPath, realPath, PATH_MAX);
+    char realPath[4096];
+    memset(realPath, 0, 4096);
+    readlink(resolvedPath, realPath, 4096);
 
-    if (strnlen(realPath, PATH_MAX) < 1)
+    if (strnlen(realPath, 4096) < 1)
         return {resolvedPath};
 
     return {realPath};
@@ -204,6 +174,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
         return frame;
     }
 
+#ifndef FAKE_APPLE
     auto fileDataProvider = CGDataProviderCreateWithFilename(fileName.c_str());
 
     if (!fileDataProvider) {
@@ -346,4 +317,116 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
                  << std::endl;
 
     return frame;
+#else
+    return {};
+#endif
+}
+
+bool AkVCam::fileExists(const std::string &path)
+{
+    struct stat stats;
+    memset(&stats, 0, sizeof(struct stat));
+
+    return stat(path.c_str(), &stats) == 0;
+}
+
+bool AkVCam::readEntitlements(const std::string &app,
+                              const std::string &output)
+{
+    bool writen = false;
+    std::string cmd = "codesign -d --entitlements - \"" + app + "\"";
+    auto proc = popen(cmd.c_str(), "r");
+
+    if (proc) {
+        auto entitlements = fopen(output.c_str(), "w");
+
+        if (entitlements) {
+            for (size_t i = 0; !feof(proc); i++) {
+                char data[1024];
+                auto len = fread(data, 1, 1024, proc);
+
+                if (len < 1)
+                    break;
+
+                size_t offset = 0;
+
+                if (i == 0)
+                    offset = std::string(data, len).find("<?xml");
+
+                fwrite(data + offset, 1, len - offset, entitlements);
+                writen = true;
+            }
+
+            fclose(entitlements);
+        }
+
+        pclose(proc);
+    }
+
+    return writen;
+}
+
+std::vector<uint64_t> AkVCam::systemProcesses()
+{
+    auto npids = proc_listallpids(nullptr, 0);
+    pid_t pidsvec[npids];
+    memset(pidsvec, 0, npids * sizeof(pid_t));
+    npids = std::min(proc_listallpids(pidsvec, npids * sizeof(pid_t)), npids);
+    std::vector<uint64_t> pids;
+
+    for (int i = 0; i < npids; i++) {
+        auto it = std::find(pids.begin(), pids.end(), pidsvec[i]);
+
+        if (pidsvec[i] > 0 && it == pids.end())
+            pids.push_back(pidsvec[i]);
+    }
+
+    return pids;
+}
+
+uint64_t AkVCam::currentPid()
+{
+    return getpid();
+}
+
+std::string AkVCam::exePath(uint64_t pid)
+{
+    char path[4096];
+    memset(path, 0, 4096);
+    proc_pidpath(pid, path, 4096);
+
+    return {path};
+}
+
+std::string AkVCam::currentBinaryPath()
+{
+    Dl_info info;
+    memset(&info, 0, sizeof(Dl_info));
+
+    if (dladdr(reinterpret_cast<void *>(currentBinaryPath), &info) == 0)
+        return exePath(currentPid());
+
+    return {info.dli_fname};
+}
+
+bool AkVCam::isServiceRunning()
+{
+    auto service = locateServicePath();
+
+    for (auto &pid: systemProcesses()) {
+        if (exePath(pid) == service)
+            return true;
+    }
+
+    return false;
+}
+
+bool AkVCam::isServicePortUp()
+{
+    return MessageClient::isUp(Preferences::servicePort());
+}
+
+std::string AkVCam::pluginInstallPath()
+{
+    return realPath(dirname(currentBinaryPath()) + "/../../..");
 }

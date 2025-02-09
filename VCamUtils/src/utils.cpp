@@ -17,18 +17,49 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <algorithm>
 #include <cstring>
 #include <ctime>
 #include <fstream>
 #include <sstream>
 
 #include "utils.h"
+#include "servicemsg.h"
 
 uint64_t AkVCam::id()
 {
     static uint64_t id = 0;
 
     return id++;
+}
+
+std::string AkVCam::basename(const std::string &path)
+{
+    auto rit =
+            std::find_if(path.rbegin(),
+                         path.rend(),
+                         [] (char c) -> bool {
+        return c == '/' || c == '\\';
+    });
+
+    auto program =
+            rit == path.rend()?
+                path:
+                path.substr(path.size() + size_t(path.rbegin() - rit));
+
+    auto it =
+            std::find_if(program.begin(),
+                         program.end(),
+                         [] (char c) -> bool {
+        return c == '.';
+    });
+
+    program =
+            it == path.end()?
+                program:
+                program.substr(0, size_t(it - program.begin()));
+
+    return program;
 }
 
 std::string AkVCam::timeStamp()
@@ -158,4 +189,42 @@ void AkVCam::move(const std::string &from, const std::string &to)
     std::ofstream outfile(to, std::ios::out | std::ios::binary);
     outfile << infile.rdbuf();
     std::remove(from.c_str());
+}
+
+std::string AkVCam::stringFromMessageId(uint32_t messageId)
+{
+    struct
+    {
+        uint32_t id;
+        const char *str;
+    } vcamUtilsClsidToString [] = {
+        {AKVCAM_SERVICE_MSG_CLIENTS         , "CLIENTS"         },
+        {AKVCAM_SERVICE_MSG_STATUS          , "STATUS"          },
+        {AKVCAM_SERVICE_MSG_FRAME_READY     , "FRAME"           },
+        {AKVCAM_SERVICE_MSG_BROADCAST       , "BROADCAST"       },
+        {AKVCAM_SERVICE_MSG_LISTEN          , "LISTEN"          },
+        {AKVCAM_SERVICE_MSG_UPDATE_DEVICES  , "UPDATE_DEVICES"  },
+        {AKVCAM_SERVICE_MSG_DEVICES_UPDATED , "DEVICES_UPDATED" },
+        {AKVCAM_SERVICE_MSG_UPDATE_CONTROLS , "UPDATE_CONTROLS" },
+        {AKVCAM_SERVICE_MSG_CONTROLS_UPDATED, "CONTROLS_UPDATED"},
+        {AKVCAM_SERVICE_MSG_UPDATE_PICTURE  , "UPDATE_PICTURE"  },
+        {AKVCAM_SERVICE_MSG_PICTURE_UPDATED , "PICTURE_UPDATED" },
+        {0                                  , nullptr           },
+    };
+
+    auto msg = vcamUtilsClsidToString;
+
+    for (; msg->id; ++msg)
+        if (msg->id == messageId)
+            return {msg->str};
+
+    return  "AKVCAM_SERVICE_MSG_(" + std::to_string(msg->id) + ")";
+}
+
+bool AkVCam::endsWith(const std::string &str, const std::string &sub)
+{
+    if (str.size() < sub.size())
+        return false;
+
+    return str.substr(str.size() - sub.size(), sub.size()) == sub;
 }

@@ -153,6 +153,7 @@
 namespace AkVCam
 {
     uint64_t id();
+    std::string basename(const std::string &path);
     std::string timeStamp();
     std::string replace(const std::string &str,
                         const std::string &from,
@@ -165,6 +166,41 @@ namespace AkVCam
     std::pair<std::string, std::string> splitOnce(const std::string &str,
                                                   const std::string &separator);
     void move(const std::string &from, const std::string &to);
+    std::string stringFromMessageId(uint32_t messageId);
+    bool endsWith(const std::string &str, const std::string &sub);
+
+    template<typename T>
+    inline T bound(T min, T value, T max)
+    {
+        return value < min? min: value > max? max: value;
+    }
+
+    template<typename T>
+    inline T mod(T value, T mod)
+    {
+        return (value % mod + mod) % mod;
+    }
+
+    template<typename T>
+    inline T gcd(T a, T b)
+    {
+        a = a < 0? -a: a;
+        b = b < 0? -b: b;
+
+        while (a > 0) {
+            T tmp = a;
+            a = b % a;
+            b = tmp;
+        }
+
+        return b;
+    }
+
+    template<typename T>
+    inline T lcm(T a, T b)
+    {
+        return a * b / gcd(a, b);
+    }
 }
 
 #endif // AKVCAMUTILS_UTILS_H

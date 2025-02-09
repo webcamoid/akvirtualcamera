@@ -23,7 +23,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <CoreFoundation/CoreFoundation.h>
 
 namespace AkVCam
 {
@@ -32,18 +31,14 @@ namespace AkVCam
     namespace Preferences
     {
         std::vector<std::string> keys();
-        void write(const std::string &key,
-                   const std::shared_ptr<CFTypeRef> &value);
         void write(const std::string &key, const std::string &value);
         void write(const std::string &key, int value);
         void write(const std::string &key, double value);
         void write(const std::string &key, std::vector<std::string> &value);
-        std::shared_ptr<CFTypeRef> read(const std::string &key);
         std::string readString(const std::string &key,
                                const std::string &defaultValue={});
         int readInt(const std::string &key, int defaultValue=0);
         double readDouble(const std::string &key, double defaultValue=0.0);
-        bool readBool(const std::string &key, bool defaultValue=false);
         std::vector<std::string> readStringList(const std::string &key,
                                                 const std::vector<std::string> &defaultValue={});
         void deleteKey(const std::string &key);
@@ -58,34 +53,38 @@ namespace AkVCam
         std::string addCamera(const std::string &deviceId,
                               const std::string &description,
                               const std::vector<VideoFormat> &formats);
-        void removeCamera(const std::string &deviceId);
+        bool removeCamera(const std::string &deviceId);
         size_t camerasCount();
         bool idDeviceIdTaken(const std::string &deviceId);
         std::string createDeviceId();
         int cameraFromId(const std::string &deviceId);
         bool cameraExists(const std::string &deviceId);
         std::string cameraDescription(size_t cameraIndex);
-        void cameraSetDescription(size_t cameraIndex,
+        bool cameraSetDescription(size_t cameraIndex,
                                   const std::string &description);
         std::string cameraId(size_t cameraIndex);
         size_t formatsCount(size_t cameraIndex);
         VideoFormat cameraFormat(size_t cameraIndex, size_t formatIndex);
         std::vector<VideoFormat> cameraFormats(size_t cameraIndex);
-        void cameraSetFormats(size_t cameraIndex,
+        bool cameraSetFormats(size_t cameraIndex,
                               const std::vector<VideoFormat> &formats);
-        void cameraAddFormat(size_t cameraIndex,
+        bool cameraAddFormat(size_t cameraIndex,
                              const VideoFormat &format,
                              int index);
-        void cameraRemoveFormat(size_t cameraIndex, int index);
+        bool cameraRemoveFormat(size_t cameraIndex, int index);
         int cameraControlValue(size_t cameraIndex,
                                const std::string &key);
-        void cameraSetControlValue(size_t cameraIndex,
+        bool cameraSetControlValue(size_t cameraIndex,
                                    const std::string &key,
                                    int value);
         std::string picture();
-        void setPicture(const std::string &picture);
+        bool setPicture(const std::string &picture);
         int logLevel();
-        void setLogLevel(int logLevel);
+        bool setLogLevel(int logLevel);
+        int servicePort();
+        bool setServicePort(int servicePort);
+        int serviceTimeout();
+        bool setServiceTimeout(int timeoutSecs);
     }
 }
 

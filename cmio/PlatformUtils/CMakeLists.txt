@@ -18,27 +18,60 @@
 
 cmake_minimum_required(VERSION 3.14)
 
-project(PlatformUtils LANGUAGES CXX)
+project(PlatformUtils_cmio LANGUAGES CXX)
+
+include(../../commons.cmake)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(../cmio.cmake)
+set(SOURCES
+    src/preferences.cpp
+    src/preferences.h
+    src/utils.cpp
+    src/utils.h)
 
-add_library(PlatformUtils STATIC
-            src/preferences.cpp
-            src/preferences.h
-            src/utils.cpp
-            src/utils.h)
+if (APPLE OR FAKE_APPLE)
+    add_library(PlatformUtils_cmio STATIC ${SOURCES})
+else ()
+    add_library(PlatformUtils_cmio STATIC EXCLUDE_FROM_ALL ${SOURCES})
+endif ()
 
-add_dependencies(PlatformUtils VCamUtils)
-target_compile_definitions(PlatformUtils PRIVATE PLATFORMUTILS_LIBRARY)
-target_include_directories(PlatformUtils PRIVATE ../..)
-find_library(COREFOUNDATION_FRAMEWORK NAMES CoreFoundation)
-find_library(COREGRAPHICS_FRAMEWORK NAMES CoreGraphics)
-set(EXTRA_LIBS ${COREFOUNDATION_FRAMEWORK}
-               ${COREGRAPHICS_FRAMEWORK})
-target_link_libraries(PlatformUtils
+add_dependencies(PlatformUtils_cmio VCamUtils)
+target_compile_definitions(PlatformUtils_cmio PRIVATE PLATFORMUTILS_LIBRARY)
+target_include_directories(PlatformUtils_cmio
+                           PRIVATE
+                           ..
+                           ../..)
+
+set(CMIO_ASSISTANT_NAME "io.github.webcamoid.${AKVCAM_PLUGIN_NAME}.${AKVCAM_SERVICE_NAME}")
+add_definitions(-DCMIO_ASSISTANT_NAME="${CMIO_ASSISTANT_NAME}")
+
+if (FAKE_APPLE)
+    target_include_directories(PlatformUtils_cmio
+                               PRIVATE
+                               ../FakeAPI)
+endif ()
+
+add_definitions(-DBINDIR="${BINDIR}"
+                -DDATAROOTDIR="${DATAROOTDIR}"
+                -DAKVCAM_SERVICEPORT_DEFAULT="${AKVCAM_SERVICEPORT}")
+
+if (FAKE_APPLE)
+    add_definitions(-DFAKE_APPLE)
+endif ()
+
+if (APPLE OR FAKE_APPLE)
+    if (APPLE)
+        find_library(COREFOUNDATION_FRAMEWORK NAMES CoreFoundation)
+        find_library(COREGRAPHICS_FRAMEWORK NAMES CoreGraphics)
+        set(EXTRA_LIBS
+            ${COREFOUNDATION_FRAMEWORK}
+            ${COREGRAPHICS_FRAMEWORK})
+    endif ()
+endif ()
+
+target_link_libraries(PlatformUtils_cmio
                       VCamUtils
                       ${EXTRA_LIBS})

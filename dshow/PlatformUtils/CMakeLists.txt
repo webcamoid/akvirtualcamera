@@ -18,34 +18,42 @@
 
 cmake_minimum_required(VERSION 3.14)
 
-project(PlatformUtils LANGUAGES CXX)
+project(PlatformUtils_dshow LANGUAGES CXX)
+
+include(../../commons.cmake)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(../dshow.cmake)
+set(SOURCES
+    src/preferences.cpp
+    src/preferences.h
+    src/utils.cpp
+    src/utils.h)
 
-add_library(PlatformUtils STATIC
-            src/messagecommons.h
-            src/messageserver.cpp
-            src/messageserver.h
-            src/mutex.cpp
-            src/mutex.h
-            src/preferences.cpp
-            src/preferences.h
-            src/sharedmemory.cpp
-            src/sharedmemory.h
-            src/utils.cpp
-            src/utils.h)
+if (WIN32)
+    add_library(PlatformUtils_dshow STATIC ${SOURCES})
+else ()
+    add_library(PlatformUtils_dshow STATIC EXCLUDE_FROM_ALL ${SOURCES})
+endif ()
 
-add_dependencies(PlatformUtils VCamUtils)
-target_compile_definitions(PlatformUtils PRIVATE PLATFORMUTILS_LIBRARY)
-target_include_directories(PlatformUtils PRIVATE ../..)
-target_link_libraries(PlatformUtils
+add_dependencies(PlatformUtils_dshow VCamUtils)
+target_compile_definitions(PlatformUtils_dshow PRIVATE PLATFORMUTILS_LIBRARY)
+target_include_directories(PlatformUtils_dshow PRIVATE ../..)
+
+add_definitions(-DAKVCAM_SERVICEPORT_DEFAULT="${AKVCAM_SERVICEPORT}")
+
+if (WIN32)
+    set(EXTRA_LIBS
+        advapi32
+        kernel32
+        gdi32
+        shell32
+        strmiids
+        windowscodecs)
+endif ()
+
+target_link_libraries(PlatformUtils_dshow
                       VCamUtils
-                      advapi32
-                      kernel32
-                      gdi32
-                      shell32
-                      windowscodecs)
+                      ${EXTRA_LIBS})

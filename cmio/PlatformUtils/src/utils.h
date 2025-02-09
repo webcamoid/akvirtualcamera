@@ -22,25 +22,40 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 #include <CoreMediaIO/CMIOHardwarePlugIn.h>
 #include <CoreMedia/CMFormatDescription.h>
 
 #include "VCamUtils/src/videoformattypes.h"
 
+#ifndef FAKE_APPLE
+#include "PlatformUtilsObjC/src/hacks.h"
+#endif
+
 namespace AkVCam
 {
     class VideoFrame;
 
+    std::string locateManagerPath();
+    std::string locateServicePath();
+    std::string locatePluginPath();
+    std::string tempPath();
     bool uuidEqual(const REFIID &uuid1, const CFUUIDRef uuid2);
-    std::string enumToString(UInt32 value);
+    std::string enumToString(uint32_t value);
     FourCharCode formatToCM(PixelFormat format);
     PixelFormat formatFromCM(FourCharCode format);
-    std::shared_ptr<CFTypeRef> cfTypeFromStd(const std::string &str);
-    std::shared_ptr<CFTypeRef> cfTypeFromStd(int num);
-    std::shared_ptr<CFTypeRef> cfTypeFromStd(double num);
-    std::string stringFromCFType(CFTypeRef cfType);
+    std::string dirname(const std::string &path);
     std::string realPath(const std::string &path);
     VideoFrame loadPicture(const std::string &fileName);
+    bool fileExists(const std::string &path);
+    bool readEntitlements(const std::string &app,
+                          const std::string &output);
+    std::vector<uint64_t> systemProcesses();
+    uint64_t currentPid();
+    std::string exePath(uint64_t pid);
+    std::string currentBinaryPath();
+    bool isServiceRunning();
+    bool isServicePortUp();
 }
 
 #endif // PLATFORM_UTILS_H

@@ -36,6 +36,7 @@ namespace AkVCam
     {
         public:
             HINSTANCE m_pluginHinstance {nullptr};
+
     };
 }
 
@@ -357,7 +358,7 @@ void AkVCam::PluginInterface::initializeLogger() const
         setbuf(stdout, nullptr);
     }
 
-    auto defaultLogFile = AkVCam::tempPath() + "\\" DSHOW_PLUGIN_NAME ".log";
+    auto defaultLogFile = AkVCam::tempPath() + "\\" AKVCAM_PLUGIN_NAME ".log";
     auto logFile = AkVCam::Preferences::readString("logfile", defaultLogFile);
     AkLogInfo() << "Sending debug output to " << logFile << std::endl;
     AkVCam::Logger::setLogFile(logFile);
