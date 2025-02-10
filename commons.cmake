@@ -61,9 +61,11 @@ if (WIN32)
     add_definitions(-DUNICODE -D_UNICODE)
 endif ()
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT FAKE_APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
 endif()
+
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if (DAILY_BUILD)
     add_definitions(-DDAILY_BUILD)

@@ -27,11 +27,21 @@ using CMIOStreamID = CMIOObjectID;
 
 using CMIODeviceStreamQueueAlteredProc = void (*)(CMIOStreamID streamID, void *token, void *refCon);
 
+enum CMIOStreamClasses
+{
+    kCMIOStreamClassID = CFTYPE_FOURCC('a', 's', 't', 'r'),
+};
+
 enum kCMIOStreamProperties
 {
-    kCMIOStreamPropertyFrameRates      = CFTYPE_FOURCC('n','f', 'r', '#'),
-    kCMIOStreamPropertyFrameRateRanges = CFTYPE_FOURCC('f','r', 'r', 'g'),
-    kCMIOStreamPropertyDirection       = CFTYPE_FOURCC('s','d', 'i', 'r'),
+    kCMIOStreamPropertyClock              = CFTYPE_FOURCC('p', 'm', 'c', 'l'),
+    kCMIOStreamPropertyDirection          = CFTYPE_FOURCC('s', 'd', 'i', 'r'),
+    kCMIOStreamPropertyFormatDescription  = CFTYPE_FOURCC('p', 'f', 't', ' '),
+    kCMIOStreamPropertyFormatDescriptions = CFTYPE_FOURCC('p', 'f', 't', 'a'),
+    kCMIOStreamPropertyFrameRate          = CFTYPE_FOURCC('n', 'f', 'r', 't'),
+    kCMIOStreamPropertyFrameRateRanges    = CFTYPE_FOURCC('f', 'r', 'r', 'g'),
+    kCMIOStreamPropertyFrameRates         = CFTYPE_FOURCC('n', 'f', 'r', '#'),
+    kCMIOStreamPropertyMinimumFrameRate   = CFTYPE_FOURCC('m', 'f', 'r', 't'),
 };
 
 #endif // COREMEDIAIO_CMIOHARDWARESTREAM_H

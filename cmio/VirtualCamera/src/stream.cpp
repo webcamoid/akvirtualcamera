@@ -48,7 +48,7 @@ namespace AkVCam
             VideoFrame m_currentFrame;
             VideoFrame m_testFrame;
             void *m_queueAlteredRefCon {nullptr};
-            CFRunLoopTimerRef m_timer {nullptr};
+            Timer m_timer;
             std::mutex m_mutex;
             Scaling m_scaling {ScalingFast};
             AspectRatio m_aspectRatio {AspectRatioIgnore};
@@ -60,7 +60,7 @@ namespace AkVCam
             explicit StreamPrivate(Stream *self);
             bool startTimer();
             void stopTimer();
-            static void streamLoop(CFRunLoopTimerRef timer, void *info);
+            static void streamLoop(void *userData);
             void sendFrame(const VideoFrame &frame);
             VideoFrame applyAdjusts(const VideoFrame &frame);
             VideoFrame randomFrame();
@@ -92,6 +92,7 @@ AkVCam::Stream::Stream(bool registerObject,
     }
 
     this->m_properties.setProperty(kCMIOStreamPropertyClock, this->d->m_clock);
+    this->d->m_timer.connectTimeout(this->d, &StreamPrivate::streamLoop);
 }
 
 AkVCam::Stream::~Stream()
@@ -393,29 +394,10 @@ bool AkVCam::StreamPrivate::startTimer()
 {
     AkLogFunction();
 
-    if (this->m_timer)
-        return false;
-
     Float64 fps = 0;
     this->self->m_properties.getProperty(kCMIOStreamPropertyFrameRate, &fps);
-
-    CFTimeInterval interval = 1.0 / fps;
-    CFRunLoopTimerContext context {0, this, nullptr, nullptr, nullptr};
-    this->m_timer =
-            CFRunLoopTimerCreate(kCFAllocatorDefault,
-                                 0.0,
-                                 interval,
-                                 0,
-                                 0,
-                                 StreamPrivate::streamLoop,
-                                 &context);
-
-    if (!this->m_timer)
-        return false;
-
-    CFRunLoopAddTimer(CFRunLoopGetMain(),
-                      this->m_timer,
-                      kCFRunLoopCommonModes);
+    this->m_timer.setInterval(std::round(1000.0 / fps));
+    this->m_timer.start();
 
     return true;
 }
@@ -423,24 +405,14 @@ bool AkVCam::StreamPrivate::startTimer()
 void AkVCam::StreamPrivate::stopTimer()
 {
     AkLogFunction();
-
-    if (!this->m_timer)
-        return;
-
-    CFRunLoopTimerInvalidate(this->m_timer);
-    CFRunLoopRemoveTimer(CFRunLoopGetMain(),
-                         this->m_timer,
-                         kCFRunLoopCommonModes);
-    CFRelease(this->m_timer);
-    this->m_timer = nullptr;
+    this->m_timer.stop();
 }
 
-void AkVCam::StreamPrivate::streamLoop(CFRunLoopTimerRef timer, void *info)
+void AkVCam::StreamPrivate::streamLoop(void *userData)
 {
-    UNUSED(timer);
     AkLogFunction();
 
-    auto self = reinterpret_cast<StreamPrivate *>(info);
+    auto self = reinterpret_cast<StreamPrivate *>(userData);
     AkLogInfo() << "Running: " << self->m_running << std::endl;
 
     if (!self->m_running)

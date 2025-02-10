@@ -91,24 +91,15 @@ if (APPLE OR FAKE_APPLE)
         find_library(COREVIDEO_FRAMEWORK NAMES CoreVideo)
         find_library(FOUNDATION_FRAMEWORK NAMES Foundation)
         find_library(IOKIT_FRAMEWORK NAMES IOKit)
-    else ()
-        set(COREFOUNDATION_FRAMEWORK -lCoreFoundation)
-        set(COREGRAPHICS_FRAMEWORK -lCoreGraphics)
-        set(COREMEDIA_FRAMEWORK -lCoreMedia)
-        set(COREMEDIAIO_FRAMEWORK -lCoreMediaIO)
-        set(COREVIDEO_FRAMEWORK -lCoreVideo)
-        set(FOUNDATION_FRAMEWORK -lFoundation)
-        set(IOKIT_FRAMEWORK -lIOKit)
+        set(EXTRA_LIBS
+            ${COREFOUNDATION_FRAMEWORK}
+            ${COREGRAPHICS_FRAMEWORK}
+            ${COREMEDIA_FRAMEWORK}
+            ${COREMEDIAIO_FRAMEWORK}
+            ${COREVIDEO_FRAMEWORK}
+            ${FOUNDATION_FRAMEWORK}
+            ${IOKIT_FRAMEWORK})
     endif ()
-
-    set(EXTRA_LIBS
-        ${COREFOUNDATION_FRAMEWORK}
-        ${COREGRAPHICS_FRAMEWORK}
-        ${COREMEDIA_FRAMEWORK}
-        ${COREMEDIAIO_FRAMEWORK}
-        ${COREVIDEO_FRAMEWORK}
-        ${FOUNDATION_FRAMEWORK}
-        ${IOKIT_FRAMEWORK})
 endif ()
 
 target_link_libraries(VirtualCamera_cmio

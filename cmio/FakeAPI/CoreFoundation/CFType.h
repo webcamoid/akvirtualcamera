@@ -80,6 +80,9 @@ inline void CFRelease(CFTypeRef cf)
 
 inline CFTypeRef CFRetain(CFTypeRef cf)
 {
+    if (!cf)
+        return nullptr;
+
     ++cf->ref;
 
     return cf;
