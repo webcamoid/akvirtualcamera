@@ -77,7 +77,7 @@ namespace AkVCam
             ~MsgStatus();
             MsgStatus &operator =(const MsgStatus &other);
             bool operator ==(const MsgStatus &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
             int status() const;
 
@@ -104,7 +104,7 @@ namespace AkVCam
             ~MsgClients();
             MsgClients &operator =(const MsgClients &other);
             bool operator ==(const MsgClients &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
             ClientType clientType() const;
             const std::vector<uint64_t> &clients() const;
@@ -124,7 +124,7 @@ namespace AkVCam
             ~MsgUpdateDevices();
             MsgUpdateDevices &operator =(const MsgUpdateDevices &other);
             bool operator ==(const MsgUpdateDevices &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
         private:
             MsgUpdateDevicesPrivate *d;
@@ -141,7 +141,7 @@ namespace AkVCam
             ~MsgDevicesUpdated();
             MsgDevicesUpdated &operator =(const MsgDevicesUpdated &other);
             bool operator ==(const MsgDevicesUpdated &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
         private:
             MsgDevicesUpdatedPrivate *d;
@@ -159,7 +159,7 @@ namespace AkVCam
             ~MsgUpdatePicture();
             MsgUpdatePicture &operator =(const MsgUpdatePicture &other);
             bool operator ==(const MsgUpdatePicture &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
             const std::string &picture() const;
 
@@ -180,7 +180,7 @@ namespace AkVCam
             ~MsgPictureUpdated();
             MsgPictureUpdated &operator =(const MsgPictureUpdated &other);
             bool operator ==(const MsgPictureUpdated &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
             const std::string &picture() const;
             bool updated() const;
@@ -201,7 +201,7 @@ namespace AkVCam
             ~MsgUpdateControls();
             MsgUpdateControls &operator =(const MsgUpdateControls &other);
             bool operator ==(const MsgUpdateControls &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
             const std::string &device() const;
 
@@ -222,7 +222,7 @@ namespace AkVCam
             ~MsgControlsUpdated();
             MsgControlsUpdated &operator =(const MsgControlsUpdated &other);
             bool operator ==(const MsgControlsUpdated &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
             const std::string &device() const;
             bool updated() const;
@@ -249,7 +249,7 @@ namespace AkVCam
             ~MsgFrameReady();
             MsgFrameReady &operator =(const MsgFrameReady &other);
             bool operator ==(const MsgFrameReady &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
             const std::string &device() const;
             const VideoFrame &frame() const;
@@ -276,7 +276,7 @@ namespace AkVCam
             ~MsgBroadcast();
             MsgBroadcast &operator =(const MsgBroadcast &other);
             bool operator ==(const MsgBroadcast &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
             const std::string &device() const;
             uint64_t pid() const;
@@ -299,7 +299,7 @@ namespace AkVCam
             ~MsgListen();
             MsgListen &operator =(const MsgListen &other);
             bool operator ==(const MsgListen &other) const;
-            operator Message() const;
+            Message toMessage() const;
 
             const std::string &device() const;
             uint64_t pid() const;

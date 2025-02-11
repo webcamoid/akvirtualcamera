@@ -188,7 +188,7 @@ void AkVCam::IpcBridge::setPicture(const std::string &picture)
         return;
 
     Preferences::setPicture(picture);
-    this->d->m_messageClient.send(MsgUpdatePicture(picture));
+    this->d->m_messageClient.send(MsgUpdatePicture(picture).toMessage());
 }
 
 int AkVCam::IpcBridge::logLevel() const
@@ -344,7 +344,7 @@ void AkVCam::IpcBridge::setControls(const std::string &deviceId,
     if (!updated)
         return;
 
-    this->d->m_messageClient.send(MsgUpdateControls(deviceId));
+    this->d->m_messageClient.send(MsgUpdateControls(deviceId).toMessage());
 }
 
 std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
@@ -353,7 +353,7 @@ std::vector<uint64_t> AkVCam::IpcBridge::clientsPids() const
 
     Message msgClients;
 
-    if (!this->d->m_messageClient.send(MsgClients(MsgClients::ClientType_VCams), msgClients))
+    if (!this->d->m_messageClient.send(MsgClients(MsgClients::ClientType_VCams).toMessage(), msgClients))
         return {};
 
     auto clients = MsgClients(msgClients).clients();
@@ -434,7 +434,7 @@ void AkVCam::IpcBridge::updateDevices()
             AkLogDebug() << "Registering server" << std::endl;
             auto result = (*registerServer)();
             AkLogDebug() << "Server registered with code " << result << std::endl;
-            this->d->m_messageClient.send(MsgUpdateDevices());
+            this->d->m_messageClient.send(MsgUpdateDevices().toMessage());
             this->d->connectDeviceControlsMessages();
             auto lockFileName = tempPath() + "\\akvcam_update.lck";
 
@@ -486,7 +486,7 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
                                               });
     } else  {
         slot.messageFuture =
-                this->d->m_messageClient.send(MsgListen(deviceId, currentPid()),
+                this->d->m_messageClient.send(MsgListen(deviceId, currentPid()).toMessage(),
                                               std::bind(&IpcBridgePrivate::frameReady,
                                                         this->d,
                                                         std::placeholders::_1));
@@ -644,11 +644,11 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
     this->m_messageSlots[AKVCAM_SERVICE_MSG_DEVICES_UPDATED] = {};
     this->m_messageSlots[AKVCAM_SERVICE_MSG_DEVICES_UPDATED].run = true;
     this->m_messageSlots[AKVCAM_SERVICE_MSG_DEVICES_UPDATED].messageFuture =
-            this->m_messageClient.send(MsgDevicesUpdated(), AKVCAM_BIND_FUNC(IpcBridgePrivate::devicesUpdated));
+            this->m_messageClient.send(MsgDevicesUpdated().toMessage(), AKVCAM_BIND_FUNC(IpcBridgePrivate::devicesUpdated));
     this->m_messageSlots[AKVCAM_SERVICE_MSG_PICTURE_UPDATED] = {};
     this->m_messageSlots[AKVCAM_SERVICE_MSG_PICTURE_UPDATED].run = true;
     this->m_messageSlots[AKVCAM_SERVICE_MSG_PICTURE_UPDATED].messageFuture =
-            this->m_messageClient.send(MsgPictureUpdated(), AKVCAM_BIND_FUNC(IpcBridgePrivate::pictureUpdated));
+            this->m_messageClient.send(MsgPictureUpdated().toMessage(), AKVCAM_BIND_FUNC(IpcBridgePrivate::pictureUpdated));
 
     this->connectDeviceControlsMessages();
 }
@@ -703,7 +703,7 @@ void AkVCam::IpcBridgePrivate::connectDeviceControlsMessages()
         this->m_messageSlots[key] = {};
         this->m_messageSlots[key].run = true;
         this->m_messageSlots[key].messageFuture =
-                this->m_messageClient.send(MsgControlsUpdated(device), AKVCAM_BIND_FUNC(IpcBridgePrivate::controlsUpdated));
+                this->m_messageClient.send(MsgControlsUpdated(device).toMessage(), AKVCAM_BIND_FUNC(IpcBridgePrivate::controlsUpdated));
         ++i;
     }
 }
@@ -805,7 +805,7 @@ bool AkVCam::IpcBridgePrivate::frameRequired(const std::string &deviceId,
     slot.available = false;
     slot.frameMutex.unlock();
 
-    message = MsgBroadcast(deviceId, currentPid(), frame);
+    message = MsgBroadcast(deviceId, currentPid(), frame).toMessage();
     this->m_broadcastsMutex.unlock();
 
     return run;

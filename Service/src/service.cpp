@@ -242,7 +242,7 @@ bool AkVCam::ServicePrivate::clients(uint64_t clientId,
     this->m_peerMutex.unlock();
     outMessage = MsgClients(msgClients.clientType(),
                             clients,
-                            inMessage.queryId());
+                            inMessage.queryId()).toMessage();
 
     return true;
 }
@@ -260,7 +260,7 @@ bool AkVCam::ServicePrivate::updateDevices(uint64_t clientId,
     this->m_devicesUpdated.notify_all();
     this->m_devicesMutex.unlock();
 
-    outMessage = MsgStatus(0, inMessage.queryId());
+    outMessage = MsgStatus(0, inMessage.queryId()).toMessage();
 
     return true;
 }
@@ -278,7 +278,7 @@ bool AkVCam::ServicePrivate::devicesUpdated(uint64_t clientId,
         this->m_devicesUpdated.wait_for(this->m_devicesMutex,
                                         std::chrono::seconds(1));
 
-    outMessage = MsgStatus(this->m_devsUpdated? 0: -1, inMessage.queryId());
+    outMessage = MsgStatus(this->m_devsUpdated? 0: -1, inMessage.queryId()).toMessage();
     this->m_devsUpdated = false;
     this->m_devicesMutex.unlock();
 
@@ -299,7 +299,7 @@ bool AkVCam::ServicePrivate::updatePicture(uint64_t clientId,
     this->m_pictureUpdated.notify_all();
     this->m_pictureMutex.unlock();
 
-    outMessage = MsgStatus(0, inMessage.queryId());
+    outMessage = MsgStatus(0, inMessage.queryId()).toMessage();
 
     return true;
 }
@@ -319,7 +319,7 @@ bool AkVCam::ServicePrivate::pictureUpdated(uint64_t clientId,
 
     outMessage = MsgPictureUpdated(this->m_picture,
                                    this->m_pictUpdated,
-                                   inMessage.queryId());
+                                   inMessage.queryId()).toMessage();
     this->m_pictUpdated = false;
     this->m_pictureMutex.unlock();
 
@@ -340,7 +340,7 @@ bool AkVCam::ServicePrivate::updateControls(uint64_t clientId,
     this->m_deviceControlsUpdated.notify_all();
     this->m_deviceControlsMutex.unlock();
 
-    outMessage = MsgStatus(0, inMessage.queryId());
+    outMessage = MsgStatus(0, inMessage.queryId()).toMessage();
 
     return true;
 }
@@ -360,7 +360,7 @@ bool AkVCam::ServicePrivate::controlsUpdated(uint64_t clientId,
 
     outMessage = MsgControlsUpdated(this->m_deviceControls,
                                     this->m_devControlsUpdated,
-                                    inMessage.queryId());
+                                    inMessage.queryId()).toMessage();
     this->m_devControlsUpdated = false;
     this->m_deviceControlsMutex.unlock();
 
@@ -394,7 +394,7 @@ bool AkVCam::ServicePrivate::broadcast(uint64_t clientId,
     }
 
     this->m_peerMutex.unlock();
-    outMessage = status;
+    outMessage = status.toMessage();
 
     return status.status() == 0;
 }
@@ -422,7 +422,7 @@ bool AkVCam::ServicePrivate::listen(uint64_t clientId,
     outMessage = MsgFrameReady(msgListen.device(),
                                slot.frame,
                                slot.broadcaster.pid != 0,
-                               inMessage.queryId());
+                               inMessage.queryId()).toMessage();
     slot.frame = {};
     ok = true;
     this->m_peerMutex.unlock();

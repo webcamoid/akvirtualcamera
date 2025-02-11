@@ -195,7 +195,7 @@ bool AkVCam::MsgStatus::operator ==(const MsgStatus &other) const
            && this->queryId() == other.queryId();
 }
 
-AkVCam::MsgStatus::operator Message() const
+AkVCam::Message AkVCam::MsgStatus::toMessage() const
 {
     size_t totalSize = sizeof(this->d->m_status);
     std::vector<char> data(totalSize);
@@ -291,7 +291,7 @@ bool AkVCam::MsgClients::operator ==(const MsgClients &other) const
            && this->queryId() == other.queryId();
 }
 
-AkVCam::MsgClients::operator Message() const
+AkVCam::Message AkVCam::MsgClients::toMessage() const
 {
     size_t totalSize = sizeof(this->d->m_clientType)
                        + sizeof(size_t)
@@ -369,7 +369,7 @@ bool AkVCam::MsgUpdateDevices::operator ==(const MsgUpdateDevices &other) const
     return this->queryId() == other.queryId();
 }
 
-AkVCam::MsgUpdateDevices::operator Message() const
+AkVCam::Message AkVCam::MsgUpdateDevices::toMessage() const
 {
     return {AKVCAM_SERVICE_MSG_UPDATE_DEVICES, this->queryId(), {}};
 }
@@ -423,7 +423,7 @@ bool AkVCam::MsgDevicesUpdated::operator ==(const MsgDevicesUpdated &other) cons
     return this->queryId() == other.queryId();
 }
 
-AkVCam::MsgDevicesUpdated::operator Message() const
+AkVCam::Message AkVCam::MsgDevicesUpdated::toMessage() const
 {
     return {AKVCAM_SERVICE_MSG_DEVICES_UPDATED, this->queryId(), {}};
 }
@@ -499,7 +499,7 @@ bool AkVCam::MsgUpdatePicture::operator ==(const MsgUpdatePicture &other) const
            && this->queryId() == other.queryId();
 }
 
-AkVCam::MsgUpdatePicture::operator Message() const
+AkVCam::Message AkVCam::MsgUpdatePicture::toMessage() const
 {
     size_t totalSize = sizeof(size_t)
                        + this->d->m_picture.size();
@@ -602,7 +602,7 @@ bool AkVCam::MsgPictureUpdated::operator ==(const MsgPictureUpdated &other) cons
            && this->queryId() == other.queryId();
 }
 
-AkVCam::MsgPictureUpdated::operator Message() const
+AkVCam::Message AkVCam::MsgPictureUpdated::toMessage() const
 {
     size_t totalSize = sizeof(size_t)
                        + this->d->m_picture.size()
@@ -703,7 +703,7 @@ bool AkVCam::MsgUpdateControls::operator ==(const MsgUpdateControls &other) cons
            && this->queryId() == other.queryId();
 }
 
-AkVCam::MsgUpdateControls::operator Message() const
+AkVCam::Message AkVCam::MsgUpdateControls::toMessage() const
 {
     size_t totalSize = sizeof(size_t)
                        + this->d->m_device.size();
@@ -806,7 +806,7 @@ bool AkVCam::MsgControlsUpdated::operator ==(const MsgControlsUpdated &other) co
            && this->queryId() == other.queryId();
 }
 
-AkVCam::MsgControlsUpdated::operator Message() const
+AkVCam::Message AkVCam::MsgControlsUpdated::toMessage() const
 {
     size_t totalSize = sizeof(size_t)
                        + this->d->m_device.size()
@@ -963,7 +963,7 @@ bool AkVCam::MsgFrameReady::operator ==(const MsgFrameReady &other) const
            && this->queryId() == other.queryId();
 }
 
-AkVCam::MsgFrameReady::operator Message() const
+AkVCam::Message AkVCam::MsgFrameReady::toMessage() const
 {
     size_t totalSize = sizeof(size_t)
                        + this->d->m_device.size()
@@ -1148,7 +1148,7 @@ bool AkVCam::MsgBroadcast::operator ==(const MsgBroadcast &other) const
            && this->queryId() == other.queryId();
 }
 
-AkVCam::MsgBroadcast::operator Message() const
+AkVCam::Message AkVCam::MsgBroadcast::toMessage() const
 {
     size_t totalSize = sizeof(size_t)
                        + this->d->m_device.size()
@@ -1289,7 +1289,7 @@ bool AkVCam::MsgListen::operator ==(const MsgListen &other) const
            && this->queryId() == other.queryId();
 }
 
-AkVCam::MsgListen::operator Message() const
+AkVCam::Message AkVCam::MsgListen::toMessage() const
 {
     size_t totalSize = sizeof(size_t)
                        + this->d->m_device.size()
