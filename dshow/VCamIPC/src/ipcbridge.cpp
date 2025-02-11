@@ -129,6 +129,8 @@ namespace AkVCam
             std::map<std::string, BroadcastSlot> m_broadcasts;
             std::mutex m_broadcastsMutex;
             std::map<int, Slot> m_messageSlots;
+            std::vector<std::string> m_devices;
+            std::string m_picture;
 
             explicit IpcBridgePrivate(IpcBridge *self);
             ~IpcBridgePrivate();
@@ -743,7 +745,10 @@ bool AkVCam::IpcBridgePrivate::devicesUpdated(const Message &message)
     for (size_t i = 0; i < nCameras; i++)
         devices.push_back(Preferences::cameraId(i));
 
-    AKVCAM_EMIT(this->self, DevicesChanged, devices)
+    if (this->m_devices != devices) {
+        this->m_devices = devices;
+        AKVCAM_EMIT(this->self, DevicesChanged, devices)
+    }
 
     return this->m_messageSlots[AKVCAM_SERVICE_MSG_DEVICES_UPDATED].run;
 }
@@ -752,7 +757,11 @@ bool AkVCam::IpcBridgePrivate::pictureUpdated(const Message &message)
 {
     AkLogFunction();
     auto picture = MsgPictureUpdated(message).picture();
-    AKVCAM_EMIT(this->self, PictureChanged, picture)
+
+    if (this->m_picture != picture) {
+        this->m_picture = picture;
+        AKVCAM_EMIT(this->self, PictureChanged, picture)
+    }
 
     return this->m_messageSlots[AKVCAM_SERVICE_MSG_PICTURE_UPDATED].run;
 }
@@ -774,7 +783,8 @@ bool AkVCam::IpcBridgePrivate::controlsUpdated(const Message &message)
         AkLogDebug() << control.id << ": " << controls[control.id] << std::endl;
     }
 
-    AKVCAM_EMIT(this->self, ControlsChanged, deviceId, controls)
+    if (!deviceId.empty() && !controls.empty())
+        AKVCAM_EMIT(this->self, ControlsChanged, deviceId, controls)
 
     return this->m_messageSlots[AKVCAM_SERVICE_MSG_CONTROLS_UPDATED].run;
 }
