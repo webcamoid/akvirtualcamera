@@ -45,6 +45,8 @@ AkVCam::Timer::Timer()
 
 AkVCam::Timer::~Timer()
 {
+    AkLogFunction();
+
     this->stop();
     delete this->d;
 }
@@ -66,6 +68,8 @@ void AkVCam::Timer::setInterval(int msec)
 
 void AkVCam::Timer::start()
 {
+    AkLogFunction();
+
     this->stop();
     this->d->m_running = true;
     this->d->m_singleShot = false;
@@ -74,6 +78,8 @@ void AkVCam::Timer::start()
 
 void AkVCam::Timer::stop()
 {
+    AkLogFunction();
+
     if (!this->d->m_running)
         return;
 
@@ -83,6 +89,8 @@ void AkVCam::Timer::stop()
 
 void AkVCam::Timer::singleShot()
 {
+    AkLogFunction();
+
     this->stop();
     this->d->m_running = true;
     this->d->m_singleShot = true;
@@ -91,6 +99,8 @@ void AkVCam::Timer::singleShot()
 
 void AkVCam::Timer::singleShot(int msec)
 {
+    AkLogFunction();
+
     this->stop();
     this->d->m_running = true;
     this->d->m_singleShot = true;

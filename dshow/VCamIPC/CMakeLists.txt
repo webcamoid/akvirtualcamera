@@ -19,6 +19,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 project(VCamIPC_dshow LANGUAGES CXX)
+project(VCamIPC_dshow_shared LANGUAGES CXX)
 
 include(../../commons.cmake)
 
@@ -31,13 +32,25 @@ set(SOURCES
 
 if (WIN32)
     add_library(VCamIPC_dshow STATIC ${SOURCES})
+    add_library(VCamIPC_dshow_shared SHARED ${SOURCES})
+    set_target_properties(VCamIPC_dshow_shared PROPERTIES
+                          OUTPUT_NAME ${AKVCAM_BRIDGE_NAME}
+                          LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${LIBDIR}
+                          RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR}
+                          PREFIX "")
 else ()
     add_library(VCamIPC_dshow STATIC EXCLUDE_FROM_ALL ${SOURCES})
+    add_library(VCamIPC_dshow_shared SHARED EXCLUDE_FROM_ALL ${SOURCES})
 endif ()
 
 add_dependencies(VCamIPC_dshow PlatformUtils_dshow VCamUtils)
+add_dependencies(VCamIPC_dshow_shared PlatformUtils_dshow VCamUtils)
 target_compile_definitions(VCamIPC_dshow PRIVATE VCAMIPC_LIBRARY)
+target_compile_definitions(VCamIPC_dshow_shared PRIVATE VCAMIPC_LIBRARY_SHARED)
 target_include_directories(VCamIPC_dshow
+                           PRIVATE ..
+                           PRIVATE ../..)
+target_include_directories(VCamIPC_dshow_shared
                            PRIVATE ..
                            PRIVATE ../..)
 
@@ -48,6 +61,9 @@ if (WIN32)
         psapi)
 endif ()
 
-target_link_libraries(VCamIPC_dshow
-                      PlatformUtils_dshow
-                      ${EXTRA_LIBS})
+target_link_libraries(VCamIPC_dshow PlatformUtils_dshow ${EXTRA_LIBS})
+target_link_libraries(VCamIPC_dshow_shared PlatformUtils_dshow ${EXTRA_LIBS})
+
+if (WIN32)
+    install(TARGETS VCamIPC_dshow_shared DESTINATION ${BINDIR})
+endif ()

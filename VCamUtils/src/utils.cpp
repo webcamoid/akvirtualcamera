@@ -188,12 +188,12 @@ void AkVCam::move(const std::string &from, const std::string &to)
     std::ifstream infile(from, std::ios::in | std::ios::binary);
     std::ofstream outfile(to, std::ios::out | std::ios::binary);
     outfile << infile.rdbuf();
-    std::remove(from.c_str());
+    ::remove(from.c_str());
 }
 
 std::string AkVCam::stringFromMessageId(uint32_t messageId)
 {
-    struct
+    static const struct
     {
         uint32_t id;
         const char *str;
@@ -203,22 +203,14 @@ std::string AkVCam::stringFromMessageId(uint32_t messageId)
         {AKVCAM_SERVICE_MSG_FRAME_READY     , "FRAME"           },
         {AKVCAM_SERVICE_MSG_BROADCAST       , "BROADCAST"       },
         {AKVCAM_SERVICE_MSG_LISTEN          , "LISTEN"          },
-        {AKVCAM_SERVICE_MSG_UPDATE_DEVICES  , "UPDATE_DEVICES"  },
-        {AKVCAM_SERVICE_MSG_DEVICES_UPDATED , "DEVICES_UPDATED" },
-        {AKVCAM_SERVICE_MSG_UPDATE_CONTROLS , "UPDATE_CONTROLS" },
-        {AKVCAM_SERVICE_MSG_CONTROLS_UPDATED, "CONTROLS_UPDATED"},
-        {AKVCAM_SERVICE_MSG_UPDATE_PICTURE  , "UPDATE_PICTURE"  },
-        {AKVCAM_SERVICE_MSG_PICTURE_UPDATED , "PICTURE_UPDATED" },
         {0                                  , nullptr           },
     };
 
-    auto msg = vcamUtilsClsidToString;
-
-    for (; msg->id; ++msg)
+    for (auto msg = vcamUtilsClsidToString; msg->id; ++msg)
         if (msg->id == messageId)
             return {msg->str};
 
-    return  "AKVCAM_SERVICE_MSG_(" + std::to_string(msg->id) + ")";
+    return  "AKVCAM_SERVICE_MSG_(" + std::to_string(messageId) + ")";
 }
 
 bool AkVCam::endsWith(const std::string &str, const std::string &sub)

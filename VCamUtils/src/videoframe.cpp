@@ -335,19 +335,30 @@ AkVCam::VideoFrame::~VideoFrame()
 // http://www.dragonwins.com/domains/getteched/bmp/bmpfileformat.htm
 bool AkVCam::VideoFrame::load(const std::string &fileName)
 {
-    if (fileName.empty())
+    AkLogFunction();
+
+    if (fileName.empty()) {
+        AkLogCritical() << "The file name is empty" << std::endl;
+
         return false;
+    }
 
     std::ifstream stream(fileName);
 
-    if (!stream.is_open())
+    if (!stream.is_open()) {
+        AkLogCritical() << "Failed to open the file" << std::endl;
+
         return false;
+    }
 
     char type[2];
     stream.read(type, 2);
 
-    if (memcmp(type, "BM", 2) != 0)
+    if (memcmp(type, "BM", 2) != 0) {
+        AkLogCritical() << "The file does not have the BMP signature" << std::endl;
+
         return false;
+    }
 
     BmpHeader header {};
     stream.read(reinterpret_cast<char *>(&header), sizeof(BmpHeader));
@@ -358,8 +369,11 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
                        int(imageHeader.width),
                        int(imageHeader.height));
 
-    if (format.size() < 1)
+    if (format.size() < 1) {
+        AkLogCritical() << "The image size is empty: " << imageHeader.width << "x" << imageHeader.height << std::endl;
+
         return false;
+    }
 
     stream.seekg(header.offBits, std::ios_base::beg);
     this->d->m_format = format;
@@ -368,6 +382,13 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
     VideoData data(imageHeader.sizeImage);
     stream.read(reinterpret_cast<char *>(data.data()),
                 imageHeader.sizeImage);
+
+    AkLogDebug() << "BMP info:" << std::endl;
+    AkLogDebug() << "    Bits: " << imageHeader.bitCount << std::endl;
+    AkLogDebug() << "    width: " << imageHeader.width << std::endl;
+    AkLogDebug() << "    height: " << imageHeader.height << std::endl;
+    AkLogDebug() << "    Data size: " << imageHeader.sizeImage << std::endl;
+    AkLogDebug() << "Allocated frame size: " << this->d->m_data.size() << std::endl;
 
     switch (imageHeader.bitCount) {
     case 24: {
@@ -413,6 +434,8 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
     }
 
     default:
+        AkLogCritical() << "Invalid bit cout: " << imageHeader.bitCount << std::endl;
+
         this->d->m_format.clear();
         this->d->m_data.clear();
 

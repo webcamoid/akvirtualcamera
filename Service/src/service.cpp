@@ -70,46 +70,11 @@ namespace AkVCam
             std::condition_variable_any m_frameAvailable;
             std::mutex m_peerMutex;
 
-            // Picture update
-            std::string m_picture;
-            bool m_pictUpdated {false};
-            std::condition_variable_any m_pictureUpdated;
-            std::mutex m_pictureMutex;
-
-            // Devices update
-            bool m_devsUpdated {false};
-            std::condition_variable_any m_devicesUpdated;
-            std::mutex m_devicesMutex;
-
-            // Controls update
-            std::string m_deviceControls;
-            bool m_devControlsUpdated {false};
-            std::condition_variable_any m_deviceControlsUpdated;
-            std::mutex m_deviceControlsMutex;
-
             ServicePrivate();
             static void removeClientById(void *userData, uint64_t clientId);
             bool clients(uint64_t clientId,
                          const Message &inMessage,
                          Message &outMessage);
-            bool updateDevices(uint64_t clientId,
-                               const Message &inMessage,
-                               Message &outMessage);
-            bool devicesUpdated(uint64_t clientId,
-                                const Message &inMessage,
-                                Message &outMessage);
-            bool updatePicture(uint64_t clientId,
-                               const Message &inMessage,
-                               Message &outMessage);
-            bool pictureUpdated(uint64_t clientId,
-                                const Message &inMessage,
-                                Message &outMessage);
-            bool updateControls(uint64_t clientId,
-                                const Message &inMessage,
-                                Message &outMessage);
-            bool controlsUpdated(uint64_t clientId,
-                                 const Message &inMessage,
-                                 Message &outMessage);
             bool broadcast(uint64_t clientId,
                            const Message &inMessage,
                            Message &outMessage);
@@ -156,12 +121,6 @@ AkVCam::ServicePrivate::ServicePrivate()
     this->m_messageServer.setPort(Preferences::servicePort());
 
     this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_CLIENTS         , BIND(ServicePrivate::clients)        );
-    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_UPDATE_PICTURE  , BIND(ServicePrivate::updatePicture)  );
-    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_PICTURE_UPDATED , BIND(ServicePrivate::pictureUpdated) );
-    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_UPDATE_DEVICES  , BIND(ServicePrivate::updateDevices)  );
-    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_DEVICES_UPDATED , BIND(ServicePrivate::devicesUpdated) );
-    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_UPDATE_CONTROLS , BIND(ServicePrivate::updateControls) );
-    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_CONTROLS_UPDATED, BIND(ServicePrivate::controlsUpdated));
     this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_BROADCAST       , BIND(ServicePrivate::broadcast)      );
     this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_LISTEN          , BIND(ServicePrivate::listen)         );
 
@@ -243,126 +202,6 @@ bool AkVCam::ServicePrivate::clients(uint64_t clientId,
     outMessage = MsgClients(msgClients.clientType(),
                             clients,
                             inMessage.queryId()).toMessage();
-
-    return true;
-}
-
-bool AkVCam::ServicePrivate::updateDevices(uint64_t clientId,
-                                           const Message &inMessage,
-                                           Message &outMessage)
-{
-    AkLogFunction();
-    UNUSED(clientId);
-    MsgUpdateDevices updateDevices(inMessage);
-
-    this->m_devicesMutex.lock();
-    this->m_devsUpdated = true;
-    this->m_devicesUpdated.notify_all();
-    this->m_devicesMutex.unlock();
-
-    outMessage = MsgStatus(0, inMessage.queryId()).toMessage();
-
-    return true;
-}
-
-bool AkVCam::ServicePrivate::devicesUpdated(uint64_t clientId,
-                                           const Message &inMessage,
-                                           Message &outMessage)
-{
-    AkLogFunction();
-    UNUSED(clientId);
-
-    this->m_devicesMutex.lock();
-
-    if (!this->m_devsUpdated)
-        this->m_devicesUpdated.wait_for(this->m_devicesMutex,
-                                        std::chrono::seconds(1));
-
-    outMessage = MsgStatus(this->m_devsUpdated? 0: -1, inMessage.queryId()).toMessage();
-    this->m_devsUpdated = false;
-    this->m_devicesMutex.unlock();
-
-    return true;
-}
-
-bool AkVCam::ServicePrivate::updatePicture(uint64_t clientId,
-                                           const Message &inMessage,
-                                           Message &outMessage)
-{
-    AkLogFunction();
-    UNUSED(clientId);
-    MsgUpdatePicture updatePicture(inMessage);
-
-    this->m_pictureMutex.lock();
-    this->m_picture = updatePicture.picture();
-    this->m_pictUpdated = true;
-    this->m_pictureUpdated.notify_all();
-    this->m_pictureMutex.unlock();
-
-    outMessage = MsgStatus(0, inMessage.queryId()).toMessage();
-
-    return true;
-}
-
-bool AkVCam::ServicePrivate::pictureUpdated(uint64_t clientId,
-                                            const Message &inMessage,
-                                            Message &outMessage)
-{
-    AkLogFunction();
-    UNUSED(clientId);
-
-    this->m_pictureMutex.lock();
-
-    if (!this->m_pictUpdated)
-        this->m_pictureUpdated.wait_for(this->m_pictureMutex,
-                                        std::chrono::seconds(1));
-
-    outMessage = MsgPictureUpdated(this->m_picture,
-                                   this->m_pictUpdated,
-                                   inMessage.queryId()).toMessage();
-    this->m_pictUpdated = false;
-    this->m_pictureMutex.unlock();
-
-    return true;
-}
-
-bool AkVCam::ServicePrivate::updateControls(uint64_t clientId,
-                                            const Message &inMessage,
-                                            Message &outMessage)
-{
-    AkLogFunction();
-    UNUSED(clientId);
-    MsgUpdateControls updateControls(inMessage);
-
-    this->m_deviceControlsMutex.lock();
-    this->m_deviceControls = updateControls.device();
-    this->m_devControlsUpdated = true;
-    this->m_deviceControlsUpdated.notify_all();
-    this->m_deviceControlsMutex.unlock();
-
-    outMessage = MsgStatus(0, inMessage.queryId()).toMessage();
-
-    return true;
-}
-
-bool AkVCam::ServicePrivate::controlsUpdated(uint64_t clientId,
-                                             const Message &inMessage,
-                                             Message &outMessage)
-{
-    AkLogFunction();
-    UNUSED(clientId);
-
-    this->m_deviceControlsMutex.lock();
-
-    if (!this->m_devControlsUpdated)
-        this->m_deviceControlsUpdated.wait_for(this->m_deviceControlsMutex,
-                                               std::chrono::seconds(1));
-
-    outMessage = MsgControlsUpdated(this->m_deviceControls,
-                                    this->m_devControlsUpdated,
-                                    inMessage.queryId()).toMessage();
-    this->m_devControlsUpdated = false;
-    this->m_deviceControlsMutex.unlock();
 
     return true;
 }

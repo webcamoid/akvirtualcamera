@@ -49,6 +49,7 @@ add_definitions(-DCOMMONS_APPNAME="${COMMONS_APPNAME}"
 set(AKVCAM_PLUGIN_NAME AkVirtualCamera)
 set(AKVCAM_SERVICE_NAME AkVCamAssistant)
 set(AKVCAM_MANAGER_NAME AkVCamManager)
+set(AKVCAM_BRIDGE_NAME AkVCamBridge)
 set(AKVCAM_DEVICE_PREFIX AkVCamVideoDevice)
 set(AKVCAM_SERVICEPORT "8226" CACHE STRING "Virtual camera service port")
 

@@ -46,6 +46,7 @@ namespace AkVCam
 
             BaseFilter *baseFilter() const;
             void setBaseFilter(BaseFilter *baseFilter);
+            void setBridge(IpcBridgePtr bridge);
             static HRESULT stateChanged(void *userData, FILTER_STATE state);
             void frameReady(const VideoFrame &frame, bool isActive);
             void setPicture(const std::string &picture);

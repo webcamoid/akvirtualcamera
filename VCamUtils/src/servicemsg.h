@@ -31,16 +31,4 @@
 #define AKVCAM_SERVICE_MSG_BROADCAST         0x201
 #define AKVCAM_SERVICE_MSG_LISTEN            0x202
 
-// Hit messages for updating the cameras in the client side
-#define AKVCAM_SERVICE_MSG_UPDATE_DEVICES    0x301
-#define AKVCAM_SERVICE_MSG_DEVICES_UPDATED   0x302
-
-// Hit messages for updating the camera controls in the client side
-#define AKVCAM_SERVICE_MSG_UPDATE_CONTROLS   0x401
-#define AKVCAM_SERVICE_MSG_CONTROLS_UPDATED  0x402
-
-// Hit messages for updating the default picture in the client side
-#define AKVCAM_SERVICE_MSG_UPDATE_PICTURE    0x501
-#define AKVCAM_SERVICE_MSG_PICTURE_UPDATED   0x502
-
 #endif // SERVICEMSG_H

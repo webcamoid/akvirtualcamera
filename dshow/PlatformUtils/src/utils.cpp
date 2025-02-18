@@ -63,6 +63,8 @@ bool operator <(const CLSID &a, const CLSID &b)
 
 std::string AkVCam::locateManagerPath()
 {
+    AkLogFunction();
+
     auto file = pluginInstallPath()
                 + "\\" + currentArchitecture()
                 + "\\" AKVCAM_MANAGER_NAME ".exe";
@@ -76,6 +78,8 @@ std::string AkVCam::locateManagerPath()
 
 std::string AkVCam::locateServicePath()
 {
+    AkLogFunction();
+
     auto file = pluginInstallPath()
                 + "\\" + currentArchitecture()
                 + "\\" AKVCAM_SERVICE_NAME ".exe";
@@ -87,6 +91,8 @@ std::string AkVCam::locateServicePath()
 
 std::string AkVCam::locatePluginPath()
 {
+    AkLogFunction();
+
     auto file = pluginInstallPath()
                 + "\\" + currentArchitecture()
                 + "\\" AKVCAM_PLUGIN_NAME ".dll";
@@ -1031,10 +1037,14 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     AkLogFunction();
     VideoFrame frame;
 
+    AkLogInfo() << "Loading picture: " << fileName << std::endl;
+
     if (frame.load(fileName)) {
-        AkLogInfo() << "Picture loaded as BMP" << std::endl;
+        AkLogDebug() << "Picture loaded as BMP" << std::endl;
 
         return frame;
+    } else {
+        frame = {};
     }
 
     IWICImagingFactory *imagingFactory = nullptr;
@@ -1286,17 +1296,30 @@ std::string AkVCam::currentBinaryPath()
 
 bool AkVCam::isServiceRunning()
 {
+    AkLogFunction();
     auto service = locateServicePath();
+    AkLogDebug() << "Service path: " << service << std::endl;
+    AkLogDebug() << "System processes:" << std::endl;
 
-    for (auto &pid: systemProcesses())
-        if (exePath(pid) == service)
+    for (auto &pid: systemProcesses()) {
+        auto path = exePath(pid);
+
+        if (path.empty())
+            continue;
+
+        AkLogDebug() << "    " << path << std::endl;
+
+        if (path == service)
             return true;
+    }
 
     return false;
 }
 
 bool AkVCam::isServicePortUp()
 {
+    AkLogFunction();
+
     return MessageClient::isUp(Preferences::servicePort());
 }
 

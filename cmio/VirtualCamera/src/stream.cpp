@@ -27,6 +27,7 @@
 
 #include "stream.h"
 #include "clock.h"
+#include "device.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/videoformat.h"
@@ -39,7 +40,8 @@ namespace AkVCam
     {
         public:
             Stream *self;
-            IpcBridge *m_bridge {nullptr};
+            IpcBridgePtr m_bridge;
+            Device *m_device {nullptr};
             ClockPtr m_clock;
             UInt64 m_sequence;
             CMTime m_pts;
@@ -157,6 +159,16 @@ OSStatus AkVCam::Stream::registerObject(bool regist)
     return status;
 }
 
+AkVCam::Device *AkVCam::Stream::device() const
+{
+    return this->d->m_device;
+}
+
+void AkVCam::Stream::setDevice(Device *device)
+{
+    this->d->m_device = device;
+}
+
 void AkVCam::Stream::setPicture(const std::string &picture)
 {
     AkLogFunction();
@@ -166,7 +178,7 @@ void AkVCam::Stream::setPicture(const std::string &picture)
     this->d->m_mutex.unlock();
 }
 
-void AkVCam::Stream::setBridge(IpcBridge *bridge)
+void AkVCam::Stream::setBridge(IpcBridgePtr bridge)
 {
     this->d->m_bridge = bridge;
 }
@@ -240,6 +252,10 @@ bool AkVCam::Stream::start()
     this->d->m_running = this->d->startTimer();
     AkLogInfo() << "Running: " << this->d->m_running << std::endl;
 
+    if (this->d->m_running && this->d->m_bridge)
+        this->d->m_bridge->deviceStart(IpcBridge::StreamType_Input,
+                                       this->d->m_device->deviceId());
+
     return this->d->m_running;
 }
 
@@ -249,6 +265,9 @@ void AkVCam::Stream::stop()
 
     if (!this->d->m_running)
         return;
+
+    if (this->d->m_running && this->d->m_bridge)
+        this->d->m_bridge->deviceStop(this->d->m_device->deviceId());
 
     this->d->m_running = false;
     this->d->stopTimer();

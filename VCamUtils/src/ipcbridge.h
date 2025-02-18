@@ -22,6 +22,7 @@
 
 #include <string>
 #include <map>
+#include <memory>
 
 #include "videoformattypes.h"
 #include "videoframetypes.h"
@@ -29,6 +30,7 @@
 
 namespace AkVCam
 {
+    class IpcBridge;
     class IpcBridgePrivate;
     class VideoFormat;
     class VideoFrame;
@@ -52,6 +54,8 @@ namespace AkVCam
         int value;
         std::vector<std::string> menu;
     };
+
+    using IpcBridgePtr = std::shared_ptr<IpcBridge>;
 
     class IpcBridge
     {
@@ -85,6 +89,7 @@ namespace AkVCam
             int logLevel() const;
             void setLogLevel(int logLevel);
             std::string logPath(const std::string &logName={}) const;
+            void stopNotifications();
 
             // List available devices.
             std::vector<std::string> devices() const;

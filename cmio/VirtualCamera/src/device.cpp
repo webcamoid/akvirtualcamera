@@ -103,6 +103,7 @@ AkVCam::StreamPtr AkVCam::Device::addStream()
 {
     AkLogFunction();
     auto stream = StreamPtr(new Stream(false, this));
+    stream->setDevice(this);
 
     if (stream->createObject() == kCMIOHardwareNoError) {
         this->m_streams[stream->objectID()] = stream;

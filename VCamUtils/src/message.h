@@ -33,7 +33,8 @@ namespace AkVCam
     {
         public:
             Message();
-            Message(int id, uint64_t queryId=0);
+            Message(int id);
+            Message(int id, uint64_t queryId);
             Message(int id, uint64_t queryId, const std::vector<char> &data);
             Message(int id, const std::vector<char> &data);
             Message(const Message &other);
@@ -54,7 +55,8 @@ namespace AkVCam
     class MsgCommons
     {
         public:
-            MsgCommons(uint64_t queryId=0);
+            MsgCommons();
+            MsgCommons(uint64_t queryId);
             ~MsgCommons();
 
             uint64_t queryId() const;
@@ -71,7 +73,9 @@ namespace AkVCam
     class MsgStatus: public MsgCommons
     {
         public:
-            MsgStatus(int status=0, uint64_t queryId=0);
+            MsgStatus();
+            MsgStatus(int status);
+            MsgStatus(int status, uint64_t queryId);
             MsgStatus(const MsgStatus &other);
             MsgStatus(const Message &message);
             ~MsgStatus();
@@ -96,9 +100,13 @@ namespace AkVCam
                 ClientType_VCams,
             };
 
-            MsgClients(ClientType clientType=ClientType_Any,
-                       const std::vector<uint64_t> &clients={},
-                       uint64_t queryId=0);
+            MsgClients();
+            MsgClients(ClientType clientType);
+            MsgClients(ClientType clientType,
+                       const std::vector<uint64_t> &clients);
+            MsgClients(ClientType clientType,
+                       const std::vector<uint64_t> &clients,
+                       uint64_t queryId);
             MsgClients(const MsgClients &other);
             MsgClients(const Message &message);
             ~MsgClients();
@@ -113,137 +121,25 @@ namespace AkVCam
             MsgClientsPrivate *d;
     };
 
-    class MsgUpdateDevicesPrivate;
-
-    class MsgUpdateDevices: public MsgCommons
-    {
-        public:
-            MsgUpdateDevices(uint64_t queryId=0);
-            MsgUpdateDevices(const MsgUpdateDevices &other);
-            MsgUpdateDevices(const Message &message);
-            ~MsgUpdateDevices();
-            MsgUpdateDevices &operator =(const MsgUpdateDevices &other);
-            bool operator ==(const MsgUpdateDevices &other) const;
-            Message toMessage() const;
-
-        private:
-            MsgUpdateDevicesPrivate *d;
-    };
-
-    class MsgDevicesUpdatedPrivate;
-
-    class MsgDevicesUpdated: public MsgCommons
-    {
-        public:
-            MsgDevicesUpdated(uint64_t queryId=0);
-            MsgDevicesUpdated(const MsgDevicesUpdated &other);
-            MsgDevicesUpdated(const Message &message);
-            ~MsgDevicesUpdated();
-            MsgDevicesUpdated &operator =(const MsgDevicesUpdated &other);
-            bool operator ==(const MsgDevicesUpdated &other) const;
-            Message toMessage() const;
-
-        private:
-            MsgDevicesUpdatedPrivate *d;
-    };
-
-    class MsgUpdatePicturePrivate;
-
-    class MsgUpdatePicture: public MsgCommons
-    {
-        public:
-            MsgUpdatePicture(const std::string &picture={},
-                              uint64_t queryId=0);
-            MsgUpdatePicture(const MsgUpdatePicture &other);
-            MsgUpdatePicture(const Message &message);
-            ~MsgUpdatePicture();
-            MsgUpdatePicture &operator =(const MsgUpdatePicture &other);
-            bool operator ==(const MsgUpdatePicture &other) const;
-            Message toMessage() const;
-
-            const std::string &picture() const;
-
-        private:
-            MsgUpdatePicturePrivate *d;
-    };
-
-    class MsgPictureUpdatedPrivate;
-
-    class MsgPictureUpdated: public MsgCommons
-    {
-        public:
-            MsgPictureUpdated(const std::string &picture={},
-                              bool updated=false,
-                              uint64_t queryId=0);
-            MsgPictureUpdated(const MsgPictureUpdated &other);
-            MsgPictureUpdated(const Message &message);
-            ~MsgPictureUpdated();
-            MsgPictureUpdated &operator =(const MsgPictureUpdated &other);
-            bool operator ==(const MsgPictureUpdated &other) const;
-            Message toMessage() const;
-
-            const std::string &picture() const;
-            bool updated() const;
-
-        private:
-            MsgPictureUpdatedPrivate *d;
-    };
-
-    class MsgUpdateControlsPrivate;
-
-    class MsgUpdateControls: public MsgCommons
-    {
-        public:
-            MsgUpdateControls(const std::string &device={},
-                               uint64_t queryId=0);
-            MsgUpdateControls(const MsgUpdateControls &other);
-            MsgUpdateControls(const Message &message);
-            ~MsgUpdateControls();
-            MsgUpdateControls &operator =(const MsgUpdateControls &other);
-            bool operator ==(const MsgUpdateControls &other) const;
-            Message toMessage() const;
-
-            const std::string &device() const;
-
-        private:
-            MsgUpdateControlsPrivate *d;
-    };
-
-    class MsgControlsUpdatedPrivate;
-
-    class MsgControlsUpdated: public MsgCommons
-    {
-        public:
-            MsgControlsUpdated(const std::string &device={},
-                               bool updated=false,
-                               uint64_t queryId=0);
-            MsgControlsUpdated(const MsgControlsUpdated &other);
-            MsgControlsUpdated(const Message &message);
-            ~MsgControlsUpdated();
-            MsgControlsUpdated &operator =(const MsgControlsUpdated &other);
-            bool operator ==(const MsgControlsUpdated &other) const;
-            Message toMessage() const;
-
-            const std::string &device() const;
-            bool updated() const;
-
-        private:
-            MsgControlsUpdatedPrivate *d;
-    };
-
     class MsgFrameReadyPrivate;
     class VideoFrame;
 
     class MsgFrameReady: public MsgCommons
     {
         public:
-            MsgFrameReady(const std::string &device={},
-                          bool isActive=false,
-                          uint64_t queryId=0);
+            MsgFrameReady();
+            MsgFrameReady(const std::string &device);
+            MsgFrameReady(const std::string &device, bool isActive);
+            MsgFrameReady(const std::string &device,
+                          bool isActive,
+                          uint64_t queryId);
             MsgFrameReady(const std::string &device,
                           const VideoFrame &frame,
-                          bool isActive=false,
-                          uint64_t queryId=0);
+                          bool isActive);
+            MsgFrameReady(const std::string &device,
+                          const VideoFrame &frame,
+                          bool isActive,
+                          uint64_t queryId);
             MsgFrameReady(const MsgFrameReady &other);
             MsgFrameReady(const Message &message);
             ~MsgFrameReady();
@@ -264,13 +160,19 @@ namespace AkVCam
     class MsgBroadcast: public MsgCommons
     {
         public:
-            MsgBroadcast(const std::string &device={},
-                         uint64_t pid=0,
-                         uint64_t queryId=0);
+            MsgBroadcast();
+            MsgBroadcast(const std::string &device);
+            MsgBroadcast(const std::string &device, uint64_t pid);
+            MsgBroadcast(const std::string &device,
+                         uint64_t pid,
+                         uint64_t queryId);
+            MsgBroadcast(const std::string &device,
+                         uint64_t pid,
+                         const VideoFrame &frame);
             MsgBroadcast(const std::string &device,
                          uint64_t pid,
                          const VideoFrame &frame,
-                         uint64_t queryId=0);
+                         uint64_t queryId);
             MsgBroadcast(const MsgBroadcast &other);
             MsgBroadcast(const Message &message);
             ~MsgBroadcast();
@@ -291,9 +193,12 @@ namespace AkVCam
     class MsgListen: public MsgCommons
     {
         public:
-            MsgListen(const std::string &device={},
-                      uint64_t pid=0,
-                      uint64_t queryId=0);
+            MsgListen();
+            MsgListen(const std::string &device);
+            MsgListen(const std::string &device, uint64_t pid);
+            MsgListen(const std::string &device,
+                      uint64_t pid,
+                      uint64_t queryId);
             MsgListen(const MsgListen &other);
             MsgListen(const Message &message);
             ~MsgListen();

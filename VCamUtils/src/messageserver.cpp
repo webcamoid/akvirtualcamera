@@ -142,7 +142,11 @@ int AkVCam::MessageServer::run()
     }
 
     // Start listening for connected clients
-    listen(serverSocket, SOMAXCONN);
+    if (listen(serverSocket, SOMAXCONN) != 0) {
+        AkLogCritical() << "Failed listening to the socket" << std::endl;
+
+        return -EXIT_FAILURE;
+    }
 
     AkLogInfo() << "Server running at http://localhost:" << this->d->m_port << '/' << std::endl;
     this->d->m_run = true;
@@ -216,8 +220,12 @@ void AkVCam::MessageServerPrivate::connection(SocketType clientSocket,
                                               ConnectionThreadPtr connection)
 {
     auto clientId = AkVCam::id();
-    bool ok = true;
+
+    this->m_logsMutex.lock();
     AkLogDebug() << "Client connected: " << clientId << std::endl;
+    this->m_logsMutex.unlock();
+
+    bool ok = true;
 
     while (connection->run && ok) {
         int messageId = 0;
@@ -237,6 +245,7 @@ void AkVCam::MessageServerPrivate::connection(SocketType clientSocket,
 
         this->m_logsMutex.lock();
         AkLogDebug() << "Received message:" << std::endl;
+        AkLogDebug() << "    Client ID: " << clientId << std::endl;
         AkLogDebug() << "    Message ID: " << stringFromMessageId(messageId) << std::endl;
         AkLogDebug() << "    Query ID: " << queryId << std::endl;
         AkLogDebug() << "    Data size: " << inData.size() << std::endl;
@@ -257,6 +266,7 @@ void AkVCam::MessageServerPrivate::connection(SocketType clientSocket,
 
         this->m_logsMutex.lock();
         AkLogDebug() << "Send message:" << std::endl;
+        AkLogDebug() << "    Client ID: " << clientId << std::endl;
         AkLogDebug() << "    Message ID: " << stringFromMessageId(outMessage.id()) << std::endl;
         AkLogDebug() << "    Query ID: " << outMessage.queryId() << std::endl;
         AkLogDebug() << "    Data size: " << outMessage.data().size() << std::endl;
@@ -273,6 +283,8 @@ void AkVCam::MessageServerPrivate::connection(SocketType clientSocket,
     }
 
     Sockets::closeSocket(clientSocket);
+    this->m_logsMutex.lock();
     AkLogDebug() << "Client disconnected: " << clientId << std::endl;
+    this->m_logsMutex.unlock();
     AKVCAM_EMIT(self, ConnectionClosed, clientId)
 }

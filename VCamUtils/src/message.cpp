@@ -32,12 +32,27 @@ namespace AkVCam
             int m_id {0};
             uint64_t m_queryId {0};
             std::vector<char> m_data;
+
+            static uint64_t queryId()
+            {
+                static uint64_t akvcamMessagePrivateQueryId = 0;
+
+                return akvcamMessagePrivateQueryId++;
+            }
     };
 }
 
 AkVCam::Message::Message()
 {
     this->d = new MessagePrivate;
+    this->d->m_queryId = MessagePrivate::queryId();
+}
+
+AkVCam::Message::Message(int id)
+{
+    this->d = new MessagePrivate;
+    this->d->m_id = id;
+    this->d->m_queryId = MessagePrivate::queryId();
 }
 
 AkVCam::Message::Message(int id, uint64_t queryId)
@@ -117,6 +132,12 @@ namespace AkVCam
     };
 }
 
+AkVCam::MsgCommons::MsgCommons()
+{
+    this->d = new MsgCommonsPrivate;
+    this->d->m_queryId = MessagePrivate::queryId();
+}
+
 AkVCam::MsgCommons::MsgCommons(uint64_t queryId)
 {
     this->d = new MsgCommonsPrivate;
@@ -145,6 +166,19 @@ namespace AkVCam
         public:
             int m_status {0};
     };
+}
+
+AkVCam::MsgStatus::MsgStatus():
+    MsgCommons()
+{
+    this->d = new MsgStatusPrivate;
+}
+
+AkVCam::MsgStatus::MsgStatus(int status):
+    MsgCommons()
+{
+    this->d = new MsgStatusPrivate;
+    this->d->m_status = status;
 }
 
 AkVCam::MsgStatus::MsgStatus(int status, uint64_t queryId):
@@ -219,6 +253,28 @@ namespace AkVCam
     };
 }
 
+AkVCam::MsgClients::MsgClients():
+    MsgCommons()
+{
+    this->d = new MsgClientsPrivate;
+}
+
+AkVCam::MsgClients::MsgClients(ClientType clientType):
+    MsgCommons()
+{
+    this->d = new MsgClientsPrivate;
+    this->d->m_clientType = clientType;
+}
+
+AkVCam::MsgClients::MsgClients(ClientType clientType,
+                               const std::vector<uint64_t> &clients):
+    MsgCommons()
+{
+    this->d = new MsgClientsPrivate;
+    this->d->m_clientType = clientType;
+    this->d->m_clients = clients;
+}
+
 AkVCam::MsgClients::MsgClients(ClientType clientType,
                                const std::vector<uint64_t> &clients,
                                uint64_t queryId):
@@ -264,8 +320,10 @@ AkVCam::MsgClients::MsgClients(const Message &message):
     memcpy(&clientsSize, message.data().data() + offset, sizeof(clientsSize));
     offset += sizeof(clientsSize);
 
-    this->d->m_clients.resize(clientsSize);
-    memcpy(this->d->m_clients.data(), message.data().data() + offset, sizeof(uint64_t) * clientsSize);
+    if (clientsSize > 0) {
+        this->d->m_clients.resize(clientsSize);
+        memcpy(this->d->m_clients.data(), message.data().data() + offset, sizeof(uint64_t) * clientsSize);
+    }
 }
 
 AkVCam::MsgClients::~MsgClients()
@@ -301,11 +359,12 @@ AkVCam::Message AkVCam::MsgClients::toMessage() const
     memcpy(data.data() + offset, &this->d->m_clientType, sizeof(this->d->m_clientType));
     offset += sizeof(this->d->m_clientType);
 
-    size_t clientsSize = 0;
+    size_t clientsSize = this->d->m_clients.size();
     memcpy(data.data() + offset, &clientsSize, sizeof(clientsSize));
     offset += sizeof(clientsSize);
 
-    memcpy(data.data() + offset, this->d->m_clients.data(), sizeof(uint64_t) * clientsSize);
+    if (clientsSize > 0)
+        memcpy(data.data() + offset, this->d->m_clients.data(), sizeof(uint64_t) * clientsSize);
 
     return {AKVCAM_SERVICE_MSG_CLIENTS, this->queryId(), data};
 }
@@ -322,522 +381,6 @@ const std::vector<uint64_t> &AkVCam::MsgClients::clients() const
 
 namespace AkVCam
 {
-    class MsgUpdateDevicesPrivate
-    {
-        public:
-    };
-}
-
-AkVCam::MsgUpdateDevices::MsgUpdateDevices(uint64_t queryId):
-    MsgCommons(queryId)
-{
-    this->d = new MsgUpdateDevicesPrivate;
-}
-
-AkVCam::MsgUpdateDevices::MsgUpdateDevices(const MsgUpdateDevices &other):
-    MsgCommons(other.queryId())
-{
-    this->d = new MsgUpdateDevicesPrivate;
-}
-
-AkVCam::MsgUpdateDevices::MsgUpdateDevices(const Message &message):
-    MsgCommons(message.queryId())
-{
-    this->d = new MsgUpdateDevicesPrivate;
-
-    if (message.id() != AKVCAM_SERVICE_MSG_UPDATE_DEVICES
-        || message.data().size() != 0)
-        return;
-}
-
-AkVCam::MsgUpdateDevices::~MsgUpdateDevices()
-{
-    delete this->d;
-}
-
-AkVCam::MsgUpdateDevices &AkVCam::MsgUpdateDevices::operator =(const MsgUpdateDevices &other)
-{
-    if (this != &other) {
-        this->setQueryId(other.queryId());
-    }
-
-    return *this;
-}
-
-bool AkVCam::MsgUpdateDevices::operator ==(const MsgUpdateDevices &other) const
-{
-    return this->queryId() == other.queryId();
-}
-
-AkVCam::Message AkVCam::MsgUpdateDevices::toMessage() const
-{
-    return {AKVCAM_SERVICE_MSG_UPDATE_DEVICES, this->queryId(), {}};
-}
-
-namespace AkVCam
-{
-    class MsgDevicesUpdatedPrivate
-    {
-        public:
-    };
-}
-
-AkVCam::MsgDevicesUpdated::MsgDevicesUpdated(uint64_t queryId):
-    MsgCommons(queryId)
-{
-    this->d = new MsgDevicesUpdatedPrivate;
-}
-
-AkVCam::MsgDevicesUpdated::MsgDevicesUpdated(const MsgDevicesUpdated &other):
-    MsgCommons(other.queryId())
-{
-    this->d = new MsgDevicesUpdatedPrivate;
-}
-
-AkVCam::MsgDevicesUpdated::MsgDevicesUpdated(const Message &message):
-    MsgCommons(message.queryId())
-{
-    this->d = new MsgDevicesUpdatedPrivate;
-
-    if (message.id() != AKVCAM_SERVICE_MSG_DEVICES_UPDATED
-        || message.data().size() != 0)
-        return;
-}
-
-AkVCam::MsgDevicesUpdated::~MsgDevicesUpdated()
-{
-    delete this->d;
-}
-
-AkVCam::MsgDevicesUpdated &AkVCam::MsgDevicesUpdated::operator =(const MsgDevicesUpdated &other)
-{
-    if (this != &other) {
-        this->setQueryId(other.queryId());
-    }
-
-    return *this;
-}
-
-bool AkVCam::MsgDevicesUpdated::operator ==(const MsgDevicesUpdated &other) const
-{
-    return this->queryId() == other.queryId();
-}
-
-AkVCam::Message AkVCam::MsgDevicesUpdated::toMessage() const
-{
-    return {AKVCAM_SERVICE_MSG_DEVICES_UPDATED, this->queryId(), {}};
-}
-
-namespace AkVCam
-{
-    class MsgUpdatePicturePrivate
-    {
-        public:
-            std::string m_picture;
-    };
-}
-
-AkVCam::MsgUpdatePicture::MsgUpdatePicture(const std::string &picture,
-                                             uint64_t queryId):
-    MsgCommons(queryId)
-{
-    this->d = new MsgUpdatePicturePrivate;
-    this->d->m_picture = picture;
-}
-
-AkVCam::MsgUpdatePicture::MsgUpdatePicture(const MsgUpdatePicture &other):
-    MsgCommons(other.queryId())
-{
-    this->d = new MsgUpdatePicturePrivate;
-    this->d->m_picture = other.d->m_picture;
-}
-
-AkVCam::MsgUpdatePicture::MsgUpdatePicture(const Message &message):
-    MsgCommons(message.queryId())
-{
-    this->d = new MsgUpdatePicturePrivate;
-    size_t totalSize = 0;
-
-    {
-        size_t pictureSize = 0;
-        totalSize += sizeof(size_t);
-        memcpy(&pictureSize, message.data().data() + totalSize, sizeof(size_t));
-        totalSize += pictureSize;
-    }
-
-    if (message.id() != AKVCAM_SERVICE_MSG_UPDATE_PICTURE
-        || message.data().size() != totalSize)
-        return;
-
-    size_t offset = 0;
-
-    size_t pictureSize = 0;
-    memcpy(&pictureSize, message.data().data() + offset, sizeof(size_t));
-    offset += sizeof(size_t);
-
-    this->d->m_picture = {message.data().data() + offset, pictureSize};
-}
-
-AkVCam::MsgUpdatePicture::~MsgUpdatePicture()
-{
-    delete this->d;
-}
-
-AkVCam::MsgUpdatePicture &AkVCam::MsgUpdatePicture::operator =(const MsgUpdatePicture &other)
-{
-    if (this != &other) {
-        this->d->m_picture = other.d->m_picture;
-        this->setQueryId(other.queryId());
-    }
-
-    return *this;
-}
-
-bool AkVCam::MsgUpdatePicture::operator ==(const MsgUpdatePicture &other) const
-{
-    return this->d->m_picture == other.d->m_picture
-           && this->queryId() == other.queryId();
-}
-
-AkVCam::Message AkVCam::MsgUpdatePicture::toMessage() const
-{
-    size_t totalSize = sizeof(size_t)
-                       + this->d->m_picture.size();
-    std::vector<char> data(totalSize);
-    size_t offset = 0;
-
-    size_t pictureSize = this->d->m_picture.size();
-    memcpy(data.data() + offset, &pictureSize, sizeof(size_t));
-    offset += sizeof(size_t);
-
-    memcpy(data.data() + offset, this->d->m_picture.data(), pictureSize);
-
-    return {AKVCAM_SERVICE_MSG_UPDATE_PICTURE, this->queryId(), data};
-}
-
-const std::string &AkVCam::MsgUpdatePicture::picture() const
-{
-    return this->d->m_picture;
-}
-
-namespace AkVCam
-{
-    class MsgPictureUpdatedPrivate
-    {
-        public:
-            std::string m_picture;
-            bool m_updated {false};
-    };
-}
-
-AkVCam::MsgPictureUpdated::MsgPictureUpdated(const std::string &picture,
-                                             bool updated,
-                                             uint64_t queryId):
-    MsgCommons(queryId)
-{
-    this->d = new MsgPictureUpdatedPrivate;
-    this->d->m_picture = picture;
-    this->d->m_updated = updated;
-}
-
-AkVCam::MsgPictureUpdated::MsgPictureUpdated(const MsgPictureUpdated &other):
-    MsgCommons(other.queryId())
-{
-    this->d = new MsgPictureUpdatedPrivate;
-    this->d->m_picture = other.d->m_picture;
-    this->d->m_updated = other.d->m_updated;
-}
-
-AkVCam::MsgPictureUpdated::MsgPictureUpdated(const Message &message):
-    MsgCommons(message.queryId())
-{
-    this->d = new MsgPictureUpdatedPrivate;
-    size_t totalSize = 0;
-
-    {
-        size_t pictureSize = 0;
-        totalSize += sizeof(size_t);
-        memcpy(&pictureSize, message.data().data() + totalSize, sizeof(size_t));
-        totalSize += pictureSize;
-
-        totalSize += sizeof(this->d->m_updated);
-    }
-
-    if (message.id() != AKVCAM_SERVICE_MSG_PICTURE_UPDATED
-        || message.data().size() != totalSize)
-        return;
-
-    size_t offset = 0;
-
-    size_t pictureSize = 0;
-    memcpy(&pictureSize, message.data().data() + offset, sizeof(size_t));
-    offset += sizeof(size_t);
-
-    this->d->m_picture = {message.data().data() + offset, pictureSize};
-    offset += pictureSize;
-
-    memcpy(&this->d->m_updated, message.data().data() + offset, sizeof(this->d->m_updated));
-}
-
-AkVCam::MsgPictureUpdated::~MsgPictureUpdated()
-{
-    delete this->d;
-}
-
-AkVCam::MsgPictureUpdated &AkVCam::MsgPictureUpdated::operator =(const MsgPictureUpdated &other)
-{
-    if (this != &other) {
-        this->d->m_picture = other.d->m_picture;
-        this->d->m_updated = other.d->m_updated;
-        this->setQueryId(other.queryId());
-    }
-
-    return *this;
-}
-
-bool AkVCam::MsgPictureUpdated::operator ==(const MsgPictureUpdated &other) const
-{
-    return this->d->m_picture == other.d->m_picture
-           && this->d->m_updated == other.d->m_updated
-           && this->queryId() == other.queryId();
-}
-
-AkVCam::Message AkVCam::MsgPictureUpdated::toMessage() const
-{
-    size_t totalSize = sizeof(size_t)
-                       + this->d->m_picture.size()
-                       + sizeof(this->d->m_updated);
-    std::vector<char> data(totalSize);
-    size_t offset = 0;
-
-    size_t pictureSize = this->d->m_picture.size();
-    memcpy(data.data() + offset, &pictureSize, sizeof(size_t));
-    offset += sizeof(size_t);
-
-    memcpy(data.data() + offset, this->d->m_picture.data(), pictureSize);
-    offset += pictureSize;
-
-    memcpy(data.data() + offset, &this->d->m_updated, sizeof(this->d->m_updated));
-
-    return {AKVCAM_SERVICE_MSG_PICTURE_UPDATED, this->queryId(), data};
-}
-
-const std::string &AkVCam::MsgPictureUpdated::picture() const
-{
-    return this->d->m_picture;
-}
-
-bool AkVCam::MsgPictureUpdated::updated() const
-{
-    return this->d->m_updated;
-}
-
-namespace AkVCam
-{
-    class MsgUpdateControlsPrivate
-    {
-        public:
-            std::string m_device;
-    };
-}
-
-AkVCam::MsgUpdateControls::MsgUpdateControls(const std::string &device,
-                                               uint64_t queryId):
-    MsgCommons(queryId)
-{
-    this->d = new MsgUpdateControlsPrivate;
-    this->d->m_device = device;
-}
-
-AkVCam::MsgUpdateControls::MsgUpdateControls(const MsgUpdateControls &other):
-    MsgCommons(other.queryId())
-{
-    this->d = new MsgUpdateControlsPrivate;
-    this->d->m_device = other.d->m_device;
-}
-
-AkVCam::MsgUpdateControls::MsgUpdateControls(const Message &message):
-    MsgCommons(message.queryId())
-{
-    this->d = new MsgUpdateControlsPrivate;
-    size_t totalSize = 0;
-
-    {
-        size_t deviceSize = 0;
-        totalSize += sizeof(size_t);
-        memcpy(&deviceSize, message.data().data() + totalSize, sizeof(size_t));
-        totalSize += deviceSize;
-    }
-
-    if (message.id() != AKVCAM_SERVICE_MSG_UPDATE_CONTROLS
-        || message.data().size() != totalSize)
-        return;
-
-    size_t offset = 0;
-
-    size_t deviceSize = 0;
-    memcpy(&deviceSize, message.data().data() + offset, sizeof(size_t));
-    offset += sizeof(size_t);
-
-    this->d->m_device = {message.data().data() + offset, deviceSize};
-}
-
-AkVCam::MsgUpdateControls::~MsgUpdateControls()
-{
-    delete this->d;
-}
-
-AkVCam::MsgUpdateControls &AkVCam::MsgUpdateControls::operator =(const MsgUpdateControls &other)
-{
-    if (this != &other) {
-        this->d->m_device = other.d->m_device;
-        this->setQueryId(other.queryId());
-    }
-
-    return *this;
-}
-
-bool AkVCam::MsgUpdateControls::operator ==(const MsgUpdateControls &other) const
-{
-    return this->d->m_device == other.d->m_device
-           && this->queryId() == other.queryId();
-}
-
-AkVCam::Message AkVCam::MsgUpdateControls::toMessage() const
-{
-    size_t totalSize = sizeof(size_t)
-                       + this->d->m_device.size();
-    std::vector<char> data(totalSize);
-    size_t offset = 0;
-
-    size_t deviceSize = this->d->m_device.size();
-    memcpy(data.data() + offset, &deviceSize, sizeof(size_t));
-    offset += sizeof(size_t);
-
-    memcpy(data.data() + offset, this->d->m_device.data(), deviceSize);
-
-    return {AKVCAM_SERVICE_MSG_UPDATE_CONTROLS, this->queryId(), data};
-}
-
-const std::string &AkVCam::MsgUpdateControls::device() const
-{
-    return this->d->m_device;
-}
-
-namespace AkVCam
-{
-    class MsgControlsUpdatedPrivate
-    {
-        public:
-            std::string m_device;
-            bool m_updated {false};
-    };
-}
-
-AkVCam::MsgControlsUpdated::MsgControlsUpdated(const std::string &device,
-                                               bool updated,
-                                               uint64_t queryId):
-    MsgCommons(queryId)
-{
-    this->d = new MsgControlsUpdatedPrivate;
-    this->d->m_device = device;
-    this->d->m_updated = updated;
-}
-
-AkVCam::MsgControlsUpdated::MsgControlsUpdated(const MsgControlsUpdated &other):
-    MsgCommons(other.queryId())
-{
-    this->d = new MsgControlsUpdatedPrivate;
-    this->d->m_device = other.d->m_device;
-    this->d->m_updated = other.d->m_updated;
-}
-
-AkVCam::MsgControlsUpdated::MsgControlsUpdated(const Message &message):
-    MsgCommons(message.queryId())
-{
-    this->d = new MsgControlsUpdatedPrivate;
-    size_t totalSize = 0;
-
-    {
-        size_t deviceSize = 0;
-        totalSize += sizeof(size_t);
-        memcpy(&deviceSize, message.data().data() + totalSize, sizeof(size_t));
-        totalSize += deviceSize;
-
-        totalSize += sizeof(this->d->m_updated);
-    }
-
-    if (message.id() != AKVCAM_SERVICE_MSG_CONTROLS_UPDATED
-        || message.data().size() != totalSize)
-        return;
-
-    size_t offset = 0;
-
-    size_t deviceSize = 0;
-    memcpy(&deviceSize, message.data().data() + offset, sizeof(size_t));
-    offset += sizeof(size_t);
-
-    this->d->m_device = {message.data().data() + offset, deviceSize};
-    offset += deviceSize;
-
-    memcpy(&this->d->m_updated, message.data().data() + offset, sizeof(this->d->m_updated));
-}
-
-AkVCam::MsgControlsUpdated::~MsgControlsUpdated()
-{
-    delete this->d;
-}
-
-AkVCam::MsgControlsUpdated &AkVCam::MsgControlsUpdated::operator =(const MsgControlsUpdated &other)
-{
-    if (this != &other) {
-        this->d->m_device = other.d->m_device;
-        this->d->m_updated = other.d->m_updated;
-        this->setQueryId(other.queryId());
-    }
-
-    return *this;
-}
-
-bool AkVCam::MsgControlsUpdated::operator ==(const MsgControlsUpdated &other) const
-{
-    return this->d->m_device == other.d->m_device
-           && this->d->m_updated == other.d->m_updated
-           && this->queryId() == other.queryId();
-}
-
-AkVCam::Message AkVCam::MsgControlsUpdated::toMessage() const
-{
-    size_t totalSize = sizeof(size_t)
-                       + this->d->m_device.size()
-                       + sizeof(this->d->m_updated);
-    std::vector<char> data(totalSize);
-    size_t offset = 0;
-
-    size_t deviceSize = this->d->m_device.size();
-    memcpy(data.data() + offset, &deviceSize, sizeof(size_t));
-    offset += sizeof(size_t);
-
-    memcpy(data.data() + offset, this->d->m_device.data(), deviceSize);
-    offset += deviceSize;
-
-    memcpy(data.data() + offset, &this->d->m_updated, sizeof(this->d->m_updated));
-
-    return {AKVCAM_SERVICE_MSG_CONTROLS_UPDATED, this->queryId(), data};
-}
-
-const std::string &AkVCam::MsgControlsUpdated::device() const
-{
-    return this->d->m_device;
-}
-
-bool AkVCam::MsgControlsUpdated::updated() const
-{
-    return this->d->m_updated;
-}
-
-namespace AkVCam
-{
     class MsgFrameReadyPrivate
     {
         public:
@@ -847,6 +390,27 @@ namespace AkVCam
     };
 }
 
+AkVCam::MsgFrameReady::MsgFrameReady():
+    MsgCommons()
+{
+    this->d = new MsgFrameReadyPrivate;
+}
+
+AkVCam::MsgFrameReady::MsgFrameReady(const std::string &device):
+    MsgCommons()
+{
+    this->d = new MsgFrameReadyPrivate;
+    this->d->m_device = device;
+}
+
+AkVCam::MsgFrameReady::MsgFrameReady(const std::string &device, bool isActive):
+    MsgCommons()
+{
+    this->d = new MsgFrameReadyPrivate;
+    this->d->m_device = device;
+    this->d->m_isActive = isActive;
+}
+
 AkVCam::MsgFrameReady::MsgFrameReady(const std::string &device,
                                      bool isActive,
                                      uint64_t queryId):
@@ -854,6 +418,17 @@ AkVCam::MsgFrameReady::MsgFrameReady(const std::string &device,
 {
     this->d = new MsgFrameReadyPrivate;
     this->d->m_device = device;
+    this->d->m_isActive = isActive;
+}
+
+AkVCam::MsgFrameReady::MsgFrameReady(const std::string &device,
+                                     const VideoFrame &frame,
+                                     bool isActive):
+    MsgCommons()
+{
+    this->d = new MsgFrameReadyPrivate;
+    this->d->m_device = device;
+    this->d->m_frame = frame;
     this->d->m_isActive = isActive;
 }
 
@@ -912,8 +487,10 @@ AkVCam::MsgFrameReady::MsgFrameReady(const Message &message):
     memcpy(&deviceSize, message.data().data() + offset, sizeof(size_t));
     offset += sizeof(size_t);
 
-    this->d->m_device = {message.data().data() + offset, deviceSize};
-    offset += deviceSize;
+    if (deviceSize > 0) {
+        this->d->m_device = {message.data().data() + offset, deviceSize};
+        offset += deviceSize;
+    }
 
     FourCC fourcc = 0;
     memcpy(&fourcc, message.data().data() + offset, sizeof(fourcc));
@@ -931,9 +508,11 @@ AkVCam::MsgFrameReady::MsgFrameReady(const Message &message):
     memcpy(&dataSize, message.data().data() + offset, sizeof(size_t));
     offset += sizeof(size_t);
 
-    this->d->m_frame = {VideoFormat(fourcc, width, height)};
-    memcpy(this->d->m_frame.data().data(), message.data().data() + offset, dataSize);
-    offset += dataSize;
+    if (dataSize > 0) {
+        this->d->m_frame = {VideoFormat(fourcc, width, height)};
+        memcpy(this->d->m_frame.data().data(), message.data().data() + offset, dataSize);
+        offset += dataSize;
+    }
 
     memcpy(&this->d->m_isActive, message.data().data() + offset, sizeof(this->d->m_isActive));
 }
@@ -980,8 +559,10 @@ AkVCam::Message AkVCam::MsgFrameReady::toMessage() const
     memcpy(data.data() + offset, &deviceSize, sizeof(deviceSize));
     offset += sizeof(size_t);
 
-    memcpy(data.data() + offset, this->d->m_device.data(), deviceSize);
-    offset += this->d->m_device.size();
+    if (deviceSize > 0) {
+        memcpy(data.data() + offset, this->d->m_device.data(), deviceSize);
+        offset += this->d->m_device.size();
+    }
 
     auto fourcc = this->d->m_frame.format().fourcc();
     memcpy(data.data() + offset, &fourcc, sizeof(fourcc));
@@ -999,8 +580,10 @@ AkVCam::Message AkVCam::MsgFrameReady::toMessage() const
     memcpy(data.data() + offset, &dataSize, sizeof(size_t));
     offset += sizeof(size_t);
 
-    memcpy(data.data() + offset, this->d->m_frame.data().data(), dataSize);
-    offset += dataSize;
+    if (dataSize > 0) {
+        memcpy(data.data() + offset, this->d->m_frame.data().data(), dataSize);
+        offset += dataSize;
+    }
 
     memcpy(data.data() + offset, &this->d->m_isActive, sizeof(this->d->m_isActive));
 
@@ -1028,9 +611,30 @@ namespace AkVCam
     {
         public:
             std::string m_device;
-            uint64_t m_pid;
+            uint64_t m_pid {0};
             VideoFrame m_frame;
     };
+}
+
+AkVCam::MsgBroadcast::MsgBroadcast():
+    MsgCommons()
+{
+    this->d = new MsgBroadcastPrivate;
+}
+
+AkVCam::MsgBroadcast::MsgBroadcast(const std::string &device):
+    MsgCommons()
+{
+    this->d = new MsgBroadcastPrivate;
+    this->d->m_device = device;
+}
+
+AkVCam::MsgBroadcast::MsgBroadcast(const std::string &device, uint64_t pid):
+    MsgCommons()
+{
+    this->d = new MsgBroadcastPrivate;
+    this->d->m_device = device;
+    this->d->m_pid = pid;
 }
 
 AkVCam::MsgBroadcast::MsgBroadcast(const std::string &device,
@@ -1041,6 +645,17 @@ AkVCam::MsgBroadcast::MsgBroadcast(const std::string &device,
     this->d = new MsgBroadcastPrivate;
     this->d->m_device = device;
     this->d->m_pid = pid;
+}
+
+AkVCam::MsgBroadcast::MsgBroadcast(const std::string &device,
+                                   uint64_t pid,
+                                   const VideoFrame &frame):
+    MsgCommons()
+{
+    this->d = new MsgBroadcastPrivate;
+    this->d->m_device = device;
+    this->d->m_pid = pid;
+    this->d->m_frame = frame;
 }
 
 AkVCam::MsgBroadcast::MsgBroadcast(const std::string &device,
@@ -1097,8 +712,10 @@ AkVCam::MsgBroadcast::MsgBroadcast(const Message &message):
     memcpy(&deviceSize, message.data().data() + offset, sizeof(size_t));
     offset += sizeof(size_t);
 
-    this->d->m_device = {message.data().data() + offset, deviceSize};
-    offset += deviceSize;
+    if (deviceSize > 0) {
+        this->d->m_device = {message.data().data() + offset, deviceSize};
+        offset += deviceSize;
+    }
 
     memcpy(&this->d->m_pid, message.data().data() + offset, sizeof(this->d->m_pid));
     offset += sizeof(this->d->m_pid);
@@ -1119,8 +736,10 @@ AkVCam::MsgBroadcast::MsgBroadcast(const Message &message):
     memcpy(&dataSize, message.data().data() + offset, sizeof(size_t));
     offset += sizeof(size_t);
 
-    this->d->m_frame = {VideoFormat(fourcc, width, height)};
-    memcpy(this->d->m_frame.data().data(), message.data().data() + offset, dataSize);
+    if (dataSize > 0) {
+        this->d->m_frame = {VideoFormat(fourcc, width, height)};
+        memcpy(this->d->m_frame.data().data(), message.data().data() + offset, dataSize);
+    }
 }
 
 AkVCam::MsgBroadcast::~MsgBroadcast()
@@ -1165,8 +784,10 @@ AkVCam::Message AkVCam::MsgBroadcast::toMessage() const
     memcpy(data.data() + offset, &deviceSize, sizeof(size_t));
     offset += sizeof(size_t);
 
-    memcpy(data.data() + offset, this->d->m_device.data(), deviceSize);
-    offset += deviceSize;
+    if (deviceSize > 0) {
+        memcpy(data.data() + offset, this->d->m_device.data(), deviceSize);
+        offset += deviceSize;
+    }
 
     memcpy(data.data() + offset, &this->d->m_pid, sizeof(this->d->m_pid));
     offset += sizeof(this->d->m_pid);
@@ -1187,7 +808,8 @@ AkVCam::Message AkVCam::MsgBroadcast::toMessage() const
     memcpy(data.data() + offset, &dataSize, sizeof(size_t));
     offset += sizeof(size_t);
 
-    memcpy(data.data() + offset, this->d->m_frame.data().data(), dataSize);
+    if (dataSize > 0)
+        memcpy(data.data() + offset, this->d->m_frame.data().data(), dataSize);
 
     return {AKVCAM_SERVICE_MSG_BROADCAST, this->queryId(), data};
 }
@@ -1213,13 +835,34 @@ namespace AkVCam
     {
         public:
             std::string m_device;
-            uint64_t m_pid;
+            uint64_t m_pid {0};
     };
 }
 
+AkVCam::MsgListen::MsgListen():
+    MsgCommons()
+{
+    this->d = new MsgListenPrivate;
+}
+
+AkVCam::MsgListen::MsgListen(const std::string &device):
+    MsgCommons()
+{
+    this->d = new MsgListenPrivate;
+    this->d->m_device = device;
+}
+
+AkVCam::MsgListen::MsgListen(const std::string &device, uint64_t pid):
+    MsgCommons()
+{
+    this->d = new MsgListenPrivate;
+    this->d->m_device = device;
+    this->d->m_pid = pid;
+}
+
 AkVCam::MsgListen::MsgListen(const std::string &device,
-                                   uint64_t pid,
-                                   uint64_t queryId):
+                             uint64_t pid,
+                             uint64_t queryId):
     MsgCommons(queryId)
 {
     this->d = new MsgListenPrivate;
@@ -1260,8 +903,10 @@ AkVCam::MsgListen::MsgListen(const Message &message):
     memcpy(&deviceSize, message.data().data() + offset, sizeof(size_t));
     offset += sizeof(size_t);
 
-    this->d->m_device = {message.data().data() + offset, deviceSize};
-    offset += deviceSize;
+    if (deviceSize > 0) {
+        this->d->m_device = {message.data().data() + offset, deviceSize};
+        offset += deviceSize;
+    }
 
     memcpy(&this->d->m_pid, message.data().data() + offset, sizeof(this->d->m_pid));
 }
@@ -1301,8 +946,10 @@ AkVCam::Message AkVCam::MsgListen::toMessage() const
     memcpy(data.data() + offset, &deviceSize, sizeof(size_t));
     offset += sizeof(size_t);
 
-    memcpy(data.data() + offset, this->d->m_device.data(), deviceSize);
-    offset += deviceSize;
+    if (deviceSize > 0) {
+        memcpy(data.data() + offset, this->d->m_device.data(), deviceSize);
+        offset += deviceSize;
+    }
 
     memcpy(data.data() + offset, &this->d->m_pid, sizeof(this->d->m_pid));
 

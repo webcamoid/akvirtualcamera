@@ -411,10 +411,20 @@ std::string AkVCam::currentBinaryPath()
 
 bool AkVCam::isServiceRunning()
 {
+    AkLogFunction();
     auto service = locateServicePath();
+    AkLogDebug() << "Service path: " << service << std::endl;
+    AkLogDebug() << "System processes:" << std::endl;
 
     for (auto &pid: systemProcesses()) {
-        if (exePath(pid) == service)
+        auto path = exePath(pid);
+
+        if (path.empty())
+            continue;
+
+        AkLogDebug() << "    " << path << std::endl;
+
+        if (path == service)
             return true;
     }
 

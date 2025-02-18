@@ -29,11 +29,12 @@
 namespace AkVCam
 {
     class StreamPrivate;
+    class Device;
     class Stream;
     class VideoFrame;
-    typedef std::shared_ptr<Stream> StreamPtr;
-    typedef Queue<CMSampleBufferRef> SampleBufferQueue;
-    typedef QueuePtr<CMSampleBufferRef> SampleBufferQueuePtr;
+    using StreamPtr = std::shared_ptr<Stream>;
+    using SampleBufferQueue = Queue<CMSampleBufferRef>;
+    using SampleBufferQueuePtr = QueuePtr<CMSampleBufferRef>;
 
     class Stream: public Object
     {
@@ -44,7 +45,9 @@ namespace AkVCam
 
             OSStatus createObject();
             OSStatus registerObject(bool regist=true);
-            void setBridge(IpcBridge *bridge);
+            Device *device() const;
+            void setDevice(Device *device);
+            void setBridge(IpcBridgePtr bridge);
             void setFormats(const std::vector<VideoFormat> &formats);
             void setFormat(const VideoFormat &format);
             void setFrameRate(const Fraction &frameRate);

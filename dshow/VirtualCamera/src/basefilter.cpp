@@ -62,7 +62,7 @@ namespace AkVCam
             std::string m_vendor;
             std::string m_filterName;
             IFilterGraph *m_filterGraph {nullptr};
-            IpcBridge m_ipcBridge;
+            IpcBridgePtr m_ipcBridge;
 
             BaseFilterPrivate(BaseFilter *self,
                               const std::string &filterName,
@@ -98,6 +98,8 @@ AkVCam::BaseFilter::BaseFilter(const GUID &clsid,
 
 AkVCam::BaseFilter::~BaseFilter()
 {
+    AkLogFunction();
+
     delete this->d;
 }
 
@@ -106,7 +108,9 @@ void AkVCam::BaseFilter::addPin(const std::vector<AkVCam::VideoFormat> &formats,
                                 bool changed)
 {
     AkLogFunction();
-    this->d->m_pins->addPin(new Pin(this, formats, pinName), changed);
+    auto pin = new Pin(this, formats, pinName);
+    pin->setBridge(this->d->m_ipcBridge);
+    this->d->m_pins->addPin(pin, changed);
 }
 
 void AkVCam::BaseFilter::removePin(IPin *pin, bool changed)
@@ -353,18 +357,21 @@ AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self,
     this->m_videoProcAmp->AddRef();
     this->m_referenceClock->AddRef();
 
-    this->m_ipcBridge.connectDevicesChanged(this,
-                                            &BaseFilterPrivate::devicesChanged);
-    this->m_ipcBridge.connectFrameReady(this,
-                                        &BaseFilterPrivate::frameReady);
-    this->m_ipcBridge.connectPictureChanged(this,
-                                            &BaseFilterPrivate::pictureChanged);
-    this->m_ipcBridge.connectControlsChanged(this,
-                                             &BaseFilterPrivate::setControls);
+    this->m_ipcBridge = std::make_shared<IpcBridge>();
+    this->m_ipcBridge->connectDevicesChanged(this,
+                                             &BaseFilterPrivate::devicesChanged);
+    this->m_ipcBridge->connectFrameReady(this,
+                                         &BaseFilterPrivate::frameReady);
+    this->m_ipcBridge->connectPictureChanged(this,
+                                             &BaseFilterPrivate::pictureChanged);
+    this->m_ipcBridge->connectControlsChanged(this,
+                                              &BaseFilterPrivate::setControls);
 }
 
 AkVCam::BaseFilterPrivate::~BaseFilterPrivate()
 {
+    AkLogFunction();
+    this->m_ipcBridge->stopNotifications();
     this->m_pins->setBaseFilter(nullptr);
     this->m_pins->Release();
     this->m_videoProcAmp->Release();
@@ -394,6 +401,7 @@ IEnumPins *AkVCam::BaseFilterPrivate::pinsForDevice(const std::string &deviceId)
 
 void AkVCam::BaseFilterPrivate::updatePins()
 {
+    AkLogFunction();
     CLSID clsid;
     this->self->GetClassID(&clsid);
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);
@@ -403,7 +411,7 @@ void AkVCam::BaseFilterPrivate::updatePins()
 
     auto deviceId = Preferences::cameraId(size_t(cameraIndex));
 
-    auto controlsList = this->m_ipcBridge.controls(deviceId);
+    auto controlsList = this->m_ipcBridge->controls(deviceId);
     std::map<std::string, int> controls;
 
     for (auto &control: controlsList)
@@ -427,26 +435,20 @@ void AkVCam::BaseFilterPrivate::pictureChanged(void *userData,
 {
     AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-    IEnumPins *pins = nullptr;
-    self->self->EnumPins(&pins);
-
-    if (pins) {
-        AkVCamPinCall(pins, setPicture, picture)
-        pins->Release();
-    }
+    AkVCamDevicePinCall(self->self->deviceId(), self, setPicture, picture)
 }
 
 void AkVCam::BaseFilterPrivate::devicesChanged(void *userData,
                                                const std::vector<std::string> &devices)
 {
+    AkLogFunction();
     UNUSED(userData);
     UNUSED(devices);
-    AkLogFunction();
     std::vector<HWND> handlers;
     EnumWindows(WNDENUMPROC(AkVCamEnumWindowsProc), LPARAM(&handlers));
 
     for (auto &handler: handlers)
-        SendMessage(handler, WM_DEVICECHANGE, DBT_DEVNODES_CHANGED, 0);
+        SendNotifyMessage(handler, WM_DEVICECHANGE, DBT_DEVNODES_CHANGED, 0);
 }
 
 void AkVCam::BaseFilterPrivate::setControls(void *userData,

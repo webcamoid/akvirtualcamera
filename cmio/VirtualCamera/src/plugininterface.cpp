@@ -39,7 +39,7 @@ namespace AkVCam
             PluginInterface *self;
             ULONG m_ref;
             ULONG m_reserved;
-            IpcBridge m_ipcBridge;
+            IpcBridgePtr m_ipcBridge;
 
             void updateDevices();
             static HRESULT QueryInterface(void *self,
@@ -136,6 +136,7 @@ AkVCam::PluginInterface::PluginInterface():
     this->m_className = "PluginInterface";
     this->d = new PluginInterfacePrivate;
     this->d->self = this;
+    this->d->m_ipcBridge = std::make_shared<IpcBridge>();
     this->d->pluginInterface = new CMIOHardwarePlugInInterface {
         //	Padding for COM
         NULL,
@@ -170,14 +171,15 @@ AkVCam::PluginInterface::PluginInterface():
     this->d->m_ref = 0;
     this->d->m_reserved = 0;
 
-    this->d->m_ipcBridge.connectDevicesChanged(this, &PluginInterface::devicesChanged);
-    this->d->m_ipcBridge.connectFrameReady(this, &PluginInterface::frameReady);
-    this->d->m_ipcBridge.connectPictureChanged(this, &PluginInterface::pictureChanged);
-    this->d->m_ipcBridge.connectControlsChanged(this, &PluginInterface::controlsChanged);
+    this->d->m_ipcBridge->connectDevicesChanged(this, &PluginInterface::devicesChanged);
+    this->d->m_ipcBridge->connectFrameReady(this, &PluginInterface::frameReady);
+    this->d->m_ipcBridge->connectPictureChanged(this, &PluginInterface::pictureChanged);
+    this->d->m_ipcBridge->connectControlsChanged(this, &PluginInterface::controlsChanged);
 }
 
 AkVCam::PluginInterface::~PluginInterface()
 {
+    this->d->m_ipcBridge->stopNotifications();
     delete this->d->pluginInterface;
     delete this->d;
 }
@@ -238,9 +240,9 @@ OSStatus AkVCam::PluginInterface::InitializeWithObjectID(CMIOObjectID objectID)
     AkLogInfo() << objectID << std::endl;
     this->m_objectID = objectID;
 
-    for (auto &deviceId: this->d->m_ipcBridge.devices()) {
-        auto description = this->d->m_ipcBridge.description(deviceId);
-        auto formats = this->d->m_ipcBridge.formats(deviceId);
+    for (auto &deviceId: this->d->m_ipcBridge->devices()) {
+        auto description = this->d->m_ipcBridge->description(deviceId);
+        auto formats = this->d->m_ipcBridge->formats(deviceId);
         this->createDevice(deviceId, description, formats);
     }
 
@@ -284,9 +286,9 @@ void AkVCam::PluginInterface::devicesChanged(void *userData,
     for (auto &deviceId: oldDevices)
         self->destroyDevice(deviceId);
 
-    for (auto &deviceId: self->d->m_ipcBridge.devices()) {
-        auto description = self->d->m_ipcBridge.description(deviceId);
-        auto formats = self->d->m_ipcBridge.formats(deviceId);
+    for (auto &deviceId: self->d->m_ipcBridge->devices()) {
+        auto description = self->d->m_ipcBridge->description(deviceId);
+        auto formats = self->d->m_ipcBridge->formats(deviceId);
         self->createDevice(deviceId, description, formats);
     }
 }
@@ -399,7 +401,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
     if (!stream)
         goto createDevice_failed;
 
-    stream->setBridge(&this->d->m_ipcBridge);
+    stream->setBridge(this->d->m_ipcBridge);
     stream->setFormats(formats);
     stream->properties().setProperty(kCMIOStreamPropertyDirection, 0);
 

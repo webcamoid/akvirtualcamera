@@ -48,6 +48,7 @@ namespace AkVCam
     {
         public:
             Pin *self;
+            IpcBridgePtr m_bridge;
             BaseFilter *m_baseFilter {nullptr};
             VideoProcAmp *m_videoProcAmp {nullptr};
             std::string m_pinName;
@@ -97,6 +98,7 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
                  const std::string &pinName):
     StreamConfig(this)
 {
+    AkLogFunction();
     this->setParent(this, &IID_IPin);
 
     this->d = new PinPrivate;
@@ -110,6 +112,8 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     this->d->m_mediaTypes->AddRef();
 
     auto cameraIndex = Preferences::cameraFromId(baseFilter->deviceId());
+
+    this->d->m_controlsMutex.lock();
     this->d->m_controls["hflip"] =
             Preferences::cameraControlValue(cameraIndex, "hflip");
     this->d->m_controls["vflip"] =
@@ -120,11 +124,15 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
             Preferences::cameraControlValue(cameraIndex, "aspect_ratio");
     this->d->m_controls["swap_rgb"] =
             Preferences::cameraControlValue(cameraIndex, "swap_rgb");
+    this->d->m_controlsMutex.unlock();
 
     auto picture = Preferences::picture();
 
-    if (!picture.empty())
+    if (!picture.empty()) {
+        this->d->m_mutex.lock();
         this->d->m_testFrame = loadPicture(picture);
+        this->d->m_mutex.unlock();
+    }
 
     baseFilter->QueryInterface(IID_IAMVideoProcAmp,
                                reinterpret_cast<void **>(&this->d->m_videoProcAmp));
@@ -154,6 +162,7 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
 
 AkVCam::Pin::~Pin()
 {
+    AkLogFunction();
     this->d->m_mediaTypes->Release();
 
     if (this->d->m_connectedTo)
@@ -182,6 +191,11 @@ void AkVCam::Pin::setBaseFilter(BaseFilter *baseFilter)
 {
     AkLogFunction();
     this->d->m_baseFilter = baseFilter;
+}
+
+void AkVCam::Pin::setBridge(IpcBridgePtr bridge)
+{
+    this->d->m_bridge = bridge;
 }
 
 HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
@@ -226,7 +240,14 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
                               period,
                               HSEMAPHORE(self->d->m_sendFrameEvent),
                               &self->d->m_adviseCookie);
+
+        if (self->d->m_bridge)
+            self->d->m_bridge->deviceStart(IpcBridge::StreamType_Input,
+                                           self->d->m_baseFilter->deviceId());
     } else if (state == State_Stopped) {
+        if (self->d->m_bridge)
+            self->d->m_bridge->deviceStop(self->d->m_baseFilter->deviceId());
+
         self->d->m_running = false;
         self->d->m_sendFrameThread.join();
         auto clock = self->d->m_baseFilter->referenceClock();
