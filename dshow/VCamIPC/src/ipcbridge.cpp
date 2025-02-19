@@ -120,6 +120,7 @@ namespace AkVCam
             bool frameReady(const Message &message);
             static void checkStatus(void *userData);
 
+            // Utility methods
             bool isRoot() const;
             int exec(const std::vector<std::string> &parameters,
                      const std::string &directory={},
@@ -447,15 +448,15 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
 
     if (type == StreamType_Input) {
         slot.messageFuture =
-                this->d->m_messageClient.send([this, deviceId] (Message &message) -> bool {
-                                                  return this->d->frameRequired(deviceId, message);
-                                              });
+        this->d->m_messageClient.send(MsgListen(deviceId, currentPid()).toMessage(),
+                                      std::bind(&IpcBridgePrivate::frameReady,
+                                                this->d,
+                                                std::placeholders::_1));
     } else  {
         slot.messageFuture =
-                this->d->m_messageClient.send(MsgListen(deviceId, currentPid()).toMessage(),
-                                              std::bind(&IpcBridgePrivate::frameReady,
-                                                        this->d,
-                                                        std::placeholders::_1));
+        this->d->m_messageClient.send([this, deviceId] (Message &message) -> bool {
+            return this->d->frameRequired(deviceId, message);
+        });
     }
 
     this->d->m_broadcastsMutex.unlock();

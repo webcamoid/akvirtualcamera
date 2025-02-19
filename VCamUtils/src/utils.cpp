@@ -198,12 +198,12 @@ std::string AkVCam::stringFromMessageId(uint32_t messageId)
         uint32_t id;
         const char *str;
     } vcamUtilsClsidToString [] = {
-        {AKVCAM_SERVICE_MSG_CLIENTS         , "CLIENTS"         },
-        {AKVCAM_SERVICE_MSG_STATUS          , "STATUS"          },
-        {AKVCAM_SERVICE_MSG_FRAME_READY     , "FRAME"           },
-        {AKVCAM_SERVICE_MSG_BROADCAST       , "BROADCAST"       },
-        {AKVCAM_SERVICE_MSG_LISTEN          , "LISTEN"          },
-        {0                                  , nullptr           },
+        {AKVCAM_SERVICE_MSG_CLIENTS    , "CLIENTS"  },
+        {AKVCAM_SERVICE_MSG_STATUS     , "STATUS"   },
+        {AKVCAM_SERVICE_MSG_FRAME_READY, "FRAME"    },
+        {AKVCAM_SERVICE_MSG_BROADCAST  , "BROADCAST"},
+        {AKVCAM_SERVICE_MSG_LISTEN     , "LISTEN"   },
+        {0                             , nullptr    },
     };
 
     for (auto msg = vcamUtilsClsidToString; msg->id; ++msg)

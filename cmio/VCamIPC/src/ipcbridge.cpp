@@ -29,6 +29,7 @@
 #include "VCamUtils/src/message.h"
 #include "VCamUtils/src/messageclient.h"
 #include "VCamUtils/src/servicemsg.h"
+#include "VCamUtils/src/timer.h"
 #include "VCamUtils/src/utils.h"
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/videoframe.h"
@@ -398,15 +399,15 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
 
     if (type == StreamType_Input) {
         slot.messageFuture =
-                this->d->m_messageClient.send([this, &deviceId] (Message &message) -> bool {
-                                                  return this->d->frameRequired(deviceId, message);
-                                              });
+        this->d->m_messageClient.send(MsgListen(deviceId, currentPid()).toMessage(),
+                                      std::bind(&IpcBridgePrivate::frameReady,
+                                                this->d,
+                                                std::placeholders::_1));
     } else  {
         slot.messageFuture =
-                this->d->m_messageClient.send(MsgListen(deviceId, currentPid()).toMessage(),
-                                              std::bind(&IpcBridgePrivate::frameReady,
-                                                        this->d,
-                                                        std::placeholders::_1));
+        this->d->m_messageClient.send([this, deviceId] (Message &message) -> bool {
+            return this->d->frameRequired(deviceId, message);
+        });
     }
 
     this->d->m_broadcastsMutex.unlock();
@@ -560,6 +561,7 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
 
 AkVCam::IpcBridgePrivate::~IpcBridgePrivate()
 {
+    AkLogFunction();
 }
 
 bool AkVCam::IpcBridgePrivate::launchService()

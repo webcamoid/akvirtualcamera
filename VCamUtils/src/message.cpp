@@ -303,9 +303,8 @@ AkVCam::MsgClients::MsgClients(const Message &message):
         totalSize += sizeof(this->d->m_clientType);
 
         size_t clientsSize = 0;
-        totalSize += sizeof(size_t);
         memcpy(&clientsSize, message.data().data() + totalSize, sizeof(size_t) * clientsSize);
-        totalSize += sizeof(sizeof(uint64_t) * clientsSize);
+        totalSize += sizeof(size_t) + sizeof(sizeof(uint64_t) * clientsSize);
     }
 
     if (message.id() != AKVCAM_SERVICE_MSG_CLIENTS
@@ -461,18 +460,16 @@ AkVCam::MsgFrameReady::MsgFrameReady(const Message &message):
 
     {
         size_t deviceSize = 0;
-        totalSize += sizeof(size_t);
         memcpy(&deviceSize, message.data().data() + totalSize, sizeof(size_t));
-        totalSize += deviceSize;
+        totalSize += sizeof(size_t) + deviceSize;
 
         totalSize += sizeof(FourCC);
         totalSize += sizeof(int);
         totalSize += sizeof(int);
 
         size_t dataSize = 0;
-        totalSize += sizeof(size_t);
         memcpy(&dataSize, message.data().data() + totalSize, sizeof(size_t));
-        totalSize += dataSize;
+        totalSize += sizeof(size_t) + dataSize;
 
         totalSize += sizeof(this->d->m_isActive);
     }
@@ -687,9 +684,8 @@ AkVCam::MsgBroadcast::MsgBroadcast(const Message &message):
 
     {
         size_t deviceSize = 0;
-        totalSize += sizeof(size_t);
         memcpy(&deviceSize, message.data().data() + totalSize, sizeof(size_t));
-        totalSize += deviceSize;
+        totalSize += sizeof(size_t) + deviceSize;
 
         totalSize += sizeof(this->d->m_pid);
         totalSize += sizeof(FourCC);
@@ -697,9 +693,8 @@ AkVCam::MsgBroadcast::MsgBroadcast(const Message &message):
         totalSize += sizeof(int);
 
         size_t dataSize = 0;
-        totalSize += sizeof(size_t);
         memcpy(&dataSize, message.data().data() + totalSize, sizeof(size_t));
-        totalSize += dataSize;
+        totalSize += sizeof(size_t) + dataSize;
     }
 
     if (message.id() != AKVCAM_SERVICE_MSG_BROADCAST
@@ -738,7 +733,9 @@ AkVCam::MsgBroadcast::MsgBroadcast(const Message &message):
 
     if (dataSize > 0) {
         this->d->m_frame = {VideoFormat(fourcc, width, height)};
-        memcpy(this->d->m_frame.data().data(), message.data().data() + offset, dataSize);
+        memcpy(this->d->m_frame.data().data(),
+               message.data().data() + offset,
+               std::min(dataSize, this->d->m_frame.data().size()));
     }
 }
 
@@ -886,9 +883,8 @@ AkVCam::MsgListen::MsgListen(const Message &message):
 
     {
         size_t deviceSize = 0;
-        totalSize += sizeof(size_t);
         memcpy(&deviceSize, message.data().data() + totalSize, sizeof(size_t));
-        totalSize += deviceSize;
+        totalSize += sizeof(size_t) + deviceSize;
 
         totalSize += sizeof(this->d->m_pid);
     }

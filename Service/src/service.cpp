@@ -120,9 +120,9 @@ AkVCam::ServicePrivate::ServicePrivate()
 
     this->m_messageServer.setPort(Preferences::servicePort());
 
-    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_CLIENTS         , BIND(ServicePrivate::clients)        );
-    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_BROADCAST       , BIND(ServicePrivate::broadcast)      );
-    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_LISTEN          , BIND(ServicePrivate::listen)         );
+    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_CLIENTS  , BIND(ServicePrivate::clients)  );
+    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_BROADCAST, BIND(ServicePrivate::broadcast));
+    this->m_messageServer.subscribe(AKVCAM_SERVICE_MSG_LISTEN   , BIND(ServicePrivate::listen)   );
 
     this->m_messageServer.connectConnectionClosed(this, &ServicePrivate::removeClientById);
 }
@@ -213,26 +213,40 @@ bool AkVCam::ServicePrivate::broadcast(uint64_t clientId,
     AkLogFunction();
     MsgBroadcast msgBroadcast(inMessage);
     MsgStatus status(-1, inMessage.queryId());
-
     this->m_peerMutex.lock();
 
-    if (this->m_broadcasts.count(msgBroadcast.device()) < 1)
+    bool isBroadcasting = this->m_broadcasts.count(msgBroadcast.device()) < 1;
+    AkLogDebug() << "Device" << msgBroadcast.device() << "is broadcasting?:" << (isBroadcasting? "YES": "NO") << std::endl;
+
+    if (isBroadcasting) {
+        AkLogDebug() << "Adding device slot:" << std::endl;
+        AkLogDebug() << "    Device ID:" << msgBroadcast.device() << std::endl;
+        AkLogDebug() << "    Client ID:" << clientId << std::endl;
+        AkLogDebug() << "    Client PID:" << msgBroadcast.pid() << std::endl;
+
         this->m_broadcasts[msgBroadcast.device()] =
             {{clientId, msgBroadcast.pid()}, {}, {}};
+    }
 
+    AkLogDebug() << "Get slot" << std::endl;
     auto &slot = this->m_broadcasts[msgBroadcast.device()];
 
-    if (slot.broadcaster.pid == 0)
+    if (slot.broadcaster.pid == 0) {
+        AkLogDebug() << "Set client as broadcaster" << std::endl;
         slot.broadcaster = {clientId, msgBroadcast.pid()};
+    }
 
     if (slot.broadcaster.pid == msgBroadcast.pid()
         && slot.broadcaster.clientId == clientId) {
+        AkLogDebug() << "Save frame" << std::endl;
         slot.frame = msgBroadcast.frame();
         status = MsgStatus(0, inMessage.queryId());
         this->m_frameAvailable.notify_all();
     }
 
     this->m_peerMutex.unlock();
+
+    AkLogDebug() << "Sending the response" << std::endl;
     outMessage = status.toMessage();
 
     return status.status() == 0;

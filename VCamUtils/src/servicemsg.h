@@ -21,14 +21,14 @@
 #define SERVICEMSG_H
 
 // Clients listing
-#define AKVCAM_SERVICE_MSG_CLIENTS           0x001
+#define AKVCAM_SERVICE_MSG_CLIENTS      0x001
 
 // Response messages
-#define AKVCAM_SERVICE_MSG_STATUS            0x101
-#define AKVCAM_SERVICE_MSG_FRAME_READY       0x102
+#define AKVCAM_SERVICE_MSG_STATUS       0x101
+#define AKVCAM_SERVICE_MSG_FRAME_READY  0x102
 
 // Broadcasting messages
-#define AKVCAM_SERVICE_MSG_BROADCAST         0x201
-#define AKVCAM_SERVICE_MSG_LISTEN            0x202
+#define AKVCAM_SERVICE_MSG_BROADCAST    0x201
+#define AKVCAM_SERVICE_MSG_LISTEN       0x202
 
 #endif // SERVICEMSG_H
