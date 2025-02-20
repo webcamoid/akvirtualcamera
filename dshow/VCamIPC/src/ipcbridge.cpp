@@ -122,9 +122,6 @@ namespace AkVCam
 
             // Utility methods
             bool isRoot() const;
-            int exec(const std::vector<std::string> &parameters,
-                     const std::string &directory={},
-                     bool show=false);
 
             // Hacks
             const std::vector<Hack> &hacks();
@@ -413,7 +410,7 @@ void AkVCam::IpcBridge::updateDevices()
                 auto altManager = locateAltManagerPath();
 
                 if (!altManager.empty())
-                    this->d->exec({altManager, "update"});
+                    exec({altManager, "update"});
 
                 remove(lockFileName.c_str());
             }
@@ -631,9 +628,16 @@ bool AkVCam::IpcBridgePrivate::launchService()
 
     if (!isServicePortUp()) {
         AkLogDebug() << "Launching the service" << std::endl;
-        char cmd[4096];
-        snprintf(cmd, 4096, "start /b \"\" \"%s\"", locateServicePath().c_str());
-        system(cmd);
+        auto servicePath = locateServicePath();
+
+        if (!servicePath.empty()) {
+            //char cmd[4096];
+            //snprintf(cmd, 4096, "start /b \"\" \"%s\"", servicePath.c_str());
+            //system(cmd);
+            execDetached({servicePath});
+        } else {
+            AkLogDebug() << "Service path not found" << std::endl;
+        }
     }
 
     bool ok = false;
@@ -807,78 +811,6 @@ bool AkVCam::IpcBridgePrivate::isRoot() const
     CloseHandle(token);
 
     return elevationInfo.TokenIsElevated;
-}
-
-int AkVCam::IpcBridgePrivate::exec(const std::vector<std::string> &parameters,
-                                   const std::string &directory,
-                                   bool show)
-{
-    AkLogFunction();
-
-    if (parameters.size() < 1)
-        return E_FAIL;
-
-    auto command = parameters[0];
-    std::string params;
-    size_t i = 0;
-
-    for (auto &param: parameters) {
-        if (i < 1) {
-            i++;
-
-            continue;
-        }
-
-        if (!params.empty())
-            params += ' ';
-
-        auto param_ = replace(param, "\"", "\"\"\"");
-
-        if (param_.find(" ") == std::string::npos)
-            params += param_;
-        else
-            params += "\"" + param_ + "\"";
-    }
-
-    AkLogDebug() << "Command: " << command << std::endl;
-    AkLogDebug() << "Arguments: " << params << std::endl;
-
-    SHELLEXECUTEINFOA execInfo;
-    memset(&execInfo, 0, sizeof(SHELLEXECUTEINFO));
-    execInfo.cbSize = sizeof(SHELLEXECUTEINFO);
-    execInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-    execInfo.hwnd = nullptr;
-    execInfo.lpVerb = "";
-    execInfo.lpFile = command.data();
-    execInfo.lpParameters = params.data();
-    execInfo.lpDirectory = directory.data();
-    execInfo.nShow = show? SW_SHOWNORMAL: SW_HIDE;
-    execInfo.hInstApp = nullptr;
-    ShellExecuteExA(&execInfo);
-
-    if (!execInfo.hProcess) {
-        AkLogError() << "Failed executing command" << std::endl;
-
-        return E_FAIL;
-    }
-
-    WaitForSingleObject(execInfo.hProcess, INFINITE);
-
-    DWORD exitCode;
-    GetExitCodeProcess(execInfo.hProcess, &exitCode);
-    CloseHandle(execInfo.hProcess);
-
-    if (FAILED(exitCode))
-        AkLogError() << "Command failed with code "
-                     << exitCode
-                     << " ("
-                     << stringFromError(exitCode)
-                     << ")"
-                     << std::endl;
-
-    AkLogError() << "Command exited with code " << exitCode << std::endl;
-
-    return int(exitCode);
 }
 
 const std::vector<AkVCam::Hack> &AkVCam::IpcBridgePrivate::hacks()

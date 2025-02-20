@@ -1323,6 +1323,154 @@ bool AkVCam::isServicePortUp()
     return MessageClient::isUp(Preferences::servicePort());
 }
 
+int AkVCam::exec(const std::vector<std::string> &parameters,
+                 const std::string &directory,
+                 bool show)
+{
+    AkLogFunction();
+
+    if (parameters.size() < 1)
+        return E_FAIL;
+
+    auto command = parameters[0];
+    std::string params;
+    size_t i = 0;
+
+    for (auto &param: parameters) {
+        if (i < 1) {
+            i++;
+
+            continue;
+        }
+
+        if (!params.empty())
+            params += ' ';
+
+        auto param_ = replace(param, "\"", "\"\"\"");
+
+        if (param_.find(" ") == std::string::npos)
+            params += param_;
+        else
+            params += "\"" + param_ + "\"";
+    }
+
+    AkLogDebug() << "Command: " << command << std::endl;
+    AkLogDebug() << "Arguments: " << params << std::endl;
+
+    SHELLEXECUTEINFOA execInfo;
+    memset(&execInfo, 0, sizeof(SHELLEXECUTEINFO));
+    execInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+    execInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+    execInfo.hwnd = nullptr;
+    execInfo.lpVerb = "";
+    execInfo.lpFile = command.c_str();
+    execInfo.lpParameters = params.c_str();
+    execInfo.lpDirectory = directory.empty()? nullptr: directory.c_str();
+    execInfo.nShow = show? SW_SHOWNORMAL: SW_HIDE;
+    execInfo.hInstApp = nullptr;
+    ShellExecuteExA(&execInfo);
+
+    if (!execInfo.hProcess) {
+        AkLogError() << "Failed executing command" << std::endl;
+
+        return E_FAIL;
+    }
+
+    WaitForSingleObject(execInfo.hProcess, INFINITE);
+
+    DWORD exitCode;
+    GetExitCodeProcess(execInfo.hProcess, &exitCode);
+    CloseHandle(execInfo.hProcess);
+
+    if (FAILED(exitCode))
+        AkLogError() << "Command failed with code "
+                     << exitCode
+                     << " ("
+                     << stringFromError(exitCode)
+                     << ")"
+                     << std::endl;
+
+    AkLogError() << "Command exited with code " << exitCode << std::endl;
+
+    return int(exitCode);
+}
+
+bool AkVCam::execDetached(const std::vector<std::string> &parameters,
+                          const std::string &directory,
+                          bool show)
+{
+    AkLogFunction();
+
+    if (parameters.size() < 1)
+        return false;
+
+    auto command = parameters[0];
+    std::string params;
+    size_t i = 0;
+
+    for (auto &param: parameters) {
+        if (i < 1) {
+            i++;
+
+            continue;
+        }
+
+        if (!params.empty())
+            params += ' ';
+
+        auto param_ = replace(param, "\"", "\"\"\"");
+
+        if (param_.find(" ") == std::string::npos)
+            params += param_;
+        else
+            params += "\"" + param_ + "\"";
+    }
+
+    AkLogDebug() << "Command: " << command << std::endl;
+    AkLogDebug() << "Arguments: " << params << std::endl;
+
+    STARTUPINFOA startupInfo;
+    memset(&startupInfo, 0, sizeof(STARTUPINFOA));
+    PROCESS_INFORMATION processInformation;
+    memset(&processInformation, 0, sizeof(PROCESS_INFORMATION));
+    char cmdArgs[32768];
+    snprintf(cmdArgs, 32768, "%s", params.c_str());
+
+    if (!CreateProcessA(command.c_str(),
+                        cmdArgs,
+                        nullptr,
+                        nullptr,
+                        FALSE,
+                        CREATE_DEFAULT_ERROR_MODE
+                        | (show? 0: CREATE_NO_WINDOW)
+                        | DETACHED_PROCESS,
+                        nullptr,
+                        directory.empty()? nullptr: directory.c_str(),
+                        &startupInfo,
+                        &processInformation)) {
+        LPSTR errorMessage = nullptr;
+        size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER
+                                     | FORMAT_MESSAGE_FROM_SYSTEM
+                                     | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                     nullptr,
+                                     GetLastError(),
+                                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                     reinterpret_cast<LPSTR>(&errorMessage),
+                                     0,
+                                     nullptr);
+        AkLogCritical() << "Failed to execute the command: " << errorMessage << std::endl;
+        LocalFree(errorMessage);
+
+        return false;
+    }
+
+    CloseHandle(processInformation.hProcess);
+    CloseHandle(processInformation.hThread);
+    AkLogDebug() << "Command executed" << std::endl;
+
+    return true;
+}
+
 const std::vector<AkVCam::VideoFormatSpecsPrivate> &AkVCam::VideoFormatSpecsPrivate::formats()
 {
     static const DWORD bits555[] = {0x007c00, 0x0003e0, 0x00001f};

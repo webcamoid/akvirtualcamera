@@ -570,9 +570,15 @@ bool AkVCam::IpcBridgePrivate::launchService()
 
     if (!isServicePortUp()) {
         AkLogDebug() << "Launching the service" << std::endl;
-        char cmd[4096];
-        snprintf(cmd, 4096, "start /b \"\" \"%s\"", locateServicePath().c_str());
-        system(cmd);
+        auto servicePath = locateServicePath();
+
+        if (!servicePath.empty()) {
+            char cmd[4096];
+            snprintf(cmd, 4096, "\"%s\" &", locateServicePath().c_str());
+            system(cmd);
+        } else {
+            AkLogDebug() << "Service path not found" << std::endl;
+        }
     }
 
     bool ok = false;
