@@ -35,8 +35,8 @@ set(COMMONS_APPNAME AkVirtualCamera)
 string(TOLOWER ${COMMONS_APPNAME} COMMONS_TARGET)
 
 set(VER_MAJ 9)
-set(VER_MIN 1)
-set(VER_PAT 3)
+set(VER_MIN 2)
+set(VER_PAT 0)
 set(VERSION ${VER_MAJ}.${VER_MIN}.${VER_PAT})
 set(DAILY_BUILD OFF CACHE BOOL "Mark this as a daily build")
 
