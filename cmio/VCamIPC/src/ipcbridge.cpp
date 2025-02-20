@@ -884,8 +884,14 @@ AkVCam::Hack &AkVCam::Hack::operator =(const Hack &other)
 }
 
 #ifdef VCAMIPC_LIBRARY_SHARED
-extern "C" AkVCam::IpcBridgePtr akCreateBridge()
+extern "C" AkVCam::IpcBridge *akCreateBridge()
 {
-    return std::make_shared<AkVCam::IpcBridge>();
+    return new AkVCam::IpcBridge;
+}
+
+extern "C" void akDestroyBridge(AkVCam::IpcBridge *bridge)
+{
+    if (bridge)
+        delete AkVCam::IpcBridge;
 }
 #endif

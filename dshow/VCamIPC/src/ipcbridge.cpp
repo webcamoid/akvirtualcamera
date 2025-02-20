@@ -630,14 +630,10 @@ bool AkVCam::IpcBridgePrivate::launchService()
         AkLogDebug() << "Launching the service" << std::endl;
         auto servicePath = locateServicePath();
 
-        if (!servicePath.empty()) {
-            //char cmd[4096];
-            //snprintf(cmd, 4096, "start /b \"\" \"%s\"", servicePath.c_str());
-            //system(cmd);
+        if (!servicePath.empty())
             execDetached({servicePath});
-        } else {
+        else
             AkLogDebug() << "Service path not found" << std::endl;
-        }
     }
 
     bool ok = false;
@@ -863,8 +859,14 @@ AkVCam::Hack &AkVCam::Hack::operator =(const Hack &other)
 }
 
 #ifdef VCAMIPC_LIBRARY_SHARED
-extern "C" AkVCam::IpcBridgePtr akCreateBridge()
+extern "C" AkVCam::IpcBridge *akCreateBridge()
 {
-    return std::make_shared<AkVCam::IpcBridge>();
+    return new AkVCam::IpcBridge;
+}
+
+extern "C" void akDestroyBridge(AkVCam::IpcBridge *bridge)
+{
+    if (bridge)
+        delete AkVCam::IpcBridge;
 }
 #endif

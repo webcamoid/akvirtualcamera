@@ -160,8 +160,8 @@ std::string AkVCam::Preferences::readString(const std::string &key,
     auto value = defaultValue;
 
     if (cfValue) {
-        auto len = size_t(CFStringGetLength(cfValue));
-        auto data = CFStringGetCStringPtr(cfValue, kCFStringEncodingUTF8);
+        auto len = size_t(CFStringGetLength(CFStringRef(cfValue)));
+        auto data = CFStringGetCStringPtr(CFStringRef(cfValue), kCFStringEncodingUTF8);
 
         if (data) {
             value = std::string(data, len);
