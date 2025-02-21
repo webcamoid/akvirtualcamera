@@ -30,9 +30,10 @@
 #include "device.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
+#include "VCamUtils/src/logger.h"
+#include "VCamUtils/src/timer.h"
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/videoframe.h"
-#include "VCamUtils/src/logger.h"
 
 namespace AkVCam
 {
