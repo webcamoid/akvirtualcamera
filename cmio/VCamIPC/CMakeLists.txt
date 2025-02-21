@@ -19,9 +19,12 @@
 cmake_minimum_required(VERSION 3.14)
 
 project(VCamIPC_cmio LANGUAGES CXX)
-project(VCamIPC_cmio_shared LANGUAGES CXX)
 
 include(../../commons.cmake)
+
+if (BUILD_BRIDGE)
+    project(VCamIPC_cmio_shared LANGUAGES CXX)
+endif ()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 11)
@@ -32,38 +35,57 @@ set(SOURCES
 
 if (APPLE OR FAKE_APPLE)
     add_library(VCamIPC_cmio STATIC ${SOURCES})
-    add_library(VCamIPC_cmio_shared SHARED ${SOURCES})
-    set_target_properties(VCamIPC_cmio_shared PROPERTIES
-                          OUTPUT_NAME ${AKVCAM_BRIDGE_NAME}
-                          LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${LIBDIR}
-                          RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR}
-                          PREFIX "")
+
+    if (BUILD_BRIDGE)
+        add_library(VCamIPC_cmio_shared SHARED ${SOURCES})
+        set_target_properties(VCamIPC_cmio_shared PROPERTIES
+                              OUTPUT_NAME ${AKVCAM_BRIDGE_NAME}
+                              LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${LIBDIR}
+                              RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR}
+                              PREFIX "")
+    endif ()
 else ()
     add_library(VCamIPC_cmio STATIC EXCLUDE_FROM_ALL ${SOURCES})
-    add_library(VCamIPC_cmio_shared SHARED EXCLUDE_FROM_ALL ${SOURCES})
+
+    if (BUILD_BRIDGE)
+        add_library(VCamIPC_cmio_shared SHARED EXCLUDE_FROM_ALL ${SOURCES})
+    endif ()
 endif ()
 
 add_dependencies(VCamIPC_cmio VCamUtils)
-add_dependencies(VCamIPC_cmio_shared VCamUtils)
+
+if (BUILD_BRIDGE)
+    add_dependencies(VCamIPC_cmio_shared VCamUtils)
+endif ()
 
 target_compile_definitions(VCamIPC_cmio PRIVATE VCAMIPC_LIBRARY)
-target_compile_definitions(VCamIPC_cmio_shared PRIVATE VCAMIPC_LIBRARY_SHARED)
+
+if (BUILD_BRIDGE)
+    target_compile_definitions(VCamIPC_cmio_shared PRIVATE VCAMIPC_LIBRARY_SHARED)
+endif ()
+
 target_include_directories(VCamIPC_cmio
                            PRIVATE
                            ..
                            ../..)
-target_include_directories(VCamIPC_cmio_shared
-                           PRIVATE
-                           ..
-                           ../..)
+
+if (BUILD_BRIDGE)
+    target_include_directories(VCamIPC_cmio_shared
+                               PRIVATE
+                               ..
+                               ../..)
+endif ()
 
 if (FAKE_APPLE)
     target_include_directories(VCamIPC_cmio
                                PRIVATE
                                ../FakeAPI)
-    target_include_directories(VCamIPC_cmio_shared
-                               PRIVATE
-                               ../FakeAPI)
+
+    if (BUILD_BRIDGE)
+        target_include_directories(VCamIPC_cmio_shared
+                                   PRIVATE
+                                   ../FakeAPI)
+    endif ()
 endif ()
 
 if (APPLE OR FAKE_APPLE)
@@ -76,15 +98,17 @@ endif ()
 target_link_libraries(VCamIPC_cmio
                       VCamUtils
                       ${EXTRA_LIBS})
-target_link_libraries(VCamIPC_cmio_shared
-                      VCamUtils
-                      ${EXTRA_LIBS})
+
+if (BUILD_BRIDGE)
+    target_link_libraries(VCamIPC_cmio_shared
+                          VCamUtils
+                          ${EXTRA_LIBS})
+endif ()
 
 if (FAKE_APPLE)
     add_definitions(-DFAKE_APPLE)
 endif ()
-    add_definitions(-DFAKE_APPLE)
 
-if (APPLE OR FAKE_APPLE)
+if (BUILD_BRIDGE AND (APPLE OR FAKE_APPLE))
     install(TARGETS VCamIPC_cmio_shared DESTINATION ${LIBDIR})
 endif ()

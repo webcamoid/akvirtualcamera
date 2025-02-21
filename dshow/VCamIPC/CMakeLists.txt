@@ -19,9 +19,12 @@
 cmake_minimum_required(VERSION 3.14)
 
 project(VCamIPC_dshow LANGUAGES CXX)
-project(VCamIPC_dshow_shared LANGUAGES CXX)
 
 include(../../commons.cmake)
+
+if (BUILD_BRIDGE)
+    project(VCamIPC_dshow_shared LANGUAGES CXX)
+endif ()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 11)
@@ -32,27 +35,44 @@ set(SOURCES
 
 if (WIN32)
     add_library(VCamIPC_dshow STATIC ${SOURCES})
-    add_library(VCamIPC_dshow_shared SHARED ${SOURCES})
-    set_target_properties(VCamIPC_dshow_shared PROPERTIES
-                          OUTPUT_NAME ${AKVCAM_BRIDGE_NAME}
-                          LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${LIBDIR}
-                          RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR}
-                          PREFIX "")
+
+    if (BUILD_BRIDGE)
+        add_library(VCamIPC_dshow_shared SHARED ${SOURCES})
+        set_target_properties(VCamIPC_dshow_shared PROPERTIES
+                              OUTPUT_NAME ${AKVCAM_BRIDGE_NAME}
+                              LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${LIBDIR}
+                              RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR}
+                              PREFIX "")
+    endif ()
 else ()
     add_library(VCamIPC_dshow STATIC EXCLUDE_FROM_ALL ${SOURCES})
-    add_library(VCamIPC_dshow_shared SHARED EXCLUDE_FROM_ALL ${SOURCES})
+
+    if (BUILD_BRIDGE)
+        add_library(VCamIPC_dshow_shared SHARED EXCLUDE_FROM_ALL ${SOURCES})
+    endif ()
 endif ()
 
 add_dependencies(VCamIPC_dshow PlatformUtils_dshow VCamUtils)
-add_dependencies(VCamIPC_dshow_shared PlatformUtils_dshow VCamUtils)
+
+if (BUILD_BRIDGE)
+    add_dependencies(VCamIPC_dshow_shared PlatformUtils_dshow VCamUtils)
+endif ()
+
 target_compile_definitions(VCamIPC_dshow PRIVATE VCAMIPC_LIBRARY)
-target_compile_definitions(VCamIPC_dshow_shared PRIVATE VCAMIPC_LIBRARY_SHARED)
+
+if (BUILD_BRIDGE)
+    target_compile_definitions(VCamIPC_dshow_shared PRIVATE VCAMIPC_LIBRARY_SHARED)
+endif ()
+
 target_include_directories(VCamIPC_dshow
                            PRIVATE ..
                            PRIVATE ../..)
-target_include_directories(VCamIPC_dshow_shared
-                           PRIVATE ..
-                           PRIVATE ../..)
+
+if (BUILD_BRIDGE)
+    target_include_directories(VCamIPC_dshow_shared
+                               PRIVATE ..
+                               PRIVATE ../..)
+endif ()
 
 if (WIN32)
     set(EXTRA_LIBS
@@ -62,8 +82,11 @@ if (WIN32)
 endif ()
 
 target_link_libraries(VCamIPC_dshow PlatformUtils_dshow ${EXTRA_LIBS})
-target_link_libraries(VCamIPC_dshow_shared PlatformUtils_dshow ${EXTRA_LIBS})
 
-if (WIN32)
+if (BUILD_BRIDGE)
+    target_link_libraries(VCamIPC_dshow_shared PlatformUtils_dshow ${EXTRA_LIBS})
+endif ()
+
+if (BUILD_BRIDGE AND WIN32)
     install(TARGETS VCamIPC_dshow_shared DESTINATION ${BINDIR})
 endif ()

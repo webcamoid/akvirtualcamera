@@ -275,3 +275,5 @@ elseif (WIN32)
     set(PACKET_HIDE_ARCH true)
     set(OUTPUT_FORMATS "Nsis")
 endif ()
+
+set(BUILD_BRIDGE OFF CACHE BOOL "Build the bridge shared library (very experimental and unestable API)")

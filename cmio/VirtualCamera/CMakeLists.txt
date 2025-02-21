@@ -108,6 +108,10 @@ target_link_libraries(VirtualCamera_cmio
                       VCamUtils
                       ${EXTRA_LIBS})
 
+if (FAKE_APPLE)
+    add_definitions(-DFAKE_APPLE)
+endif ()
+
 if (APPLE OR FAKE_APPLE)
     install(TARGETS VirtualCamera_cmio DESTINATION ${BINDIR})
     install(FILES ${CMAKE_BINARY_DIR}/${BUILDDIR}/${EXECPREFIX}/Info.plist DESTINATION ${EXECPREFIX})
