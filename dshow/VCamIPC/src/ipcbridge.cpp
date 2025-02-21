@@ -867,6 +867,6 @@ extern "C" AkVCam::IpcBridge *akCreateBridge()
 extern "C" void akDestroyBridge(AkVCam::IpcBridge *bridge)
 {
     if (bridge)
-        delete AkVCam::IpcBridge;
+        delete bridge;
 }
 #endif
