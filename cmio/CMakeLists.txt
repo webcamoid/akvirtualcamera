@@ -20,7 +20,6 @@ cmake_minimum_required(VERSION 3.5)
 
 project(cmio)
 
-add_subdirectory(PlatformUtilsObjC)
 add_subdirectory(PlatformUtils)
 add_subdirectory(VCamIPC)
 add_subdirectory(VirtualCamera)

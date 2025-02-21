@@ -38,9 +38,5 @@
             <string>41764B79-7320-5643-616D-363462697473</string>
         </array>
         </dict>
-        <key>CMIOHardwareAssistantServiceNames</key>
-        <array>
-            <string>org.webcamoid.cmio.AkVCam.Assistant</string>
-        </array>
     </dict>
 </plist>

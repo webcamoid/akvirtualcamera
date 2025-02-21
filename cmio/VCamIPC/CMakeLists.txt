@@ -46,11 +46,6 @@ endif ()
 add_dependencies(VCamIPC_cmio VCamUtils)
 add_dependencies(VCamIPC_cmio_shared VCamUtils)
 
-if (APPLE)
-    add_dependencies(VCamIPC_cmio PlatformUtilsObjC_cmio)
-    add_dependencies(VCamIPC_cmio_shared PlatformUtilsObjC_cmio)
-endif ()
-
 target_compile_definitions(VCamIPC_cmio PRIVATE VCAMIPC_LIBRARY)
 target_compile_definitions(VCamIPC_cmio_shared PRIVATE VCAMIPC_LIBRARY_SHARED)
 target_include_directories(VCamIPC_cmio
@@ -78,18 +73,12 @@ if (APPLE OR FAKE_APPLE)
     endif ()
 endif ()
 
-if (APPLE)
-    set(EXTRA_OBJC PlatformUtilsObjC_cmio)
-endif ()
-
 target_link_libraries(VCamIPC_cmio
                       VCamUtils
-                      ${EXTRA_LIBS}
-                      ${EXTRA_OBJC})
+                      ${EXTRA_LIBS})
 target_link_libraries(VCamIPC_cmio_shared
                       VCamUtils
-                      ${EXTRA_LIBS}
-                      ${EXTRA_OBJC})
+                      ${EXTRA_LIBS})
 
 if (FAKE_APPLE)
     add_definitions(-DFAKE_APPLE)

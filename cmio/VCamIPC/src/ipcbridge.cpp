@@ -123,7 +123,6 @@ namespace AkVCam
 
             // Hacks
             const std::vector<Hack> &hacks();
-            int disableLibraryValidation(const std::vector<std::string> &args);
             int codeResign(const std::vector<std::string> &args);
             int unsign(const std::vector<std::string> &args);
             int disableSIP(const std::vector<std::string> &args);
@@ -737,11 +736,6 @@ bool AkVCam::IpcBridgePrivate::isRoot() const
 const std::vector<AkVCam::Hack> &AkVCam::IpcBridgePrivate::hacks()
 {
     static const std::vector<AkVCam::Hack> hacks {
-        {"disable-library-validation",
-         "Disable external plugins validation in app bundle",
-         false,
-         false,
-         AKVCAM_BIND_HACK_FUNC(IpcBridgePrivate::disableLibraryValidation)},
         {"code-re-sign",
          "Remove app code signature and re-sign it with a developer signature",
          false,
@@ -760,17 +754,6 @@ const std::vector<AkVCam::Hack> &AkVCam::IpcBridgePrivate::hacks()
     };
 
     return hacks;
-}
-
-int AkVCam::IpcBridgePrivate::disableLibraryValidation(const std::vector<std::string> &args)
-{
-#ifndef FAKE_APPLE
-    return AkVCam::disableLibraryValidation(args);
-#else
-    std::cerr << "Not implemented." << std::endl;
-
-    return -1;
-#endif
 }
 
 int AkVCam::IpcBridgePrivate::codeResign(const std::vector<std::string> &args)

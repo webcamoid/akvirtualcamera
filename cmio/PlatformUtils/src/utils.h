@@ -28,10 +28,6 @@
 
 #include "VCamUtils/src/videoformattypes.h"
 
-#ifndef FAKE_APPLE
-#include "PlatformUtilsObjC/src/hacks.h"
-#endif
-
 namespace AkVCam
 {
     class VideoFrame;
