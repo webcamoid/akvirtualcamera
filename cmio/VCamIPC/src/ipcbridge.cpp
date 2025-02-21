@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <condition_variable>
 #include <fstream>
 #include <thread>
 #include <unistd.h>
