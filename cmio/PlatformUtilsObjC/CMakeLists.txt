@@ -42,7 +42,10 @@ endif ()
 
 add_dependencies(PlatformUtilsObjC_cmio PlatformUtils_cmio VCamUtils)
 target_compile_definitions(PlatformUtilsObjC_cmio PRIVATE PLATFORMUTILSOBJC_LIBRARY)
-target_include_directories(PlatformUtilsObjC_cmio PRIVATE ../..)
+target_include_directories(PlatformUtilsObjC_cmio
+                           PRIVATE
+                           ..
+                           ../..)
 
 if (APPLE)
     find_library(COREFOUNDATION_FRAMEWORK NAMES CoreFoundation)
