@@ -559,9 +559,9 @@ bool AkVCam::ObjectProperties::getProperty(UInt32 property,
                     };
                     array = CFArrayCreate(kCFAllocatorDefault,
 #ifdef FAKE_APPLE
-                                          const_cast<const void **>(reinterpret_cast<void **>(formats.data())),
+                                          reinterpret_cast<const void **>(const_cast<const CMFormatDescription **>(formats.data())),
 #else
-                                          const_cast<const void **>(formats.data()),
+                                          reinterpret_cast<const void **>(formats.data()),
 #endif
                                           UInt32(formats.size()),
                                           &callbacks);
