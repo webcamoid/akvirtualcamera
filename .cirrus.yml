@@ -1,5 +1,10 @@
 mac_task:
   matrix:
+    - name: MacOS Sequoia (15.0)
+      macos_instance:
+        image: ghcr.io/cirruslabs/macos-sequoia-base:latest
+      env:
+        UPLOAD: 0
     - name: MacOS Sonoma (14.0)
       macos_instance:
         image: ghcr.io/cirruslabs/macos-sonoma-base:latest
