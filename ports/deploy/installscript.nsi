@@ -21,7 +21,6 @@
 
 Var arch
 Var narchs
-Var assistantPath
 Var managerPath
 
 Function InstallPlugin
@@ -33,19 +32,6 @@ Function InstallPlugin
         StrCpy $narchs 2
     ${EndIf}
 
-    ${For} $R1 1 $narchs
-        Pop $arch
-
-        # Load assistant daemon.
-        StrCpy $assistantPath "$INSTDIR\$arch\AkVCamAssistant.exe"
-
-        ${If} ${FileExists} "$assistantPath"
-            ExecShellWait "" "$assistantPath" "--install" SW_HIDE
-        ${EndIf}
-
-        ExecShellWait "" "sc" "start AkVCamAssistant" SW_HIDE
-    ${Next}
-    
     ${If} ${RunningX64}
         SetRegView 64
     ${EndIf}
@@ -66,23 +52,12 @@ Function un.InstallPlugin
     ${For} $R1 1 $narchs
         Pop $arch
 
-        # If the assistant is not running, start it so it won't hang the manager.
-        StrCpy $assistantPath "$INSTDIR\$arch\AkVCamAssistant.exe"
-        ExecShellWait "" "sc" "start AkVCamAssistant" SW_HIDE
-
         # Remove virtual cameras
         StrCpy $managerPath "$INSTDIR\$arch\AkVCamManager.exe"
 
         ${If} ${FileExists} "$managerPath"
             ExecShellWait "" "$managerPath" "remove-devices" SW_HIDE
             ExecShellWait "" "$managerPath" "update" SW_HIDE
-        ${EndIf}
-
-        # Uninstall assistant daemon.
-        ExecShellWait "" "sc" "stop AkVCamAssistant" SW_HIDE
-
-        ${If} ${FileExists} "$assistantPath"
-            ExecShellWait "" "$assistantPath" "--uninstall" SW_HIDE
         ${EndIf}
 
         # If the assistant is still alive, kill it, no mercy.
