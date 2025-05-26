@@ -172,6 +172,20 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
         return false;
     }
 
+    // Configure the socket operations timeout
+
+#ifdef _WIN32
+    DWORD timeout = 5000; // 5 seconds
+    setsockopt(clientSocket, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
+    setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
+#else
+    struct timeval timeout;
+    timeout.tv_sec = 5;  // 5 seconds
+    timeout.tv_usec = 0;
+    setsockopt(clientSocket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+    setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+#endif
+
     // Set the port
     sockaddr_in serverAddress;
     serverAddress.sin_family = AF_INET;
@@ -183,6 +197,7 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
                 reinterpret_cast<sockaddr *>(&serverAddress),
                 sizeof(sockaddr_in)) != 0) {
         AkLogDebug() << "Failed to connect with the server" << std::endl;
+        Sockets::closeSocket(clientSocket);
 
         return false;
     }

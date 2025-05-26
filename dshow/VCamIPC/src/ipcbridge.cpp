@@ -429,6 +429,11 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
                                     const std::string &deviceId)
 {
     AkLogFunction();
+    AkLogDebug() << "Starting device: "
+                 << deviceId
+                 << " with type: "
+                 << (type == StreamType_Input? "Input": "Output")
+                 << std::endl;
 
     this->d->m_broadcastsMutex.lock();
 
@@ -446,15 +451,17 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
 
     if (type == StreamType_Input) {
         slot.messageFuture =
-        this->d->m_messageClient.send(MsgListen(deviceId, currentPid()).toMessage(),
-                                      std::bind(&IpcBridgePrivate::frameReady,
-                                                this->d,
-                                                std::placeholders::_1));
-    } else  {
+            this->d->m_messageClient.send(MsgListen(deviceId, currentPid()).toMessage(),
+                                          std::bind(&IpcBridgePrivate::frameReady,
+                                                    this->d,
+                                                    std::placeholders::_1));
+        AkLogDebug() << "Started input stream for device: " << deviceId << std::endl;
+    } else {
         slot.messageFuture =
-        this->d->m_messageClient.send([this, deviceId] (Message &message) -> bool {
+            this->d->m_messageClient.send([this, deviceId] (Message &message) -> bool {
             return this->d->frameRequired(deviceId, message);
         });
+        AkLogDebug() << "Started output stream for device: " << deviceId << std::endl;
     }
 
     this->d->m_broadcastsMutex.unlock();
@@ -465,21 +472,43 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
 void AkVCam::IpcBridge::deviceStop(const std::string &deviceId)
 {
     AkLogFunction();
+    AkLogDebug() << "Stopping device: " << deviceId << std::endl;
 
-    this->d->m_broadcastsMutex.lock();
+    std::future<bool> messageFuture;
 
-    if (this->d->m_broadcasts.count(deviceId) < 1) {
-        this->d->m_broadcastsMutex.unlock();
+    {
+        std::lock_guard<std::mutex> lock(this->d->m_broadcastsMutex);
 
-        return;
+        if (this->d->m_broadcasts.count(deviceId) < 1) {
+            AkLogDebug() << "Device " << deviceId << " not found in broadcasts" << std::endl;
+            return;
+        }
+
+        auto &slot = this->d->m_broadcasts[deviceId];
+        slot.run = false;
+        messageFuture = std::move(slot.messageFuture); // Move the future
+        AkLogDebug() << "Set run = false for device: " << deviceId << std::endl;
+    } // m_broadcastsMutex is released here
+
+    // Wait for the connection loop to end
+    if (messageFuture.valid()) {
+        AkLogDebug() << "Waiting for messageFuture for device: " << deviceId << std::endl;
+        auto status = messageFuture.wait_for(std::chrono::seconds(5));
+
+        if (status == std::future_status::timeout)
+            AkLogWarning() << "Timeout waiting for messageFuture in deviceStop for deviceId: " << deviceId << std::endl;
+        else
+            AkLogDebug() << "messageFuture completed for device: " << deviceId << std::endl;
+    } else {
+        AkLogWarning() << "Invalid messageFuture for device: " << deviceId << std::endl;
     }
 
-    auto &slot = this->d->m_broadcasts[deviceId];
-    slot.run = false;
-    slot.messageFuture.wait();
-    this->d->m_broadcasts.erase(deviceId);
-
-    this->d->m_broadcastsMutex.unlock();
+    // Remove the device after the future is complete
+    {
+        std::lock_guard<std::mutex> lock(this->d->m_broadcastsMutex);
+        this->d->m_broadcasts.erase(deviceId);
+        AkLogDebug() << "Device " << deviceId << " removed from broadcasts" << std::endl;
+    }
 }
 
 bool AkVCam::IpcBridge::write(const std::string &deviceId,
@@ -858,16 +887,3 @@ AkVCam::Hack &AkVCam::Hack::operator =(const Hack &other)
 
     return *this;
 }
-
-#ifdef VCAMIPC_LIBRARY_SHARED
-extern "C" AkVCam::IpcBridge *akCreateBridge()
-{
-    return new AkVCam::IpcBridge;
-}
-
-extern "C" void akDestroyBridge(AkVCam::IpcBridge *bridge)
-{
-    if (bridge)
-        delete bridge;
-}
-#endif
