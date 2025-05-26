@@ -52,6 +52,8 @@ namespace AkVCam
     std::string currentBinaryPath();
     bool isServiceRunning();
     bool isServicePortUp();
+    bool needsRoot(const std::string &task);
+    int sudo(const std::vector<std::string> &parameters);
 }
 
 #endif // PLATFORM_UTILS_H

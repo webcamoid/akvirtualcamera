@@ -1544,3 +1544,73 @@ std::string AkVCam::pluginInstallPath()
 {
     return realPath(dirname(currentBinaryPath()) + "\\..");
 }
+
+bool AkVCam::needsRoot(const std::string &task)
+{
+    UNUSED(task);
+
+    static const char *akvcamRootRequiredTasks[] = {
+        "add-device",
+        "remove-device",
+        "remove-devices",
+        "set-description",
+        "add-format",
+        "remove-format",
+        "remove-formats",
+        "update",
+        "load",
+        "set-picture",
+        "set-loglevel",
+        nullptr
+    };
+
+    for (auto str = akvcamRootRequiredTasks; *str; ++str)
+        if (*str == task)
+            return true;
+
+    return false;
+}
+
+int AkVCam::sudo(const std::vector<std::string> &parameters)
+{
+    // Validate input
+    if (parameters.empty())
+        return -EINVAL; // Invalid argument
+
+    // Build command line
+    std::string commandLine = parameters[0];
+
+    for (size_t i = 1; i < parameters.size(); ++i) {
+        commandLine += " ";
+
+        if (parameters[i].find(' ') != std::string::npos)
+            commandLine += "\"" + parameters[i] + "\"";
+        else
+            commandLine += parameters[i];
+    }
+
+    // Set up ShellExecuteEx for elevated execution
+    SHELLEXECUTEINFOA execInfo;
+    memset(&execInfo, 0, sizeof(SHELLEXECUTEINFOA));
+    execInfo.cbSize = sizeof(SHELLEXECUTEINFOA);
+    execInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+    execInfo.lpVerb = "runas"; // Request elevation
+    execInfo.lpFile = parameters[0].c_str();
+    execInfo.lpParameters =
+            commandLine.substr(parameters[0].length() + 1).c_str();
+    execInfo.nShow = SW_HIDE;
+
+    // Execute command with elevation
+    if (!ShellExecuteExA(&execInfo) || !execInfo.hProcess)
+        return -ENOEXEC; // Executable format error or execution failure
+
+    // Wait for process to complete
+    WaitForSingleObject(execInfo.hProcess, INFINITE);
+
+    // Get exit code
+    DWORD exitCode;
+    GetExitCodeProcess(execInfo.hProcess, &exitCode);
+    CloseHandle(execInfo.hProcess);
+
+    return static_cast<int>(exitCode);
+}

@@ -37,6 +37,7 @@ namespace AkVCam
 
     enum ControlType
     {
+        ControlTypeUnknown = -1,
         ControlTypeInteger,
         ControlTypeBoolean,
         ControlTypeMenu,

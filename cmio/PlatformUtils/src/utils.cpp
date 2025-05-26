@@ -440,3 +440,17 @@ std::string AkVCam::pluginInstallPath()
 {
     return realPath(dirname(currentBinaryPath()) + "/../../..");
 }
+
+bool AkVCam::needsRoot(const std::string &task)
+{
+    UNUSED(task);
+
+    return false;
+}
+
+int AkVCam::sudo(const std::vector<std::string> &parameters)
+{
+    UNUSED(parameters);
+
+    return 0;
+}

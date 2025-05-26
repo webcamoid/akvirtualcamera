@@ -24,6 +24,7 @@ include(commons.cmake)
 
 add_subdirectory(VCamUtils)
 add_subdirectory(Manager)
+add_subdirectory(capi)
 add_subdirectory(Service)
 add_subdirectory(cmio)
 add_subdirectory(dshow)

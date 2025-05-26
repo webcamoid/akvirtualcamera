@@ -691,16 +691,16 @@ bool AkVCam::IpcBridgePrivate::frameRequired(const std::string &deviceId,
 
     auto &slot = this->m_broadcasts[deviceId];
 
-    slot.frameMutex.lock();
+    std::unique_lock<std::mutex> lock(slot.frameMutex);
 
     if (!slot.available)
-        slot.frameAvailable.wait_for(this->m_broadcastsMutex,
+        slot.frameAvailable.wait_for(lock,
                                      std::chrono::seconds(1));
 
     auto frame = slot.frame;
     auto run = slot.run;
     slot.available = false;
-    slot.frameMutex.unlock();
+    lock.unlock();
 
     message = MsgBroadcast(deviceId, currentPid(), frame).toMessage();
     this->m_broadcastsMutex.unlock();

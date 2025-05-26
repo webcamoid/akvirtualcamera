@@ -937,9 +937,8 @@ int AkVCam::CmdParserPrivate::removeDevices(const AkVCam::StringMap &flags,
 {
     UNUSED(flags);
     UNUSED(args);
-    auto devices = this->m_ipcBridge.devices();
 
-    for (auto &device: devices)
+    for (auto &device: this->m_ipcBridge.devices())
         this->m_ipcBridge.removeDevice(device);
 
     return 0;
@@ -1776,7 +1775,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
 }
 
 int AkVCam::CmdParserPrivate::picture(const AkVCam::StringMap &flags,
-                                    const AkVCam::StringVector &args)
+                                      const AkVCam::StringVector &args)
 {
     UNUSED(flags);
     UNUSED(args);
@@ -1787,7 +1786,7 @@ int AkVCam::CmdParserPrivate::picture(const AkVCam::StringMap &flags,
 }
 
 int AkVCam::CmdParserPrivate::setPicture(const AkVCam::StringMap &flags,
-                                       const AkVCam::StringVector &args)
+                                         const AkVCam::StringVector &args)
 {
     UNUSED(flags);
 
@@ -2262,17 +2261,17 @@ std::vector<AkVCam::VideoFormat> AkVCam::CmdParserPrivate::readFormat(Settings &
     formatMatrix.push_back(heights);
     formatMatrix.push_back(frameRates);
 
-    for (auto &format_list: this->matrixCombine(formatMatrix)) {
-        auto pixFormat = VideoFormat::fourccFromString(format_list[0]);
+    for (auto &formatList: this->matrixCombine(formatMatrix)) {
+        auto pixFormat = VideoFormat::fourccFromString(formatList[0]);
         char *p = nullptr;
-        auto width = strtol(format_list[1].c_str(), &p, 10);
+        auto width = strtol(formatList[1].c_str(), &p, 10);
         p = nullptr;
-        auto height = strtol(format_list[2].c_str(), &p, 10);
-        Fraction frame_rate(format_list[3]);
+        auto height = strtol(formatList[2].c_str(), &p, 10);
+        Fraction frameRate(formatList[3]);
         VideoFormat format(pixFormat,
                            width,
                            height,
-                           {frame_rate});
+                           {frameRate});
 
         if (format.isValid())
             formats.push_back(format);
@@ -2315,9 +2314,7 @@ void AkVCam::CmdParserPrivate::matrixCombineP(const StringMatrix &matrix,
 void AkVCam::CmdParserPrivate::createDevices(Settings &settings,
                                              const VideoFormatMatrix &availableFormats)
 {
-    auto devices = this->m_ipcBridge.devices();
-
-    for (auto &device: devices)
+    for (auto &device: this->m_ipcBridge.devices())
         this->m_ipcBridge.removeDevice(device);
 
     settings.beginGroup("Cameras");

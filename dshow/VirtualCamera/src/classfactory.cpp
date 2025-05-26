@@ -79,6 +79,10 @@ HRESULT AkVCam::ClassFactory::QueryInterface(const IID &riid, void **ppvObject)
     } else if (IsEqualIID(riid, IID_IBaseFilter)) {
         auto baseFilter = BaseFilter::create(this->d->m_clsid);
         AkLogInterface(IBaseFilter, baseFilter);
+
+        if (!baseFilter)
+            return E_FAIL;
+
         baseFilter->AddRef();
         *ppvObject = baseFilter;
 

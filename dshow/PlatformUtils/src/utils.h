@@ -90,6 +90,8 @@ namespace AkVCam
     bool execDetached(const std::vector<std::string> &parameters,
                       const std::string &directory={},
                       bool show=false);
+    bool needsRoot(const std::string &task);
+    int sudo(const std::vector<std::string> &parameters);
 }
 
 #endif // PLATFORM_UTILS_H

@@ -23,7 +23,7 @@ cmake_minimum_required(VERSION 3.5)
 # NOTE: No, this option isn't for cross compile, the resulting binaries are not
 # compatible with Mac, this option allows to test the virtual camera outside
 # Mac.
-set(FAKE_APPLE OFF CACHE BOOL "Virtual camera in Linux and other POSIX systems as if you were building it for APPLE")
+set(FAKE_APPLE OFF CACHE BOOL "Build the virtual camera in Linux and other POSIX systems as if you were building it for APPLE")
 
 if (NOT (APPLE OR FAKE_APPLE) AND NOT WIN32)
     message(FATAL_ERROR "This driver only works in Mac an Windows. For Linux check 'akvcam' instead.")
@@ -42,7 +42,9 @@ set(DAILY_BUILD OFF CACHE BOOL "Mark this as a daily build")
 
 add_definitions(-DCOMMONS_APPNAME="${COMMONS_APPNAME}"
                 -DCOMMONS_TARGET="${COMMONS_TARGET}"
-                -DCOMMONS_VER_MAJ="${VER_MAJ}"
+                -DCOMMONS_VER_MAJ=${VER_MAJ}
+                -DCOMMONS_VER_MIN=${VER_MIN}
+                -DCOMMONS_VER_PAT=${VER_PAT}
                 -DCOMMONS_VERSION="${VERSION}"
                 -DPREFIX="${PREFIX}")
 
@@ -275,5 +277,3 @@ elseif (WIN32)
     set(PACKET_HIDE_ARCH true)
     set(OUTPUT_FORMATS "Nsis")
 endif ()
-
-set(BUILD_BRIDGE OFF CACHE BOOL "Build the bridge shared library (very experimental and unestable API)")
