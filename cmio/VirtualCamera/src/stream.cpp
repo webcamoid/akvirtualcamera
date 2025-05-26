@@ -288,6 +288,8 @@ void AkVCam::Stream::frameReady(const AkVCam::VideoFrame &frame, bool isActive)
     if (!this->d->m_running)
         return;
 
+    AkLogInfo() << "Active: " << isActive << std::endl;
+
     this->d->m_mutex.lock();
 
     auto frameAdjusted =
@@ -295,6 +297,8 @@ void AkVCam::Stream::frameReady(const AkVCam::VideoFrame &frame, bool isActive)
 
     if (frameAdjusted.format().size() > 0)
         this->d->m_currentFrame = frameAdjusted;
+    else
+        this->d->m_currentFrame.clear();
 
     this->d->m_mutex.unlock();
 }

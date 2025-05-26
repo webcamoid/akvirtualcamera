@@ -274,12 +274,16 @@ void AkVCam::Pin::frameReady(const VideoFrame &frame, bool isActive)
     if (!this->d->m_running)
         return;
 
+    AkLogInfo() << "Active: " << isActive << std::endl;
+
     this->d->m_mutex.lock();
     auto frameAdjusted =
             this->d->applyAdjusts(isActive? frame: this->d->m_testFrame);
 
     if (frameAdjusted.format().size() > 0)
         this->d->m_currentFrame = frameAdjusted;
+    else
+        this->d->m_currentFrame.clear();
 
     this->d->m_mutex.unlock();
 }
