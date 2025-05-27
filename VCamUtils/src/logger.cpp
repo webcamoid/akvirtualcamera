@@ -152,16 +152,16 @@ std::string AkVCam::Logger::header(int logLevel,
 
     thread_local char buffer[256];
 
-#ifdef _MSC_VER
-    snprintf_s(buffer,
-               sizeof(buffer),
-               "%s.%03lld, %llu, %s (%d)] %s: ",
-               timestamp,
-               nowMSecs.count() % 1000,
-               LoggerPrivate::threadID(),
-               file.c_str(),
-               line,
-               levelToString(logLevel).c_str());
+#ifdef _WIN32
+    _snprintf_s(buffer,
+                sizeof(buffer),
+                "%s.%03lld, %llu, %s (%d)] %s: ",
+                timestamp,
+                nowMSecs.count() % 1000,
+                LoggerPrivate::threadID(),
+                file.c_str(),
+                line,
+                levelToString(logLevel).c_str());
 #else
     snprintf(buffer,
              sizeof(buffer),
