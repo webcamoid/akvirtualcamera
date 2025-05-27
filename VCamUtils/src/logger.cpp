@@ -98,18 +98,23 @@ std::string AkVCam::Logger::header(int logLevel,
 {
     auto now = std::chrono::system_clock::now();
     auto nowMSecs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
-    auto local = std::chrono::zoned_time{std::chrono::current_zone(), now};
+    auto time = std::chrono::system_clock::to_time_t(now);
+
+#ifdef _WIN32
+    struct tm timeInfo;
+    localtime_s(&timeInfo, &time);
+#else
+    auto timeInfo = *std::localtime(&time);
+#endif
 
     std::stringstream ss;
-    ss << "["
-       << std::format("{:%Y-%m-%d %H:%M:%S}", local)
-       << "." << std::format("{:03}", nowMSecs.count() % 1000)
+    ss << "[" << std::put_time(&timeInfo, "%Y-%m-%d %H:%M:%S")
+       << "." << std::setfill('0') << std::setw(3) << (nowMSecs.count() % 1000)
        << ", " << std::this_thread::get_id()
        << ", " << file << " (" << line << ")] "
        << levelToString(logLevel) << ": ";
 
-    return ss.str();
-}
+    return ss.str();}
 
 std::ostream &AkVCam::Logger::log(int logLevel)
 {

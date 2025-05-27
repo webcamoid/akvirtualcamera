@@ -23,12 +23,12 @@
 #include <vector>
 #include <strmif.h>
 
+#include "VCamUtils/src/videoformat.h"
 #include "cunknown.h"
 
 namespace AkVCam
 {
     class EnumMediaTypesPrivate;
-    class VideoFormat;
 
     class EnumMediaTypes:
             public IEnumMediaTypes,
