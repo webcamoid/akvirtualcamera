@@ -116,7 +116,7 @@ CAPI_EXPORT void vcam_id(char *id, size_t *id_len)
 
         // Copy COMMONS_APPNAME to id if id is not null
         if (id != nullptr)
-            strncpy(id, COMMONS_APPNAME, len);
+            std::copy_n(COMMONS_APPNAME, len, id);
     }
 }
 
@@ -263,7 +263,7 @@ CAPI_EXPORT int vcam_add_device(void *vcam,
     }
 
     // Copy generated ID to output buffer with null termination
-    strncpy(device_id, generatedId.c_str(), buffer_size - 1);
+    std::copy_n(generatedId.c_str(), buffer_size - 1, device_id);
     device_id[buffer_size - 1] = '\0';
 
     return 0; // Success
@@ -361,7 +361,7 @@ CAPI_EXPORT int vcam_description(void *vcam,
         return 0;
 
     // Copy description to buffer
-    size_t copySize = std::min(description.size(), *buffer_size - 1);
+    size_t copySize = std::min<size_t>(description.size(), *buffer_size - 1);
     std::memcpy(device_description, description.c_str(), copySize);
     device_description[copySize] = '\x0';
 
@@ -534,7 +534,7 @@ CAPI_EXPORT int vcam_default_input_format(void *vcam,
         return 0;
 
     // Copy format to buffer
-    size_t copySize = std::min(formatString.size(), *buffer_size - 1);
+    size_t copySize = std::min<size_t>(formatString.size(), *buffer_size - 1);
     std::memcpy(format, formatString.c_str(), copySize);
     format[copySize] = '\x0';
 
@@ -566,7 +566,7 @@ CAPI_EXPORT int vcam_default_output_format(void *vcam,
         return 0;
 
     // Copy format to buffer
-    size_t copySize = std::min(formatString.size(), *buffer_size - 1);
+    size_t copySize = std::min<size_t>(formatString.size(), *buffer_size - 1);
     std::memcpy(format, formatString.c_str(), copySize);
     format[copySize] = '\x0';
 
@@ -632,7 +632,7 @@ CAPI_EXPORT int vcam_format(void *vcam,
 
     // Copy format string if not null
     if (format && format_bfsz) {
-        size_t copySize = std::min(formatString.size(), *format_bfsz - 1);
+        size_t copySize = std::min<size_t>(formatString.size(), *format_bfsz - 1);
         std::memcpy(format, formatString.c_str(), copySize);
         format[copySize] = '\x0';
     }
@@ -645,10 +645,10 @@ CAPI_EXPORT int vcam_format(void *vcam,
         *height = selectedFormat.height();
 
     if (fps_num)
-        *fps_num = selectedFormat.minimumFrameRate().num();
+        *fps_num = static_cast<int>(selectedFormat.minimumFrameRate().num());
 
     if (fps_den)
-        *fps_den = selectedFormat.minimumFrameRate().den();
+        *fps_den = static_cast<int>(selectedFormat.minimumFrameRate().den());
 
     return static_cast<int>(formatList.size());
 }
@@ -937,7 +937,7 @@ CAPI_EXPORT int vcam_stream_send(void *vcam,
             continue;
 
         size_t bytesPerLine = videoFormat.bypl(plane);
-        size_t copySize = std::min(bytesPerLine, line_size[plane]);
+        size_t copySize = std::min<size_t>(bytesPerLine, line_size[plane]);
 
         for (int y = 0; y < height; ++y) {
             auto line = frame.line(plane, y);
@@ -1048,7 +1048,7 @@ CAPI_EXPORT int vcam_control(void *vcam,
         *name_bfsz = selectedControl.id.size() + 1; // Include null terminator
 
         if (name && *name_bfsz) {
-            strncpy(name, selectedControl.id.c_str(), *name_bfsz);
+            std::copy_n(selectedControl.id.c_str(), *name_bfsz, name);
             name[*name_bfsz - 1] = '\x0';
         }
     }
@@ -1058,7 +1058,7 @@ CAPI_EXPORT int vcam_control(void *vcam,
         *description_bfsz = selectedControl.description.size() + 1; // Include null terminator
 
         if (description && *description_bfsz) {
-            strncpy(description, selectedControl.description.c_str(), *description_bfsz);
+            std::copy_n(selectedControl.description.c_str(), *description_bfsz, description);
             description[*description_bfsz - 1] = '\x0';
         }
     }
@@ -1070,7 +1070,7 @@ CAPI_EXPORT int vcam_control(void *vcam,
         *type_bfsz = typeString ? strlen(typeString) + 1 : 1; // Include null terminator
 
         if (type && *type_bfsz) {
-            strncpy(type, typeString ? typeString : "", *type_bfsz);
+            std::copy_n(typeString? typeString: "", *type_bfsz, type);
             type[*type_bfsz - 1] = '\x0';
         }
     }
@@ -1104,12 +1104,12 @@ CAPI_EXPORT int vcam_control(void *vcam,
             size_t offset = 0;
 
             for (const auto &item: selectedControl.menu) {
-                size_t copySize = std::min(item.size(), *menu_bfsz - offset - 1);
+                size_t copySize = std::min<size_t>(item.size(), *menu_bfsz - offset - 1);
 
                 if (copySize == 0)
                     break;
 
-                strncpy(menu + offset, item.c_str(), copySize);
+                std::copy_n(item.c_str(), copySize, menu + offset);
                 offset += copySize;
                 menu[offset++] = '\x0';
             }
@@ -1172,7 +1172,7 @@ CAPI_EXPORT int vcam_picture(void *vcam, char *file_path, size_t *buffer_size)
 
     // Copy path if buffer is provided
     if (file_path && *buffer_size) {
-        strncpy(file_path, picturePath.c_str(), *buffer_size);
+        std::copy_n(picturePath.c_str(), *buffer_size, file_path);
         file_path[*buffer_size - 1] = '\x0';
     }
 
@@ -1249,7 +1249,7 @@ CAPI_EXPORT int vcam_clients(void *vcam, uint64_t *pids, size_t npids)
 
     // Copy PIDs if buffer is provided
     if (pids && npids > 0) {
-        size_t copyCount = std::min(npids, clientPids.size());
+        size_t copyCount = std::min<size_t>(npids, clientPids.size());
         std::memcpy(pids, clientPids.data(), copyCount * sizeof(uint64_t));
 
         return static_cast<int>(copyCount);
@@ -1280,8 +1280,8 @@ CAPI_EXPORT int vcam_client_path(void *vcam,
 
     // Copy path if buffer is provided
     if (path && *buffer_size) {
-        size_t copySize = std::min(clientPath.size(), *buffer_size - 1);
-        strncpy(path, clientPath.c_str(), copySize);
+        size_t copySize = std::min<size_t>(clientPath.size(), *buffer_size - 1);
+        std::copy_n(clientPath.c_str(), copySize, path);
         path[copySize] = '\x0';
 
         return static_cast<int>(copySize);

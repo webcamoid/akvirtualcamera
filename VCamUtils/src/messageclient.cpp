@@ -72,7 +72,9 @@ bool AkVCam::MessageClient::isUp(uint16_t port)
     auto clientSocket = socket(AF_INET, SOCK_STREAM, 0);
 
     if (clientSocket < 0) {
-        AkLogCritical() << "Failed creating the socket: " << strerror(errno) << std::endl;
+        AkLogCritical() << "Failed creating the socket: "
+                        << std::system_error(errno, std::system_category()).what()
+                        << std::endl;
 
         return false;
     }
@@ -87,7 +89,9 @@ bool AkVCam::MessageClient::isUp(uint16_t port)
     if (connect(clientSocket,
                 reinterpret_cast<sockaddr *>(&serverAddress),
                 sizeof(sockaddr_in)) != 0) {
-        AkLogCritical() << "Failed conneecting to the socket: " << strerror(errno) << std::endl;
+        AkLogCritical() << "Failed connecting to the socket: "
+                        << std::system_error(errno, std::system_category()).what()
+                        << std::endl;
 
         return false;
     }

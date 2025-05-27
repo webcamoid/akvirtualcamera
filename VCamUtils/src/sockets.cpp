@@ -57,7 +57,11 @@ bool AkVCam::Sockets::send(SocketType socket, const void *data, size_t dataSize)
     while (dataSent < dataSize) {
         auto sent = ::send(socket,
                            reinterpret_cast<const char *>(data) + dataSent,
+#ifdef _WIN32
+                           static_cast<int>(dataSize - dataSent),
+#else
                            dataSize - dataSent,
+#endif
                            0);
 
         if (sent < 1)
@@ -90,7 +94,11 @@ bool AkVCam::Sockets::recv(SocketType socket, void *data, size_t dataSize)
     while (dataReceived < dataSize) {
         auto received = ::recv(socket,
                                reinterpret_cast<char *>(data) + dataReceived,
+#ifdef _WIN32
+                               static_cast<int>(dataSize - dataReceived),
+#else
                                dataSize - dataReceived,
+#endif
                                0);
 
         if (received < 1)

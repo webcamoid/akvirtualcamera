@@ -22,7 +22,7 @@ project(Manager LANGUAGES CXX)
 
 include(../commons.cmake)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(Manager

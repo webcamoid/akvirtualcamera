@@ -18,6 +18,8 @@
  */
 
 #include <algorithm>
+#include <format>
+#include <chrono>
 #include <cstring>
 #include <ctime>
 #include <fstream>
@@ -64,11 +66,10 @@ std::string AkVCam::basename(const std::string &path)
 
 std::string AkVCam::timeStamp()
 {
-    char ts[256];
-    auto time = std::time(nullptr);
-    strftime(ts, 256, "%Y%m%d%H%M%S", std::localtime(&time));
+    auto now = std::chrono::system_clock::now();
+    auto local = std::chrono::zoned_time{std::chrono::current_zone(), now};
 
-    return std::string(ts);
+    return std::format("{:%Y%m%d%H%M%S}", local);
 }
 
 std::string AkVCam::replace(const std::string &str,
