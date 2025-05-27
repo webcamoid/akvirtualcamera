@@ -353,9 +353,16 @@ void AkVCam::PluginInterface::initializeLogger() const
 
     if (loglevel > AKVCAM_LOGLEVEL_DEFAULT) {
         // Turn on lights
+#ifdef _WIN32
+        FILE *fp;
+        freopen_s(&fp, "CONOUT$", "a", stdout);
+        freopen_s(&fp, "CONOUT$", "a", stderr);
+        setvbuf(stdout, nullptr, _IONBF, 0);
+#else
         freopen("CONOUT$", "a", stdout);
         freopen("CONOUT$", "a", stderr);
         setbuf(stdout, nullptr);
+#endif
     }
 
     auto defaultLogFile = AkVCam::tempPath() + "\\" AKVCAM_PLUGIN_NAME ".log";

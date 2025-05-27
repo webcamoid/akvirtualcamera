@@ -23,12 +23,12 @@
 #include <string>
 #include <vector>
 
+#include "VCamUtils/src/videoformat.h"
 #include "mediafilter.h"
 
 namespace AkVCam
 {
     class BaseFilterPrivate;
-    class VideoFormat;
 
     class BaseFilter:
             public IBaseFilter,

@@ -771,7 +771,7 @@ CAPI_EXPORT int vcam_remove_format(void *vcam,
 
     auto formats = vcamApi->m_bridge.formats(device_id);
 
-    if (index >= formats.size())
+    if (static_cast<size_t>(index) >= formats.size())
         return -ERANGE;
 
     vcamApi->m_bridge.removeFormat(device_id, index);

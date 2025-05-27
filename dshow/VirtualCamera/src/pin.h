@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/videoframetypes.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "streamconfig.h"
@@ -31,7 +32,6 @@ namespace AkVCam
 {
     class PinPrivate;
     class BaseFilter;
-    class VideoFormat;
     class VideoFrame;
 
     class Pin:
