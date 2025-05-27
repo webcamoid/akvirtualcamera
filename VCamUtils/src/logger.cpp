@@ -21,14 +21,53 @@
 #include <ctime>
 #include <fstream>
 #include <map>
+#include <mutex>
 #include <sstream>
-#include <thread>
+
+#ifdef _WIN32
+#include <windows.h>
+#elif defined(__APPLE__)
+#include <pthread.h>
+#else
+#include <pthread.h>
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 #include "logger.h"
 #include "utils.h"
 
 namespace AkVCam
 {
+    struct LogLevelStr
+    {
+        int logLevel;
+        const char *str;
+
+        LogLevelStr(int logLevel, const char *str):
+            logLevel(logLevel),
+            str(str)
+        {
+        }
+
+        static const LogLevelStr *table()
+        {
+            static const LogLevelStr akvcamLoggerStrTable[] = {
+                {AKVCAM_LOGLEVEL_DEFAULT  , "default"  },
+                {AKVCAM_LOGLEVEL_EMERGENCY, "emergency"},
+                {AKVCAM_LOGLEVEL_FATAL    , "fatal"    },
+                {AKVCAM_LOGLEVEL_CRITICAL , "critical" },
+                {AKVCAM_LOGLEVEL_ERROR    , "error"    },
+                {AKVCAM_LOGLEVEL_WARNING  , "warning"  },
+                {AKVCAM_LOGLEVEL_NOTICE   , "notice"   },
+                {AKVCAM_LOGLEVEL_INFO     , "info"     },
+                {AKVCAM_LOGLEVEL_DEBUG    , "debug"    },
+            };
+
+            return akvcamLoggerStrTable;
+        }
+    };
+
     class LoggerPrivate
     {
         public:
@@ -37,21 +76,18 @@ namespace AkVCam
             int logLevel {AKVCAM_LOGLEVEL_DEFAULT};
             std::fstream stream;
 
-            static const std::map<int, std::string> &logLevelStrMap()
+            inline static uint64_t threadID()
             {
-                static std::map<int, std::string> llsMap {
-                    {AKVCAM_LOGLEVEL_DEFAULT  , "default"  },
-                    {AKVCAM_LOGLEVEL_EMERGENCY, "emergency"},
-                    {AKVCAM_LOGLEVEL_FATAL    , "fatal"    },
-                    {AKVCAM_LOGLEVEL_CRITICAL , "critical" },
-                    {AKVCAM_LOGLEVEL_ERROR    , "error"    },
-                    {AKVCAM_LOGLEVEL_WARNING  , "warning"  },
-                    {AKVCAM_LOGLEVEL_NOTICE   , "notice"   },
-                    {AKVCAM_LOGLEVEL_INFO     , "info"     },
-                    {AKVCAM_LOGLEVEL_DEBUG    , "debug"    },
-                };
+#ifdef _WIN32
+                return GetCurrentThreadId();
+#elif defined(__APPLE__)
+                uint64_t tid;
+                pthread_threadid_np(NULL, &tid);
 
-                return llsMap;
+                return tid;
+#else
+                return static_cast<uint64_t>(gettid());
+#endif
             }
     };
 
@@ -96,25 +132,50 @@ std::string AkVCam::Logger::header(int logLevel,
                                    const std::string &file,
                                    int line)
 {
+    static std::mutex mutex;
     auto now = std::chrono::system_clock::now();
-    auto nowMSecs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+    auto nowMSecs =
+            std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
     auto time = std::chrono::system_clock::to_time_t(now);
 
+    char timestamp[32];
+    {
+        std::lock_guard<std::mutex> lock(mutex);
 #ifdef _WIN32
-    struct tm timeInfo;
-    localtime_s(&timeInfo, &time);
+        struct tm timeInfo;
+        localtime_s(&timeInfo, &time);
 #else
-    auto timeInfo = *std::localtime(&time);
+        auto timeInfo = *std::localtime(&time);
+#endif
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &timeInfo);
+    }
+
+    thread_local char buffer[256];
+
+#ifdef _MSC_VER
+    snprintf_s(buffer,
+               sizeof(buffer),
+               "%s.%03lld, %llu, %s (%d)] %s: ",
+               timestamp,
+               nowMSecs.count() % 1000,
+               LoggerPrivate::threadID(),
+               file.c_str(),
+               line,
+               levelToString(logLevel).c_str());
+#else
+    snprintf(buffer,
+             sizeof(buffer),
+             "%s.%03lld, %llu, %s (%d)] %s: ",
+             timestamp,
+             nowMSecs.count() % 1000,
+             LoggerPrivate::threadID(),
+             file.c_str(),
+             line,
+             levelToString(logLevel).c_str());
 #endif
 
-    std::stringstream ss;
-    ss << "[" << std::put_time(&timeInfo, "%Y-%m-%d %H:%M:%S")
-       << "." << std::setfill('0') << std::setw(3) << (nowMSecs.count() % 1000)
-       << ", " << std::this_thread::get_id()
-       << ", " << file << " (" << line << ")] "
-       << levelToString(logLevel) << ": ";
-
-    return ss.str();}
+    return {buffer};
+}
 
 std::ostream &AkVCam::Logger::log(int logLevel)
 {
@@ -124,36 +185,36 @@ std::ostream &AkVCam::Logger::log(int logLevel)
         return dummy;
 
     if (loggerPrivate()->fileName.empty())
-        return std::cerr;
+        return logLevel == AKVCAM_LOGLEVEL_INFO? std::cout: std::cerr;
 
     if (!loggerPrivate()->stream.is_open())
         loggerPrivate()->stream.open(loggerPrivate()->fileName,
                                      std::ios_base::out | std::ios_base::app);
 
     if (!loggerPrivate()->stream.is_open())
-        return std::cerr;
+        return logLevel == AKVCAM_LOGLEVEL_INFO? std::cout: std::cerr;
 
     return loggerPrivate()->stream;
 }
 
 int AkVCam::Logger::levelFromString(const std::string &level)
 {
-    auto &llsMap = LoggerPrivate::logLevelStrMap();
+    auto lvl = LogLevelStr::table();
 
-    for (auto it = llsMap.begin(); it != llsMap.end(); it++)
-        if (it->second == level)
-            return it->first;
+    for (; lvl->logLevel != AKVCAM_LOGLEVEL_DEBUG; ++lvl)
+        if (lvl->str == level)
+            return lvl->logLevel;
 
-    return AKVCAM_LOGLEVEL_DEFAULT;
+    return lvl->logLevel;
 }
 
 std::string AkVCam::Logger::levelToString(int level)
 {
-    auto &llsMap = LoggerPrivate::logLevelStrMap();
+    auto lvl = LogLevelStr::table();
 
-    for (auto it = llsMap.begin(); it != llsMap.end(); it++)
-        if (it->first == level)
-            return it->second;
+    for (; lvl->logLevel != AKVCAM_LOGLEVEL_DEBUG; ++lvl)
+        if (lvl->logLevel == level)
+            return {lvl->str};
 
-    return {};
+    return {lvl->str};
 }
