@@ -49,8 +49,8 @@ if (APPLE OR FAKE_APPLE)
                      PlatformUtils_cmio)
 elseif (WIN32)
     add_dependencies(Manager
-                     VCamIPC_dshow
-                     PlatformUtils_dshow)
+                     VCamIPC_windows
+                     PlatformUtils_windows)
 endif ()
 
 target_include_directories(Manager
@@ -64,8 +64,8 @@ if (APPLE OR FAKE_APPLE)
                           PlatformUtils_cmio)
 elseif (WIN32)
     target_link_libraries(Manager
-                          VCamIPC_dshow
-                          PlatformUtils_dshow)
+                          VCamIPC_windows
+                          PlatformUtils_windows)
 endif ()
 
 if (APPLE OR FAKE_APPLE)

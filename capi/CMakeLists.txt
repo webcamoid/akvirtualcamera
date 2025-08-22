@@ -51,8 +51,8 @@ if (APPLE OR FAKE_APPLE)
                      PlatformUtils_cmio)
 elseif (WIN32)
     add_dependencies(VCam_capi
-                     VCamIPC_dshow
-                     PlatformUtils_dshow)
+                     VCamIPC_windows
+                     PlatformUtils_windows)
 endif ()
 
 target_compile_definitions(VCam_capi PRIVATE CAPI_LIBRARY)
@@ -78,10 +78,10 @@ if (APPLE OR FAKE_APPLE)
 elseif (WIN32)
     target_include_directories(VCam_capi
                                PRIVATE
-                               ../dshow)
+                               ../windows)
     target_link_libraries(VCam_capi
-                          VCamIPC_dshow
-                          PlatformUtils_dshow)
+                          VCamIPC_windows
+                          PlatformUtils_windows)
 endif ()
 
 if (APPLE OR FAKE_APPLE)

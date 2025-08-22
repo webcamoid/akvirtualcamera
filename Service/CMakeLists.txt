@@ -50,7 +50,7 @@ if (APPLE OR FAKE_APPLE)
                      VCamIPC_cmio PlatformUtils_cmio)
 elseif (WIN32)
     add_dependencies(Service
-                     VCamIPC_dshow PlatformUtils_dshow)
+                     VCamIPC_windows PlatformUtils_windows)
 endif ()
 
 target_include_directories(Service
@@ -76,10 +76,10 @@ if (APPLE OR FAKE_APPLE)
 elseif (WIN32)
     target_include_directories(Service
                                PRIVATE
-                               ../dshow)
+                               ../windows)
     target_link_libraries(Service
-                          VCamIPC_dshow
-                          PlatformUtils_dshow)
+                          VCamIPC_windows
+                          PlatformUtils_windows)
 endif ()
 
 if (WIN32)

@@ -933,7 +933,7 @@ CAPI_EXPORT int vcam_stream_send(void *vcam,
 
     // Copy data to frame for each plane
     for (size_t plane = 0; plane < videoFormat.planes(); ++plane) {
-        if (!data[plane])
+        if (!data[plane] || line_size[plane] < 1)
             continue;
 
         size_t bytesPerLine = videoFormat.bypl(plane);

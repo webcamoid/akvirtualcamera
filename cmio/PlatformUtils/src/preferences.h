@@ -55,8 +55,6 @@ namespace AkVCam
                               const std::vector<VideoFormat> &formats);
         bool removeCamera(const std::string &deviceId);
         size_t camerasCount();
-        bool idDeviceIdTaken(const std::string &deviceId);
-        std::string createDeviceId();
         int cameraFromId(const std::string &deviceId);
         bool cameraExists(const std::string &deviceId);
         std::string cameraDescription(size_t cameraIndex);

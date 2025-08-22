@@ -366,6 +366,49 @@ bool AkVCam::readEntitlements(const std::string &app,
     return writen;
 }
 
+bool AkVCam::isDeviceIdTaken(const std::string &deviceId)
+{
+    AkLogFunction();
+
+    // List device IDs in use.
+    std::vector<std::string> cameraIds;
+
+    for (size_t i = 0; i < Preferences::camerasCount(); i++)
+        cameraIds.push_back(Preferences::cameraId(i));
+
+    return std::find(cameraIds.begin(),
+                     cameraIds.end(),
+                     deviceId) != cameraIds.end();
+}
+
+std::string AkVCam::createDeviceId()
+{
+    AkLogFunction();
+
+    // List device IDs in use.
+    std::vector<std::string> cameraIds;
+
+    for (size_t i = 0; i < Preferences::camerasCount(); i++)
+        cameraIds.push_back(Preferences::cameraId(i));
+
+    const int maxId = 64;
+
+    for (int i = 0; i < maxId; i++) {
+        /* There are no rules for device IDs in Mac. Just append an
+         * incremental index to a common prefix.
+         */
+        auto id = AKVCAM_DEVICE_PREFIX + std::to_string(i);
+
+        // Check if the ID is being used, if not return it.
+        if (std::find(cameraIds.begin(),
+                      cameraIds.end(),
+                      id) == cameraIds.end())
+            return id;
+    }
+
+    return {};
+}
+
 std::vector<uint64_t> AkVCam::systemProcesses()
 {
     auto npids = proc_listallpids(nullptr, 0);

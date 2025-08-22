@@ -336,7 +336,7 @@ std::string AkVCam::Preferences::addDevice(const std::string &description,
 
     if (deviceId.empty())
         id = createDeviceId();
-    else if (!idDeviceIdTaken(deviceId))
+    else if (!isDeviceIdTaken(deviceId))
         id = deviceId;
 
     if (id.empty())
@@ -441,49 +441,6 @@ size_t AkVCam::Preferences::camerasCount()
     AkLogInfo() << "Cameras: " << nCameras << std::endl;
 
     return size_t(nCameras);
-}
-
-bool AkVCam::Preferences::idDeviceIdTaken(const std::string &deviceId)
-{
-    AkLogFunction();
-
-    // List device IDs in use.
-    std::vector<std::string> cameraIds;
-
-    for (size_t i = 0; i < camerasCount(); i++)
-        cameraIds.push_back(cameraId(i));
-
-    return std::find(cameraIds.begin(),
-                     cameraIds.end(),
-                     deviceId) != cameraIds.end();
-}
-
-std::string AkVCam::Preferences::createDeviceId()
-{
-    AkLogFunction();
-
-    // List device IDs in use.
-    std::vector<std::string> cameraIds;
-
-    for (size_t i = 0; i < camerasCount(); i++)
-        cameraIds.push_back(cameraId(i));
-
-    const int maxId = 64;
-
-    for (int i = 0; i < maxId; i++) {
-        /* There are no rules for device IDs in Mac. Just append an
-         * incremental index to a common prefix.
-         */
-        auto id = AKVCAM_DEVICE_PREFIX + std::to_string(i);
-
-        // Check if the ID is being used, if not return it.
-        if (std::find(cameraIds.begin(),
-                      cameraIds.end(),
-                      id) == cameraIds.end())
-            return id;
-    }
-
-    return {};
 }
 
 int AkVCam::Preferences::cameraFromId(const std::string &deviceId)

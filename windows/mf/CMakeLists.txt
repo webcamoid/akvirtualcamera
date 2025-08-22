@@ -1,5 +1,5 @@
 # akvirtualcamera, virtual camera for Mac and Windows.
-# Copyright (C) 2021  Gonzalo Exequiel Pedone
+# Copyright (C) 2025  Gonzalo Exequiel Pedone
 #
 # akvirtualcamera is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,15 +18,10 @@
 
 cmake_minimum_required(VERSION 3.5)
 
-project(AkVirtualCamera)
+project(MFVirtualCamera)
 
-include(commons.cmake)
-
-add_subdirectory(VCamUtils)
-add_subdirectory(Manager)
-add_subdirectory(capi)
+add_subdirectory(MFUtils)
+add_subdirectory(MediaSource)
 add_subdirectory(Service)
-add_subdirectory(cmio)
-add_subdirectory(windows)
-
-configure_file(package_info.conf.in package_info.conf)
+add_subdirectory(VirtualCamera)
+add_subdirectory(Test)
