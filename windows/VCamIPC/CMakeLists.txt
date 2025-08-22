@@ -16,7 +16,7 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.16)
 
 project(VCamIPC_windows LANGUAGES CXX)
 

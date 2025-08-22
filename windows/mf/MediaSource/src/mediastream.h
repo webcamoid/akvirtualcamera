@@ -50,12 +50,13 @@ namespace AkVCam
             DECLARE_IMFMEDIAEVENTGENERATOR_NQ
 
             // IUnknown
-            HRESULT QueryInterface(const IID &riid, void **ppvObject) override;
+            HRESULT STDMETHODCALLTYPE QueryInterface(const IID &riid,
+                                                     void **ppvObject) override;
 
             // IMFMediaStream
-            HRESULT GetMediaSource(IMFMediaSource **ppMediaSource) override;
-            HRESULT GetStreamDescriptor(IMFStreamDescriptor **ppStreamDescriptor) override;
-            HRESULT RequestSample(IUnknown *pToken) override;
+            HRESULT STDMETHODCALLTYPE GetMediaSource(IMFMediaSource **ppMediaSource) override;
+            HRESULT STDMETHODCALLTYPE GetStreamDescriptor(IMFStreamDescriptor **ppStreamDescriptor) override;
+            HRESULT STDMETHODCALLTYPE RequestSample(IUnknown *pToken) override;
 
         private:
             MediaStreamPrivate *d;

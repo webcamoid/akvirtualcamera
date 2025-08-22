@@ -41,15 +41,16 @@ namespace AkVCam
             DECLARE_IUNKNOWN(IID_IMFMediaEventGenerator)
 
             // IMFMediaEventGenerator
-            HRESULT GetEvent(DWORD dwFlags, IMFMediaEvent **ppEvent) override;
-            HRESULT BeginGetEvent(IMFAsyncCallback *pCallback,
-                                  IUnknown *punkState) override;
-            HRESULT EndGetEvent(IMFAsyncResult *pResult,
-                                IMFMediaEvent **ppEvent) override;
-            HRESULT QueueEvent(MediaEventType mediaEventType,
-                               REFGUID guidExtendedType,
-                               HRESULT hrStatus,
-                               const PROPVARIANT *pvValue) override;
+            HRESULT STDMETHODCALLTYPE GetEvent(DWORD dwFlags,
+                                               IMFMediaEvent **ppEvent) override;
+            HRESULT STDMETHODCALLTYPE BeginGetEvent(IMFAsyncCallback *pCallback,
+                                                    IUnknown *punkState) override;
+            HRESULT STDMETHODCALLTYPE EndGetEvent(IMFAsyncResult *pResult,
+                                                  IMFMediaEvent **ppEvent) override;
+            HRESULT STDMETHODCALLTYPE QueueEvent(MediaEventType mediaEventType,
+                                                 REFGUID guidExtendedType,
+                                                 HRESULT hrStatus,
+                                                 const PROPVARIANT *pvValue) override;
 
         private:
             MediaEventGeneratorPrivate *d;

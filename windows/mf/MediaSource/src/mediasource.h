@@ -42,17 +42,18 @@ namespace AkVCam
             DECLARE_IMFMEDIAEVENTGENERATOR_NQ
 
             // IUnknown
-            HRESULT QueryInterface(REFIID riid, void **ppvObject) override;
+            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                                     void **ppvObject) override;
 
             // IMFMediaSource
-            HRESULT GetCharacteristics(DWORD *pdwCharacteristics) override;
-            HRESULT CreatePresentationDescriptor(IMFPresentationDescriptor **presentationDescriptor) override;
-            HRESULT Start(IMFPresentationDescriptor *pPresentationDescriptor,
-                          const GUID *pguidTimeFormat,
-                          const PROPVARIANT *pvarStartPosition) override;
-            HRESULT Stop() override;
-            HRESULT Pause() override;
-            HRESULT Shutdown() override;
+            HRESULT STDMETHODCALLTYPE GetCharacteristics(DWORD *pdwCharacteristics) override;
+            HRESULT STDMETHODCALLTYPE CreatePresentationDescriptor(IMFPresentationDescriptor **presentationDescriptor) override;
+            HRESULT STDMETHODCALLTYPE Start(IMFPresentationDescriptor *pPresentationDescriptor,
+                                            const GUID *pguidTimeFormat,
+                                            const PROPVARIANT *pvarStartPosition) override;
+            HRESULT STDMETHODCALLTYPE Stop() override;
+            HRESULT STDMETHODCALLTYPE Pause() override;
+            HRESULT STDMETHODCALLTYPE Shutdown() override;
 
         private:
             MediaSourcePrivate *d;

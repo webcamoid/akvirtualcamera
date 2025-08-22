@@ -16,7 +16,7 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
 # Allow to build the virtual camera in Linux and other POSIX systems as if you
 # were building it for APPLE
