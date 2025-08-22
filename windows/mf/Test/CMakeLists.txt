@@ -26,7 +26,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (WIN32)
-    add_executable(MFVCamTest src/main.cpp)
+    add_executable(MFVCamTest WIN32 src/main.cpp)
 else ()
     add_executable(MFVCamTest EXCLUDE_FROM_ALL src/main.cpp)
 endif ()
