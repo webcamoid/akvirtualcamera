@@ -297,7 +297,7 @@ HRESULT AkVCam::BaseFilter::QueryFilterInfo(FILTER_INFO *pInfo)
     memset(pInfo->achName, 0, MAX_FILTER_NAME * sizeof(WCHAR));
 
     if (!this->d->m_filterName.empty()) {
-        auto filterName = stringToWSTR(this->d->m_filterName);
+        auto filterName = wstrFromString(this->d->m_filterName);
         memcpy(pInfo->achName,
                filterName,
                (std::min<size_t>)(wcsnlen(filterName, MAX_FILTER_NAME)
@@ -337,7 +337,7 @@ HRESULT AkVCam::BaseFilter::QueryVendorInfo(LPWSTR *pVendorInfo)
     if (!pVendorInfo)
         return E_POINTER;
 
-    *pVendorInfo = stringToWSTR(this->d->m_vendor);
+    *pVendorInfo = wstrFromString(this->d->m_vendor);
 
     return S_OK;
 }

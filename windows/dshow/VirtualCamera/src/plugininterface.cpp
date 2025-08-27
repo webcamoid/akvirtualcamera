@@ -273,7 +273,7 @@ bool AkVCam::PluginInterfacePrivate::registerFilter(const std::string &deviceId,
         goto registerFilter_failed;
     }
 
-    wdescription = stringToWSTR(description);
+    wdescription = wstrFromString(description);
     result = filterMapper->RegisterFilter(clsid,
                                           wdescription,
                                           &pMoniker,

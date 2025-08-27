@@ -29,9 +29,9 @@
 #include "mediasource.h"
 #include "mediastream.h"
 #include "PlatformUtils/src/utils.h"
-#include "VCamUtils/src/ipcbridge.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/videoprocamp.h"
+#include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/videoformat.h"
 #include "MFUtils/src/utils.h"
 
@@ -78,18 +78,25 @@ BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
 AkVCam::MediaSource::MediaSource(const GUID &clsid):
     MediaEventGenerator()
 {
+    AkLogFunction();
     this->d = new MediaSourcePrivate(this);
     this->d->m_clsid = clsid;
+    AkLogDebug() << "CLSID: " << AkVCam::stringFromClsid(clsid) << std::endl;
 
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);
+    AkLogDebug() << "Camera index: " << cameraIndex << std::endl;
     std::vector<IMFMediaType *> mediaTypes;
 
     if (cameraIndex >= 0) {
+        AkLogDebug() << "Virtual camera formats:";
+
         for (auto &format: Preferences::cameraFormats(size_t(cameraIndex))) {
             auto mediaType = mfMediaTypeFromFormat(format);
 
-            if (mediaType)
+            if (mediaType) {
+                AkLogDebug() << "    " << format;
                 mediaTypes.push_back(mediaType);
+            }
         }
 
         MFCreateStreamDescriptor(0,
@@ -140,7 +147,7 @@ std::string AkVCam::MediaSource::deviceId()
 HRESULT AkVCam::MediaSource::QueryInterface(REFIID riid, void **ppvObject)
 {
     AkLogFunction();
-    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
+    AkLogDebug() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;
@@ -319,7 +326,7 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
         return hr;
     }
 
-    AkLogInfo() << "MediaSource started" << std::endl;
+    AkLogDebug() << "MediaSource started" << std::endl;
 
     return S_OK;
 }

@@ -665,7 +665,7 @@ HRESULT AkVCam::Pin::QueryPinInfo(PIN_INFO *pInfo)
     memset(pInfo->achName, 0, MAX_PIN_NAME * sizeof(WCHAR));
 
     if (!this->d->m_pinName.empty()) {
-        auto pinName = stringToWSTR(this->d->m_pinName);
+        auto pinName = wstrFromString(this->d->m_pinName);
         memcpy(pInfo->achName,
                pinName,
                (std::min<size_t>)(wcsnlen(pinName, MAX_PIN_NAME)
@@ -696,7 +696,7 @@ HRESULT AkVCam::Pin::QueryId(LPWSTR *Id)
     if (!Id)
         return E_POINTER;
 
-    *Id = stringToWSTR(this->d->m_pinId);
+    *Id = wstrFromString(this->d->m_pinId);
 
     if (!*Id)
         return E_OUTOFMEMORY;

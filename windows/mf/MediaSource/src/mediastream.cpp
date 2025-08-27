@@ -37,6 +37,8 @@
 #include "VCamUtils/src/videoframe.h"
 #include "MFUtils/src/utils.h"
 
+#define TIME_BASE 1.0e7
+
 enum MediaStreamState
 {
     MediaStreamState_Stopped,
@@ -63,6 +65,8 @@ namespace AkVCam
             std::mutex m_controlsMutex;
             VideoFrame m_currentFrame;
             VideoFrame m_testFrame;
+            LONGLONG m_pts {-1};
+            LONGLONG m_ptsDrift {0};
             bool m_horizontalFlip {false};   // Controlled by client
             bool m_verticalFlip {false};
             std::map<std::string, int> m_controls;
@@ -226,6 +230,8 @@ HRESULT AkVCam::MediaStream::start(IMFMediaType *mediaType)
     if (this->d->m_state != MediaStreamState_Stopped)
         return MF_E_INVALID_STATE_TRANSITION;
 
+    this->d->m_pts = -1;
+    this->d->m_ptsDrift = 0;
     this->d->m_format = formatFromMFMediaType(mediaType);
     this->d->m_state = MediaStreamState_Started;
 
@@ -350,6 +356,8 @@ HRESULT AkVCam::MediaStream::RequestSample(IUnknown *pToken)
         return hr;
     }
 
+    AkLogDebug() << "Saving token" << hr << std::endl;
+
     // Save the token if available
     if (pToken) {
         std::lock_guard<std::mutex> lock(this->d->m_mutex);
@@ -361,6 +369,8 @@ HRESULT AkVCam::MediaStream::RequestSample(IUnknown *pToken)
 
         this->d->m_sampleTokens.push_back(token);
     }
+
+    AkLogDebug() << "Sending MEStreamSinkRequestSample event" << std::endl;
 
     return this->eventQueue()->QueueEventParamVar(MEStreamSinkRequestSample,
                                                   GUID_NULL,
@@ -387,12 +397,8 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
         return hr;
     }
 
-    const DWORD width = 640;
-    const DWORD height = 480;
-    const DWORD bytesPerPixel = 4;
-    const DWORD bufferSize = width * height * bytesPerPixel;
+    auto bufferSize = DWORD(this->m_format.size());
     IMFMediaBuffer *pBuffer = nullptr;
-
     hr = MFCreateMemoryBuffer(bufferSize, &pBuffer);
 
     if (FAILED(hr)) {
@@ -405,7 +411,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     hr = pSample->AddBuffer(pBuffer);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed adding the buffer to the sample:" << hr << std::endl;
+        AkLogError() << "Failed adding the buffer to the sample: " << hr << std::endl;
         pBuffer->Release();
         pSample->Release();
 
@@ -418,6 +424,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     hr = pBuffer->Lock(&pData, &maxLen, &curLen);
 
     if (FAILED(hr)) {
+        AkLogError() << "Failed to lock the buffer: " << hr << std::endl;
         pBuffer->Release();
         pSample->Release();
 
@@ -427,14 +434,14 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     this->m_mutex.lock();
 
     if (this->m_currentFrame.format().size() > 0) {
-        auto copyBytes = (std::min)(size_t(curLen),
+        auto copyBytes = (std::min)(size_t(maxLen),
                                     this->m_currentFrame.data().size());
 
         if (copyBytes > 0)
             memcpy(pData, this->m_currentFrame.data().data(), copyBytes);
     } else {
         auto frame = this->randomFrame();
-        auto copyBytes = (std::min)(size_t(curLen),
+        auto copyBytes = (std::min)(size_t(maxLen),
                                     frame.data().size());
 
         if (copyBytes > 0)
@@ -454,10 +461,25 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
         return hr;
     }
 
-    // Time in 100-ns (1e7 = 1s)
-    const LONGLONG duration = 10000000LL / 30LL;
-    LONGLONG sampleTime = duration * (this->m_sampleCount++);
-    hr = pSample->SetSampleTime(sampleTime);
+    auto clock = LONGLONG(TIME_BASE * timeGetTime() / 1e3);
+    auto fps = this->m_format.minimumFrameRate();
+    auto duration = LONGLONG(TIME_BASE / fps.value());
+
+    if (this->m_pts < 0) {
+        this->m_pts = 0;
+        this->m_ptsDrift = this->m_pts - clock;
+    } else {
+        auto diff = clock - this->m_pts + this->m_ptsDrift;
+
+        if (diff <= 2 * duration) {
+            this->m_pts = clock + this->m_ptsDrift;
+        } else {
+            this->m_pts += duration;
+            this->m_ptsDrift = this->m_pts - clock;
+        }
+    }
+
+    hr = pSample->SetSampleTime(this->m_pts);
 
     if (FAILED(hr)) {
         AkLogError() << "Failed setting the sample time: " << hr << std::endl;
@@ -500,7 +522,9 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
                                                 S_OK,
                                                 pSample);
 
-    if (FAILED(hr))
+    if (SUCCEEDED(hr))
+        AkLogDebug() << "Sample queued" << std::endl;
+    else
         AkLogError() << "Sample event queue failed: " << hr << std::endl;
 
     pSample->Release();

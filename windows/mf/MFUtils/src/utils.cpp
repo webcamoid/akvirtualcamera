@@ -27,6 +27,9 @@
 #include "VCamUtils/src/logger.h"
 #include "VCamUtils/src/videoformat.h"
 
+#define ROOT_HKEY HKEY_LOCAL_MACHINE
+#define SUBKEY_PREFIX "Software\\Classes\\CLSID"
+
 namespace AkVCam
 {
     struct AkPixelFormatMF
@@ -93,17 +96,20 @@ bool AkVCam::isDeviceIdMFTaken(const std::string &deviceId)
         return false;
 
     AkLogDebug() << "Checking CLSID: " << clsidStr << std::endl;
+    std::string subkey = std::string(SUBKEY_PREFIX) + "\\" + clsidStr;
+    auto subkeyStr = tstrFromString(subkey);
 
-    const char *subkeyPrefix = "Software\\Classes\\CLSID";
-    std::string subkey = std::string(subkeyPrefix) + "\\" + clsidStr;
+    if (!subkeyStr)
+        return false;
 
     // Try opening the sub-key
     HKEY keyCLSID = nullptr;
-    LONG result = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
-                                subkey.c_str(),
-                                0,
-                                KEY_READ,
-                                &keyCLSID);
+    LONG result = RegOpenKeyEx(ROOT_HKEY,
+                               subkeyStr,
+                               0,
+                               KEY_READ,
+                               &keyCLSID);
+    CoTaskMemFree(subkeyStr);
     bool taken = (result == ERROR_SUCCESS);
 
     if (keyCLSID)
@@ -141,13 +147,7 @@ std::string AkVCam::createDeviceIdMF()
 std::vector<CLSID> AkVCam::listRegisteredMFCameras()
 {
     AkLogFunction();
-    auto pluginFolder = locatePluginPath();
-    AkLogDebug() << "Plugin path: " << pluginFolder << std::endl;
-
-    if (pluginFolder.empty())
-        return {};
-
-    auto pluginPath = pluginFolder + "\\" AKVCAM_PLUGIN_NAME ".dll";
+    auto pluginPath = locateMFPluginPath();
     AkLogDebug() << "Plugin binary: " << pluginPath << std::endl;
 
     if (!fileExists(pluginPath)) {
@@ -161,12 +161,11 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
     // Open HKLM\Software\Classes\CLSID
 
     HKEY keyCLSID = nullptr;
-    const char *subkeyPrefix = "Software\\Classes\\CLSID";
-    LONG result = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
-                                subkeyPrefix,
-                                0,
-                                KEY_READ | KEY_ENUMERATE_SUB_KEYS,
-                                &keyCLSID);
+    LONG result = RegOpenKeyEx(ROOT_HKEY,
+                               TEXT(SUBKEY_PREFIX),
+                               0,
+                               KEY_READ | KEY_ENUMERATE_SUB_KEYS,
+                               &keyCLSID);
 
     if (result != ERROR_SUCCESS) {
         AkLogError() << "Failed to open CLSID registry key: " << result << std::endl;
@@ -176,18 +175,18 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
 
     // Get sub-keys info
     DWORD subkeys = 0;
-    result = RegQueryInfoKeyA(keyCLSID,
-                              nullptr,
-                              nullptr,
-                              nullptr,
-                              &subkeys,
-                              nullptr,
-                              nullptr,
-                              nullptr,
-                              nullptr,
-                              nullptr,
-                              nullptr,
-                              nullptr);
+    result = RegQueryInfoKey(keyCLSID,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             &subkeys,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr,
+                             nullptr);
 
     if (result != ERROR_SUCCESS) {
         AkLogError() << "Failed to query CLSID key info: " << result << std::endl;
@@ -198,23 +197,26 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
 
     // Iterate CLSIDs
     for (DWORD i = 0; i < subkeys; ++i) {
-        char subKeyName[MAX_PATH];
+        TCHAR subKeyName[MAX_PATH];
         DWORD subKeyLen = MAX_PATH;
-        result = RegEnumKeyExA(keyCLSID,
-                               i,
-                               subKeyName,
-                               &subKeyLen,
-                               nullptr,
-                               nullptr,
-                               nullptr,
-                               nullptr);
+        result = RegEnumKeyEx(keyCLSID,
+                              i,
+                              subKeyName,
+                              &subKeyLen,
+                              nullptr,
+                              nullptr,
+                              nullptr,
+                              nullptr);
 
         if (result != ERROR_SUCCESS)
             continue;
 
         // Get CLSID from the key
 
-        CLSID clsid = createClsidFromStr(subKeyName);
+        CLSID clsid;
+
+        if (FAILED(CLSIDFromString(subKeyName, &clsid)))
+            continue;
 
         if (IsEqualCLSID(clsid, CLSID_NULL))
             continue;
@@ -222,35 +224,42 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
         // Open InprocServer32 sub-key for checking the binary file associated
 
         HKEY keyInproc = nullptr;
-        auto inprocSubkey = std::string(subkeyPrefix)
+        auto inprocSubkey = std::string(SUBKEY_PREFIX)
                             + "\\"
-                            + subKeyName
+                            + stringFromTSTR(subKeyName)
                             + "\\InprocServer32";
-        result = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
-                               inprocSubkey.c_str(),
-                               0, KEY_READ,
-                               &keyInproc);
+        auto inprocSubkeyStr = tstrFromString(inprocSubkey);
+
+        if (!inprocSubkeyStr)
+            continue;
+
+        result = RegOpenKeyEx(ROOT_HKEY,
+                              inprocSubkeyStr,
+                              0,
+                              KEY_READ,
+                              &keyInproc);
+        CoTaskMemFree(inprocSubkeyStr);
 
         if (result != ERROR_SUCCESS)
             continue;
 
         // Read the default value (name of the DLL file)
-        char dllPath[MAX_PATH];
+        TCHAR dllPath[MAX_PATH];
         DWORD dllPathLen = MAX_PATH;
-        result = RegQueryValueExA(keyInproc,
-                                  nullptr,
-                                  nullptr,
-                                  nullptr,
-                                  reinterpret_cast<LPBYTE>(dllPath),
-                                  &dllPathLen);
+        result = RegQueryValueEx(keyInproc,
+                                 nullptr,
+                                 nullptr,
+                                 nullptr,
+                                 reinterpret_cast<LPBYTE>(dllPath),
+                                 &dllPathLen);
         RegCloseKey(keyInproc);
 
         if (result != ERROR_SUCCESS)
             continue;
 
         // Compare the DLL path with pluginPath
-        if (pluginPath == dllPath) {
-            AkLogDebug() << "Found matching camera CLSID: " << subKeyName << std::endl;
+        if (pluginPath == stringFromWSTR(dllPath)) {
+            AkLogDebug() << "Found matching camera CLSID: " << stringFromClsid(clsid) << std::endl;
             cameras.push_back(clsid);
         }
     }

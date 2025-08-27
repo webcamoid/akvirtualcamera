@@ -406,7 +406,7 @@ std::string AkVCam::stringFromWSTR(LPCWSTR wstr)
     return str;
 }
 
-LPWSTR AkVCam::stringToWSTR(const std::string &str)
+LPWSTR AkVCam::wstrFromString(const std::string &str)
 {
     auto len = MultiByteToWideChar(CP_ACP,
                                    0,
@@ -433,6 +433,72 @@ LPWSTR AkVCam::stringToWSTR(const std::string &str)
                         len);
 
     return wstr;
+}
+
+std::string AkVCam::stringFromTSTR(LPCTSTR tstr)
+{
+    if (!tstr)
+         return {};
+
+#ifdef UNICODE
+     int required = WideCharToMultiByte(CP_UTF8, 0,
+                                        tstr, -1,
+                                        nullptr, 0,
+                                        nullptr, nullptr);
+
+     if (required <= 0)
+         return {};
+
+     std::string result(required - 1, 0);
+     WideCharToMultiByte(CP_UTF8, 0,
+                         tstr, -1,
+                         &result[0], required - 1,
+                         nullptr, nullptr);
+
+     return result;
+#else
+    return {tstr};
+#endif
+}
+
+LPTSTR AkVCam::tstrFromString(const std::string &str)
+{
+    if (str.empty())
+        return nullptr;
+
+#ifdef UNICODE
+    int required = MultiByteToWideChar(CP_UTF8, 0,
+                                       str.c_str(),
+                                       static_cast<int>(str.size()),
+                                       nullptr, 0);
+
+    if (required <= 0)
+        return nullptr;
+
+    auto wbuffer =
+            reinterpret_cast<LPWSTR>(CoTaskMemAlloc((required + 1)
+                                                    * sizeof(WCHAR)));
+
+    if (!wbuffer)
+        return nullptr;
+
+    MultiByteToWideChar(CP_UTF8, 0,
+                        str.c_str(), (int)str.size(),
+                        wbuffer, required);
+
+    wbuffer[required] = L'\0';
+
+    return wbuffer;
+#else
+    auto buffer = reinterpret_cast<LPTSTR>(CoTaskMemAlloc(str.size() + 1));
+
+    if (!buffer)
+        return nullptr;
+
+    strcpy_s(buffer, str.size() + 1, str.c_str());
+
+    return buffer;
+#endif
 }
 
 AkVCam::FourCC AkVCam::formatFromGuid(const GUID &guid)
@@ -1113,7 +1179,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
                                IID_PPV_ARGS(&imagingFactory));
 
     if (SUCCEEDED(hr)) {
-        auto wfileName = stringToWSTR(fileName);
+        auto wfileName = wstrFromString(fileName);
         IWICBitmapDecoder *decoder = nullptr;
         hr = imagingFactory->CreateDecoderFromFilename(wfileName,
                                                        nullptr,

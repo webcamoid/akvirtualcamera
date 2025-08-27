@@ -52,6 +52,5 @@ target_include_directories(VCamMediaSource
 target_link_libraries(VCamMediaSource
                       VCamIPC_windows
                       PlatformUtils_windows
-                      VCamUtils
-                      ${EXTRA_LIBS})
+                      VCamUtils)
 add_definitions(-DSTRSAFE_NO_DEPRECATE)

@@ -378,22 +378,18 @@ void AkVCam::IpcBridge::removeFormat(const std::string &deviceId, int index)
 void AkVCam::IpcBridge::updateDevices()
 {
     AkLogFunction();
-    auto pluginDir = dirname(locatePluginPath());
-    AkLogDebug() << "Plugin path: " << pluginDir << std::endl;
+    std::string pluginPath = supportsMediaFoundationVCam()?
+                                 locateMFPluginPath():
+                                 locatePluginPath();
+    AkLogDebug() << "Plugin binary: " << pluginPath << std::endl;
 
-    if (pluginDir.empty())
-        return;
-
-    auto path = pluginDir + "\\" AKVCAM_PLUGIN_NAME ".dll";
-    AkLogDebug() << "Plugin binary: " << path << std::endl;
-
-    if (!fileExists(path)) {
-        AkLogError() << "Plugin binary not found: " << path << std::endl;
+    if (!fileExists(pluginPath)) {
+        AkLogError() << "Plugin binary not found: " << pluginPath << std::endl;
 
         return;
     }
 
-    if (auto hmodule = LoadLibraryA(path.c_str())) {
+    if (auto hmodule = LoadLibraryA(pluginPath.c_str())) {
         auto registerServer =
                 RegisterServerFunc(GetProcAddress(hmodule, "DllRegisterServer"));
 
@@ -421,7 +417,7 @@ void AkVCam::IpcBridge::updateDevices()
 
         FreeLibrary(hmodule);
     } else {
-        AkLogError() << "Error loading plugin binary: " << path << std::endl;
+        AkLogError() << "Error loading plugin binary: " << pluginPath << std::endl;
     }
 }
 
@@ -664,6 +660,16 @@ bool AkVCam::IpcBridgePrivate::launchService()
             execDetached({servicePath});
         else
             AkLogDebug() << "Service path not found" << std::endl;
+
+        if (supportsMediaFoundationVCam()) {
+            AkLogDebug() << "Launching the Media Foundation service" << std::endl;
+            auto mfServicePath = locateMFServicePath();
+
+            if (!mfServicePath.empty())
+                execDetached({mfServicePath});
+            else
+                AkLogDebug() << "Media Foundation Service path not found" << std::endl;
+        }
     }
 
     bool ok = false;

@@ -57,7 +57,8 @@ target_include_directories(VirtualCamera_mf
 if (WIN32)
     set(EXTRA_LIBS
         mfplat
-        mfuuid)
+        mfuuid
+        winmm)
 endif ()
 
 target_link_libraries(VirtualCamera_mf

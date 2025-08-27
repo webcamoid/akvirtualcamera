@@ -47,7 +47,8 @@ if (WIN32)
     set(EXTRA_LIBS
         mfplat
         mfreadwrite
-        mfuuid)
+        mfuuid
+        winmm)
 endif ()
 
 target_link_libraries(MFVCamTest

@@ -28,6 +28,9 @@
 #include <mfreadwrite.h>
 
 #include "mediasource.h"
+#include "PlatformUtils/src/utils.h"
+#include "PlatformUtils/src/preferences.h"
+#include "VCamUtils/src/logger.h"
 #include "MFUtils/src/utils.h"
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -38,12 +41,26 @@ int WINAPI WinMain(HINSTANCE hInstance,
                    LPSTR lpCmdLine,
                    int nCmdShow)
 {
+    char exePath[MAX_PATH];
+    GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+    auto loglevel = AkVCam::Preferences::logLevel();
+    AkVCam::Logger::setLogLevel(loglevel);
+    auto defaultLogFile = AkVCam::tempPath()
+                          + "/"
+                          + AkVCam::basename(exePath)
+                          + ".log";
+    auto logFile = AkVCam::Preferences::readString("logfile", defaultLogFile);
+    AkVCam::Logger::setLogFile(logFile);
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
     MFStartup(MF_VERSION, MFSTARTUP_FULL);
 
     auto cameras = AkVCam::listRegisteredMFCameras();
 
     if (cameras.empty()) {
+        MessageBox(nullptr,
+                   TEXT("No cameras defined. Please, create at least one camera using the manager."),
+                   TEXT("Error"),
+                   MB_OK | MB_ICONERROR);
         MFShutdown();
         CoUninitialize();
 
@@ -71,7 +88,12 @@ int WINAPI WinMain(HINSTANCE hInstance,
                          NULL,
                          hInstance,
                          NULL);
+
     if (!hwnd) {
+        MessageBox(nullptr,
+                   TEXT("Failed to create the window."),
+                   TEXT("Error"),
+                   MB_OK | MB_ICONERROR);
         MFShutdown();
         CoUninitialize();
 
@@ -84,9 +106,15 @@ int WINAPI WinMain(HINSTANCE hInstance,
     // Inicialize IMFMediaSource and IMFSourceReader
     auto pMediaSource = new AkVCam::MediaSource(cameras.front());
     IMFSourceReader *pReader = nullptr;
-    auto hr = MFCreateSourceReaderFromMediaSource(pMediaSource, nullptr, &pReader);
+    auto hr = MFCreateSourceReaderFromMediaSource(pMediaSource,
+                                                  nullptr,
+                                                  &pReader);
 
     if (FAILED(hr)) {
+        MessageBox(nullptr,
+                   TEXT("Failed to create the media source reader."),
+                   TEXT("Error"),
+                   MB_OK | MB_ICONERROR);
         pMediaSource->Release();
         MFShutdown();
         CoUninitialize();
@@ -111,10 +139,19 @@ int WINAPI WinMain(HINSTANCE hInstance,
     pReader->SetStreamSelection(MF_SOURCE_READER_FIRST_VIDEO_STREAM, TRUE);
     MSG msg;
     memset(&msg, 0, sizeof(MSG));
+    bool running = true;
 
-    while (GetMessage(&msg, nullptr, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+    while (running) {
+        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_QUIT) {
+                running = false;
+
+                break;
+            }
+
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
 
         RenderFrame(hwnd, pReader);
     }
@@ -186,7 +223,36 @@ HRESULT RenderFrame(HWND hwnd, IMFSourceReader *pReader)
             pType->Release();
 
             // Render the frame
+
             auto hdc = GetDC(hwnd);
+
+            RECT rect;
+            GetClientRect(hwnd, &rect);
+            int winWidth = rect.right - rect.left;
+            int winHeight = rect.bottom - rect.top;
+
+            double frameAspect =
+                    static_cast<double>(width) / static_cast<double>(height);
+            double winAspect =
+                    static_cast<double>(winWidth) / static_cast<double>(winHeight);
+
+            int dstWidth;
+            int dstHeight;
+            int dstX;
+            int dstY;
+
+            if (winAspect > frameAspect) {
+                dstHeight = winHeight;
+                dstWidth = static_cast<int>(dstHeight * frameAspect);
+                dstX = (winWidth - dstWidth) / 2;
+                dstY = 0;
+            } else {
+                dstWidth = winWidth;
+                dstHeight = static_cast<int>(dstWidth / frameAspect);
+                dstX = 0;
+                dstY = (winHeight - dstHeight) / 2;
+            }
+
             BITMAPINFO bmi;
             memset(&bmi, 0, sizeof(BITMAPINFOHEADER));
             bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -196,11 +262,16 @@ HRESULT RenderFrame(HWND hwnd, IMFSourceReader *pReader)
             bmi.bmiHeader.biBitCount = 32;
             bmi.bmiHeader.biCompression = BI_RGB;
 
+            // Clean the window
+            auto hBrush = reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+            FillRect(hdc, &rect, hBrush);
+
+            // Draw the frame
             StretchDIBits(hdc,
-                          0,
-                          0,
-                          width,
-                          height,
+                          dstX,
+                          dstY,
+                          dstWidth,
+                          dstHeight,
                           0,
                           0,
                           width,
