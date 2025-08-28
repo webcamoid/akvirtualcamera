@@ -50,40 +50,40 @@ class IMFCamSyncObject: public IUnknown
 class IMFVCam: public IMFAttributes
 {
     public:
-        virtual HRESULT AddDeviceSourceInfo(LPCWSTR DeviceSourceInfo) = 0;
-        virtual HRESULT AddProperty(const DEVPROPKEY *pKey,
-                                    DEVPROPTYPE Type,
-                                    const BYTE *pbData,
-                                    ULONG cbData) = 0;
-        virtual HRESULT AddRegistryEntry(LPCWSTR EntryName,
-                                        LPCWSTR SubkeyPath,
-                                        DWORD dwRegType,
-                                        const BYTE *pbData,
-                                        ULONG cbData) = 0;
-        virtual HRESULT Start(IMFAsyncCallback *pCallback) = 0;
-        virtual HRESULT Stop() = 0;
-        virtual HRESULT Remove() = 0;
-        virtual HRESULT GetMediaSource(IMFMediaSource **ppMediaSource) = 0;
-        virtual HRESULT SendCameraProperty(REFGUID propertySet,
-                                        ULONG propertyId,
-                                        ULONG propertyFlags,
-                                        void *propertyPayload,
-                                        ULONG propertyPayloadLength,
-                                        void *data,
-                                        ULONG dataLength,
-                                        ULONG *dataWritten) = 0;
-        virtual HRESULT CreateSyncEvent(REFGUID kseventSet,
-                                        ULONG kseventId,
-                                        ULONG kseventFlags,
-                                        HANDLE eventHandle,
-                                        IMFCamSyncObject **cameraSyncObject) = 0;
-        virtual HRESULT CreateSyncSemaphore(REFGUID kseventSet,
-                                            ULONG kseventId,
-                                            ULONG kseventFlags,
-                                            HANDLE semaphoreHandle,
-                                            LONG semaphoreAdjustment,
-                                            IMFCamSyncObject **cameraSyncObject) = 0;
-        virtual HRESULT Shutdown( void) = 0;
+        virtual HRESULT STDMETHODCALLTYPE AddDeviceSourceInfo(LPCWSTR deviceSourceInfo) = 0;
+        virtual HRESULT STDMETHODCALLTYPE AddProperty(const DEVPROPKEY *pKey,
+                                                      DEVPROPTYPE type,
+                                                      const BYTE *pbData,
+                                                      ULONG cbData) = 0;
+        virtual HRESULT STDMETHODCALLTYPE AddRegistryEntry(LPCWSTR entryName,
+                                                           LPCWSTR subkeyPath,
+                                                           DWORD dwRegType,
+                                                           const BYTE *pbData,
+                                                           ULONG cbData) = 0;
+        virtual HRESULT STDMETHODCALLTYPE Start(IMFAsyncCallback *pCallback) = 0;
+        virtual HRESULT STDMETHODCALLTYPE Stop() = 0;
+        virtual HRESULT STDMETHODCALLTYPE Remove() = 0;
+        virtual HRESULT STDMETHODCALLTYPE GetMediaSource(IMFMediaSource **ppMediaSource) = 0;
+        virtual HRESULT STDMETHODCALLTYPE SendCameraProperty(REFGUID propertySet,
+                                                             ULONG propertyId,
+                                                             ULONG propertyFlags,
+                                                             void *propertyPayload,
+                                                             ULONG propertyPayloadLength,
+                                                             void *data,
+                                                             ULONG dataLength,
+                                                             ULONG *dataWritten) = 0;
+        virtual HRESULT STDMETHODCALLTYPE CreateSyncEvent(REFGUID kseventSet,
+                                                          ULONG kseventId,
+                                                          ULONG kseventFlags,
+                                                          HANDLE eventHandle,
+                                                          IMFCamSyncObject **cameraSyncObject) = 0;
+        virtual HRESULT STDMETHODCALLTYPE CreateSyncSemaphore(REFGUID kseventSet,
+                                                              ULONG kseventId,
+                                                              ULONG kseventFlags,
+                                                              HANDLE semaphoreHandle,
+                                                              LONG semaphoreAdjustment,
+                                                              IMFCamSyncObject **cameraSyncObject) = 0;
+        virtual HRESULT STDMETHODCALLTYPE Shutdown() = 0;
 };
 
 #endif // MFVCAM_H

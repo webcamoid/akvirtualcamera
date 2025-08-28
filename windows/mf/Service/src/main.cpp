@@ -42,9 +42,11 @@ using CamerasList = std::vector<std::shared_ptr<IMFVCam>>;
 
 HMODULE mfsensorgroupHnd;
 MFCreateVirtualCameraType mfCreateVirtualCamera;
+AkVCam::IpcBridge *ipcBridgePtr;
+std::mutex *mtxPtr;
 CamerasList *camerasPtr;
 
-void updateCameras();
+void updateCameras(void *, const std::vector<std::string> &);
 
 int main(int argc, char **argv)
 {
@@ -84,25 +86,28 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    //  Create the cameras
+    std::mutex mtx;
+    mtxPtr = &mtx;
+
+    // Create the cameras
 
     CamerasList cameras;
     camerasPtr = &cameras;
-    updateCameras();
+    updateCameras(nullptr, {});
 
     // Subscribe for the virtual cameras updated event
 
     AkVCam::IpcBridge ipcBridge;
-    ipcBridge.connectDevicesChanged(nullptr,
-                                    [] (void *,
-                                        const std::vector<std::string> &) {
-        updateCameras();
-    });
+    ipcBridgePtr = &ipcBridge;
+    ipcBridge.connectDevicesChanged(nullptr, updateCameras);
 
     // Stop the virtual camera on Ctrl + C
 
     signal(SIGTERM, [] (int) {
+        ipcBridgePtr->disconnectDevicesChanged(nullptr, updateCameras);
+        mtxPtr->lock();
         camerasPtr->clear();
+        mtxPtr->lock();
         FreeLibrary(mfsensorgroupHnd);
         MFShutdown();
     });
@@ -112,15 +117,19 @@ int main(int argc, char **argv)
     std::cout << "Virtual camera service started. Press Enter to stop it..." << std::endl;
     getchar();
 
+    ipcBridge.disconnectDevicesChanged(nullptr, updateCameras);
+    mtx.lock();
     cameras.clear();
+    mtx.unlock();
     FreeLibrary(mfsensorgroupHnd);
     MFShutdown();
 
     return 0;
 }
 
-void updateCameras()
+void updateCameras(void *, const std::vector<std::string> &)
 {
+    std::lock_guard<std::mutex> lock(*mtxPtr);
     camerasPtr->clear();
 
     for (auto &clsid: AkVCam::listRegisteredMFCameras()) {
@@ -135,7 +144,17 @@ void updateCameras()
             continue;
 
         auto clsidWStr = AkVCam::wstrFromString(AkVCam::stringFromClsid(clsid));
+
+        if (!clsidWStr)
+            continue;
+
         auto descriptionWStr = AkVCam::wstrFromString(description);
+
+        if (!descriptionWStr) {
+            CoTaskMemFree(clsidWStr);
+
+            continue;
+        }
 
         // For creating the virtual camera, the MediaSource must be registered
 
@@ -149,7 +168,7 @@ void updateCameras()
                                         0,
                                         &vcam);
 
-        if (FAILED(hr)) {
+        if (FAILED(hr) || !vcam) {
             std::cerr << "Error creating the virtual camera: " << hr << std::endl;
             CoTaskMemFree(clsidWStr);
             CoTaskMemFree(descriptionWStr);

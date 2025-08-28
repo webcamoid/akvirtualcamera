@@ -129,10 +129,24 @@ int WINAPI WinMain(HINSTANCE hInstance,
     if (SUCCEEDED(hr)) {
         pMediaType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
         pMediaType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32);
-        pReader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM,
-                                     nullptr,
-                                     pMediaType);
+        hr = pReader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM,
+                                          nullptr,
+                                          pMediaType);
         pMediaType->Release();
+
+        if (FAILED(hr)) {
+            MessageBox(nullptr,
+                       TEXT("It was not possible to set RGB32 format."),
+                       TEXT("Error"),
+                       MB_OK | MB_ICONERROR);
+
+            pReader->Release();
+            pMediaSource->Release();
+            MFShutdown();
+            CoUninitialize();
+
+            return -1;
+        }
     }
 
     // Select the video stream
