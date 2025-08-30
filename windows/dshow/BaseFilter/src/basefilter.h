@@ -35,9 +35,7 @@ namespace AkVCam
             public MediaFilter
     {
         public:
-            BaseFilter(const GUID &clsid,
-                       const std::string &filterName={},
-                       const std::string &vendor={});
+            BaseFilter(const GUID &clsid);
             virtual ~BaseFilter();
 
             void addPin(const std::vector<VideoFormat> &formats={},

@@ -33,8 +33,8 @@
 #include "VCamUtils/src/logger.h"
 #include "MFUtils/src/utils.h"
 
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-HRESULT RenderFrame(HWND hwnd, IMFSourceReader *pReader);
+LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+HRESULT renderFrame(HWND hwnd, IMFSourceReader *pReader);
 
 int WINAPI WinMain(HINSTANCE hInstance,
                    HINSTANCE hPrevInstance,
@@ -70,7 +70,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
     // Register the window class
     WNDCLASS wc;
     memset(&wc, 0, sizeof(WNDCLASS));
-    wc.lpfnWndProc = WndProc;
+    wc.lpfnWndProc = wndProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = TEXT("VideoWindowClass");
     RegisterClass(&wc);
@@ -167,7 +167,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
             DispatchMessage(&msg);
         }
 
-        RenderFrame(hwnd, pReader);
+        renderFrame(hwnd, pReader);
     }
 
     pReader->Release();
@@ -178,7 +178,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
     return static_cast<int>(msg.wParam);
 }
 
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
         case WM_DESTROY:
@@ -197,7 +197,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-HRESULT RenderFrame(HWND hwnd, IMFSourceReader *pReader)
+HRESULT renderFrame(HWND hwnd, IMFSourceReader *pReader)
 {
     DWORD streamIndex = 0;
     DWORD flags = 0;

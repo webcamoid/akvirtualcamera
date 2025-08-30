@@ -27,6 +27,7 @@
 #include <iostream>
 #include <functional>
 #include <locale>
+#include <random>
 #include <sstream>
 #include <thread>
 
@@ -132,6 +133,7 @@ namespace AkVCam {
             int update(const StringMap &flags, const StringVector &args);
             int loadSettings(const StringMap &flags, const StringVector &args);
             int stream(const StringMap &flags, const StringVector &args);
+            int streamPattern(const StringMap &flags, const StringVector &args);
             int listenEvents(const StringMap &flags, const StringVector &args);
             int showControls(const StringMap &flags, const StringVector &args);
             int readControl(const StringMap &flags, const StringVector &args);
@@ -276,6 +278,14 @@ AkVCam::CmdParser::CmdParser()
                    {"-f", "--fps"},
                    "FPS",
                    "Read stream input at a constant frame rate.");
+    this->addCommand("stream-pattern",
+                     "DEVICE WIDTH HEIGHT",
+                     "Send a test video pattern to the device.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::streamPattern));
+    this->addFlags("stream-pattern",
+                   {"-f", "--fps"},
+                   "FPS",
+                   "Send test pattern at a constant frame rate.");
     this->addCommand("listen-events",
                      "",
                      "Keep the manager running and listening to global events.",
@@ -1457,6 +1467,272 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
             }
 
             bufferSize = 0;
+        }
+    } while (!std::cin.eof() && !exit);
+
+    this->m_ipcBridge.deviceStop(deviceId);
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
+                                            const StringVector &args)
+{
+    UNUSED(flags);
+
+    if (args.size() < 4) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -EINVAL;
+    }
+
+    auto deviceId = args[1];
+    auto devices = this->m_ipcBridge.devices();
+    auto dit = std::find(devices.begin(), devices.end(), deviceId);
+
+    if (dit == devices.end()) {
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
+
+        return -ENODEV;
+    }
+
+    static const AkVCam::FourCC format = AkVCam::PixelFormatRGB24;
+    auto formats =
+            this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamType_Output);
+    auto fit = std::find(formats.begin(), formats.end(), format);
+
+    if (fit == formats.end()) {
+        std::cerr << "RGB24 format not supported." << std::endl;
+
+        return -EINVAL;
+    }
+
+    char *p = nullptr;
+    auto width = strtoul(args[2].c_str(), &p, 10);
+
+    if (*p) {
+        std::cerr << "Width must be an unsigned integer." << std::endl;
+
+        return -EINVAL;
+    }
+
+    p = nullptr;
+    auto height = strtoul(args[3].c_str(), &p, 10);
+
+    if (*p) {
+        std::cerr << "Height must be an unsigned integer." << std::endl;
+
+        return -EINVAL;
+    }
+
+    auto fpsStr = this->flagValue(flags, "stream", "-f");
+    double fps = 30.0;
+
+    if (!fpsStr.empty()) {
+        p = nullptr;
+        fps = int(strtod(fpsStr.c_str(), &p));
+
+        if (*p) {
+            if (!Fraction::isFraction(fpsStr)) {
+                std::cerr << "The framerate must be a number or a fraction." << std::endl;
+
+                return -EINVAL;
+            }
+
+            fps = Fraction(fpsStr).value();
+        }
+
+        if (fps <= 0 || std::isinf(fps)) {
+            std::cerr << "The framerate is out of range." << std::endl;
+
+            return -ERANGE;
+        }
+    }
+
+    VideoFormat fmt(format, int(width), int(height), {{30, 1}});
+
+    if (!this->m_ipcBridge.deviceStart(IpcBridge::StreamType_Output, deviceId)) {
+        std::cerr << "Can't start stream." << std::endl;
+
+        return -EIO;
+    }
+
+    static bool exit = false;
+    auto signalHandler = [] (int) {
+        exit = true;
+    };
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+
+#ifndef _WIN32
+    signal(SIGPIPE, [] (int) {
+    });
+#endif
+
+    AkVCam::VideoFrame frame(fmt);
+
+#ifdef _WIN32
+    // Set std::cin in binary mode.
+    _setmode(_fileno(stdin), _O_BINARY);
+#endif
+
+    // Define colors
+
+    struct RGB
+    {
+        uint8_t r, g, b;
+    };
+
+    std::vector<RGB> colors = {
+        {0  , 0  , 0  }, // Black
+        {255, 0  , 0  }, // Red
+        {255, 255, 0  }, // Yellow
+        {0  , 255, 0  }, // Green
+        {0  , 255, 255}, // Cyan
+        {0  , 0  , 255}, // Blue
+        {255, 0  , 255}, // Magenta
+        {255, 255, 255}  // White
+    };
+
+    const int numBars = colors.size();
+    const int barWidth = width / numBars;
+
+    // Square properties
+
+    const int squareSize = std::min(width, height) / 8; // Square side length
+    double squareX = width / 2.0;     // Initial position (center)
+    double squareY = height / 2.0;
+    double speedX = 0.1 * width * fps; // Speed: 10% of width per second
+    double speedY = 0.1 * height * fps;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> colorDist(0, numBars - 1);
+    RGB squareColor = colors[colorDist(gen)]; // Initial random color
+
+    auto clock = [] (const std::chrono::time_point<std::chrono::high_resolution_clock> &since) -> double {
+        return std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - since).count();
+    };
+
+    const double minThreshold = 0.04;
+    const double maxThreshold = 0.1;
+    const double framedupThreshold = 0.1;
+    const double nosyncThreshold = 10.0;
+
+    double lastPts = 0.0;
+    auto t0 = std::chrono::high_resolution_clock::now();
+    double drift = 0;
+    uint64_t i = 0;
+
+    do {
+        // Fill frame with color bars
+
+        auto firstLine = frame.line(0, 0);
+
+        // Fill first line with color bars
+        for (int x = 0; x < width; ++x) {
+            int barIndex = x / barWidth;
+
+            if (barIndex >= numBars)
+                barIndex = numBars - 1;
+
+            const auto &color = colors[barIndex];
+            auto pixel = firstLine + 3 * x;
+            pixel[0] = color.r;
+            pixel[1] = color.g;
+            pixel[2] = color.b;
+        }
+
+        auto lineSize = frame.format().bypl(0);
+
+        // Copy first line to all rows
+        for (int y = 1; y < height; ++y)
+            memcpy(frame.line(0, y), firstLine, lineSize);
+
+        // Update square position
+        squareX += speedX / fps;
+        squareY += speedY / fps;
+
+        // Check for collisions and update direction/color
+
+        bool collision = false;
+
+        if (squareX <= 0 || squareX + squareSize >= width) {
+            speedX = -speedX;
+            squareX = std::max(0.0, std::min(double(width - squareSize), squareX));
+            collision = true;
+        }
+
+        if (squareY <= 0 || squareY + squareSize >= height) {
+            speedY = -speedY;
+            squareY = std::max(0.0, std::min(double(height - squareSize), squareY));
+            collision = true;
+        }
+
+        // Change color on collision
+        if (collision)
+            squareColor = colors[colorDist(gen)];
+
+        // Draw square
+        int xStart = std::max(0, int(squareX));
+        int xEnd = std::min(int(width), int(squareX + squareSize));
+        int yStart = std::max(0, int(squareY));
+        int yEnd = std::min(int(height), int(squareY + squareSize));
+
+        auto line = frame.line(0, yStart);
+
+        for (int x = xStart; x < xEnd; ++x) {
+            auto pixel = line + 3 * x;
+            pixel[0] = squareColor.r;
+            pixel[1] = squareColor.g;
+            pixel[2] = squareColor.b;
+        }
+
+        auto bytesToFill = 3 * (xEnd - xStart);
+
+        for (int y = yStart + 1; y < yEnd; ++y) {
+            memcpy(frame.line(0, y) + 3 * xStart,
+                   line,
+                   bytesToFill);
+        }
+
+        if (fpsStr.empty()) {
+            this->m_ipcBridge.write(deviceId, frame);
+        } else {
+            double pts = double(i) / fps;
+
+            for (;;) {
+                double clock_pts = clock(t0) + drift;
+                double diff = pts - clock_pts;
+                double delay = pts - lastPts;
+                double syncThreshold =
+                        std::max(minThreshold,
+                                 std::min(delay, maxThreshold));
+
+                if (!std::isnan(diff)
+                    && std::abs(diff) < nosyncThreshold
+                    && delay < framedupThreshold) {
+                    if (diff <= -syncThreshold) {
+                        lastPts = pts;
+
+                        break;
+                    }
+
+                    if (diff > syncThreshold) {
+                        std::this_thread::sleep_for(std::chrono::duration<double>(diff - syncThreshold));
+
+                        continue;
+                    }
+                } else {
+                    drift = clock(t0) - pts;
+                }
+
+                this->m_ipcBridge.write(deviceId, frame);
+                lastPts = pts;
+
+                break;
+            }
+
+            i++;
         }
     } while (!std::cin.eof() && !exit);
 

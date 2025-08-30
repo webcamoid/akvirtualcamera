@@ -18,7 +18,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(VCamTest_mf LANGUAGES CXX)
+project(VCamTest_dshow LANGUAGES CXX)
 
 include(../../../commons.cmake)
 
@@ -26,36 +26,34 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (WIN32)
-    add_executable(VCamTest_mf WIN32 src/main.cpp)
+    add_executable(VCamTest_dshow WIN32 src/main.cpp)
 else ()
-    add_executable(VCamTest_mf EXCLUDE_FROM_ALL src/main.cpp)
+    add_executable(VCamTest_dshow EXCLUDE_FROM_ALL src/main.cpp)
 endif ()
 
-set_target_properties(VCamTest_mf PROPERTIES
-                      OUTPUT_NAME AkVCamTestMF
+set_target_properties(VCamTest_dshow PROPERTIES
+                      OUTPUT_NAME AkVCamTest
                       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR}
                       RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR})
-add_dependencies(VCamTest_mf VCamMediaSource MFUtils)
-target_include_directories(VCamTest_mf
+add_dependencies(VCamTest_dshow VCamBaseFilter)
+target_include_directories(VCamTest_dshow
                            PRIVATE
-                           ../MediaSource/src
+                           ../BaseFilter/src
                            ..
                            ../..
                            ../../..)
 
 if (WIN32)
     set(EXTRA_LIBS
-        mfplat
-        mfreadwrite
-        mfuuid
         winmm)
 endif ()
 
-target_link_libraries(VCamTest_mf
-                      VCamMediaSource
-                      MFUtils
+target_link_libraries(VCamTest_dshow
+                      VCamBaseFilter
                       ${EXTRA_LIBS})
 
+add_definitions(-DSTRSAFE_NO_DEPRECATE)
+
 if (WIN32)
-    install(TARGETS VCamTest_mf DESTINATION ${BINDIR})
+    install(TARGETS VCamTest_dshow DESTINATION ${BINDIR})
 endif ()

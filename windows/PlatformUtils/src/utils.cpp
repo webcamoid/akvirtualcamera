@@ -1294,6 +1294,8 @@ std::string AkVCam::createDeviceId()
 
 std::vector<CLSID> AkVCam::listAllCameras()
 {
+    AkLogFunction();
+
     WCHAR *strIID = nullptr;
     StringFromIID(CLSID_VideoInputDeviceCategory, &strIID);
 
@@ -1358,20 +1360,16 @@ std::vector<CLSID> AkVCam::listAllCameras()
 
     RegCloseKey(key);
 
+    AkLogDebug() << "Found " << cameras.size() << " available cameras" << std::endl;
+
     return cameras;
 }
 
 std::vector<CLSID> AkVCam::listRegisteredCameras()
 {
     AkLogFunction();
-    auto pluginFolder = locatePluginPath();
-    AkLogDebug() << "Plugin path: " << pluginFolder << std::endl;
-
-    if (pluginFolder.empty())
-        return {};
-
-    auto pluginPath = pluginFolder + "\\" AKVCAM_PLUGIN_NAME ".dll";
-    AkLogDebug() << "Plugin binary: " << pluginPath << std::endl;
+    auto pluginPath = locatePluginPath();
+    AkLogDebug() << "Plugin path: " << pluginPath << std::endl;
 
     if (!fileExists(pluginPath)) {
         AkLogError() << "Plugin binary not found: " << pluginPath << std::endl;
@@ -1394,11 +1392,12 @@ std::vector<CLSID> AkVCam::listRegisteredCameras()
                          nullptr,
                          path,
                          &pathSize) == ERROR_SUCCESS) {
-
             if (path == pluginPath)
                 cameras.push_back(clsid);
         }
     }
+
+    AkLogDebug() << "Found " << cameras.size() << " registered virtual cameras" << std::endl;
 
     return cameras;
 }

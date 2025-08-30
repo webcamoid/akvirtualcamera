@@ -102,7 +102,7 @@ HRESULT AkVCam::EnumPins::Next(ULONG cPins, IPin **ppPins, ULONG *pcFetched)
     if (pcFetched)
         *pcFetched = 0;
 
-    if (!cPins)
+    if (cPins < 1)
         return E_INVALIDARG;
 
     if (!ppPins)
@@ -116,17 +116,22 @@ HRESULT AkVCam::EnumPins::Next(ULONG cPins, IPin **ppPins, ULONG *pcFetched)
         return VFW_E_ENUM_OUT_OF_SYNC;
     }
 
+    if (this->d->m_pins.empty())
+        return S_FALSE;
+
     ULONG fetched = 0;
 
     for (;
          fetched < cPins
          && this->d->m_position < this->d->m_pins.size();
          fetched++, this->d->m_position++) {
-        *ppPins = this->d->m_pins[this->d->m_position];
-        (*ppPins)->AddRef();
+        auto pin = this->d->m_pins[this->d->m_position];
 
-        if (*ppPins)
+        if (pin) {
+            *ppPins = pin;
+            pin->AddRef();
             ppPins++;
+        }
     }
 
     if (pcFetched)

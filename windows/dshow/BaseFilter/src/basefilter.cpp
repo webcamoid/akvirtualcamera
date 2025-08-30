@@ -58,14 +58,12 @@ namespace AkVCam
             EnumPins *m_pins {nullptr};
             VideoProcAmp *m_videoProcAmp {nullptr};
             ReferenceClock *m_referenceClock {nullptr};
-            std::string m_vendor;
+            std::string m_vendor {DSHOW_PLUGIN_VENDOR};
             std::string m_filterName;
             IFilterGraph *m_filterGraph {nullptr};
             IpcBridgePtr m_ipcBridge;
 
-            BaseFilterPrivate(BaseFilter *self,
-                              const std::string &filterName,
-                              const std::string &vendor);
+            BaseFilterPrivate(BaseFilter *self);
             BaseFilterPrivate(const BaseFilterPrivate &other) = delete;
             ~BaseFilterPrivate();
             IEnumPins *pinsForDevice(const std::string &deviceId);
@@ -86,13 +84,18 @@ namespace AkVCam
 
 BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
 
-AkVCam::BaseFilter::BaseFilter(const GUID &clsid,
-                               const std::string &filterName,
-                               const std::string &vendor):
+AkVCam::BaseFilter::BaseFilter(const GUID &clsid):
     MediaFilter(clsid, this)
 {
     this->setParent(this, &IID_IBaseFilter);
-    this->d = new BaseFilterPrivate(this, filterName, vendor);
+    this->d = new BaseFilterPrivate(this);
+    auto camera = Preferences::cameraFromCLSID(clsid);
+
+    if (camera >= 0) {
+        this->d->m_filterName = Preferences::cameraDescription(size_t(camera));
+        auto formats = Preferences::cameraFormats(size_t(camera));
+        this->addPin(formats, "Video", false);
+    }
 }
 
 AkVCam::BaseFilter::~BaseFilter()
@@ -121,22 +124,9 @@ void AkVCam::BaseFilter::removePin(IPin *pin, bool changed)
 AkVCam::BaseFilter *AkVCam::BaseFilter::create(const GUID &clsid)
 {
     AkLogFunction();
-    auto camera = Preferences::cameraFromCLSID(clsid);
     AkLogInfo() << "CLSID: " << stringFromIid(clsid) << std::endl;
-    AkLogInfo() << "ID: " << camera << std::endl;
 
-    if (camera < 0)
-        return nullptr;
-
-    auto description = Preferences::cameraDescription(size_t(camera));
-    AkLogInfo() << "Description: " << description << std::endl;
-    auto baseFilter = new BaseFilter(clsid,
-                                     description,
-                                     DSHOW_PLUGIN_VENDOR);
-    auto formats = Preferences::cameraFormats(size_t(camera));
-    baseFilter->addPin(formats, "Video", false);
-
-    return baseFilter;
+    return new BaseFilter(clsid);
 }
 
 IFilterGraph *AkVCam::BaseFilter::filterGraph() const
@@ -224,12 +214,14 @@ HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppvObject)
     } else {
         this->d->m_pins->Reset();
         IPin *pin = nullptr;
-        this->d->m_pins->Next(1, &pin, nullptr);
-        auto result = pin->QueryInterface(riid, ppvObject);
-        pin->Release();
 
-        if (SUCCEEDED(result))
-            return result;
+        if (this->d->m_pins->Next(1, &pin, nullptr) == S_OK && pin) {
+            auto result = pin->QueryInterface(riid, ppvObject);
+            pin->Release();
+
+            if (SUCCEEDED(result))
+                return result;
+        }
     }
 
     return MediaFilter::QueryInterface(riid, ppvObject);
@@ -342,15 +334,11 @@ HRESULT AkVCam::BaseFilter::QueryVendorInfo(LPWSTR *pVendorInfo)
     return S_OK;
 }
 
-AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self,
-                                             const std::string &filterName,
-                                             const std::string &vendor):
+AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self):
     self(self),
     m_pins(new AkVCam::EnumPins),
     m_videoProcAmp(new VideoProcAmp),
-    m_referenceClock(new ReferenceClock),
-    m_vendor(vendor),
-    m_filterName(filterName)
+    m_referenceClock(new ReferenceClock)
 {
     this->m_pins->AddRef();
     this->m_videoProcAmp->AddRef();

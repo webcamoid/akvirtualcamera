@@ -20,4 +20,6 @@ cmake_minimum_required(VERSION 3.16)
 
 project(dshow)
 
+add_subdirectory(BaseFilter)
 add_subdirectory(VirtualCamera)
+add_subdirectory(Test)

@@ -18,8 +18,8 @@
  */
 
 #include "classfactory.h"
-#include "basefilter.h"
-#include "persistpropertybag.h"
+#include "BaseFilter/src/basefilter.h"
+#include "BaseFilter/src/persistpropertybag.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 

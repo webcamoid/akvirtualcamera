@@ -178,88 +178,113 @@ HRESULT AkVCam::StreamConfig::GetStreamCaps(int iIndex,
     if (iIndex < 0)
         return E_INVALIDARG;
 
-    if (this->d->m_pin) {
-        IEnumMediaTypes *mediaTypes = nullptr;
+    if (!this->d->m_pin) {
+        AkLogError() << "Pin is null" << std::endl;
 
-        if (SUCCEEDED(this->d->m_pin->EnumMediaTypes(&mediaTypes))) {
-            mediaTypes->Reset();
-            AM_MEDIA_TYPE *mediaType = nullptr;
+        return E_FAIL;
+    }
 
-            for (int i = 0;
-                 mediaTypes->Next(1, &mediaType, nullptr) == S_OK;
-                 i++) {
-                if (i == iIndex) {
-                    *pmt = mediaType;
+    IEnumMediaTypes *mediaTypes = nullptr;
+    auto hr = this->d->m_pin->EnumMediaTypes(&mediaTypes);
 
-                    if (IsEqualGUID(mediaType->formattype, FORMAT_VideoInfo)) {
-                        auto format = reinterpret_cast<VIDEOINFOHEADER *>(mediaType->pbFormat);
-                        configCaps->guid = mediaType->formattype;
-                        configCaps->VideoStandard = AnalogVideo_None;
-                        configCaps->InputSize.cx = format->bmiHeader.biWidth;
-                        configCaps->InputSize.cy = format->bmiHeader.biHeight;
-                        configCaps->MinCroppingSize.cx = format->bmiHeader.biWidth;
-                        configCaps->MinCroppingSize.cy = format->bmiHeader.biHeight;
-                        configCaps->MaxCroppingSize.cx = format->bmiHeader.biWidth;
-                        configCaps->MaxCroppingSize.cy = format->bmiHeader.biHeight;
-                        configCaps->CropGranularityX = 1;
-                        configCaps->CropGranularityY = 1;
-                        configCaps->CropAlignX = 0;
-                        configCaps->CropAlignY = 0;
-                        configCaps->MinOutputSize.cx = format->bmiHeader.biWidth;
-                        configCaps->MinOutputSize.cy = format->bmiHeader.biHeight;
-                        configCaps->MaxOutputSize.cx = format->bmiHeader.biWidth;
-                        configCaps->MaxOutputSize.cy = format->bmiHeader.biHeight;
-                        configCaps->OutputGranularityX = 1;
-                        configCaps->OutputGranularityY = 1;
-                        configCaps->StretchTapsX = 1;
-                        configCaps->StretchTapsY = 1;
-                        configCaps->ShrinkTapsX = 1;
-                        configCaps->ShrinkTapsY = 1;
-                        configCaps->MinFrameInterval = format->AvgTimePerFrame;
-                        configCaps->MaxFrameInterval = format->AvgTimePerFrame;
-                        configCaps->MinBitsPerSecond = LONG(format->dwBitRate);
-                        configCaps->MaxBitsPerSecond = LONG(format->dwBitRate);
-                    } else if (IsEqualGUID(mediaType->formattype, FORMAT_VideoInfo2)) {
-                        auto format = reinterpret_cast<VIDEOINFOHEADER2 *>(mediaType->pbFormat);
-                        configCaps->guid = mediaType->formattype;
-                        configCaps->VideoStandard = AnalogVideo_None;
-                        configCaps->InputSize.cx = format->bmiHeader.biWidth;
-                        configCaps->InputSize.cy = format->bmiHeader.biHeight;
-                        configCaps->MinCroppingSize.cx = format->bmiHeader.biWidth;
-                        configCaps->MinCroppingSize.cy = format->bmiHeader.biHeight;
-                        configCaps->MaxCroppingSize.cx = format->bmiHeader.biWidth;
-                        configCaps->MaxCroppingSize.cy = format->bmiHeader.biHeight;
-                        configCaps->CropGranularityX = 1;
-                        configCaps->CropGranularityY = 1;
-                        configCaps->CropAlignX = 0;
-                        configCaps->CropAlignY = 0;
-                        configCaps->MinOutputSize.cx = format->bmiHeader.biWidth;
-                        configCaps->MinOutputSize.cy = format->bmiHeader.biHeight;
-                        configCaps->MaxOutputSize.cx = format->bmiHeader.biWidth;
-                        configCaps->MaxOutputSize.cy = format->bmiHeader.biHeight;
-                        configCaps->OutputGranularityX = 1;
-                        configCaps->OutputGranularityY = 1;
-                        configCaps->StretchTapsX = 1;
-                        configCaps->StretchTapsY = 1;
-                        configCaps->ShrinkTapsX = 1;
-                        configCaps->ShrinkTapsY = 1;
-                        configCaps->MinFrameInterval = format->AvgTimePerFrame;
-                        configCaps->MaxFrameInterval = format->AvgTimePerFrame;
-                        configCaps->MinBitsPerSecond = LONG(format->dwBitRate);
-                        configCaps->MaxBitsPerSecond = LONG(format->dwBitRate);
-                    }
+    if (FAILED(hr)) {
+        AkLogError() << "Failed to enumerate media types: " << std::hex << hr << std::endl;
 
-                    break;
-                }
+        return hr;
+    }
 
+    mediaTypes->Reset();
+    AM_MEDIA_TYPE *mediaType = nullptr;
+
+    for (int i = 0;
+         mediaTypes->Next(1, &mediaType, nullptr) == S_OK;
+         i++) {
+        if (i == iIndex) {
+            auto pCopiedMt = createMediaType(mediaType);
+
+            if (pCopiedMt) {
+                *pmt = pCopiedMt;
+            } else {
+                AkLogError() << "Failed to copy media type: " << std::endl;
                 deleteMediaType(&mediaType);
+                mediaTypes->Release();
+
+                return hr;
             }
 
-            mediaTypes->Release();
+            if (IsEqualGUID(mediaType->formattype, FORMAT_VideoInfo)) {
+                auto format = reinterpret_cast<VIDEOINFOHEADER *>(mediaType->pbFormat);
+                configCaps->guid = mediaType->formattype;
+                configCaps->VideoStandard = AnalogVideo_None;
+                configCaps->InputSize.cx = format->bmiHeader.biWidth;
+                configCaps->InputSize.cy = format->bmiHeader.biHeight;
+                configCaps->MinCroppingSize.cx = format->bmiHeader.biWidth;
+                configCaps->MinCroppingSize.cy = format->bmiHeader.biHeight;
+                configCaps->MaxCroppingSize.cx = format->bmiHeader.biWidth;
+                configCaps->MaxCroppingSize.cy = format->bmiHeader.biHeight;
+                configCaps->CropGranularityX = 1;
+                configCaps->CropGranularityY = 1;
+                configCaps->CropAlignX = 0;
+                configCaps->CropAlignY = 0;
+                configCaps->MinOutputSize.cx = format->bmiHeader.biWidth;
+                configCaps->MinOutputSize.cy = format->bmiHeader.biHeight;
+                configCaps->MaxOutputSize.cx = format->bmiHeader.biWidth;
+                configCaps->MaxOutputSize.cy = format->bmiHeader.biHeight;
+                configCaps->OutputGranularityX = 1;
+                configCaps->OutputGranularityY = 1;
+                configCaps->StretchTapsX = 1;
+                configCaps->StretchTapsY = 1;
+                configCaps->ShrinkTapsX = 1;
+                configCaps->ShrinkTapsY = 1;
+                configCaps->MinFrameInterval = format->AvgTimePerFrame;
+                configCaps->MaxFrameInterval = format->AvgTimePerFrame;
+                configCaps->MinBitsPerSecond = LONG(format->dwBitRate);
+                configCaps->MaxBitsPerSecond = LONG(format->dwBitRate);
+            } else if (IsEqualGUID(mediaType->formattype, FORMAT_VideoInfo2)) {
+                auto format = reinterpret_cast<VIDEOINFOHEADER2 *>(mediaType->pbFormat);
+                configCaps->guid = mediaType->formattype;
+                configCaps->VideoStandard = AnalogVideo_None;
+                configCaps->InputSize.cx = format->bmiHeader.biWidth;
+                configCaps->InputSize.cy = format->bmiHeader.biHeight;
+                configCaps->MinCroppingSize.cx = format->bmiHeader.biWidth;
+                configCaps->MinCroppingSize.cy = format->bmiHeader.biHeight;
+                configCaps->MaxCroppingSize.cx = format->bmiHeader.biWidth;
+                configCaps->MaxCroppingSize.cy = format->bmiHeader.biHeight;
+                configCaps->CropGranularityX = 1;
+                configCaps->CropGranularityY = 1;
+                configCaps->CropAlignX = 0;
+                configCaps->CropAlignY = 0;
+                configCaps->MinOutputSize.cx = format->bmiHeader.biWidth;
+                configCaps->MinOutputSize.cy = format->bmiHeader.biHeight;
+                configCaps->MaxOutputSize.cx = format->bmiHeader.biWidth;
+                configCaps->MaxOutputSize.cy = format->bmiHeader.biHeight;
+                configCaps->OutputGranularityX = 1;
+                configCaps->OutputGranularityY = 1;
+                configCaps->StretchTapsX = 1;
+                configCaps->StretchTapsY = 1;
+                configCaps->ShrinkTapsX = 1;
+                configCaps->ShrinkTapsY = 1;
+                configCaps->MinFrameInterval = format->AvgTimePerFrame;
+                configCaps->MaxFrameInterval = format->AvgTimePerFrame;
+                configCaps->MinBitsPerSecond = LONG(format->dwBitRate);
+                configCaps->MaxBitsPerSecond = LONG(format->dwBitRate);
+            }
+
+            break;
         }
+
+        deleteMediaType(&mediaType);
     }
+
+    mediaTypes->Release();
+
+    if (!*pmt) {
+        AkLogWarning() << "No media type found for index " << iIndex << std::endl;
+
+        return S_FALSE;
+     }
 
     AkLogInfo() << "Media Type: " << stringFromMediaType(*pmt) << std::endl;
 
-    return *pmt? S_OK: S_FALSE;
+    return S_OK;
 }
