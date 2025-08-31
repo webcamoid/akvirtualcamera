@@ -24,6 +24,9 @@ else
     export DOWNLOAD_CMD="curl --retry 10 -sS -kLOC -"
 fi
 
+# This should fix ugrade bugs, must be removed later.
+brew uninstall cmake
+
 brew update
 brew upgrade
 brew install \

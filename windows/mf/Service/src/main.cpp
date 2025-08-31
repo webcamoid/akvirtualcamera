@@ -20,6 +20,7 @@
 #include <iostream>
 #include <csignal>
 #include <memory>
+#include <mutex>
 #include <windows.h>
 #include <mfapi.h>
 #include <mfidl.h>
