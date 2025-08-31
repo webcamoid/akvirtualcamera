@@ -234,6 +234,7 @@ HRESULT AkVCam::MediaStream::start(IMFMediaType *mediaType)
     this->d->m_ptsDrift = 0;
     this->d->m_format = formatFromMFMediaType(mediaType);
     this->d->m_state = MediaStreamState_Started;
+    this->d->m_running = true;
 
     if (this->d->m_bridge)
         this->d->m_bridge->deviceStart(IpcBridge::StreamType_Input,
@@ -255,6 +256,7 @@ HRESULT AkVCam::MediaStream::stop()
         }
 
         this->d->m_state = MediaStreamState_Stopped;
+        this->d->m_running = false;
 
         if (this->d->m_bridge)
             this->d->m_bridge->deviceStop(this->d->m_mediaSource->deviceId());
@@ -275,6 +277,7 @@ HRESULT AkVCam::MediaStream::pause()
         return MF_E_INVALID_STATE_TRANSITION;
 
     this->d->m_state = MediaStreamState_Paused;
+    this->d->m_running = true;
 
     return this->eventQueue()->QueueEventParamVar(MEStreamPaused,
                                                   GUID_NULL,

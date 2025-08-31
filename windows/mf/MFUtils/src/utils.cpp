@@ -333,9 +333,6 @@ IMFMediaType *AkVCam::mfMediaTypeFromFormat(const VideoFormat &videoFormat)
         return nullptr;
     }
 
-    //pMediaType->SetUINT32(MF_MT_DEFAULT_STRIDE, 640 * 4);
-    //pMediaType->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE);
-
     return mediaType;
 }
 

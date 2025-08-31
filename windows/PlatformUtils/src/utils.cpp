@@ -180,12 +180,10 @@ bool AkVCam::supportsMediaFoundationVCam()
     if (!mfsensorgroupHnd)
         return false;
 
-    if (!GetProcAddress(mfsensorgroupHnd, "MFCreateVirtualCamera"))
-        return false;
-
+    bool supported = GetProcAddress(mfsensorgroupHnd, "MFCreateVirtualCamera") != nullptr;
     FreeLibrary(mfsensorgroupHnd);
 
-    return true;
+    return supported;
 }
 
 std::string AkVCam::tempPath()

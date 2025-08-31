@@ -54,6 +54,17 @@ int WINAPI WinMain(HINSTANCE hInstance,
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
     MFStartup(MF_VERSION, MFSTARTUP_FULL);
 
+    if (!AkVCam::supportsMediaFoundationVCam()) {
+        MessageBox(nullptr,
+                   TEXT("This test can only be executed in Windows 11 and newer."),
+                   TEXT("Error"),
+                   MB_OK | MB_ICONERROR);
+        MFShutdown();
+        CoUninitialize();
+
+        return -1;
+    }
+
     auto cameras = AkVCam::listRegisteredMFCameras();
 
     if (cameras.empty()) {
@@ -78,7 +89,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
     // Create the window
     auto hwnd =
             CreateWindow(wc.lpszClassName,
-                         TEXT("Video Player"),
+                         TEXT("Media Foundation virtual camera test"),
                          WS_OVERLAPPEDWINDOW,
                          CW_USEDEFAULT,
                          CW_USEDEFAULT,
@@ -238,8 +249,6 @@ HRESULT renderFrame(HWND hwnd, IMFSourceReader *pReader)
 
             // Render the frame
 
-            auto hdc = GetDC(hwnd);
-
             RECT rect;
             GetClientRect(hwnd, &rect);
             int winWidth = rect.right - rect.left;
@@ -271,10 +280,12 @@ HRESULT renderFrame(HWND hwnd, IMFSourceReader *pReader)
             memset(&bmi, 0, sizeof(BITMAPINFOHEADER));
             bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
             bmi.bmiHeader.biWidth = width;
-            bmi.bmiHeader.biHeight = -static_cast<int>(height);
+            bmi.bmiHeader.biHeight = height;
             bmi.bmiHeader.biPlanes = 1;
             bmi.bmiHeader.biBitCount = 32;
             bmi.bmiHeader.biCompression = BI_RGB;
+
+            auto hdc = GetDC(hwnd);
 
             // Clean the window
             auto hBrush = reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));

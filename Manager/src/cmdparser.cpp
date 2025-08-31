@@ -1377,7 +1377,10 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
         }
     }
 
-    VideoFormat fmt(format, int(width), int(height), {{30, 1}});
+    VideoFormat fmt(format,
+                    int(width),
+                    int(height),
+                    {{int(std::round(fps)), 1}});
 
     if (!this->m_ipcBridge.deviceStart(IpcBridge::StreamType_Output, deviceId)) {
         std::cerr << "Can't start stream." << std::endl;
@@ -1549,7 +1552,10 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
         }
     }
 
-    VideoFormat fmt(format, int(width), int(height), {{30, 1}});
+    VideoFormat fmt(format,
+                    int(width),
+                    int(height),
+                    {{int(std::round(fps)), 1}});
 
     if (!this->m_ipcBridge.deviceStart(IpcBridge::StreamType_Output, deviceId)) {
         std::cerr << "Can't start stream." << std::endl;
@@ -1580,7 +1586,9 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
 
     struct RGB
     {
-        uint8_t r, g, b;
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
     };
 
     std::vector<RGB> colors = {
@@ -1602,8 +1610,8 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
     const int squareSize = std::min(width, height) / 8; // Square side length
     double squareX = width / 2.0;     // Initial position (center)
     double squareY = height / 2.0;
-    double speedX = 0.1 * width * fps; // Speed: 10% of width per second
-    double speedY = 0.1 * height * fps;
+    double speedX = 0.1 * width; // Speed: 10% of width per second
+    double speedY = 0.1 * height; // Speed: 10% of height per second
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> colorDist(0, numBars - 1);
@@ -1613,9 +1621,6 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
         return std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - since).count();
     };
 
-    const double minThreshold = 0.04;
-    const double maxThreshold = 0.1;
-    const double framedupThreshold = 0.1;
     const double nosyncThreshold = 10.0;
 
     double lastPts = 0.0;
@@ -1624,6 +1629,34 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
     uint64_t i = 0;
 
     do {
+        // Update square position based on elapsed time
+        double currentTime = clock(t0);
+        double deltaTime = currentTime - lastPts; // Time since last frame
+        deltaTime = std::min(deltaTime, 0.1); // Cap at 100ms to avoid large jumps
+        lastPts = currentTime;
+
+        // Move square based on elapsed time for smooth motion
+        squareX += speedX * deltaTime;
+        squareY += speedY * deltaTime;
+
+        // Check for collisions and update direction/color
+        bool collision = false;
+
+        if (squareX <= 0 || squareX + squareSize >= width) {
+            speedX = -speedX;
+            squareX = std::max(0.0, std::min(double(width - squareSize), squareX));
+            collision = true;
+        }
+
+        if (squareY <= 0 || squareY + squareSize >= height) {
+            speedY = -speedY;
+            squareY = std::max(0.0, std::min(double(height - squareSize), squareY));
+            collision = true;
+        }
+
+        if (collision)
+            squareColor = colors[colorDist(gen)]; // Change color on collision
+
         // Fill frame with color bars
 
         auto firstLine = frame.line(0, 0);
@@ -1648,30 +1681,6 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
         for (int y = 1; y < height; ++y)
             memcpy(frame.line(0, y), firstLine, lineSize);
 
-        // Update square position
-        squareX += speedX / fps;
-        squareY += speedY / fps;
-
-        // Check for collisions and update direction/color
-
-        bool collision = false;
-
-        if (squareX <= 0 || squareX + squareSize >= width) {
-            speedX = -speedX;
-            squareX = std::max(0.0, std::min(double(width - squareSize), squareX));
-            collision = true;
-        }
-
-        if (squareY <= 0 || squareY + squareSize >= height) {
-            speedY = -speedY;
-            squareY = std::max(0.0, std::min(double(height - squareSize), squareY));
-            collision = true;
-        }
-
-        // Change color on collision
-        if (collision)
-            squareColor = colors[colorDist(gen)];
-
         // Draw square
         int xStart = std::max(0, int(squareX));
         int xEnd = std::min(int(width), int(squareX + squareSize));
@@ -1691,50 +1700,25 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
 
         for (int y = yStart + 1; y < yEnd; ++y) {
             memcpy(frame.line(0, y) + 3 * xStart,
-                   line,
+                   line + 3 * xStart,
                    bytesToFill);
         }
 
-        if (fpsStr.empty()) {
-            this->m_ipcBridge.write(deviceId, frame);
-        } else {
-            double pts = double(i) / fps;
+        double targetPts = double(i) / fps;
+        double clockPts = clock(t0) + drift;
+        double diff = targetPts - clockPts;
 
-            for (;;) {
-                double clock_pts = clock(t0) + drift;
-                double diff = pts - clock_pts;
-                double delay = pts - lastPts;
-                double syncThreshold =
-                        std::max(minThreshold,
-                                 std::min(delay, maxThreshold));
-
-                if (!std::isnan(diff)
-                    && std::abs(diff) < nosyncThreshold
-                    && delay < framedupThreshold) {
-                    if (diff <= -syncThreshold) {
-                        lastPts = pts;
-
-                        break;
-                    }
-
-                    if (diff > syncThreshold) {
-                        std::this_thread::sleep_for(std::chrono::duration<double>(diff - syncThreshold));
-
-                        continue;
-                    }
-                } else {
-                    drift = clock(t0) - pts;
-                }
-
-                this->m_ipcBridge.write(deviceId, frame);
-                lastPts = pts;
-
-                break;
-            }
-
-            i++;
+        if (diff > 0.001) {
+            // Sleep only for significant delays
+            std::this_thread::sleep_for(std::chrono::duration<double>(diff));
+        } else if (diff < -nosyncThreshold) {
+            // Reset drift if too far behind
+            drift = clock(t0) - targetPts;
         }
-    } while (!std::cin.eof() && !exit);
+
+        this->m_ipcBridge.write(deviceId, frame);
+        i++;
+    } while (!exit);
 
     this->m_ipcBridge.deviceStop(deviceId);
 

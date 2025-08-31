@@ -80,7 +80,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 
     // Create the window
     HWND hwnd = CreateWindow(wc.lpszClassName,
-                             TEXT("Video Player"),
+                             TEXT("DirectShow virtual camera test"),
                              WS_OVERLAPPEDWINDOW,
                              CW_USEDEFAULT,
                              CW_USEDEFAULT,
@@ -118,7 +118,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
         return -1;
     }
 
-    SetWindowLongPtr(hwnd, GWLP_USERDATA, reitrepret_cast<LONG_PTR>(pGraph));
+    SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pGraph));
     ShowWindow(hwnd, nCmdShow);
     UpdateWindow(hwnd);
 
