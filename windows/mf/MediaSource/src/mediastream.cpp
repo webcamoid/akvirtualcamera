@@ -472,13 +472,13 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     this->m_mutex.lock();
 
     if (this->m_currentFrame.size() > 0) {
-        auto copyBytes = (std::min)(size_t(maxLen), this->m_currentFrame.size());
+        auto copyBytes = std::min(size_t(maxLen), this->m_currentFrame.size());
 
         if (copyBytes > 0)
             memcpy(pData, this->m_currentFrame.constData(), copyBytes);
     } else {
         auto frame = this->randomFrame();
-        auto copyBytes = (std::min)(size_t(maxLen), frame.size());
+        auto copyBytes = std::min(size_t(maxLen), frame.size());
 
         if (copyBytes > 0)
             memcpy(pData, frame.constData(), copyBytes);
