@@ -46,7 +46,8 @@ add_dependencies(PlatformUtils_windows VCamUtils)
 target_compile_definitions(PlatformUtils_windows PRIVATE PLATFORMUTILS_LIBRARY)
 target_include_directories(PlatformUtils_windows PRIVATE ../..)
 
-add_definitions(-DAKVCAM_SERVICEPORT_DEFAULT="${AKVCAM_SERVICEPORT}")
+add_definitions(-DNOMINMAX
+                -DAKVCAM_SERVICEPORT_DEFAULT="${AKVCAM_SERVICEPORT}")
 
 if (WIN32)
     set(EXTRA_LIBS

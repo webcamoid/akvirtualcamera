@@ -53,4 +53,5 @@ target_link_libraries(VCamMediaSource
                       VCamIPC_windows
                       PlatformUtils_windows
                       VCamUtils)
-add_definitions(-DSTRSAFE_NO_DEPRECATE)
+add_definitions(-DNOMINMAX
+                -DSTRSAFE_NO_DEPRECATE)

@@ -68,7 +68,8 @@ target_link_libraries(VirtualCamera_mf
                       VCamUtils
                       MFUtils
                       ${EXTRA_LIBS})
-add_definitions(-DSTRSAFE_NO_DEPRECATE)
+add_definitions(-DNOMINMAX
+                -DSTRSAFE_NO_DEPRECATE)
 
 if (WIN32)
     install(TARGETS VirtualCamera_mf DESTINATION ${BINDIR})

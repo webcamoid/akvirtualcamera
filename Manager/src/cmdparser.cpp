@@ -1616,7 +1616,7 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
 
     // Square properties
 
-    const int squareSize = std::min(width, height) / 8; // Square side length
+    const int squareSize = (std::min)(width, height) / 8; // Square side length
     double squareX = width / 2.0;     // Initial position (center)
     double squareY = height / 2.0;
     double speedX = 0.1 * width; // Speed: 10% of width per second
@@ -1641,7 +1641,7 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
         // Update square position based on elapsed time
         double currentTime = clock(t0);
         double deltaTime = currentTime - lastPts; // Time since last frame
-        deltaTime = std::min(deltaTime, 0.1); // Cap at 100ms to avoid large jumps
+        deltaTime = (std::min)(deltaTime, 0.1); // Cap at 100ms to avoid large jumps
         lastPts = currentTime;
 
         // Move square based on elapsed time for smooth motion
@@ -1653,13 +1653,13 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
 
         if (squareX <= 0 || squareX + squareSize >= width) {
             speedX = -speedX;
-            squareX = std::max(0.0, std::min(double(width - squareSize), squareX));
+            squareX = std::max(0.0, (std::min)(double(width - squareSize), squareX));
             collision = true;
         }
 
         if (squareY <= 0 || squareY + squareSize >= height) {
             speedY = -speedY;
-            squareY = std::max(0.0, std::min(double(height - squareSize), squareY));
+            squareY = std::max(0.0, (std::min)(double(height - squareSize), squareY));
             collision = true;
         }
 
@@ -1691,10 +1691,10 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
             memcpy(frame.line(0, y), firstLine, lineSize);
 
         // Draw square
-        int xStart = std::max(0, int(squareX));
-        int xEnd = std::min(int(width), int(squareX + squareSize));
-        int yStart = std::max(0, int(squareY));
-        int yEnd = std::min(int(height), int(squareY + squareSize));
+        int xStart = (std::max)(0, int(squareX));
+        int xEnd = (std::min)(int(width), int(squareX + squareSize));
+        int yStart = (std::max)(0, int(squareY));
+        int yEnd = (std::min)(int(height), int(squareY + squareSize));
 
         auto line = frame.line(0, yStart);
 

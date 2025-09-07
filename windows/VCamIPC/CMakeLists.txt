@@ -41,6 +41,7 @@ target_compile_definitions(VCamIPC_windows PRIVATE VCAMIPC_LIBRARY)
 target_include_directories(VCamIPC_windows
                            PRIVATE ..
                            PRIVATE ../..)
+add_definitions(-DNOMINMAX)
 
 if (WIN32)
     set(EXTRA_LIBS

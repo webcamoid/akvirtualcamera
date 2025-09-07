@@ -58,6 +58,7 @@ elseif (WIN32)
     target_include_directories(Manager
                                PRIVATE
                                ../windows)
+     add_definitions(-DNOMINMAX)
 endif ()
 
 target_include_directories(Manager

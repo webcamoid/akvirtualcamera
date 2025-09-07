@@ -86,5 +86,6 @@ target_link_libraries(VCamBaseFilter
                       VCamUtils)
 
 set(DSHOW_PLUGIN_VENDOR "Webcamoid Project")
-add_definitions(-DSTRSAFE_NO_DEPRECATE
+add_definitions(-DNOMINMAX
+                -DSTRSAFE_NO_DEPRECATE
                 -DDSHOW_PLUGIN_VENDOR="${DSHOW_PLUGIN_VENDOR}")

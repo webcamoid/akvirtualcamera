@@ -52,7 +52,8 @@ target_link_libraries(VCamTest_dshow
                       VCamBaseFilter
                       ${EXTRA_LIBS})
 
-add_definitions(-DSTRSAFE_NO_DEPRECATE)
+add_definitions(-DNOMINMAX
+                -DSTRSAFE_NO_DEPRECATE)
 
 if (WIN32)
     install(TARGETS VCamTest_dshow DESTINATION ${BINDIR})

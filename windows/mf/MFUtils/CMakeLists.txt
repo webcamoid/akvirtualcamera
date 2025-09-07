@@ -43,6 +43,7 @@ target_include_directories(MFUtils
                            ..
                            ../..
                            ../../..)
+add_definitions(-DNOMINMAX)
 
 target_link_libraries(MFUtils
                       VCamUtils

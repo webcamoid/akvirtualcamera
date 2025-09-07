@@ -74,6 +74,7 @@ add_library(VCamUtils STATIC
 if (WIN32)
     target_link_libraries(VCamUtils
                           ws2_32)
+    add_definitions(-DNOMINMAX)
 endif ()
 
 target_compile_definitions(VCamUtils PRIVATE VCAMUTILS_LIBRARY)

@@ -42,6 +42,7 @@ target_include_directories(VCamTest_mf
                            ..
                            ../..
                            ../../..)
+add_definitions(-DNOMINMAX)
 
 if (WIN32)
     set(EXTRA_LIBS

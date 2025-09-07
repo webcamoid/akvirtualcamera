@@ -80,6 +80,7 @@ elseif (WIN32)
     target_link_libraries(Service
                           VCamIPC_windows
                           PlatformUtils_windows)
+    add_definitions(-DNOMINMAX)
 endif ()
 
 if (WIN32)

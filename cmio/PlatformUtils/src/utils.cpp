@@ -270,7 +270,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
         return {};
     }
 
-    PixelFormat format = 0;
+    PixelFormat format = PixelFormat_none;
 
     if (CGImageGetBitsPerComponent(cgImage) == 8) {
         if (CGImageGetBitsPerPixel(cgImage) == 24)
@@ -363,7 +363,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     CGImageRelease(cgImage);
 
     AkLogDebug() << "Picture loaded as: "
-                 << VideoFormat::stringFromFourcc(frame.format().format())
+                 << VideoFormat::pixelFormatToString(frame.format().format())
                  << " "
                  << frame.format().width()
                  << "x"

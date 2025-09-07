@@ -53,6 +53,7 @@ elseif (WIN32)
     add_dependencies(VCam_capi
                      VCamIPC_windows
                      PlatformUtils_windows)
+    add_definitions(-DNOMINMAX)
 endif ()
 
 target_compile_definitions(VCam_capi PRIVATE CAPI_LIBRARY)
