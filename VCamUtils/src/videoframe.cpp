@@ -23,237 +23,368 @@
 #include <fstream>
 
 #include "videoframe.h"
+#include "algorithm.h"
+#include "color.h"
+#include "colorcomponent.h"
+#include "colorconvert.h"
 #include "videoformat.h"
+#include "videoformatspec.h"
 #include "utils.h"
+
+#define MAX_PLANES 4
 
 namespace AkVCam
 {
-    struct RGB32
+    enum FillType
     {
-        uint8_t x;
-        uint8_t b;
-        uint8_t g;
-        uint8_t r;
+        FillType_Vector,
+        FillType_1,
+        FillType_3,
     };
 
-    struct RGB24
+    enum FillDataTypes
     {
-        uint8_t b;
-        uint8_t g;
-        uint8_t r;
+        FillDataTypes_8,
+        FillDataTypes_16,
+        FillDataTypes_32,
+        FillDataTypes_64,
     };
 
-    struct RGB16
+    enum AlphaMode
     {
-        uint16_t b: 5;
-        uint16_t g: 6;
-        uint16_t r: 5;
+        AlphaMode_AO,
+        AlphaMode_O,
     };
 
-    struct RGB15
+    class FillParameters
     {
-        uint16_t b: 5;
-        uint16_t g: 5;
-        uint16_t r: 5;
-        uint16_t x: 1;
+        public:
+            ColorConvert colorConvert;
+            FillType fillType {FillType_3};
+            FillDataTypes fillDataTypes {FillDataTypes_8};
+            AlphaMode alphaMode {AlphaMode_AO};
+
+            int endianess {ENDIANNESS_BO};
+
+            int width {0};
+            int height {0};
+
+            int *dstWidthOffsetX {nullptr};
+            int *dstWidthOffsetY {nullptr};
+            int *dstWidthOffsetZ {nullptr};
+            int *dstWidthOffsetA {nullptr};
+
+            int planeXo {0};
+            int planeYo {0};
+            int planeZo {0};
+            int planeAo {0};
+
+            ColorComponent compXo;
+            ColorComponent compYo;
+            ColorComponent compZo;
+            ColorComponent compAo;
+
+            size_t xoOffset {0};
+            size_t yoOffset {0};
+            size_t zoOffset {0};
+            size_t aoOffset {0};
+
+            size_t xoShift {0};
+            size_t yoShift {0};
+            size_t zoShift {0};
+            size_t aoShift {0};
+
+            uint64_t maskXo {0};
+            uint64_t maskYo {0};
+            uint64_t maskZo {0};
+            uint64_t maskAo {0};
+
+            FillParameters();
+            FillParameters(const FillParameters &other);
+            ~FillParameters();
+            FillParameters &operator =(const FillParameters &other);
+            inline void clearBuffers();
+            inline void allocateBuffers(const VideoFormat &caps);
+            void configure(const VideoFormat &caps, ColorConvert &colorConvert);
+            void configureFill(const VideoFormat &caps);
+            void reset();
     };
 
-    struct BGR32
-    {
-        uint8_t r;
-        uint8_t g;
-        uint8_t b;
-        uint8_t x;
-    };
-
-    struct BGR24
-    {
-        uint8_t r;
-        uint8_t g;
-        uint8_t b;
-    };
-
-    struct BGR16
-    {
-        uint16_t r: 5;
-        uint16_t g: 6;
-        uint16_t b: 5;
-    };
-
-    struct BGR15
-    {
-        uint16_t r: 5;
-        uint16_t g: 5;
-        uint16_t b: 5;
-        uint16_t x: 1;
-    };
-
-    struct UYVY
-    {
-        uint8_t v0;
-        uint8_t y0;
-        uint8_t u0;
-        uint8_t y1;
-    };
-
-    struct YUY2
-    {
-        uint8_t y0;
-        uint8_t v0;
-        uint8_t y1;
-        uint8_t u0;
-    };
-
-    struct UV
-    {
-        uint8_t u;
-        uint8_t v;
-    };
-
-    struct VU
-    {
-        uint8_t v;
-        uint8_t u;
-    };
-
-    using VideoConvertFuntion = VideoFrame (*)(const VideoFrame *src);
-
-    struct VideoConvert
-    {
-        FourCC from;
-        FourCC to;
-        VideoConvertFuntion convert;
-    };
+    using FillParametersPtr = std::shared_ptr<FillParameters>;
 
     class VideoFramePrivate
     {
         public:
-            VideoFrame *self;
             VideoFormat m_format;
-            VideoData m_data;
-            std::vector<VideoConvert> m_convert;
-            std::vector<PixelFormat> m_adjustFormats;
+            uint8_t *m_data {nullptr};
+            size_t m_dataSize {0};
+            size_t m_nPlanes {0};
+            uint8_t *m_planes[MAX_PLANES];
+            size_t m_planeSize[MAX_PLANES];
+            size_t m_planeOffset[MAX_PLANES];
+            size_t m_pixelSize[MAX_PLANES];
+            size_t m_lineSize[MAX_PLANES];
+            size_t m_bytesUsed[MAX_PLANES];
+            size_t m_widthDiv[MAX_PLANES];
+            size_t m_heightDiv[MAX_PLANES];
+            size_t m_align {32};
+            FillParametersPtr m_fc;
 
-            explicit VideoFramePrivate(VideoFrame *self):
-                self(self)
+            void updateParams(const VideoFormatSpec &specs);
+            inline void updatePlanes();
+
+            /* Fill functions */
+
+            template <typename DataType>
+            void fill3(const FillParameters &fc, Rgb color) const
             {
-                this->m_convert = {
-                    {PixelFormatBGR24, PixelFormatRGB32, bgr24_to_rgb32},
-                    {PixelFormatBGR24, PixelFormatRGB24, bgr24_to_rgb24},
-                    {PixelFormatBGR24, PixelFormatRGB16, bgr24_to_rgb16},
-                    {PixelFormatBGR24, PixelFormatRGB15, bgr24_to_rgb15},
-                    {PixelFormatBGR24, PixelFormatBGR32, bgr24_to_bgr32},
-                    {PixelFormatBGR24, PixelFormatBGR16, bgr24_to_bgr16},
-                    {PixelFormatBGR24, PixelFormatBGR15, bgr24_to_bgr15},
-                    {PixelFormatBGR24, PixelFormatUYVY , bgr24_to_uyvy },
-                    {PixelFormatBGR24, PixelFormatYUY2 , bgr24_to_yuy2 },
-                    {PixelFormatBGR24, PixelFormatNV12 , bgr24_to_nv12 },
-                    {PixelFormatBGR24, PixelFormatNV21 , bgr24_to_nv21 },
+                auto xi = Color::red(color);
+                auto yi = Color::green(color);
+                auto zi = Color::blue(color);
+                auto ai = Color::alpha(color);
 
-                    {PixelFormatRGB24, PixelFormatRGB32, rgb24_to_rgb32},
-                    {PixelFormatRGB24, PixelFormatRGB16, rgb24_to_rgb16},
-                    {PixelFormatRGB24, PixelFormatRGB15, rgb24_to_rgb15},
-                    {PixelFormatRGB24, PixelFormatBGR32, rgb24_to_bgr32},
-                    {PixelFormatRGB24, PixelFormatBGR24, rgb24_to_bgr24},
-                    {PixelFormatRGB24, PixelFormatBGR16, rgb24_to_bgr16},
-                    {PixelFormatRGB24, PixelFormatBGR15, rgb24_to_bgr15},
-                    {PixelFormatRGB24, PixelFormatUYVY , rgb24_to_uyvy },
-                    {PixelFormatRGB24, PixelFormatYUY2 , rgb24_to_yuy2 },
-                    {PixelFormatRGB24, PixelFormatNV12 , rgb24_to_nv12 },
-                    {PixelFormatRGB24, PixelFormatNV21 , rgb24_to_nv21 }
-                };
+                int64_t xo_ = 0;
+                int64_t yo_ = 0;
+                int64_t zo_ = 0;
+                fc.colorConvert.applyMatrix(xi, yi, zi, &xo_, &yo_, &zo_);
+                fc.colorConvert.applyAlpha(ai, &xo_, &yo_, &zo_);
 
-                this->m_adjustFormats = {
-                    PixelFormatBGR24,
-                    PixelFormatRGB24
-                };
+                auto line_x = this->m_planes[fc.planeXo] + fc.xoOffset;
+                auto line_y = this->m_planes[fc.planeYo] + fc.yoOffset;
+                auto line_z = this->m_planes[fc.planeZo] + fc.zoOffset;
+
+                auto width = std::max<size_t>(8 * this->m_pixelSize[0] / this->m_format.bpp(), 1);
+
+                for (size_t x = 0; x < width; ++x) {
+                    int &xd_x = fc.dstWidthOffsetX[x];
+                    int &xd_y = fc.dstWidthOffsetY[x];
+                    int &xd_z = fc.dstWidthOffsetZ[x];
+
+                    auto xo = reinterpret_cast<DataType *>(line_x + xd_x);
+                    auto yo = reinterpret_cast<DataType *>(line_y + xd_y);
+                    auto zo = reinterpret_cast<DataType *>(line_z + xd_z);
+
+                    *xo = (*xo & DataType(fc.maskXo)) | (DataType(xo_) << fc.xoShift);
+                    *yo = (*yo & DataType(fc.maskYo)) | (DataType(yo_) << fc.yoShift);
+                    *zo = (*zo & DataType(fc.maskZo)) | (DataType(zo_) << fc.zoShift);
+                }
             }
 
-            inline int grayval(int r, int g, int b);
+            template <typename DataType>
+            void fill3A(const FillParameters &fc, Rgb color) const
+            {
+                auto xi = Color::red(color);
+                auto yi = Color::green(color);
+                auto zi = Color::blue(color);
+                auto ai = Color::alpha(color);
 
-            // YUV utility functions
-            inline static uint8_t rgb_y(int r, int g, int b);
-            inline static uint8_t rgb_u(int r, int g, int b);
-            inline static uint8_t rgb_v(int r, int g, int b);
-            inline static uint8_t yuv_r(int y, int u, int v);
-            inline static uint8_t yuv_g(int y, int u, int v);
-            inline static uint8_t yuv_b(int y, int u, int v);
+                int64_t xo_ = 0;
+                int64_t yo_ = 0;
+                int64_t zo_ = 0;
+                fc.colorConvert.applyMatrix(xi, yi, zi, &xo_, &yo_, &zo_);
 
-            // BGR to RGB formats
-            static VideoFrame bgr24_to_rgb32(const VideoFrame *src);
-            static VideoFrame bgr24_to_rgb24(const VideoFrame *src);
-            static VideoFrame bgr24_to_rgb16(const VideoFrame *src);
-            static VideoFrame bgr24_to_rgb15(const VideoFrame *src);
+                auto line_x = this->m_planes[fc.planeXo] + fc.xoOffset;
+                auto line_y = this->m_planes[fc.planeYo] + fc.yoOffset;
+                auto line_z = this->m_planes[fc.planeZo] + fc.zoOffset;
+                auto line_a = this->m_planes[fc.planeAo] + fc.aoOffset;
 
-            // BGR to BGR formats
-            static VideoFrame bgr24_to_bgr32(const VideoFrame *src);
-            static VideoFrame bgr24_to_bgr16(const VideoFrame *src);
-            static VideoFrame bgr24_to_bgr15(const VideoFrame *src);
+                auto width = std::max<size_t>(8 * this->m_pixelSize[0] / this->m_format.bpp(), 1);
 
-            // BGR to Luminance+Chrominance formats
-            static VideoFrame bgr24_to_uyvy(const VideoFrame *src);
-            static VideoFrame bgr24_to_yuy2(const VideoFrame *src);
+                for (size_t x = 0; x < width; ++x) {
+                    int &xd_x = fc.dstWidthOffsetX[x];
+                    int &xd_y = fc.dstWidthOffsetY[x];
+                    int &xd_z = fc.dstWidthOffsetZ[x];
+                    int &xd_a = fc.dstWidthOffsetA[x];
 
-            // BGR to two planes -- one Y, one Cr + Cb interleaved
-            static VideoFrame bgr24_to_nv12(const VideoFrame *src);
-            static VideoFrame bgr24_to_nv21(const VideoFrame *src);
+                    auto xo = reinterpret_cast<DataType *>(line_x + xd_x);
+                    auto yo = reinterpret_cast<DataType *>(line_y + xd_y);
+                    auto zo = reinterpret_cast<DataType *>(line_z + xd_z);
+                    auto ao = reinterpret_cast<DataType *>(line_a + xd_a);
 
-            // RGB to RGB formats
-            static VideoFrame rgb24_to_rgb32(const VideoFrame *src);
-            static VideoFrame rgb24_to_rgb16(const VideoFrame *src);
-            static VideoFrame rgb24_to_rgb15(const VideoFrame *src);
+                    *xo = (*xo & DataType(fc.maskXo)) | (DataType(xo_) << fc.xoShift);
+                    *yo = (*yo & DataType(fc.maskYo)) | (DataType(yo_) << fc.yoShift);
+                    *zo = (*zo & DataType(fc.maskZo)) | (DataType(zo_) << fc.zoShift);
+                    *ao = (*ao & DataType(fc.maskAo)) | (DataType(ai) << fc.aoShift);
+                }
+            }
 
-            // RGB to BGR formats
-            static VideoFrame rgb24_to_bgr32(const VideoFrame *src);
-            static VideoFrame rgb24_to_bgr24(const VideoFrame *src);
-            static VideoFrame rgb24_to_bgr16(const VideoFrame *src);
-            static VideoFrame rgb24_to_bgr15(const VideoFrame *src);
+            template <typename DataType>
+            void fill1(const FillParameters &fc, Rgb color) const
+            {
+                auto xi = Color::red(color);
+                auto yi = Color::green(color);
+                auto zi = Color::blue(color);
+                auto ai = Color::alpha(color);
 
-            // RGB to Luminance+Chrominance formats
-            static VideoFrame rgb24_to_uyvy(const VideoFrame *src);
-            static VideoFrame rgb24_to_yuy2(const VideoFrame *src);
+                int64_t xo_ = 0;
+                fc.colorConvert.applyPoint(xi, yi, zi, &xo_);
+                fc.colorConvert.applyAlpha(ai, &xo_);
 
-            // RGB to two planes -- one Y, one Cr + Cb interleaved
-            static VideoFrame rgb24_to_nv12(const VideoFrame *src);
-            static VideoFrame rgb24_to_nv21(const VideoFrame *src);
+                auto line_x = this->m_planes[fc.planeXo] + fc.xoOffset;
+                auto width = std::max<size_t>(8 * this->m_pixelSize[0] / this->m_format.bpp(), 1);
 
-            inline static void extrapolateUp(int dstCoord,
-                                             int num, int den, int s,
-                                             int *srcCoordMin, int *srcCoordMax,
-                                             int *kNum, int *kDen);
-            inline static void extrapolateDown(int dstCoord,
-                                               int num, int den, int s,
-                                               int *srcCoordMin, int *srcCoordMax,
-                                               int *kNum, int *kDen);
-            inline uint8_t extrapolateComponent(uint8_t min, uint8_t max,
-                                               int kNum, int kDen) const;
-            inline RGB24 extrapolateColor(const RGB24 &colorMin,
-                                          const RGB24 &colorMax,
-                                          int kNum,
-                                          int kDen) const;
-            inline RGB24 extrapolateColor(int xMin, int xMax,
-                                          int kNumX, int kDenX,
-                                          int yMin, int yMax,
-                                          int kNumY, int kDenY) const;
-            inline void rgbToHsl(int r, int g, int b, int *h, int *s, int *l);
-            inline void hslToRgb(int h, int s, int l, int *r, int *g, int *b);
+                for (size_t x = 0; x < width; ++x) {
+                    int &xd_x = fc.dstWidthOffsetX[x];
+                    auto xo = reinterpret_cast<DataType *>(line_x + xd_x);
+                    *xo = (*xo & DataType(fc.maskXo)) | (DataType(xo_) << fc.xoShift);
+                }
+            }
+
+            template <typename DataType>
+            void fill1A(const FillParameters &fc, Rgb color) const
+            {
+                auto xi = Color::red(color);
+                auto yi = Color::green(color);
+                auto zi = Color::blue(color);
+                auto ai = Color::alpha(color);
+
+                int64_t xo_ = 0;
+                fc.colorConvert.applyPoint(xi, yi, zi, &xo_);
+
+                auto line_x = this->m_planes[fc.planeXo] + fc.xoOffset;
+                auto line_a = this->m_planes[fc.planeAo] + fc.aoOffset;
+
+                auto width = std::max<size_t>(8 * this->m_pixelSize[0] / this->m_format.bpp(), 1);
+
+                for (size_t x = 0; x < width; ++x) {
+                    int &xd_x = fc.dstWidthOffsetX[x];
+                    int &xd_a = fc.dstWidthOffsetA[x];
+
+                    auto xo = reinterpret_cast<DataType *>(line_x + xd_x);
+                    auto ao = reinterpret_cast<DataType *>(line_a + xd_a);
+
+                    *xo = (*xo & DataType(fc.maskXo)) | (DataType(xo_) << fc.xoShift);
+                    *ao = (*ao & DataType(fc.maskAo)) | (DataType(ai) << fc.aoShift);
+                }
+            }
+
+            // Vectorized fill functions
+
+            template <typename DataType>
+            void fillV3(const FillParameters &fc, Rgb color) const
+            {
+                auto xi = Color::red(color);
+                auto yi = Color::green(color);
+                auto zi = Color::blue(color);
+                auto ai = Color::alpha(color);
+
+                int64_t xo_ = 0;
+                int64_t yo_ = 0;
+                int64_t zo_ = 0;
+                fc.colorConvert.applyVector(xi, yi, zi, &xo_, &yo_, &zo_);
+                fc.colorConvert.applyAlpha(ai, &xo_, &yo_, &zo_);
+
+                auto line_x = this->m_planes[fc.planeXo] + fc.xoOffset;
+                auto line_y = this->m_planes[fc.planeYo] + fc.yoOffset;
+                auto line_z = this->m_planes[fc.planeZo] + fc.zoOffset;
+
+                auto width = std::max<size_t>(8 * this->m_pixelSize[0] / this->m_format.bpp(), 1);
+
+                for (size_t x = 0; x < width; ++x) {
+                    int &xd_x = fc.dstWidthOffsetX[x];
+                    int &xd_y = fc.dstWidthOffsetY[x];
+                    int &xd_z = fc.dstWidthOffsetZ[x];
+
+                    auto xo = reinterpret_cast<DataType *>(line_x + xd_x);
+                    auto yo = reinterpret_cast<DataType *>(line_y + xd_y);
+                    auto zo = reinterpret_cast<DataType *>(line_z + xd_z);
+
+                    *xo = (*xo & DataType(fc.maskXo)) | (DataType(xo_) << fc.xoShift);
+                    *yo = (*yo & DataType(fc.maskYo)) | (DataType(yo_) << fc.yoShift);
+                    *zo = (*zo & DataType(fc.maskZo)) | (DataType(zo_) << fc.zoShift);
+                }
+            }
+
+            template <typename DataType>
+            void fillV3A(const FillParameters &fc, Rgb color) const
+            {
+                auto xi = Color::red(color);
+                auto yi = Color::green(color);
+                auto zi = Color::blue(color);
+                auto ai = Color::alpha(color);
+
+                int64_t xo_ = 0;
+                int64_t yo_ = 0;
+                int64_t zo_ = 0;
+                fc.colorConvert.applyVector(xi, yi, zi, &xo_, &yo_, &zo_);
+
+                auto line_x = this->m_planes[fc.planeXo] + fc.xoOffset;
+                auto line_y = this->m_planes[fc.planeYo] + fc.yoOffset;
+                auto line_z = this->m_planes[fc.planeZo] + fc.zoOffset;
+                auto line_a = this->m_planes[fc.planeAo] + fc.aoOffset;
+
+                auto width = std::max<size_t>(8 * this->m_pixelSize[0] / this->m_format.bpp(), 1);
+
+                for (size_t x = 0; x < width; ++x) {
+                    int &xd_x = fc.dstWidthOffsetX[x];
+                    int &xd_y = fc.dstWidthOffsetY[x];
+                    int &xd_z = fc.dstWidthOffsetZ[x];
+                    int &xd_a = fc.dstWidthOffsetA[x];
+
+                    auto xo = reinterpret_cast<DataType *>(line_x + xd_x);
+                    auto yo = reinterpret_cast<DataType *>(line_y + xd_y);
+                    auto zo = reinterpret_cast<DataType *>(line_z + xd_z);
+                    auto ao = reinterpret_cast<DataType *>(line_a + xd_a);
+
+                    *xo = (*xo & DataType(fc.maskXo)) | (DataType(xo_) << fc.xoShift);
+                    *yo = (*yo & DataType(fc.maskYo)) | (DataType(yo_) << fc.yoShift);
+                    *zo = (*zo & DataType(fc.maskZo)) | (DataType(zo_) << fc.zoShift);
+                    *ao = (*ao & DataType(fc.maskAo)) | (DataType(ai) << fc.aoShift);
+                }
+            }
+
+    #define FILL_FUNC(components) \
+            template <typename DataType> \
+                inline void fillFrame##components(const FillParameters &fc, \
+                                                  Rgb color) const \
+            { \
+                    switch (fc.alphaMode) { \
+                    case AlphaMode_AO: \
+                        this->fill##components##A<DataType>(fc, color); \
+                        break; \
+                    case AlphaMode_O: \
+                        this->fill##components<DataType>(fc, color); \
+                        break; \
+                }; \
+            }
+
+    #define FILLV_FUNC(components) \
+            template <typename DataType> \
+                inline void fillVFrame##components(const FillParameters &fc, \
+                                                   Rgb color) const \
+            { \
+                    switch (fc.alphaMode) { \
+                    case AlphaMode_AO: \
+                        this->fillV##components##A<DataType>(fc, color); \
+                        break; \
+                    case AlphaMode_O: \
+                        this->fillV##components<DataType>(fc, color); \
+                        break; \
+                }; \
+            }
+
+            FILL_FUNC(1)
+            FILL_FUNC(3)
+            FILLV_FUNC(3)
+
+            template <typename DataType>
+            inline void fill(const FillParameters &fc, Rgb color)
+            {
+                switch (fc.fillType) {
+                case FillType_Vector:
+                    this->fillVFrame3<DataType>(fc, color);
+                    break;
+                case FillType_3:
+                    this->fillFrame3<DataType>(fc, color);
+                    break;
+                case FillType_1:
+                    this->fillFrame1<DataType>(fc, color);
+                    break;
+                }
+            }
+
+            inline void fill(Rgb color);
     };
-
-    std::vector<uint8_t> initGammaTable();
-
-    inline std::vector<uint8_t> *gammaTable() {
-        static auto gammaTable = initGammaTable();
-
-        return &gammaTable;
-    }
-
-    std::vector<uint8_t> initContrastTable();
-
-    inline std::vector<uint8_t> *contrastTable() {
-        static auto contrastTable = initContrastTable();
-
-        return &contrastTable;
-    }
 
     struct BmpHeader
     {
@@ -281,61 +412,123 @@ namespace AkVCam
 
 AkVCam::VideoFrame::VideoFrame()
 {
-    this->d = new VideoFramePrivate(this);
+    this->d = new VideoFramePrivate;
 }
 
 AkVCam::VideoFrame::VideoFrame(const std::string &fileName)
 {
-    this->d = new VideoFramePrivate(this);
+    this->d = new VideoFramePrivate;
     this->load(fileName);
 }
 
-AkVCam::VideoFrame::VideoFrame(const AkVCam::VideoFormat &format)
+AkVCam::VideoFrame::VideoFrame(const AkVCam::VideoFormat &format,
+                               bool initialized)
 {
-    this->d = new VideoFramePrivate(this);
+    this->d = new VideoFramePrivate;
     this->d->m_format = format;
+    auto specs = VideoFormat::formatSpecs(this->d->m_format.format());
+    this->d->m_nPlanes = specs.planes();
+    this->d->updateParams(specs);
 
-    if (format.size() > 0)
-        this->d->m_data.resize(format.size());
+    if (this->d->m_dataSize > 0) {
+            this->d->m_data = new uint8_t [this->d->m_dataSize];
+
+            if (initialized)
+                memset(this->d->m_data, 0, this->d->m_dataSize);
+    }
+
+    this->d->updatePlanes();
 }
 
 AkVCam::VideoFrame::VideoFrame(const AkVCam::VideoFrame &other)
 {
-    this->d = new VideoFramePrivate(this);
+    this->d = new VideoFramePrivate;
     this->d->m_format = other.d->m_format;
-    this->d->m_data = other.d->m_data;
+
+    if (other.d->m_data && other.d->m_dataSize > 0) {
+        this->d->m_data = new uint8_t [other.d->m_dataSize];
+        memcpy(this->d->m_data, other.d->m_data, other.d->m_dataSize);
+    }
+
+    this->d->m_dataSize = other.d->m_dataSize;
+    this->d->m_nPlanes = other.d->m_nPlanes;
+
+    if (this->d->m_nPlanes > 0) {
+        const size_t dataSize = MAX_PLANES * sizeof(size_t);
+        memcpy(this->d->m_planeSize, other.d->m_planeSize, dataSize);
+        memcpy(this->d->m_planeOffset, other.d->m_planeOffset, dataSize);
+        memcpy(this->d->m_pixelSize, other.d->m_pixelSize, dataSize);
+        memcpy(this->d->m_lineSize, other.d->m_lineSize, dataSize);
+        memcpy(this->d->m_bytesUsed, other.d->m_bytesUsed, dataSize);
+        memcpy(this->d->m_widthDiv, other.d->m_widthDiv, dataSize);
+        memcpy(this->d->m_heightDiv, other.d->m_heightDiv, dataSize);
+    }
+
+    this->d->m_align = other.d->m_align;
+    this->d->m_fc = other.d->m_fc;
+    this->d->updatePlanes();
+}
+
+AkVCam::VideoFrame::~VideoFrame()
+{
+    if (this->d->m_data)
+        delete [] this->d->m_data;
+
+    delete this->d;
 }
 
 AkVCam::VideoFrame &AkVCam::VideoFrame::operator =(const AkVCam::VideoFrame &other)
 {
     if (this != &other) {
         this->d->m_format = other.d->m_format;
-        this->d->m_data = other.d->m_data;
+
+        if (this->d->m_data) {
+            delete [] this->d->m_data;
+            this->d->m_data = nullptr;
+        }
+
+        if (other.d->m_data && other.d->m_dataSize > 0) {
+            this->d->m_data = new uint8_t [other.d->m_dataSize];
+            memcpy(this->d->m_data, other.d->m_data, other.d->m_dataSize);
+        }
+
+        this->d->m_dataSize = other.d->m_dataSize;
+        this->d->m_nPlanes = other.d->m_nPlanes;
+
+        if (this->d->m_nPlanes > 0) {
+            memcpy(this->d->m_planeSize, other.d->m_planeSize, this->d->m_nPlanes * sizeof(size_t));
+            memcpy(this->d->m_planeOffset, other.d->m_planeOffset, this->d->m_nPlanes * sizeof(size_t));
+            memcpy(this->d->m_pixelSize, other.d->m_pixelSize, this->d->m_nPlanes * sizeof(size_t));
+            memcpy(this->d->m_lineSize, other.d->m_lineSize, this->d->m_nPlanes * sizeof(size_t));
+            memcpy(this->d->m_bytesUsed, other.d->m_bytesUsed, this->d->m_nPlanes * sizeof(size_t));
+            memcpy(this->d->m_widthDiv, other.d->m_widthDiv, this->d->m_nPlanes * sizeof(size_t));
+            memcpy(this->d->m_heightDiv, other.d->m_heightDiv, this->d->m_nPlanes * sizeof(size_t));
+        }
+
+        this->d->m_align = other.d->m_align;
+        this->d->m_fc = other.d->m_fc;
+        this->d->updatePlanes();
     }
 
     return *this;
 }
 
-bool AkVCam::VideoFrame::operator ==(const VideoFrame &other) const
-{
-    return this->d->m_format == other.d->m_format
-           && this->d->m_data == other.d->m_data;
-}
-
 AkVCam::VideoFrame::operator bool() const
 {
-    return this->d->m_format && !this->d->m_data.empty();
-}
-
-AkVCam::VideoFrame::~VideoFrame()
-{
-    delete this->d;
+    return this->d->m_format && this->d->m_data;
 }
 
 // http://www.dragonwins.com/domains/getteched/bmp/bmpfileformat.htm
 bool AkVCam::VideoFrame::load(const std::string &fileName)
 {
     AkLogFunction();
+
+    this->d->m_format = {};
+
+    if (this->d->m_data) {
+        delete [] this->d->m_data;
+        this->d->m_data = nullptr;
+    }
 
     if (fileName.empty()) {
         AkLogCritical() << "The file name is empty" << std::endl;
@@ -365,69 +558,72 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
 
     BmpImageHeader imageHeader {};
     stream.read(reinterpret_cast<char *>(&imageHeader), sizeof(BmpImageHeader));
-    VideoFormat format(PixelFormatRGB24,
-                       int(imageHeader.width),
-                       int(imageHeader.height));
 
-    if (format.size() < 1) {
+    if (imageHeader.width < 1 || imageHeader.height < 1) {
         AkLogCritical() << "The image size is empty: " << imageHeader.width << "x" << imageHeader.height << std::endl;
 
         return false;
     }
 
+    size_t srcLineSize =
+            Algorithm::alignUp<size_t>(imageHeader.width
+                                       * imageHeader.bitCount
+                                       / 8,
+                                       32);
+
     stream.seekg(header.offBits, std::ios_base::beg);
-    this->d->m_format = format;
-    this->d->m_data.resize(format.size());
+    std::vector<uint8_t> data;
 
-    VideoData data(imageHeader.sizeImage);
-    stream.read(reinterpret_cast<char *>(data.data()),
-                imageHeader.sizeImage);
+    if (imageHeader.bitCount == 24 || imageHeader.bitCount == 32) {
+        this->d->m_format = {PixelFormat_argbpack,
+                             int(imageHeader.width),
+                             int(imageHeader.height)};
 
-    AkLogDebug() << "BMP info:" << std::endl;
-    AkLogDebug() << "    Bits: " << imageHeader.bitCount << std::endl;
-    AkLogDebug() << "    width: " << imageHeader.width << std::endl;
-    AkLogDebug() << "    height: " << imageHeader.height << std::endl;
-    AkLogDebug() << "    Data size: " << imageHeader.sizeImage << std::endl;
-    AkLogDebug() << "Allocated frame size: " << this->d->m_data.size() << std::endl;
+        if (this->d->m_data) {
+            delete [] this->d->m_data;
+            this->d->m_data = nullptr;
+        }
+
+        auto specs = VideoFormat::formatSpecs(this->d->m_format.format());
+        this->d->m_nPlanes = specs.planes();
+        this->d->updateParams(specs);
+
+        if (this->d->m_dataSize > 0)
+            this->d->m_data = new uint8_t [this->d->m_dataSize];
+
+        this->d->updatePlanes();
+        data.resize(imageHeader.sizeImage);
+        stream.read(reinterpret_cast<char *>(data.data()),
+                    imageHeader.sizeImage);
+    }
 
     switch (imageHeader.bitCount) {
     case 24: {
-        VideoFormat bmpFormat(PixelFormatBGR24,
-                              int(imageHeader.width),
-                              int(imageHeader.height));
-
         for (uint32_t y = 0; y < imageHeader.height; y++) {
-            auto srcLine = reinterpret_cast<const BGR24 *>
-                           (data.data() + y * bmpFormat.bypl(0));
-            auto dstLine = reinterpret_cast<RGB24 *>
+            auto srcLine = data.data() + y * srcLineSize;
+            auto dstLine = reinterpret_cast<uint32_t *>
                            (this->line(0, size_t(imageHeader.height - y - 1)));
 
-            for (uint32_t x = 0; x < imageHeader.width; x++) {
-                dstLine[x].r = srcLine[x].r;
-                dstLine[x].g = srcLine[x].g;
-                dstLine[x].b = srcLine[x].b;
-            }
+            for (uint32_t x = 0; x < imageHeader.width; x++)
+                dstLine[x] = Color::rgb(srcLine[3 * x + 2],
+                                        srcLine[3 * x + 1],
+                                        srcLine[3 * x]);
         }
 
         break;
     }
 
     case 32: {
-        VideoFormat bmpFormat(PixelFormatBGR32,
-                              int(imageHeader.width),
-                              int(imageHeader.height));
-
         for (uint32_t y = 0; y < imageHeader.height; y++) {
-            auto srcLine = reinterpret_cast<const BGR32 *>
-                           (data.data() + y * bmpFormat.bypl(0));
-            auto dstLine = reinterpret_cast<RGB24 *>
+            auto srcLine = data.data() + y * srcLineSize;
+            auto dstLine = reinterpret_cast<uint32_t *>
                            (this->line(0, size_t(imageHeader.height - y - 1)));
 
-            for (uint32_t x = 0; x < imageHeader.width; x++) {
-                dstLine[x].r = srcLine[x].r;
-                dstLine[x].g = srcLine[x].g;
-                dstLine[x].b = srcLine[x].b;
-            }
+            for (uint32_t x = 0; x < imageHeader.width; x++)
+                dstLine[x] = Color::rgb(srcLine[4 * x + 2],
+                                        srcLine[4 * x + 1],
+                                        srcLine[4 * x],
+                                        srcLine[4 * x + 3]);
         }
 
         break;
@@ -436,11 +632,15 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
     default:
         AkLogCritical() << "Invalid bit cout: " << imageHeader.bitCount << std::endl;
 
-        this->d->m_format.clear();
-        this->d->m_data.clear();
-
         return false;
     }
+
+    AkLogDebug() << "BMP info:" << std::endl;
+    AkLogDebug() << "    Bits: " << imageHeader.bitCount << std::endl;
+    AkLogDebug() << "    width: " << imageHeader.width << std::endl;
+    AkLogDebug() << "    height: " << imageHeader.height << std::endl;
+    AkLogDebug() << "    Data size: " << imageHeader.sizeImage << std::endl;
+    AkLogDebug() << "Allocated frame size: " << this->d->m_dataSize << std::endl;
 
     return true;
 }
@@ -450,1297 +650,527 @@ AkVCam::VideoFormat AkVCam::VideoFrame::format() const
     return this->d->m_format;
 }
 
-AkVCam::VideoFormat &AkVCam::VideoFrame::format()
+size_t AkVCam::VideoFrame::size() const
 {
-    return this->d->m_format;
+    return this->d->m_dataSize;
 }
 
-AkVCam::VideoData AkVCam::VideoFrame::data() const
+size_t AkVCam::VideoFrame::planes() const
 {
-    return this->d->m_data;
+    return this->d->m_nPlanes;
 }
 
-AkVCam::VideoData &AkVCam::VideoFrame::data()
+size_t AkVCam::VideoFrame::planeSize(int plane) const
 {
-    return this->d->m_data;
+    return this->d->m_planeSize[plane];
 }
 
-uint8_t *AkVCam::VideoFrame::line(size_t plane, size_t y) const
+size_t AkVCam::VideoFrame::pixelSize(int plane) const
 {
-    return this->d->m_data.data()
-            + this->d->m_format.offset(plane)
-            + y * this->d->m_format.bypl(plane);
+    return this->d->m_pixelSize[plane];
 }
 
-void AkVCam::VideoFrame::clear()
+size_t AkVCam::VideoFrame::lineSize(int plane) const
 {
-    this->d->m_format.clear();
-    this->d->m_data.clear();
+    return this->d->m_lineSize[plane];
 }
 
-AkVCam::VideoFrame AkVCam::VideoFrame::mirror(bool horizontalMirror,
-                                              bool verticalMirror) const
+size_t AkVCam::VideoFrame::bytesUsed(int plane) const
 {
-    if (!horizontalMirror && !verticalMirror)
-        return *this;
-
-    auto it = std::find(this->d->m_adjustFormats.begin(),
-                        this->d->m_adjustFormats.end(),
-                        this->d->m_format.fourcc());
-
-    if (it == this->d->m_adjustFormats.end())
-        return {};
-
-    VideoFrame dst(this->d->m_format);
-    int width = this->d->m_format.width();
-    int height = this->d->m_format.height();
-
-    if (horizontalMirror && verticalMirror) {
-        for (int y = 0; y < height; y++) {
-            auto srcLine = reinterpret_cast<RGB24 *>(this->line(0, size_t(height - y - 1)));
-            auto dstLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-
-            for (int x = 0; x < width; x++)
-                dstLine[x] = srcLine[width - x - 1];
-        }
-    } else if (horizontalMirror) {
-        for (int y = 0; y < height; y++) {
-            auto srcLine = reinterpret_cast<RGB24 *>(this->line(0, size_t(y)));
-            auto dstLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-
-            for (int x = 0; x < width; x++)
-                dstLine[x] = srcLine[width - x - 1];
-        }
-    } else if (verticalMirror) {
-        for (int y = 0; y < height; y++) {
-            auto srcLine = reinterpret_cast<RGB24 *>(this->line(0, size_t(height - y - 1)));
-            auto dstLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-            memcpy(dstLine, srcLine, size_t(width) * sizeof(RGB24));
-        }
-    }
-
-    return dst;
+    return this->d->m_bytesUsed[plane];
 }
 
-AkVCam::VideoFrame AkVCam::VideoFrame::scaled(int width,
-                                              int height,
-                                              Scaling mode,
-                                              AspectRatio aspectRatio) const
+size_t AkVCam::VideoFrame::widthDiv(int plane) const
 {
-    if (this->d->m_format.width() == width
-        && this->d->m_format.height() == height)
-        return *this;
+    return this->d->m_widthDiv[plane];
+}
 
-    auto it = std::find(this->d->m_adjustFormats.begin(),
-                        this->d->m_adjustFormats.end(),
-                        this->d->m_format.fourcc());
+size_t AkVCam::VideoFrame::heightDiv(int plane) const
+{
+    return this->d->m_heightDiv[plane];
+}
 
-    if (it == this->d->m_adjustFormats.end())
-        return {};
+const uint8_t *AkVCam::VideoFrame::constData() const
+{
+    return reinterpret_cast<uint8_t *>(this->d->m_data);
+}
 
-    int xDstMin = 0;
-    int yDstMin = 0;
-    int xDstMax = width;
-    int yDstMax = height;
+uint8_t *AkVCam::VideoFrame::data()
+{
+    return reinterpret_cast<uint8_t *>(this->d->m_data);
+}
 
-    if (aspectRatio == AspectRatioKeep) {
-        if (width * this->d->m_format.height()
-            > this->d->m_format.width() * height) {
-            // Right and left black bars
-            xDstMin = (width * this->d->m_format.height()
-                       - this->d->m_format.width() * height)
-                       / (2 * this->d->m_format.height());
-            xDstMax = (width * this->d->m_format.height()
-                       + this->d->m_format.width() * height)
-                       / (2 * this->d->m_format.height());
-        } else if (width * this->d->m_format.height()
-                   < this->d->m_format.width() * height) {
-            // Top and bottom black bars
-            yDstMin = (this->d->m_format.width() * height
-                       - width * this->d->m_format.height())
-                       / (2 * this->d->m_format.width());
-            yDstMax = (this->d->m_format.width() * height
-                       + width * this->d->m_format.height())
-                       / (2 * this->d->m_format.width());
-        }
-    }
+const uint8_t *AkVCam::VideoFrame::constPlane(int plane) const
+{
+    return this->d->m_planes[plane];
+}
 
-    int iWidth = this->d->m_format.width() - 1;
-    int iHeight = this->d->m_format.height() - 1;
-    int oWidth = xDstMax - xDstMin - 1;
-    int oHeight = yDstMax - yDstMin - 1;
-    int xNum = iWidth;
-    int xDen = oWidth;
-    int xs = 0;
-    int yNum = iHeight;
-    int yDen = oHeight;
-    int ys = 0;
+uint8_t *AkVCam::VideoFrame::plane(int plane)
+{
+    return this->d->m_planes[plane];
+}
 
-    if (aspectRatio == AspectRatioExpanding) {
-        if (mode == ScalingLinear) {
-            iWidth--;
-            iHeight--;
-            oWidth--;
-            oHeight--;
-        }
+const uint8_t *AkVCam::VideoFrame::constLine(int plane, int y) const
+{
+    return this->d->m_planes[plane]
+            + size_t(y >> this->d->m_heightDiv[plane])
+            * this->d->m_lineSize[plane];
+}
 
-        if (width * this->d->m_format.height()
-            < this->d->m_format.width() * height) {
-            // Right and left cut
-            xNum = 2 * iHeight;
-            xDen = 2 * oHeight;
-            xs = iWidth * oHeight - oWidth * iHeight;
-        } else if (width * this->d->m_format.height()
-                   > this->d->m_format.width() * height) {
-            // Top and bottom cut
-            yNum = 2 * iWidth;
-            yDen = 2 * oWidth;
-            ys = oWidth * iHeight - iWidth * oHeight;
-        }
-    }
+uint8_t *AkVCam::VideoFrame::line(int plane, int y)
+{
+    return this->d->m_planes[plane]
+            + size_t(y >> this->d->m_heightDiv[plane])
+            * this->d->m_lineSize[plane];
+}
 
-    auto format = this->d->m_format;
-    format.width() = width;
-    format.height() = height;
-    VideoFrame dst(format);
+AkVCam::VideoFrame AkVCam::VideoFrame::copy(int x,
+                                            int y,
+                                            int width,
+                                            int height) const
+{
+    auto ocaps = this->d->m_format;
+    ocaps.setWidth(width);
+    ocaps.setHeight(height);
+    VideoFrame dst(ocaps, true);
 
-    switch (mode) {
-        case ScalingFast:
-            for (int y = yDstMin; y < yDstMax; y++) {
-                auto srcY = (yNum * (y - yDstMin) + ys) / yDen;
-                auto srcLine = reinterpret_cast<RGB24 *>(this->line(0, size_t(srcY)));
-                auto dstLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
+    auto maxX = std::min(x + width, this->d->m_format.width());
+    auto maxY = std::min(y + height, this->d->m_format.height());
+    auto copyWidth = std::max(maxX - x, 0);
 
-                for (int x = xDstMin; x < xDstMax; x++) {
-                    auto srcX = (xNum * (x - xDstMin) + xs) / xDen;
-                    dstLine[x] = srcLine[srcX];
-                }
-            }
+    if (copyWidth < 1)
+        return dst;
 
-            return dst;
+    auto diffY = maxY - y;
 
-        case ScalingLinear: {
-            auto extrapolateX =
-                    this->d->m_format.width() < width?
-                        &VideoFramePrivate::extrapolateUp:
-                        &VideoFramePrivate::extrapolateDown;
-            auto extrapolateY =
-                    this->d->m_format.height() < height?
-                        &VideoFramePrivate::extrapolateUp:
-                        &VideoFramePrivate::extrapolateDown;
+    for (int plane = 0; plane < this->d->m_nPlanes; plane++) {
+        size_t offset = x
+                        * this->d->m_bytesUsed[plane]
+                        / this->d->m_format.width();
+        size_t copyBytes = copyWidth
+                           * this->d->m_bytesUsed[plane]
+                           / this->d->m_format.width();
+        auto srcLineOffset = this->d->m_lineSize[plane];
+        auto dstLineOffset = dst.d->m_lineSize[plane];
+        auto srcLine = this->constLine(plane, y) + offset;
+        auto dstLine = dst.d->m_planes[plane];
+        auto maxY = diffY >> this->d->m_heightDiv[plane];
 
-            for (int y = yDstMin; y < yDstMax; y++) {
-                auto dstLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-                int yMin;
-                int yMax;
-                int kNumY;
-                int kDenY;
-                extrapolateY(y - yDstMin,
-                             yNum, yDen, ys,
-                             &yMin, &yMax,
-                             &kNumY, &kDenY);
-
-                for (int x = xDstMin; x < xDstMax; x++) {
-                    int xMin;
-                    int xMax;
-                    int kNumX;
-                    int kDenX;
-                    extrapolateX(x - xDstMin,
-                                 xNum, xDen, xs,
-                                 &xMin, &xMax,
-                                 &kNumX, &kDenX);
-
-                    dstLine[x] =
-                            this->d->extrapolateColor(xMin, xMax,
-                                                      kNumX, kDenX,
-                                                      yMin, yMax,
-                                                      kNumY, kDenY);
-                }
-            }
-
-            return dst;
+        for (int y = 0; y < maxY; y++) {
+            memcpy(dstLine, srcLine, copyBytes);
+            srcLine += srcLineOffset;
+            dstLine += dstLineOffset;
         }
     }
 
     return dst;
 }
 
-AkVCam::VideoFrame AkVCam::VideoFrame::scaled(size_t maxArea,
-                                              AkVCam::Scaling mode,
-                                              int align) const
+void AkVCam::VideoFrame::fillRgb(Rgb color)
 {
-    auto width = int(sqrt(double(maxArea)
-                          * double(this->d->m_format.width())
-                          / double(this->d->m_format.height())));
-    auto height = int(sqrt(double(maxArea)
-                           * double(this->d->m_format.height())
-                           / double(this->d->m_format.width())));
-    int owidth = align * int(width / align);
-    int oheight = height * owidth / width;
-
-    return this->scaled(owidth, oheight, mode);
+    return this->d->fill(color);
 }
 
-AkVCam::VideoFrame AkVCam::VideoFrame::swapRgb(bool swap) const
+void AkVCam::VideoFramePrivate::updateParams(const VideoFormatSpec &specs)
 {
-    if (swap)
-        return this->swapRgb();
+    this->m_dataSize = 0;
+
+    // Calculate parameters for each plane
+    for (size_t i = 0; i < specs.planes(); ++i) {
+        auto &plane = specs.plane(i);
+
+        // Calculate bytes used per line (bits per pixel * width / 8)
+        size_t bytesUsed = plane.bitsSize() * this->m_format.width() / 8;
+
+        // Align line size for SIMD compatibility
+        size_t lineSize =
+                Algorithm::alignUp(bytesUsed, size_t(this->m_align));
+
+        // Store pixel size, line size, and bytes used
+        this->m_pixelSize[i] = plane.pixelSize();
+        this->m_lineSize[i] = lineSize;
+        this->m_bytesUsed[i] = bytesUsed;
+
+        // Calculate plane size, considering sub-sampling
+        size_t planeSize = (lineSize * this->m_format.height()) >> plane.heightDiv();
+
+        // Align plane size to ensure next plane starts aligned
+        planeSize =
+                Algorithm::alignUp(planeSize, size_t(this->m_align));
+
+        // Store plane size and offset
+        this->m_planeSize[i] = planeSize;
+        this->m_planeOffset[i] = this->m_dataSize;
+
+        // Update total data size
+        this->m_dataSize += planeSize;
+
+        // Store width and height divisors for sub-sampling
+        this->m_widthDiv[i] = plane.widthDiv();
+        this->m_heightDiv[i] = plane.heightDiv();
+    }
+
+    // Align total data size for buffer allocation
+    this->m_dataSize =
+            Algorithm::alignUp(this->m_dataSize, size_t(this->m_align));
+}
+
+void AkVCam::VideoFramePrivate::updatePlanes()
+{
+    for (int i = 0; i < this->m_nPlanes; ++i)
+        this->m_planes[i] = this->m_data + this->m_planeOffset[i];
+}
+
+#define DEFINE_FILL_FUNC(size) \
+    case FillDataTypes_##size: \
+        this->fill<uint##size##_t>(*this->m_fc, color); \
+        \
+        if (this->m_fc->endianess != ENDIANNESS_BO) \
+            for (size_t plane = 0; plane < this->m_nPlanes; ++plane) \
+                AkVCam::Algorithm::swapDataBytes(reinterpret_cast<uint##size##_t *>(this->m_planes[plane]), this->m_pixelSize[plane]); \
+        \
+        break;
+
+void AkVCam::VideoFramePrivate::fill(Rgb color)
+{
+    if (!this->m_fc) {
+        this->m_fc = FillParametersPtr(new FillParameters);
+        this->m_fc->configure(this->m_format, this->m_fc->colorConvert);
+        this->m_fc->configureFill(this->m_format);
+    }
+
+    switch (this->m_fc->fillDataTypes) {
+    DEFINE_FILL_FUNC(8)
+    DEFINE_FILL_FUNC(16)
+    DEFINE_FILL_FUNC(32)
+    DEFINE_FILL_FUNC(64)
+    default:
+        break;
+    }
+
+    for (size_t plane = 0; plane < this->m_nPlanes; plane++) {
+        auto &lineSize = this->m_lineSize[plane];
+        auto &pixelSize = this->m_pixelSize[plane];
+        auto line0 = this->m_planes[plane];
+        auto line = line0 + pixelSize;
+        auto width = lineSize / pixelSize;
+        auto height = this->m_fc->height >> this->m_heightDiv[plane];
+
+        for (int x = 1; x < width; ++x) {
+            memcpy(line, line0, pixelSize);
+            line += pixelSize;
+        }
+
+        line = line0 + lineSize;
+
+        for (int y = 1; y < height; ++y) {
+            memcpy(line, line0, lineSize);
+            line += lineSize;
+        }
+    }
+}
+
+AkVCam::FillParameters::FillParameters()
+{
+}
+
+AkVCam::FillParameters::FillParameters(const FillParameters &other):
+    colorConvert(other.colorConvert),
+    fillType(other.fillType),
+    fillDataTypes(other.fillDataTypes),
+    alphaMode(other.alphaMode),
+    endianess(other.endianess),
+    width(other.width),
+    height(other.height),
+    planeXo(other.planeXo),
+    planeYo(other.planeYo),
+    planeZo(other.planeZo),
+    planeAo(other.planeAo),
+    compXo(other.compXo),
+    compYo(other.compYo),
+    compZo(other.compZo),
+    compAo(other.compAo),
+    xoOffset(other.xoOffset),
+    yoOffset(other.yoOffset),
+    zoOffset(other.zoOffset),
+    aoOffset(other.aoOffset),
+    xoShift(other.xoShift),
+    yoShift(other.yoShift),
+    zoShift(other.zoShift),
+    aoShift(other.aoShift),
+    maskXo(other.maskXo),
+    maskYo(other.maskYo),
+    maskZo(other.maskZo),
+    maskAo(other.maskAo)
+{
+    if (this->width > 0) {
+        size_t oWidthDataSize = sizeof(int) * this->width;
+
+        if (other.dstWidthOffsetX) {
+            this->dstWidthOffsetX = new int [this->width];
+            memcpy(this->dstWidthOffsetX, other.dstWidthOffsetX, oWidthDataSize);
+        }
+
+        if (other.dstWidthOffsetY) {
+            this->dstWidthOffsetY = new int [this->width];
+            memcpy(this->dstWidthOffsetY, other.dstWidthOffsetY, oWidthDataSize);
+        }
+
+        if (other.dstWidthOffsetZ) {
+            this->dstWidthOffsetZ = new int [this->width];
+            memcpy(this->dstWidthOffsetZ, other.dstWidthOffsetZ, oWidthDataSize);
+        }
+
+        if (other.dstWidthOffsetA) {
+            this->dstWidthOffsetA = new int [this->width];
+            memcpy(this->dstWidthOffsetA, other.dstWidthOffsetA, oWidthDataSize);
+        }
+    }
+}
+
+AkVCam::FillParameters::~FillParameters()
+{
+    this->clearBuffers();
+}
+
+AkVCam::FillParameters &AkVCam::FillParameters::operator =(const FillParameters &other)
+{
+    if (this != &other) {
+        this->colorConvert = other.colorConvert;
+        this->fillType = other.fillType;
+        this->fillDataTypes = other.fillDataTypes;
+        this->alphaMode = other.alphaMode;
+        this->endianess = other.endianess;
+        this->width = other.width;
+        this->height = other.height;
+        this->planeXo = other.planeXo;
+        this->planeYo = other.planeYo;
+        this->planeZo = other.planeZo;
+        this->planeAo = other.planeAo;
+        this->compXo = other.compXo;
+        this->compYo = other.compYo;
+        this->compZo = other.compZo;
+        this->compAo = other.compAo;
+        this->xoOffset = other.xoOffset;
+        this->yoOffset = other.yoOffset;
+        this->zoOffset = other.zoOffset;
+        this->aoOffset = other.aoOffset;
+        this->xoShift = other.xoShift;
+        this->yoShift = other.yoShift;
+        this->zoShift = other.zoShift;
+        this->aoShift = other.aoShift;
+        this->maskXo = other.maskXo;
+        this->maskYo = other.maskYo;
+        this->maskZo = other.maskZo;
+        this->maskAo = other.maskAo;
+
+        if (this->width > 0) {
+            size_t oWidthDataSize = sizeof(int) * this->width;
+
+            if (other.dstWidthOffsetX) {
+                this->dstWidthOffsetX = new int [this->width];
+                memcpy(this->dstWidthOffsetX, other.dstWidthOffsetX, oWidthDataSize);
+            }
+
+            if (other.dstWidthOffsetY) {
+                this->dstWidthOffsetY = new int [this->width];
+                memcpy(this->dstWidthOffsetY, other.dstWidthOffsetY, oWidthDataSize);
+            }
+
+            if (other.dstWidthOffsetZ) {
+                this->dstWidthOffsetZ = new int [this->width];
+                memcpy(this->dstWidthOffsetZ, other.dstWidthOffsetZ, oWidthDataSize);
+            }
+
+            if (other.dstWidthOffsetA) {
+                this->dstWidthOffsetA = new int [this->width];
+                memcpy(this->dstWidthOffsetA, other.dstWidthOffsetA, oWidthDataSize);
+            }
+        }
+    }
 
     return *this;
 }
 
-AkVCam::VideoFrame AkVCam::VideoFrame::swapRgb() const
+void AkVCam::FillParameters::clearBuffers()
 {
-    auto it = std::find(this->d->m_adjustFormats.begin(),
-                        this->d->m_adjustFormats.end(),
-                        this->d->m_format.fourcc());
-
-    if (it == this->d->m_adjustFormats.end())
-        return {};
-
-    VideoFrame dst(this->d->m_format);
-
-    for (int y = 0; y < this->d->m_format.height(); y++) {
-        auto srcLine = reinterpret_cast<RGB24 *>(this->line(0, size_t(y)));
-        auto destLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < this->d->m_format.width(); x++) {
-            destLine[x].r = srcLine[x].b;
-            destLine[x].g = srcLine[x].g;
-            destLine[x].b = srcLine[x].r;
-        }
+    if (this->dstWidthOffsetX) {
+        delete [] this->dstWidthOffsetX;
+        this->dstWidthOffsetX = nullptr;
     }
 
-    return dst;
-}
-
-bool AkVCam::VideoFrame::canConvert(FourCC input, FourCC output) const
-{
-    if (input == output)
-        return true;
-
-    for (auto &convert: this->d->m_convert)
-        if (convert.from == input
-            && convert.to == output) {
-            return true;
-        }
-
-    return false;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFrame::convert(AkVCam::FourCC fourcc) const
-{
-    if (this->d->m_format.fourcc() == fourcc)
-        return *this;
-
-    VideoConvert *converter = nullptr;
-
-    for (auto &convert: this->d->m_convert)
-        if (convert.from == this->d->m_format.fourcc()
-            && convert.to == fourcc) {
-            converter = &convert;
-
-            break;
-        }
-
-    if (!converter)
-        return {};
-
-    return converter->convert(this);
-}
-
-AkVCam::VideoFrame AkVCam::VideoFrame::adjustHsl(int hue,
-                                                 int saturation,
-                                                 int luminance)
-{
-    if (hue == 0 && saturation == 0 && luminance == 0)
-        return *this;
-
-    auto it = std::find(this->d->m_adjustFormats.begin(),
-                        this->d->m_adjustFormats.end(),
-                        this->d->m_format.fourcc());
-
-    if (it == this->d->m_adjustFormats.end())
-        return {};
-
-    VideoFrame dst(this->d->m_format);
-
-    for (int y = 0; y < this->d->m_format.height(); y++) {
-        auto srcLine = reinterpret_cast<RGB24 *>(this->line(0, size_t(y)));
-        auto destLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < this->d->m_format.width(); x++) {
-            int h;
-            int s;
-            int l;
-            this->d->rgbToHsl(srcLine[x].r, srcLine[x].g, srcLine[x].b,
-                              &h, &s, &l);
-
-            h = mod(h + hue, 360);
-            s = bound(0, s + saturation, 255);
-            l = bound(0, l + luminance, 255);
-
-            int r;
-            int g;
-            int b;
-            this->d->hslToRgb(h, s, l, &r, &g, &b);
-
-            destLine[x].r = uint8_t(r);
-            destLine[x].g = uint8_t(g);
-            destLine[x].b = uint8_t(b);
-        }
+    if (this->dstWidthOffsetY) {
+        delete [] this->dstWidthOffsetY;
+        this->dstWidthOffsetY = nullptr;
     }
 
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFrame::adjustGamma(int gamma)
-{
-    if (gamma == 0)
-        return *this;
-
-    auto it = std::find(this->d->m_adjustFormats.begin(),
-                        this->d->m_adjustFormats.end(),
-                        this->d->m_format.fourcc());
-
-    if (it == this->d->m_adjustFormats.end())
-        return {};
-
-    VideoFrame dst(this->d->m_format);
-    auto dataGt = gammaTable()->data();
-    gamma = bound(-255, gamma, 255);
-    size_t gammaOffset = size_t(gamma + 255) << 8;
-
-    for (int y = 0; y < this->d->m_format.height(); y++) {
-        auto srcLine = reinterpret_cast<RGB24 *>(this->line(0, size_t(y)));
-        auto destLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < this->d->m_format.width(); x++) {
-            destLine[x].r = dataGt[gammaOffset | srcLine[x].r];
-            destLine[x].g = dataGt[gammaOffset | srcLine[x].g];
-            destLine[x].b = dataGt[gammaOffset | srcLine[x].b];
-        }
+    if (this->dstWidthOffsetZ) {
+        delete [] this->dstWidthOffsetZ;
+        this->dstWidthOffsetZ = nullptr;
     }
 
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFrame::adjustContrast(int contrast)
-{
-    if (contrast == 0)
-        return *this;
-
-    auto it = std::find(this->d->m_adjustFormats.begin(),
-                        this->d->m_adjustFormats.end(),
-                        this->d->m_format.fourcc());
-
-    if (it == this->d->m_adjustFormats.end())
-        return {};
-
-    VideoFrame dst(this->d->m_format);
-    auto dataCt = contrastTable()->data();
-    contrast = bound(-255, contrast, 255);
-    size_t contrastOffset = size_t(contrast + 255) << 8;
-
-    for (int y = 0; y < this->d->m_format.height(); y++) {
-        auto srcLine = reinterpret_cast<RGB24 *>(this->line(0, size_t(y)));
-        auto destLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < this->d->m_format.width(); x++) {
-            destLine[x].r = dataCt[contrastOffset | srcLine[x].r];
-            destLine[x].g = dataCt[contrastOffset | srcLine[x].g];
-            destLine[x].b = dataCt[contrastOffset | srcLine[x].b];
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFrame::toGrayScale()
-{
-    auto it = std::find(this->d->m_adjustFormats.begin(),
-                        this->d->m_adjustFormats.end(),
-                        this->d->m_format.fourcc());
-
-    if (it == this->d->m_adjustFormats.end())
-        return {};
-
-    VideoFrame dst(this->d->m_format);
-
-    for (int y = 0; y < this->d->m_format.height(); y++) {
-        auto srcLine = reinterpret_cast<RGB24 *>(this->line(0, size_t(y)));
-        auto destLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < this->d->m_format.width(); x++) {
-            int luma = this->d->grayval(srcLine[x].r,
-                                        srcLine[x].g,
-                                        srcLine[x].b);
-
-            destLine[x].r = uint8_t(luma);
-            destLine[x].g = uint8_t(luma);
-            destLine[x].b = uint8_t(luma);
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFrame::adjust(int hue,
-                                              int saturation,
-                                              int luminance,
-                                              int gamma,
-                                              int contrast,
-                                              bool gray)
-{
-    if (hue == 0
-        && saturation == 0
-        && luminance == 0
-        && gamma == 0
-        && contrast == 0
-        && !gray)
-        return *this;
-
-    auto it = std::find(this->d->m_adjustFormats.begin(),
-                        this->d->m_adjustFormats.end(),
-                        this->d->m_format.fourcc());
-
-    if (it == this->d->m_adjustFormats.end())
-        return {};
-
-    VideoFrame dst(this->d->m_format);
-    auto dataGt = gammaTable()->data();
-    auto dataCt = contrastTable()->data();
-
-    gamma = bound(-255, gamma, 255);
-    size_t gammaOffset = size_t(gamma + 255) << 8;
-
-    contrast = bound(-255, contrast, 255);
-    size_t contrastOffset = size_t(contrast + 255) << 8;
-
-    for (int y = 0; y < this->d->m_format.height(); y++) {
-        auto srcLine = reinterpret_cast<RGB24 *>(this->line(0, size_t(y)));
-        auto destLine = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < this->d->m_format.width(); x++) {
-            int r = srcLine[x].r;
-            int g = srcLine[x].g;
-            int b = srcLine[x].b;
-
-            if (hue != 0 || saturation != 0 ||  luminance != 0) {
-                int h;
-                int s;
-                int l;
-                this->d->rgbToHsl(r, g, b, &h, &s, &l);
-
-                h = mod(h + hue, 360);
-                s = bound(0, s + saturation, 255);
-                l = bound(0, l + luminance, 255);
-                this->d->hslToRgb(h, s, l, &r, &g, &b);
-            }
-
-            if (gamma != 0) {
-                r = dataGt[gammaOffset | size_t(r)];
-                g = dataGt[gammaOffset | size_t(g)];
-                b = dataGt[gammaOffset | size_t(b)];
-            }
-
-            if (contrast != 0) {
-                r = dataCt[contrastOffset | size_t(r)];
-                g = dataCt[contrastOffset | size_t(g)];
-                b = dataCt[contrastOffset | size_t(b)];
-            }
-
-            if (gray) {
-                int luma = this->d->grayval(r, g, b);
-
-                r = luma;
-                g = luma;
-                b = luma;
-            }
-
-            destLine[x].r = uint8_t(r);
-            destLine[x].g = uint8_t(g);
-            destLine[x].b = uint8_t(b);
-        }
-    }
-
-    return dst;
-}
-
-int AkVCam::VideoFramePrivate::grayval(int r, int g, int b)
-{
-    return (11 * r + 16 * g + 5 * b) >> 5;
-}
-
-uint8_t AkVCam::VideoFramePrivate::rgb_y(int r, int g, int b)
-{
-    return uint8_t(((66 * r + 129 * g + 25 * b + 128) >> 8) + 16);
-}
-
-uint8_t AkVCam::VideoFramePrivate::rgb_u(int r, int g, int b)
-{
-    return uint8_t(((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128);
-}
-
-uint8_t AkVCam::VideoFramePrivate::rgb_v(int r, int g, int b)
-{
-    return uint8_t(((112 * r - 94 * g - 18 * b + 128) >> 8) + 128);
-}
-
-uint8_t AkVCam::VideoFramePrivate::yuv_r(int y, int u, int v)
-{
-    UNUSED(u);
-    int r = (298 * (y - 16) + 409 * (v - 128) + 128) >> 8;
-
-    return uint8_t(bound(0, r, 255));
-}
-
-uint8_t AkVCam::VideoFramePrivate::yuv_g(int y, int u, int v)
-{
-    int g = (298 * (y - 16) - 100 * (u - 128) - 208 * (v - 128) + 128) >> 8;
-
-    return uint8_t(bound(0, g, 255));
-}
-
-uint8_t AkVCam::VideoFramePrivate::yuv_b(int y, int u, int v)
-{
-    UNUSED(v);
-    int b = (298 * (y - 16) + 516 * (u - 128) + 128) >> 8;
-
-    return uint8_t(bound(0, b, 255));
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_rgb32(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatRGB32;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<RGB32 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].x = 255;
-            dst_line[x].r = src_line[x].r;
-            dst_line[x].g = src_line[x].g;
-            dst_line[x].b = src_line[x].b;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_rgb24(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatRGB24;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<RGB24 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].r = src_line[x].r;
-            dst_line[x].g = src_line[x].g;
-            dst_line[x].b = src_line[x].b;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_rgb16(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatRGB16;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<RGB16 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].r = src_line[x].r >> 3;
-            dst_line[x].g = src_line[x].g >> 2;
-            dst_line[x].b = src_line[x].b >> 3;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_rgb15(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatRGB15;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<RGB15 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].x = 1;
-            dst_line[x].r = src_line[x].r >> 3;
-            dst_line[x].g = src_line[x].g >> 3;
-            dst_line[x].b = src_line[x].b >> 3;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_bgr32(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatBGR32;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<BGR32 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].x = 255;
-            dst_line[x].r = src_line[x].r;
-            dst_line[x].g = src_line[x].g;
-            dst_line[x].b = src_line[x].b;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_bgr16(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatBGR16;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<BGR16 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].r = src_line[x].r >> 3;
-            dst_line[x].g = src_line[x].g >> 2;
-            dst_line[x].b = src_line[x].b >> 3;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_bgr15(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatBGR15;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<BGR15 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].x = 1;
-            dst_line[x].r = src_line[x].r >> 3;
-            dst_line[x].g = src_line[x].g >> 3;
-            dst_line[x].b = src_line[x].b >> 3;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_uyvy(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatUYVY;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<UYVY *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            auto x_yuv = x / 2;
-
-            auto r0 = src_line[x].r;
-            auto g0 = src_line[x].g;
-            auto b0 = src_line[x].b;
-
-            x++;
-
-            int r1 = src_line[x].r;
-            int g1 = src_line[x].g;
-            int b1 = src_line[x].b;
-
-            dst_line[x_yuv].u0 = rgb_u(r0, g0, b0);
-            dst_line[x_yuv].y0 = rgb_y(r0, g0, b0);
-            dst_line[x_yuv].v0 = rgb_v(r0, g0, b0);
-            dst_line[x_yuv].y1 = rgb_y(r1, g1, b1);
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_yuy2(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatYUY2;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<YUY2 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            auto x_yuv = x / 2;
-
-            auto r0 = src_line[x].r;
-            auto g0 = src_line[x].g;
-            auto b0 = src_line[x].b;
-
-            x++;
-
-            auto r1 = src_line[x].r;
-            auto g1 = src_line[x].g;
-            auto b1 = src_line[x].b;
-
-            dst_line[x_yuv].y0 = rgb_y(r0, g0, b0);
-            dst_line[x_yuv].u0 = rgb_u(r0, g0, b0);
-            dst_line[x_yuv].y1 = rgb_y(r1, g1, b1);
-            dst_line[x_yuv].v0 = rgb_v(r0, g0, b0);
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_nv12(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatNV12;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line_y = dst.line(0, size_t(y));
-        auto dst_line_vu = reinterpret_cast<VU *>(dst.line(1, size_t(y) / 2));
-
-        for (int x = 0; x < width; x++) {
-            auto r = src_line[x].r;
-            auto g = src_line[x].g;
-            auto b = src_line[x].b;
-
-            dst_line_y[y] = rgb_y(r, g, b);
-
-            if (!(x & 0x1) && !(y & 0x1)) {
-                dst_line_vu[x / 2].v = rgb_v(r, g, b);
-                dst_line_vu[x / 2].u = rgb_u(r, g, b);
-            }
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::bgr24_to_nv21(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatNV21;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const BGR24 *>(src->line(0, size_t(y)));
-        auto dst_line_y = dst.line(0, size_t(y));
-        auto dst_line_vu = reinterpret_cast<UV *>(dst.line(1, size_t(y) / 2));
-
-        for (int x = 0; x < width; x++) {
-            auto r = src_line[x].r;
-            auto g = src_line[x].g;
-            auto b = src_line[x].b;
-
-            dst_line_y[y] = rgb_y(r, g, b);
-
-            if (!(x & 0x1) && !(y & 0x1)) {
-                dst_line_vu[x / 2].v = rgb_v(r, g, b);
-                dst_line_vu[x / 2].u = rgb_u(r, g, b);
-            }
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_rgb32(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatRGB32;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<RGB32 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].x = 255;
-            dst_line[x].r = src_line[x].r;
-            dst_line[x].g = src_line[x].g;
-            dst_line[x].b = src_line[x].b;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_rgb16(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatRGB16;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<RGB16 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].r = src_line[x].r >> 3;
-            dst_line[x].g = src_line[x].g >> 2;
-            dst_line[x].b = src_line[x].b >> 3;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_rgb15(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatRGB15;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<RGB15 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].x = 1;
-            dst_line[x].r = src_line[x].r >> 3;
-            dst_line[x].g = src_line[x].g >> 3;
-            dst_line[x].b = src_line[x].b >> 3;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_bgr32(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatBGR32;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<BGR32 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].x = 255;
-            dst_line[x].r = src_line[x].r;
-            dst_line[x].g = src_line[x].g;
-            dst_line[x].b = src_line[x].b;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_bgr24(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatBGR24;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<BGR24 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].r = src_line[x].r;
-            dst_line[x].g = src_line[x].g;
-            dst_line[x].b = src_line[x].b;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_bgr16(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatBGR16;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<BGR16 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].r = src_line[x].r >> 3;
-            dst_line[x].g = src_line[x].g >> 2;
-            dst_line[x].b = src_line[x].b >> 3;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_bgr15(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatBGR15;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<BGR15 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            dst_line[x].x = 1;
-            dst_line[x].r = src_line[x].r >> 3;
-            dst_line[x].g = src_line[x].g >> 3;
-            dst_line[x].b = src_line[x].b >> 3;
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_uyvy(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatUYVY;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<UYVY *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            auto x_yuv = x / 2;
-
-            auto r0 = src_line[x].r;
-            auto g0 = src_line[x].g;
-            auto b0 = src_line[x].b;
-
-            x++;
-
-            int r1 = src_line[x].r;
-            int g1 = src_line[x].g;
-            int b1 = src_line[x].b;
-
-            dst_line[x_yuv].u0 = rgb_u(r0, g0, b0);
-            dst_line[x_yuv].y0 = rgb_y(r0, g0, b0);
-            dst_line[x_yuv].v0 = rgb_v(r0, g0, b0);
-            dst_line[x_yuv].y1 = rgb_y(r1, g1, b1);
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_yuy2(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatYUY2;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line = reinterpret_cast<YUY2 *>(dst.line(0, size_t(y)));
-
-        for (int x = 0; x < width; x++) {
-            auto x_yuv = x / 2;
-
-            auto r0 = src_line[x].r;
-            auto g0 = src_line[x].g;
-            auto b0 = src_line[x].b;
-
-            x++;
-
-            auto r1 = src_line[x].r;
-            auto g1 = src_line[x].g;
-            auto b1 = src_line[x].b;
-
-            dst_line[x_yuv].y0 = rgb_y(r0, g0, b0);
-            dst_line[x_yuv].u0 = rgb_u(r0, g0, b0);
-            dst_line[x_yuv].y1 = rgb_y(r1, g1, b1);
-            dst_line[x_yuv].v0 = rgb_v(r0, g0, b0);
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_nv12(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatNV12;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line_y = dst.line(0, size_t(y));
-        auto dst_line_vu = reinterpret_cast<VU *>(dst.line(1, size_t(y) / 2));
-
-        for (int x = 0; x < width; x++) {
-            auto r = src_line[x].r;
-            auto g = src_line[x].g;
-            auto b = src_line[x].b;
-
-            dst_line_y[y] = rgb_y(r, g, b);
-
-            if (!(x & 0x1) && !(y & 0x1)) {
-                dst_line_vu[x / 2].v = rgb_v(r, g, b);
-                dst_line_vu[x / 2].u = rgb_u(r, g, b);
-            }
-        }
-    }
-
-    return dst;
-}
-
-AkVCam::VideoFrame AkVCam::VideoFramePrivate::rgb24_to_nv21(const VideoFrame *src)
-{
-    auto format = src->format();
-    format.fourcc() = PixelFormatNV21;
-    VideoFrame dst(format);
-    auto width = src->format().width();
-    auto height = src->format().height();
-
-    for (int y = 0; y < height; y++) {
-        auto src_line = reinterpret_cast<const RGB24 *>(src->line(0, size_t(y)));
-        auto dst_line_y = dst.line(0, size_t(y));
-        auto dst_line_vu = reinterpret_cast<UV *>(dst.line(1, size_t(y) / 2));
-
-        for (int x = 0; x < width; x++) {
-            auto r = src_line[x].r;
-            auto g = src_line[x].g;
-            auto b = src_line[x].b;
-
-            dst_line_y[y] = rgb_y(r, g, b);
-
-            if (!(x & 0x1) && !(y & 0x1)) {
-                dst_line_vu[x / 2].v = rgb_v(r, g, b);
-                dst_line_vu[x / 2].u = rgb_u(r, g, b);
-            }
-        }
-    }
-
-    return dst;
-}
-
-void AkVCam::VideoFramePrivate::extrapolateUp(int dstCoord,
-                                              int num, int den, int s,
-                                              int *srcCoordMin, int *srcCoordMax,
-                                              int *kNum, int *kDen)
-{
-    *srcCoordMin = (num * dstCoord + s) / den;
-    *srcCoordMax = *srcCoordMin + 1;
-    int dstCoordMin = (den * *srcCoordMin - s) / num;
-    int dstCoordMax = (den * *srcCoordMax - s) / num;
-    *kNum = dstCoord - dstCoordMin;
-    *kDen = dstCoordMax - dstCoordMin;
-}
-
-void AkVCam::VideoFramePrivate::extrapolateDown(int dstCoord,
-                                                int num, int den, int s,
-                                                int *srcCoordMin, int *srcCoordMax,
-                                                int *kNum, int *kDen)
-{
-    *srcCoordMin = (num * dstCoord + s) / den;
-    *srcCoordMax = *srcCoordMin;
-    *kNum = 0;
-    *kDen = 1;
-}
-
-uint8_t AkVCam::VideoFramePrivate::extrapolateComponent(uint8_t min, uint8_t max,
-                                                        int kNum, int kDen) const
-{
-    return uint8_t((kNum * (max - min) + kDen * min) / kDen);
-}
-
-AkVCam::RGB24 AkVCam::VideoFramePrivate::extrapolateColor(const RGB24 &colorMin,
-                                                          const RGB24 &colorMax,
-                                                          int kNum,
-                                                          int kDen) const
-{
-    return RGB24 {
-        extrapolateComponent(colorMin.b, colorMax.b, kNum, kDen),
-        extrapolateComponent(colorMin.g, colorMax.g, kNum, kDen),
-        extrapolateComponent(colorMin.r, colorMax.r, kNum, kDen)
-    };
-}
-
-AkVCam::RGB24 AkVCam::VideoFramePrivate::extrapolateColor(int xMin, int xMax,
-                                                          int kNumX, int kDenX,
-                                                          int yMin, int yMax,
-                                                          int kNumY, int kDenY) const
-{
-    auto minLine = reinterpret_cast<RGB24 *>(this->self->line(0, size_t(yMin)));
-    auto maxLine = reinterpret_cast<RGB24 *>(this->self->line(0, size_t(yMax)));
-    auto colorMin = extrapolateColor(minLine[xMin], minLine[xMax], kNumX, kDenX);
-    auto colorMax = extrapolateColor(maxLine[xMin], maxLine[xMax], kNumX, kDenX);
-
-    return extrapolateColor(colorMin, colorMax, kNumY, kDenY);
-}
-
-// https://en.wikipedia.org/wiki/HSL_and_HSV
-void AkVCam::VideoFramePrivate::rgbToHsl(int r, int g, int b, int *h, int *s, int *l)
-{
-    int max = std::max(r, std::max(g, b));
-    int min = std::min(r, std::min(g, b));
-    int c = max - min;
-
-    *l = (max + min) / 2;
-
-    if (!c) {
-        *h = 0;
-        *s = 0;
-    } else {
-        if (max == r)
-            *h = mod(g - b, 6 * c);
-        else if (max == g)
-            *h = b - r + 2 * c;
-        else
-            *h = r - g + 4 * c;
-
-        *h = 60 * (*h) / c;
-        *s = 255 * c / (255 - abs(max + min - 255));
+    if (this->dstWidthOffsetA) {
+        delete [] this->dstWidthOffsetA;
+        this->dstWidthOffsetA = nullptr;
     }
 }
 
-void AkVCam::VideoFramePrivate::hslToRgb(int h, int s, int l, int *r, int *g, int *b)
+void AkVCam::FillParameters::allocateBuffers(const VideoFormat &caps)
 {
-    int c = s * (255 - abs(2 * l - 255)) / 255;
-    int x = c * (60 - abs((h % 120) - 60)) / 60;
+    this->clearBuffers();
 
-    if (h >= 0 && h < 60) {
-        *r = c;
-        *g = x;
-        *b = 0;
-    } else if (h >= 60 && h < 120) {
-        *r = x;
-        *g = c;
-        *b = 0;
-    } else if (h >= 120 && h < 180) {
-        *r = 0;
-        *g = c;
-        *b = x;
-    } else if (h >= 180 && h < 240) {
-        *r = 0;
-        *g = x;
-        *b = c;
-    } else if (h >= 240 && h < 300) {
-        *r = x;
-        *g = 0;
-        *b = c;
-    } else if (h >= 300 && h < 360) {
-        *r = c;
-        *g = 0;
-        *b = x;
-    } else {
-        *r = 0;
-        *g = 0;
-        *b = 0;
+    if (caps.width() > 0) {
+        this->dstWidthOffsetX = new int [caps.width()];
+        this->dstWidthOffsetY = new int [caps.width()];
+        this->dstWidthOffsetZ = new int [caps.width()];
+        this->dstWidthOffsetA = new int [caps.width()];
     }
-
-    int m = 2 * l - c;
-
-    *r = (2 * (*r) + m) >> 1;
-    *g = (2 * (*g) + m) >> 1;
-    *b = (2 * (*b) + m) >> 1;
 }
 
-std::vector<uint8_t> AkVCam::initGammaTable()
+#define DEFINE_FILL_TYPES(size) \
+    if (ospecs.depth() == size) \
+        this->fillDataTypes = FillDataTypes_##size;
+
+void AkVCam::FillParameters::configure(const VideoFormat &caps,
+                                       ColorConvert &colorConvert)
 {
-    std::vector<uint8_t> gammaTable;
+    auto ispecs = VideoFormat::formatSpecs(PixelFormat_xrgbpack);
+    auto ospecs = VideoFormat::formatSpecs(caps.format());
 
-    for (int i = 0; i < 256; i++) {
-        auto ig = uint8_t(255. * pow(i / 255., 255));
-        gammaTable.push_back(ig);
+    DEFINE_FILL_TYPES(8);
+    DEFINE_FILL_TYPES(16);
+    DEFINE_FILL_TYPES(32);
+    DEFINE_FILL_TYPES(64);
+
+    auto components = ospecs.mainComponents();
+
+    switch (components) {
+    case 3:
+        this->fillType =
+            ospecs.type() == VideoFormatSpec::VFT_RGB?
+                                FillType_Vector:
+                                FillType_3;
+
+        break;
+
+    case 1:
+        this->fillType = FillType_1;
+
+        break;
+
+    default:
+        break;
     }
 
-    for (int gamma = -254; gamma < 256; gamma++) {
-        double k = 255. / (gamma + 255);
+    this->endianess = ospecs.endianness();
+    colorConvert.loadMatrix(ispecs, ospecs);
 
-        for (int i = 0; i < 256; i++) {
-            auto ig = uint8_t(255. * pow(i / 255., k));
-            gammaTable.push_back(ig);
-        }
+    switch (ospecs.type()) {
+    case VideoFormatSpec::VFT_RGB:
+        this->planeXo = ospecs.componentPlane(ColorComponent::CT_R);
+        this->planeYo = ospecs.componentPlane(ColorComponent::CT_G);
+        this->planeZo = ospecs.componentPlane(ColorComponent::CT_B);
+
+        this->compXo = ospecs.component(ColorComponent::CT_R);
+        this->compYo = ospecs.component(ColorComponent::CT_G);
+        this->compZo = ospecs.component(ColorComponent::CT_B);
+
+        break;
+
+    case VideoFormatSpec::VFT_YUV:
+        this->planeXo = ospecs.componentPlane(ColorComponent::CT_Y);
+        this->planeYo = ospecs.componentPlane(ColorComponent::CT_U);
+        this->planeZo = ospecs.componentPlane(ColorComponent::CT_V);
+
+        this->compXo = ospecs.component(ColorComponent::CT_Y);
+        this->compYo = ospecs.component(ColorComponent::CT_U);
+        this->compZo = ospecs.component(ColorComponent::CT_V);
+
+        break;
+
+    case VideoFormatSpec::VFT_Gray:
+        this->planeXo = ospecs.componentPlane(ColorComponent::CT_Y);
+        this->compXo = ospecs.component(ColorComponent::CT_Y);
+
+        break;
+
+    default:
+        break;
     }
 
-    return gammaTable;
+    this->planeAo = ospecs.componentPlane(ColorComponent::CT_A);
+    this->compAo = ospecs.component(ColorComponent::CT_A);
+
+    this->xoOffset = this->compXo.offset();
+    this->yoOffset = this->compYo.offset();
+    this->zoOffset = this->compZo.offset();
+    this->aoOffset = this->compAo.offset();
+
+    this->xoShift = this->compXo.shift();
+    this->yoShift = this->compYo.shift();
+    this->zoShift = this->compZo.shift();
+    this->aoShift = this->compAo.shift();
+
+    this->maskXo = ~(this->compXo.max<uint64_t>() << this->compXo.shift());
+    this->maskYo = ~(this->compYo.max<uint64_t>() << this->compYo.shift());
+    this->maskZo = ~(this->compZo.max<uint64_t>() << this->compZo.shift());
+    this->maskAo = ~(this->compAo.max<uint64_t>() << this->compAo.shift());
+
+    this->alphaMode = ospecs.contains(ColorComponent::CT_A)?
+                          AlphaMode_AO:
+                          AlphaMode_O;
 }
 
-std::vector<uint8_t> AkVCam::initContrastTable()
+void AkVCam::FillParameters::configureFill(const VideoFormat &caps)
 {
-    std::vector<uint8_t> contrastTable;
+    this->allocateBuffers(caps);
 
-    for (int contrast = -255; contrast < 256; contrast++) {
-        double f = 259. * (255 + contrast) / (255. * (259 - contrast));
-
-        for (int i = 0; i < 256; i++) {
-            int ic = int(f * (i - 128) + 128.);
-            contrastTable.push_back(uint8_t(bound(0, ic, 255)));
-        }
+    for (int x = 0; x < caps.width(); ++x) {
+        this->dstWidthOffsetX[x] = (x >> this->compXo.widthDiv()) * this->compXo.step();
+        this->dstWidthOffsetY[x] = (x >> this->compYo.widthDiv()) * this->compYo.step();
+        this->dstWidthOffsetZ[x] = (x >> this->compZo.widthDiv()) * this->compZo.step();
+        this->dstWidthOffsetA[x] = (x >> this->compAo.widthDiv()) * this->compAo.step();
     }
 
-    return contrastTable;
+    this->width = caps.width();
+    this->height = caps.height();
+}
+
+void AkVCam::FillParameters::reset()
+{
+    this->fillType = FillType_3;
+    this->fillDataTypes = FillDataTypes_8;
+    this->alphaMode = AlphaMode_AO;
+
+    this->endianess = ENDIANNESS_BO;
+
+    this->clearBuffers();
+
+    this->width = 0;
+    this->height = 0;
+
+    this->planeXo = 0;
+    this->planeYo = 0;
+    this->planeZo = 0;
+    this->planeAo = 0;
+
+    this->compXo = {};
+    this->compYo = {};
+    this->compZo = {};
+    this->compAo = {};
+
+    this->xoOffset = 0;
+    this->yoOffset = 0;
+    this->zoOffset = 0;
+    this->aoOffset = 0;
+
+    this->xoShift = 0;
+    this->yoShift = 0;
+    this->zoShift = 0;
+    this->aoShift = 0;
+
+    this->maskXo = 0;
+    this->maskYo = 0;
+    this->maskZo = 0;
+    this->maskAo = 0;
 }

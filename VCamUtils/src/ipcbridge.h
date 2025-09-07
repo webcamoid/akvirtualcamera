@@ -17,8 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef IPCBRIDGE_H
-#define IPCBRIDGE_H
+#ifndef AKVCAMUTILS_IPCBRIDGE_H
+#define AKVCAMUTILS_IPCBRIDGE_H
 
 #include <string>
 #include <map>
@@ -162,4 +162,4 @@ namespace AkVCam
     };
 }
 
-#endif // IPCBRIDGE_H
+#endif // AKVCAMUTILS_IPCBRIDGE_H

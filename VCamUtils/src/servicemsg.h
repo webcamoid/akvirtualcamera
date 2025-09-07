@@ -17,8 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef SERVICEMSG_H
-#define SERVICEMSG_H
+#ifndef AKVCAMUTILS_SERVICEMSG_H
+#define AKVCAMUTILS_SERVICEMSG_H
 
 // Clients listing
 #define AKVCAM_SERVICE_MSG_CLIENTS      0x001
@@ -31,4 +31,4 @@
 #define AKVCAM_SERVICE_MSG_BROADCAST    0x201
 #define AKVCAM_SERVICE_MSG_LISTEN       0x202
 
-#endif // SERVICEMSG_H
+#endif // AKVCAMUTILS_SERVICEMSG_H

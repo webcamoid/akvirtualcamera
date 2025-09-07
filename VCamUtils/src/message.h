@@ -17,8 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef MESSAGECOMMONS_H
-#define MESSAGECOMMONS_H
+#ifndef AKVCAMUTILS_MESSAGE_H
+#define AKVCAMUTILS_MESSAGE_H
 
 #include <cstdint>
 #include <functional>
@@ -214,4 +214,4 @@ namespace AkVCam
     };
 }
 
-#endif // MESSAGECOMMONS_H
+#endif // AKVCAMUTILS_MESSAGE_H

@@ -17,43 +17,76 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef VIDEOFORMATTYPES_H
-#define VIDEOFORMATTYPES_H
+#ifndef AKVCAMUTILS_VIDEOFORMATTYPES_H
+#define AKVCAMUTILS_VIDEOFORMATTYPES_H
 
 #include <cstdint>
 
-#define MKFOURCC(a, b, c, d) \
-    (((uint32_t(a) & 0xff) << 24) \
-   | ((uint32_t(b) & 0xff) << 16) \
-   | ((uint32_t(c) & 0xff) <<  8) \
-   |  (uint32_t(d) & 0xff))
+#include "commons.h"
 
 namespace AkVCam
 {
-    using FourCC = int32_t;
-
     enum PixelFormat
     {
+        PixelFormat_none    = AKVCAM_MAKE_FOURCC(0, 0, 0, 0),
+        PixelFormat_unknown = PixelFormat_none,
+
         // RGB formats
-        PixelFormatRGB32 = MKFOURCC('R', 'G', 'B', 32),
-        PixelFormatRGB24 = MKFOURCC('R', 'G', 'B', 24),
-        PixelFormatRGB16 = MKFOURCC('R', 'G', 'B', 16),
-        PixelFormatRGB15 = MKFOURCC('R', 'G', 'B', 15),
+        PixelFormat_xrgb     = AKVCAM_MAKE_FOURCC('X', 'R', 'G', 'B'),
+        PixelFormat_rgb24    = AKVCAM_MAKE_FOURCC('R', 'G', 'B', 24),
+        PixelFormat_rgb555be = AKVCAM_MAKE_FOURCC_BE('R', 'G', 5, 55),
+        PixelFormat_rgb555le = AKVCAM_MAKE_FOURCC_LE('R', 'G', 5, 55),
+        PixelFormat_rgb565be = AKVCAM_MAKE_FOURCC_BE('R', 'G', 5, 65),
+        PixelFormat_rgb565le = AKVCAM_MAKE_FOURCC_LE('R', 'G', 5, 65),
+        PixelFormat_argb     = AKVCAM_MAKE_FOURCC('A', 'R', 'G', 'B'),
 
         // BGR formats
-        PixelFormatBGR32 = MKFOURCC('B', 'G', 'R', 32),
-        PixelFormatBGR24 = MKFOURCC('B', 'G', 'R', 24),
-        PixelFormatBGR16 = MKFOURCC('B', 'G', 'R', 16),
-        PixelFormatBGR15 = MKFOURCC('B', 'G', 'R', 15),
+        PixelFormat_bgrx     = AKVCAM_MAKE_FOURCC('B', 'G', 'R', 'X'),
+        PixelFormat_bgr24    = AKVCAM_MAKE_FOURCC('B', 'G', 'R', 24),
+        PixelFormat_bgr555be = AKVCAM_MAKE_FOURCC_BE('B', 'G', 5, 55),
+        PixelFormat_bgr555le = AKVCAM_MAKE_FOURCC_LE('B', 'G', 5, 55),
+        PixelFormat_bgr565be = AKVCAM_MAKE_FOURCC_BE('B', 'G', 5, 65),
+        PixelFormat_bgr565le = AKVCAM_MAKE_FOURCC_LE('B', 'G', 5, 65),
+        PixelFormat_bgra     = AKVCAM_MAKE_FOURCC('B', 'G', 'R', 'A'),
 
         // Luminance+Chrominance formats
-        PixelFormatUYVY = MKFOURCC('U', 'Y', 'V', 'Y'),
-        PixelFormatYUY2 = MKFOURCC('Y', 'U', 'Y', '2'),
+        PixelFormat_uyvy422 = AKVCAM_MAKE_FOURCC('U', 'Y', 'V', 'Y'),
+        PixelFormat_yuyv422 = AKVCAM_MAKE_FOURCC('Y', 'U', 'Y', 2),
 
         // two planes -- one Y, one Cr + Cb interleaved
-        PixelFormatNV12 = MKFOURCC('N', 'V', '1', '2'),
-        PixelFormatNV21 = MKFOURCC('N', 'V', '2', '1')
+        PixelFormat_nv12 = AKVCAM_MAKE_FOURCC('N', 'V', 12, 0),
+        PixelFormat_nv21 = AKVCAM_MAKE_FOURCC('N', 'V', 21, 0),
+
+#if ENDIANNESS_BO == ENDIANNESS_LE
+        PixelFormat_xrgbpackbe    = PixelFormat_xrgb,
+        PixelFormat_xrgbpackle    = PixelFormat_bgrx,
+        PixelFormat_xrgbpack      = PixelFormat_xrgbpackle,
+        PixelFormat_bgrxpackbe    = PixelFormat_bgrx,
+        PixelFormat_bgrxpackle    = PixelFormat_xrgb,
+        PixelFormat_bgrxpack      = PixelFormat_bgrxpackle,
+        PixelFormat_rgb555        = PixelFormat_rgb555le,
+        PixelFormat_rgb565        = PixelFormat_rgb565le,
+        PixelFormat_bgr555        = PixelFormat_bgr555le,
+        PixelFormat_bgr565        = PixelFormat_bgr565le,
+        PixelFormat_argbpackbe    = PixelFormat_argb,
+        PixelFormat_argbpackle    = PixelFormat_bgra,
+        PixelFormat_argbpack      = PixelFormat_argbpackle,
+#else
+        PixelFormat_xrgbpackbe    = PixelFormat_bgrx,
+        PixelFormat_xrgbpackle    = PixelFormat_xrgb,
+        PixelFormat_xrgbpack      = PixelFormat_xrgbpackbe,
+        PixelFormat_bgrxpackbe    = PixelFormat_xrgb,
+        PixelFormat_bgrxpackle    = PixelFormat_bgrx,
+        PixelFormat_bgrxpack      = PixelFormat_bgrxpackbe,
+        PixelFormat_rgb555        = PixelFormat_rgb555be,
+        PixelFormat_rgb565        = PixelFormat_rgb565be,
+        PixelFormat_bgr555        = PixelFormat_bgr555be,
+        PixelFormat_bgr565        = PixelFormat_bgr565be,
+        PixelFormat_argbpackbe    = PixelFormat_bgra,
+        PixelFormat_argbpackle    = PixelFormat_argb,
+        PixelFormat_argbpack      = PixelFormat_argbpackbe,
+#endif
     };
 }
 
-#endif // VIDEOFORMATTYPES_H
+#endif // AKVCAMUTILS_VIDEOFORMATTYPES_H

@@ -17,68 +17,99 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef VIDEOFRAME_H
-#define VIDEOFRAME_H
+#ifndef AKVCAMUTILS_VIDEOFRAME_H
+#define AKVCAMUTILS_VIDEOFRAME_H
 
 #include <string>
 #include <memory>
 #include <vector>
 
 #include "videoframetypes.h"
-#include "videoformattypes.h"
+#include "videoformat.h"
 
 namespace AkVCam
 {
+    using Rgb = uint32_t;
+
     class VideoFramePrivate;
     class VideoFormat;
-    using VideoData = std::vector<uint8_t>;
 
     class VideoFrame
     {
         public:
             VideoFrame();
             VideoFrame(const std::string &fileName);
-            VideoFrame(const VideoFormat &format);
+            VideoFrame(const VideoFormat &format, bool initialized=false);
             VideoFrame(const VideoFrame &other);
             VideoFrame &operator =(const VideoFrame &other);
-            bool operator ==(const VideoFrame &other) const;
             operator bool() const;
             ~VideoFrame();
 
             bool load(const std::string &fileName);
             VideoFormat format() const;
-            VideoFormat &format();
-            VideoData data() const;
-            VideoData &data();
-            uint8_t *line(size_t plane, size_t y) const;
-            void clear();
+            size_t size() const;
+            size_t planes() const;
+            size_t planeSize(int plane) const;
+            size_t pixelSize(int plane) const;
+            size_t lineSize(int plane) const;
+            size_t bytesUsed(int plane) const;
+            size_t widthDiv(int plane) const;
+            size_t heightDiv(int plane) const;
+            const uint8_t *constData() const;
+            uint8_t *data();
+            const uint8_t *constPlane(int plane) const;
+            uint8_t *plane(int plane);
+            const uint8_t *constLine(int plane, int y) const;
+            uint8_t *line(int plane, int y);
+            VideoFrame copy(int x,
+                            int y,
+                            int width,
+                            int height) const;
 
-            VideoFrame mirror(bool horizontalMirror, bool verticalMirror) const;
-            VideoFrame scaled(int width,
-                              int height,
-                              Scaling mode=ScalingFast,
-                              AspectRatio aspectRatio=AspectRatioIgnore) const;
-            VideoFrame scaled(size_t maxArea,
-                              Scaling mode=ScalingFast,
-                              int align=32) const;
-            VideoFrame swapRgb(bool swap) const;
-            VideoFrame swapRgb() const;
-            bool canConvert(FourCC input, FourCC output) const;
-            VideoFrame convert(FourCC fourcc) const;
-            VideoFrame adjustHsl(int hue, int saturation, int luminance);
-            VideoFrame adjustGamma(int gamma);
-            VideoFrame adjustContrast(int contrast);
-            VideoFrame toGrayScale();
-            VideoFrame adjust(int hue,
-                              int saturation,
-                              int luminance,
-                              int gamma,
-                              int contrast,
-                              bool gray);
+            template <typename T>
+            inline T pixel(int plane, int x, int y) const
+            {
+                auto line = reinterpret_cast<const T *>(this->constLine(plane, y));
+
+                return line[x >> this->widthDiv(plane)];
+            }
+
+            template <typename T>
+            inline void setPixel(int plane, int x, int y, T value)
+            {
+                auto line = reinterpret_cast<T *>(this->line(plane, y));
+                line[x >> this->widthDiv(plane)] = value;
+            }
+
+            template <typename T>
+            inline void fill(int plane, T value)
+            {
+                int width = this->format().width() >> this->widthDiv(plane);
+                auto line = new T [width];
+
+                for (int x = 0; x < width; x++)
+                    line[x] = value;
+
+                size_t lineSize = width * sizeof(T);
+
+                for (int y = 0; y < this->format().height(); y++)
+                    memcpy(this->line(plane, y), line, lineSize);
+
+                delete [] line;
+            }
+
+            template <typename T>
+            inline void fill(T value)
+            {
+                for (size_t plane = 0; plane < this->planes(); plane++)
+                    this->fill(plane, value);
+            }
+
+            void fillRgb(Rgb color);
 
         private:
             VideoFramePrivate *d;
     };
 }
 
-#endif // VIDEOFRAME_H
+#endif // AKVCAMUTILS_VIDEOFRAME_H

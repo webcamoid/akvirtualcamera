@@ -38,7 +38,11 @@
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/videoprocamp.h"
+#include "VCamUtils/src/fraction.h"
+#include "VCamUtils/src/videoadjusts.h"
+#include "VCamUtils/src/videoconverter.h"
 #include "VCamUtils/src/videoframe.h"
+#include "VCamUtils/src/videoformatspec.h"
 #include "VCamUtils/src/utils.h"
 
 namespace AkVCam
@@ -70,6 +74,8 @@ namespace AkVCam
             std::mutex m_controlsMutex;
             VideoFrame m_currentFrame;
             VideoFrame m_testFrame;
+            VideoAdjusts m_videoAdjusts;
+            VideoConverter m_videoConverter;
             bool m_horizontalFlip {false};   // Controlled by client
             bool m_verticalFlip {false};
             std::map<std::string, int> m_controls;
@@ -141,7 +147,8 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
                                  &this->d->m_brightness,
                                  &flags);
     this->d->m_videoProcAmp->Get(VideoProcAmp_Contrast,
-                                 &this->d->m_contrast, &flags);
+                                 &this->d->m_contrast,
+                                 &flags);
     this->d->m_videoProcAmp->Get(VideoProcAmp_Saturation,
                                  &this->d->m_saturation,
                                  &flags);
@@ -154,6 +161,13 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     this->d->m_videoProcAmp->Get(VideoProcAmp_ColorEnable,
                                  &this->d->m_colorenable,
                                  &flags);
+
+    this->d->m_videoAdjusts.setHue(this->d->m_hue);
+    this->d->m_videoAdjusts.setSaturation(this->d->m_saturation);
+    this->d->m_videoAdjusts.setLuminance(this->d->m_brightness);
+    this->d->m_videoAdjusts.setGamma(this->d->m_gamma);
+    this->d->m_videoAdjusts.setContrast(this->d->m_contrast);
+    this->d->m_videoAdjusts.setGrayScaled(!this->d->m_colorenable);
 
     this->d->m_videoProcAmp->connectPropertyChanged(this->d,
                                                     &PinPrivate::propertyChanged);
@@ -232,13 +246,14 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
         self->GetFormat(&mediaType);
         auto videoFormat = formatFromMediaType(mediaType);
         deleteMediaType(&mediaType);
-        auto fps = videoFormat.minimumFrameRate();
+        auto fps = videoFormat.fps();
         auto period = REFERENCE_TIME(TIME_BASE / fps.value());
 
         clock->AdvisePeriodic(now,
                               period,
                               HSEMAPHORE(self->d->m_sendFrameEvent),
                               &self->d->m_adviseCookie);
+        self->d->m_videoConverter.setOutputFormat(videoFormat);
 
         if (self->d->m_bridge)
             self->d->m_bridge->deviceStart(IpcBridge::StreamType_Input,
@@ -256,7 +271,7 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
         self->d->m_sendFrameEvent = nullptr;
         self->d->m_memAllocator->Decommit();
         self->d->m_mutex.lock();
-        self->d->m_currentFrame.clear();
+        self->d->m_currentFrame = {};
         self->d->m_mutex.unlock();
     }
 
@@ -279,10 +294,10 @@ void AkVCam::Pin::frameReady(const VideoFrame &frame, bool isActive)
     auto frameAdjusted =
             this->d->applyAdjusts(isActive? frame: this->d->m_testFrame);
 
-    if (frameAdjusted.format().size() > 0)
+    if (frameAdjusted)
         this->d->m_currentFrame = frameAdjusted;
     else
-        this->d->m_currentFrame.clear();
+        this->d->m_currentFrame = {};
 
     this->d->m_mutex.unlock();
 }
@@ -322,6 +337,7 @@ bool AkVCam::Pin::horizontalFlip() const
 void AkVCam::Pin::setHorizontalFlip(bool flip)
 {
     this->d->m_horizontalFlip = flip;
+    this->d->m_videoAdjusts.setHorizontalMirror(flip);
 }
 
 bool AkVCam::Pin::verticalFlip() const
@@ -332,6 +348,7 @@ bool AkVCam::Pin::verticalFlip() const
 void AkVCam::Pin::setVerticalFlip(bool flip)
 {
     this->d->m_verticalFlip = flip;
+    this->d->m_videoAdjusts.setVerticalMirror(flip);
 }
 
 HRESULT AkVCam::Pin::QueryInterface(const IID &riid, void **ppvObject)
@@ -512,7 +529,7 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
     if (allocatorRequirements.cBuffers < 1)
         allocatorRequirements.cBuffers = 1;
 
-    allocatorRequirements.cbBuffer = LONG(videoFormat.size());
+    allocatorRequirements.cbBuffer = LONG(videoFormat.dataSize());
 
     if (allocatorRequirements.cbAlign < 1)
         allocatorRequirements.cbAlign = 1;
@@ -841,19 +858,17 @@ HRESULT AkVCam::PinPrivate::sendFrame()
 
     this->m_mutex.lock();
 
-    if (this->m_currentFrame.format().size() > 0) {
-        auto copyBytes = (std::min)(size_t(size),
-                                    this->m_currentFrame.data().size());
+    if (this->m_currentFrame.size() > 0) {
+        auto copyBytes = (std::min)(size_t(size), this->m_currentFrame.size());
 
         if (copyBytes > 0)
-            memcpy(buffer, this->m_currentFrame.data().data(), copyBytes);
+            memcpy(buffer, this->m_currentFrame.constData(), copyBytes);
     } else {
         auto frame = this->randomFrame();
-        auto copyBytes = (std::min)(size_t(size),
-                                    frame.data().size());
+        auto copyBytes = (std::min)(size_t(size), frame.size());
 
         if (copyBytes > 0)
-            memcpy(buffer, frame.data().data(), copyBytes);
+            memcpy(buffer, frame.constData(), copyBytes);
     }
 
     this->m_mutex.unlock();
@@ -865,7 +880,7 @@ HRESULT AkVCam::PinPrivate::sendFrame()
     self->GetFormat(&mediaType);
     auto format = formatFromMediaType(mediaType);
     deleteMediaType(&mediaType);
-    auto fps = format.minimumFrameRate();
+    auto fps = format.fps();
     auto duration = REFERENCE_TIME(TIME_BASE / fps.value());
 
     if (this->m_pts < 0) {
@@ -908,19 +923,9 @@ AkVCam::VideoFrame AkVCam::PinPrivate::applyAdjusts(const VideoFrame &frame)
 
     auto format = formatFromMediaType(mediaType);
     deleteMediaType(&mediaType);
-    FourCC fourcc = format.fourcc();
+    PixelFormat pixelFormat = format.format();
     int width = format.width();
     int height = format.height();
-
-    /* In Windows red and blue channels are swapped, so hack it with the
-     * opposite format. Endianness problem maybe?
-     */
-    std::map<FourCC, FourCC> fixFormat {
-        {PixelFormatRGB32, PixelFormatBGR32},
-        {PixelFormatRGB24, PixelFormatBGR24},
-        {PixelFormatRGB16, PixelFormatBGR16},
-        {PixelFormatRGB15, PixelFormatBGR15},
-    };
 
     bool horizontalMirror = false;
     bool verticalMirror = false;
@@ -945,49 +950,32 @@ AkVCam::VideoFrame AkVCam::PinPrivate::applyAdjusts(const VideoFrame &frame)
         swapRgb = this->m_controls["swap_rgb"];
 
     this->m_controlsMutex.unlock();
-    bool vmirror;
 
-    if (fixFormat.count(fourcc) > 0) {
-        fourcc = fixFormat[fourcc];
-        vmirror = verticalMirror == this->m_verticalFlip;
-    } else {
-        vmirror = verticalMirror != this->m_verticalFlip;
-    }
+    auto specs = VideoFormat::formatSpecs(pixelFormat);
+    bool vmirror = specs.type() == VideoFormatSpec::VFT_RGB?
+                       verticalMirror == this->m_verticalFlip:
+                       verticalMirror != this->m_verticalFlip;
+
+    this->m_videoAdjusts.setHorizontalMirror(horizontalMirror);
+    this->m_videoAdjusts.setVerticalMirror(vmirror);
+    this->m_videoAdjusts.setSwapRGB(swapRgb);
+    this->m_videoConverter.setAspectRatioMode(VideoConverter::AspectRatioMode(aspectRatio));
+    this->m_videoConverter.setScalingMode(VideoConverter::ScalingMode(scaling));
 
     VideoFrame newFrame;
 
+    this->m_videoConverter.begin();
+
     if (width * height > frame.format().width() * frame.format().height()) {
-        newFrame =
-                frame
-                .mirror(horizontalMirror != this->m_horizontalFlip,
-                        vmirror)
-                .swapRgb(swapRgb)
-                .adjust(this->m_hue,
-                        this->m_saturation,
-                        this->m_brightness,
-                        this->m_gamma,
-                        this->m_contrast,
-                        !this->m_colorenable)
-                .scaled(width, height, scaling, aspectRatio)
-                .convert(fourcc);
+        newFrame = this->m_videoAdjusts.adjust(frame);
+        newFrame = this->m_videoConverter.convert(newFrame);
     } else {
-        newFrame =
-                frame
-                .scaled(width, height, scaling, aspectRatio)
-                .mirror(horizontalMirror != this->m_horizontalFlip,
-                        vmirror)
-                .swapRgb(swapRgb)
-                .adjust(this->m_hue,
-                        this->m_saturation,
-                        this->m_brightness,
-                        this->m_gamma,
-                        this->m_contrast,
-                        !this->m_colorenable)
-                .convert(fourcc);
+        newFrame = this->m_videoConverter.convert(frame);
+        newFrame = this->m_videoAdjusts.adjust(newFrame);
 
     }
 
-    newFrame.format().fourcc() = format.fourcc();
+    this->m_videoConverter.end();
 
     return newFrame;
 }
@@ -1004,31 +992,38 @@ void AkVCam::PinPrivate::propertyChanged(void *userData,
     switch (Property) {
     case VideoProcAmp_Brightness:
         self->m_brightness = lValue;
+        self->m_videoAdjusts.setLuminance(self->m_brightness);
 
         break;
 
     case VideoProcAmp_Contrast:
         self->m_contrast = lValue;
+        self->m_videoAdjusts.setContrast(self->m_contrast);
 
         break;
 
     case VideoProcAmp_Saturation:
         self->m_saturation = lValue;
+        self->m_videoAdjusts.setSaturation(self->m_saturation);
 
         break;
 
     case VideoProcAmp_Gamma:
         self->m_gamma = lValue;
+        self->m_videoAdjusts.setGamma(self->m_gamma);
 
         break;
 
     case VideoProcAmp_Hue:
         self->m_hue = lValue;
+        self->m_videoAdjusts.setHue(self->m_hue);
 
         break;
 
     case VideoProcAmp_ColorEnable:
         self->m_colorenable = lValue;
+        self->m_videoAdjusts.setGrayScaled(!self->m_colorenable);
+
         break;
 
     default:
@@ -1046,23 +1041,14 @@ AkVCam::VideoFrame AkVCam::PinPrivate::randomFrame()
     auto format = formatFromMediaType(mediaType);
     deleteMediaType(&mediaType);
 
-    VideoFormat rgbFormat(PixelFormatRGB24, format.width(), format.height());
-    VideoData data(rgbFormat.size());
+    VideoFrame frame(format);
     static std::uniform_int_distribution<int> distribution(0, 255);
     static std::default_random_engine engine;
-    std::generate(data.begin(), data.end(), [] () {
+    std::generate(frame.data(),
+                  frame.data() + frame.size(),
+                  [] () {
         return uint8_t(distribution(engine));
     });
 
-    VideoFrame rgbFrame;
-    rgbFrame.format() = rgbFormat;
-    rgbFrame.data() = data;
-
-    return rgbFrame.adjust(this->m_hue,
-                           this->m_saturation,
-                           this->m_brightness,
-                           this->m_gamma,
-                           this->m_contrast,
-                           !this->m_colorenable)
-                   .convert(format.fourcc());
+    return this->m_videoAdjusts.adjust(frame);
 }

@@ -17,8 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef VCAMUTILS_SOCKETS_H
-#define VCAMUTILS_SOCKETS_H
+#ifndef AKVCAMUTILS_SOCKETS_H
+#define AKVCAMUTILS_SOCKETS_H
 
 #include <vector>
 
@@ -63,4 +63,4 @@ namespace AkVCam
     }
 }
 
-#endif // MESSAGECLIENT_H
+#endif // AKVCAMUTILS_SOCKETS_H

@@ -29,6 +29,7 @@
 
 #include "utils.h"
 #include "preferences.h"
+#include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/messageclient.h"
 #include "VCamUtils/src/utils.h"
 #include "VCamUtils/src/videoformat.h"
@@ -41,14 +42,16 @@ namespace AkVCam
     class VideoFormatSpecsPrivate
     {
         public:
-            FourCC pixelFormat;
+            PixelFormat pixelFormat;
+            const char *name;
             DWORD compression;
             GUID guid;
             const DWORD *masks;
 
-            inline static const std::vector<VideoFormatSpecsPrivate> &formats();
+            static const VideoFormatSpecsPrivate *formats();
             static inline const VideoFormatSpecsPrivate *byGuid(const GUID &guid);
-            static inline const VideoFormatSpecsPrivate *byPixelFormat(FourCC pixelFormat);
+            static inline const VideoFormatSpecsPrivate *byPixelFormat(PixelFormat pixelFormat);
+            static inline const VideoFormatSpecsPrivate *byName(const char *name);
     };
 
     std::string currentArchitecture();
@@ -499,17 +502,17 @@ LPTSTR AkVCam::tstrFromString(const std::string &str)
 #endif
 }
 
-AkVCam::FourCC AkVCam::formatFromGuid(const GUID &guid)
+AkVCam::PixelFormat AkVCam::formatFromGuid(const GUID &guid)
 {
     auto formatSpec = VideoFormatSpecsPrivate::byGuid(guid);
 
     if (!formatSpec)
-        return 0;
+        return PixelFormat_none;
 
     return formatSpec->pixelFormat;
 }
 
-const GUID &AkVCam::guidFromFormat(FourCC format)
+const GUID &AkVCam::guidFromFormat(PixelFormat format)
 {
     auto formatSpec = VideoFormatSpecsPrivate::byPixelFormat(format);
 
@@ -519,7 +522,7 @@ const GUID &AkVCam::guidFromFormat(FourCC format)
     return formatSpec->guid;
 }
 
-DWORD AkVCam::compressionFromFormat(FourCC format)
+DWORD AkVCam::compressionFromFormat(PixelFormat format)
 {
     auto formatSpec = VideoFormatSpecsPrivate::byPixelFormat(format);
 
@@ -529,10 +532,30 @@ DWORD AkVCam::compressionFromFormat(FourCC format)
     return formatSpec->compression;
 }
 
+AkVCam::PixelFormat AkVCam::pixelFormatFromCommonString(const std::string &format)
+{
+    auto pixelFormat = VideoFormatSpecsPrivate::byName(format.c_str())->pixelFormat;
+
+    if (pixelFormat != PixelFormat_none)
+        return pixelFormat;
+
+    return VideoFormat::pixelFormatFromString(format);
+}
+
+std::string AkVCam::pixelFormatToCommonString(PixelFormat format)
+{
+    auto name = std::string(VideoFormatSpecsPrivate::byPixelFormat(format)->name);
+
+    if (!name.empty())
+        return name;
+
+    return VideoFormat::pixelFormatToString(format);
+}
+
 bool AkVCam::isSubTypeSupported(const GUID &subType)
 {
-    for (auto &format: VideoFormatSpecsPrivate::formats())
-        if (IsEqualGUID(format.guid, subType))
+    for (auto it = VideoFormatSpecsPrivate::formats(); it->pixelFormat != PixelFormat_none; ++it)
+        if (IsEqualGUID(it->guid, subType))
             return true;
 
     return false;
@@ -540,12 +563,12 @@ bool AkVCam::isSubTypeSupported(const GUID &subType)
 
 AM_MEDIA_TYPE *AkVCam::mediaTypeFromFormat(const AkVCam::VideoFormat &format)
 {
-    auto subtype = guidFromFormat(format.fourcc());
+    auto subtype = guidFromFormat(format.format());
 
     if (IsEqualGUID(subtype, GUID_NULL))
         return nullptr;
 
-    auto frameSize = format.size();
+    auto frameSize = format.dataSize();
 
     if (!frameSize)
         return nullptr;
@@ -553,7 +576,7 @@ AM_MEDIA_TYPE *AkVCam::mediaTypeFromFormat(const AkVCam::VideoFormat &format)
     auto videoInfo =
             reinterpret_cast<VIDEOINFO *>(CoTaskMemAlloc(sizeof(VIDEOINFO)));
     memset(videoInfo, 0, sizeof(VIDEOINFO));
-    auto fps = format.minimumFrameRate();
+    auto fps = format.fps();
 
 
     // Initialize info header.
@@ -571,8 +594,8 @@ AM_MEDIA_TYPE *AkVCam::mediaTypeFromFormat(const AkVCam::VideoFormat &format)
     videoInfo->bmiHeader.biHeight = format.height();
     videoInfo->bmiHeader.biPlanes = 1;
     videoInfo->bmiHeader.biBitCount = WORD(format.bpp());
-    videoInfo->bmiHeader.biCompression = compressionFromFormat(format.fourcc());
-    videoInfo->bmiHeader.biSizeImage = DWORD(format.size());
+    videoInfo->bmiHeader.biCompression = compressionFromFormat(format.format());
+    videoInfo->bmiHeader.biSizeImage = DWORD(format.dataSize());
 
     switch (videoInfo->bmiHeader.biCompression) {
     case BI_RGB:
@@ -601,7 +624,7 @@ AM_MEDIA_TYPE *AkVCam::mediaTypeFromFormat(const AkVCam::VideoFormat &format)
 
     case BI_BITFIELDS: {
             auto masks =
-                    VideoFormatSpecsPrivate::byPixelFormat(format.fourcc())->masks;
+                    VideoFormatSpecsPrivate::byPixelFormat(format.format())->masks;
 
             if (masks)
                 memcpy(videoInfo->TrueColorInfo.dwBitMasks, masks, 3);
@@ -1206,14 +1229,14 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
                         UINT width = 0;
                         UINT height = 0;
                         formatConverter->GetSize(&width, &height);
-                        VideoFormat videoFormat(PixelFormatRGB24,
+                        VideoFormat videoFormat(PixelFormat_rgb24,
                                                 int(width),
                                                 int(height));
                         frame = VideoFrame(videoFormat);
                         formatConverter->CopyPixels(nullptr,
                                                     3 * width,
-                                                    UINT(frame.data().size()),
-                                                    frame.data().data());
+                                                    UINT(frame.size()),
+                                                    frame.data());
                     }
 
                     formatConverter->Release();
@@ -1229,7 +1252,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     }
 
     AkLogDebug() << "Picture loaded as: "
-                 << VideoFormat::stringFromFourcc(frame.format().fourcc())
+                 << VideoFormat::pixelFormatToString(frame.format().format())
                  << " "
                  << frame.format().width()
                  << "x"
@@ -1644,40 +1667,56 @@ bool AkVCam::execDetached(const std::vector<std::string> &parameters,
     return true;
 }
 
-const std::vector<AkVCam::VideoFormatSpecsPrivate> &AkVCam::VideoFormatSpecsPrivate::formats()
+const AkVCam::VideoFormatSpecsPrivate *AkVCam::VideoFormatSpecsPrivate::formats()
 {
     static const DWORD bits555[] = {0x007c00, 0x0003e0, 0x00001f};
     static const DWORD bits565[] = {0x00f800, 0x0007e0, 0x00001f};
 
-    static const std::vector<VideoFormatSpecsPrivate> formats {
-        {PixelFormatRGB32, BI_RGB                        , MEDIASUBTYPE_RGB32 , nullptr},
-        {PixelFormatRGB24, BI_RGB                        , MEDIASUBTYPE_RGB24 , nullptr},
-        {PixelFormatRGB16, BI_BITFIELDS                  , MEDIASUBTYPE_RGB565, bits565},
-        {PixelFormatRGB15, BI_BITFIELDS                  , MEDIASUBTYPE_RGB555, bits555},
-        {PixelFormatUYVY , MAKEFOURCC('U', 'Y', 'V', 'Y'), MEDIASUBTYPE_UYVY  , nullptr},
-        {PixelFormatYUY2 , MAKEFOURCC('Y', 'U', 'Y', '2'), MEDIASUBTYPE_YUY2  , nullptr},
-        {PixelFormatNV12 , MAKEFOURCC('N', 'V', '1', '2'), MEDIASUBTYPE_NV12  , nullptr}
+    static const VideoFormatSpecsPrivate akvcamPixelFormatsTable[] = {
+        {PixelFormat_bgrx   , "RGB32", BI_RGB                        , MEDIASUBTYPE_RGB32 , nullptr},
+        {PixelFormat_rgb24  , "RGB24", BI_RGB                        , MEDIASUBTYPE_RGB24 , nullptr},
+        {PixelFormat_rgb565 , "RGB16", BI_BITFIELDS                  , MEDIASUBTYPE_RGB565, bits565},
+        {PixelFormat_rgb555 , "RGB15", BI_BITFIELDS                  , MEDIASUBTYPE_RGB555, bits555},
+        {PixelFormat_uyvy422, "UYVY" , MAKEFOURCC('U', 'Y', 'V', 'Y'), MEDIASUBTYPE_UYVY  , nullptr},
+        {PixelFormat_yuyv422, "YUY2" , MAKEFOURCC('Y', 'U', 'Y', '2'), MEDIASUBTYPE_YUY2  , nullptr},
+        {PixelFormat_nv12   , "NV12" , MAKEFOURCC('N', 'V', '1', '2'), MEDIASUBTYPE_NV12  , nullptr},
+        {PixelFormat_none   , ""     , 0                             , GUID_NULL          , nullptr}
     };
 
-    return formats;
+    return akvcamPixelFormatsTable;
 }
 
 const AkVCam::VideoFormatSpecsPrivate *AkVCam::VideoFormatSpecsPrivate::byGuid(const GUID &guid)
 {
-    for (auto &format: formats())
-        if (IsEqualGUID(format.guid, guid))
-            return &format;
+    auto it = VideoFormatSpecsPrivate::formats();
 
-    return nullptr;
+    for (; it->pixelFormat != PixelFormat_none; ++it)
+        if (IsEqualGUID(it->guid, guid))
+            return it;
+
+    return it;
 }
 
-const AkVCam::VideoFormatSpecsPrivate *AkVCam::VideoFormatSpecsPrivate::byPixelFormat(FourCC pixelFormat)
+const AkVCam::VideoFormatSpecsPrivate *AkVCam::VideoFormatSpecsPrivate::byPixelFormat(PixelFormat pixelFormat)
 {
-    for (auto &format: formats())
-        if (format.pixelFormat == pixelFormat)
-            return &format;
+    auto it = VideoFormatSpecsPrivate::formats();
 
-    return nullptr;
+    for (; it->pixelFormat != PixelFormat_none; ++it)
+        if (it->pixelFormat == pixelFormat)
+            return it;
+
+    return it;
+}
+
+const AkVCam::VideoFormatSpecsPrivate *AkVCam::VideoFormatSpecsPrivate::byName(const char *name)
+{
+    auto it = VideoFormatSpecsPrivate::formats();
+
+    for (; it->pixelFormat != PixelFormat_none; ++it)
+        if (strcmp(it->name, name) == 0)
+            return it;
+
+    return it;
 }
 
 std::string AkVCam::currentArchitecture()

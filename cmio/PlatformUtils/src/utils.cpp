@@ -50,21 +50,63 @@ namespace AkVCam {
             uint8_t r;
             uint8_t x;
         };
-
-        inline const std::map<AkVCam::PixelFormat, FourCharCode> *formatsTable()
-        {
-            static const std::map<AkVCam::PixelFormat, FourCharCode> formatsTable {
-                {AkVCam::PixelFormatRGB32, kCMPixelFormat_32ARGB         },
-                {AkVCam::PixelFormatRGB24, kCMPixelFormat_24RGB          },
-                {AkVCam::PixelFormatRGB16, kCMPixelFormat_16LE565        },
-                {AkVCam::PixelFormatRGB15, kCMPixelFormat_16LE555        },
-                {AkVCam::PixelFormatUYVY , kCMPixelFormat_422YpCbCr8     },
-                {AkVCam::PixelFormatYUY2 , kCMPixelFormat_422YpCbCr8_yuvs}
-            };
-
-            return &formatsTable;
-        }
     }
+
+    class VideoFormatCmio
+    {
+        public:
+            PixelFormat format;
+            const char *name;
+            FourCharCode fourcc;
+
+            static const VideoFormatCmio *table()
+            {
+                static const VideoFormatCmio cmioFormatsTable[] = {
+                    {PixelFormat_argb   , "RGB32", kCMPixelFormat_32ARGB         },
+                    {PixelFormat_rgb24  , "RGB24", kCMPixelFormat_24RGB          },
+                    {PixelFormat_rgb565 , "RGB16", kCMPixelFormat_16LE565        },
+                    {PixelFormat_rgb555 , "RGB15", kCMPixelFormat_16LE555        },
+                    {PixelFormat_uyvy422, "UYVY" , kCMPixelFormat_422YpCbCr8     },
+                    {PixelFormat_yuyv422, "YUY2" , kCMPixelFormat_422YpCbCr8_yuvs},
+                    {PixelFormat_none   , ""     , 0                             }
+                };
+
+                return cmioFormatsTable;
+            }
+
+            static inline const VideoFormatCmio *byPixelFormat(PixelFormat format)
+            {
+                auto it = table();
+
+                for (; it->format != PixelFormat_none; ++it)
+                    if (it->format == format)
+                        return it;
+
+                return it;
+            }
+
+            static inline const VideoFormatCmio *byFourCharCode(FourCharCode fourcc)
+            {
+                auto it = table();
+
+                for (; it->format != PixelFormat_none; ++it)
+                    if (it->fourcc == fourcc)
+                        return it;
+
+                return it;
+            }
+
+            static inline const VideoFormatCmio *byName(const char *name)
+            {
+                auto it = table();
+
+                for (; it->format != PixelFormat_none; ++it)
+                    if (strcmp(it->name, name) == 0)
+                        return it;
+
+                return it;
+            }
+    };
 
     std::string pluginInstallPath();
 }
@@ -126,20 +168,32 @@ std::string AkVCam::enumToString(uint32_t value)
 
 FourCharCode AkVCam::formatToCM(PixelFormat format)
 {
-    for (auto &fmt: *Utils::formatsTable())
-        if (fmt.first == format)
-            return fmt.second;
-
-    return FourCharCode(0);
+    return VideoFormatCmio::byPixelFormat(format)->fourcc;
 }
 
 AkVCam::PixelFormat AkVCam::formatFromCM(FourCharCode format)
 {
-    for (auto &fmt: *Utils::formatsTable())
-        if (fmt.second == format)
-            return fmt.first;
+    return VideoFormatCmio::byFourCharCode(format)->format;
+}
 
-    return PixelFormat(0);
+AkVCam::PixelFormat AkVCam::pixelFormatFromCommonString(const std::string &format)
+{
+    auto pixelFormat = VideoFormatCmio::byName(format.c_str())->format;
+
+    if (pixelFormat != PixelFormat_none)
+        return pixelFormat;
+
+    return VideoFormat::pixelFormatFromString(format);
+}
+
+std::string AkVCam::pixelFormatToCommonString(PixelFormat format)
+{
+    auto name = std::string(VideoFormatCmio::byPixelFormat(format)->name);
+
+    if (!name.empty())
+        return name;
+
+    return VideoFormat::pixelFormatToString(format);
 }
 
 std::string AkVCam::dirname(const std::string &path)
@@ -216,13 +270,13 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
         return {};
     }
 
-    FourCC format = 0;
+    PixelFormat format = 0;
 
     if (CGImageGetBitsPerComponent(cgImage) == 8) {
         if (CGImageGetBitsPerPixel(cgImage) == 24)
-            format = PixelFormatRGB24;
+            format = PixelFormat_rgb24;
         else if (CGImageGetBitsPerPixel(cgImage) == 32) {
-            format = PixelFormatRGB32;
+            format = PixelFormat_xrgb;
         }
     }
 
@@ -245,7 +299,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
         return {};
     }
 
-    VideoFormat videoFormat(PixelFormatRGB24, width, height);
+    VideoFormat videoFormat(PixelFormat_rgb24, width, height);
     frame = VideoFrame(videoFormat);
 
     auto imageDataProvider = CGImageGetDataProvider(cgImage);
@@ -309,7 +363,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     CGImageRelease(cgImage);
 
     AkLogDebug() << "Picture loaded as: "
-                 << VideoFormat::stringFromFourcc(frame.format().fourcc())
+                 << VideoFormat::stringFromFourcc(frame.format().format())
                  << " "
                  << frame.format().width()
                  << "x"

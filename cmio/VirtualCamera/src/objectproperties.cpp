@@ -503,7 +503,7 @@ bool AkVCam::ObjectProperties::getProperty(UInt32 property,
                 auto videoFormat = this->d->m_properties[property].videoFormat;
                 auto status =
                         CMVideoFormatDescriptionCreate(kCFAllocatorDefault,
-                                                       formatToCM(PixelFormat(videoFormat.fourcc())),
+                                                       formatToCM(PixelFormat(videoFormat.format())),
                                                        videoFormat.width(),
                                                        videoFormat.height(),
                                                        nullptr,
@@ -530,7 +530,7 @@ bool AkVCam::ObjectProperties::getProperty(UInt32 property,
                     CMFormatDescriptionRef formatRef = nullptr;
                     auto status =
                             CMVideoFormatDescriptionCreate(kCFAllocatorDefault,
-                                                           formatToCM(PixelFormat(format.fourcc())),
+                                                           formatToCM(PixelFormat(format.format())),
                                                            format.width(),
                                                            format.height(),
                                                            nullptr,

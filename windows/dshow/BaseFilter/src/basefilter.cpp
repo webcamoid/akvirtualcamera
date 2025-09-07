@@ -358,6 +358,10 @@ AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self):
 AkVCam::BaseFilterPrivate::~BaseFilterPrivate()
 {
     AkLogFunction();
+
+    for (auto &device: this->m_ipcBridge->devices())
+        this->m_ipcBridge->deviceStop(device);
+
     this->m_ipcBridge->stopNotifications();
     this->m_pins->setBaseFilter(nullptr);
     this->m_pins->Release();

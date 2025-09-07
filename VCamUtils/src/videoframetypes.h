@@ -17,8 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef VIDEOFRAMETYPES_H
-#define VIDEOFRAMETYPES_H
+#ifndef AKVCAMUTILS_VIDEOFRAMETYPES_H
+#define AKVCAMUTILS_VIDEOFRAMETYPES_H
 
 namespace AkVCam
 {
@@ -36,4 +36,4 @@ namespace AkVCam
     };
 }
 
-#endif // VIDEOFRAMETYPES_H
+#endif // AKVCAMUTILS_VIDEOFRAMETYPES_H

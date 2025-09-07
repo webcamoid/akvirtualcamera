@@ -116,6 +116,11 @@ bool AkVCam::Fraction::operator <(const Fraction &other) const
     return this->d->m_num * other.d->m_den < this->d->m_den * other.d->m_num;
 }
 
+AkVCam::Fraction::operator bool() const
+{
+    return this->d->m_den != 0;
+}
+
 int64_t AkVCam::Fraction::num() const
 {
     return this->d->m_num;
@@ -138,6 +143,9 @@ int64_t &AkVCam::Fraction::den()
 
 double AkVCam::Fraction::value() const
 {
+    if (!this->d->m_den)
+        return std::numeric_limits<double>::quiet_NaN();
+
     return double(this->d->m_num) / double(this->d->m_den);
 }
 
@@ -147,6 +155,16 @@ std::string AkVCam::Fraction::toString() const
     ss << this->d->m_num << '/' << this->d->m_den;
 
     return ss.str();
+}
+
+bool AkVCam::Fraction::isValid() const
+{
+    return this->d->m_den != 0;
+}
+
+bool AkVCam::Fraction::isNull() const
+{
+    return this->d->m_num == 0 || this->d->m_den == 0;
 }
 
 bool AkVCam::Fraction::isInfinity() const

@@ -24,22 +24,26 @@
 #include <vector>
 
 #include "videoformattypes.h"
-#include "fraction.h"
 
 namespace AkVCam
 {
     class VideoFormat;
     class VideoFormatPrivate;
+    class Fraction;
+    class VideoFormatSpec;
     using VideoFormats = std::vector<VideoFormat>;
 
     class VideoFormat
     {
         public:
             VideoFormat();
-            VideoFormat(FourCC fourcc,
+            VideoFormat(PixelFormat format,
+                        int width,
+                        int height);
+            VideoFormat(PixelFormat format,
                         int width,
                         int height,
-                        const std::vector<Fraction> &frameRates={});
+                        const Fraction &fps);
             VideoFormat(const VideoFormat &other);
             ~VideoFormat();
             VideoFormat &operator =(const VideoFormat &other);
@@ -47,38 +51,37 @@ namespace AkVCam
             bool operator !=(const VideoFormat &other) const;
             operator bool() const;
 
-            FourCC fourcc() const;
-            FourCC &fourcc();
+            PixelFormat format() const;
             int width() const;
-            int &width();
             int height() const;
-            int &height();
-            std::vector<Fraction> frameRates() const;
-            std::vector<Fraction> &frameRates();
-            std::vector<FractionRange> frameRateRanges() const;
-            Fraction minimumFrameRate() const;
+            Fraction fps() const;
             size_t bpp() const;
-            size_t bypl(size_t plane) const;
-            size_t size() const;
-            size_t planes() const;
-            size_t offset(size_t plane) const;
-            size_t planeSize(size_t plane) const;
-            bool isValid() const;
-            void clear();
-            VideoFormat nearest(const std::vector<VideoFormat> &formats) const;
 
-            static void roundNearest(int width, int height,
-                                     int *owidth, int *oheight,
-                                     int align=32);
-            static FourCC fourccFromString(const std::string &fourccStr);
-            static std::string stringFromFourcc(FourCC fourcc);
+            void setFormat(PixelFormat format);
+            void setWidth(int width);
+            void setHeight(int height);
+            void setFps(const Fraction &fps);
+
+            VideoFormat nearest(const VideoFormats &caps) const;
+            bool isSameFormat(const VideoFormat &other) const;
+            size_t dataSize() const;
+            bool isValid() const;
+
+            static int bitsPerPixel(PixelFormat pixelFormat);
+            static std::string pixelFormatToString(PixelFormat pixelFormat);
+            static PixelFormat pixelFormatFromString(const std::string &pixelFormat);
+            static VideoFormatSpec formatSpecs(PixelFormat pixelFormat);
+            static std::vector<PixelFormat> supportedPixelFormats();
 
         private:
             VideoFormatPrivate *d;
+
+        friend bool operator <(const VideoFormat &format1, const VideoFormat &format2);
     };
 }
 
 std::ostream &operator <<(std::ostream &os, const AkVCam::VideoFormat &format);
 std::ostream &operator <<(std::ostream &os, const AkVCam::VideoFormats &formats);
+bool operator <(const AkVCam::VideoFormat &format1, const AkVCam::VideoFormat &format2);
 
 #endif // AKVCAMUTILS_VIDEOFORMAT_H

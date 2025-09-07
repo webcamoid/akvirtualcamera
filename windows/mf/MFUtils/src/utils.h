@@ -33,10 +33,12 @@ namespace AkVCam
     bool isDeviceIdMFTaken(const std::string &deviceId);
     std::string createDeviceIdMF();
     std::vector<CLSID> listRegisteredMFCameras();
-    FourCC pixelFormatFromMediaFormat(const GUID &mfFormat);
-    GUID mediaFormatFromPixelFormat(FourCC format);
+    PixelFormat pixelFormatFromMediaFormat(const GUID &mfFormat);
+    GUID mediaFormatFromPixelFormat(PixelFormat format);
     IMFMediaType *mfMediaTypeFromFormat(const VideoFormat &videoFormat);
     VideoFormat formatFromMFMediaType(IMFMediaType *mediaType);
+    PixelFormat pixelFormatMFFromCommonString(const std::string &format);
+    std::string pixelFormatMFToCommonString(PixelFormat format);
 }
 
 #endif // MFUTILS_H

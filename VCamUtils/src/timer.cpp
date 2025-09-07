@@ -84,7 +84,9 @@ void AkVCam::Timer::stop()
         return;
 
     this->d->m_running = false;
-    this->d->m_thread.join();
+
+    if (this->d->m_thread.joinable())
+        this->d->m_thread.join();
 }
 
 void AkVCam::Timer::singleShot()

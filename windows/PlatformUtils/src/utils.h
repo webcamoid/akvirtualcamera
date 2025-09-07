@@ -60,9 +60,11 @@ namespace AkVCam
     LPWSTR wstrFromString(const std::string &str);
     std::string stringFromTSTR(LPCTSTR tstr);
     LPTSTR tstrFromString(const std::string &str);
-    FourCC formatFromGuid(const GUID &guid);
-    const GUID &guidFromFormat(FourCC format);
-    DWORD compressionFromFormat(FourCC format);
+    PixelFormat formatFromGuid(const GUID &guid);
+    const GUID &guidFromFormat(PixelFormat format);
+    DWORD compressionFromFormat(PixelFormat format);
+    PixelFormat pixelFormatFromCommonString(const std::string &format);
+    std::string pixelFormatToCommonString(PixelFormat format);
     bool isSubTypeSupported(const GUID &subType);
     AM_MEDIA_TYPE *mediaTypeFromFormat(const VideoFormat &format);
     VideoFormat formatFromMediaType(const AM_MEDIA_TYPE *mediaType);

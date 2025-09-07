@@ -17,8 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef FRACTION_H
-#define FRACTION_H
+#ifndef AKVCAMUTILS_FRACTION_H
+#define AKVCAMUTILS_FRACTION_H
 
 #include <cstdint>
 #include <string>
@@ -40,6 +40,7 @@ namespace AkVCam
             Fraction &operator =(const Fraction &other);
             bool operator ==(const Fraction &other) const;
             bool operator <(const Fraction &other) const;
+            operator bool() const;
 
             int64_t num() const;
             int64_t &num();
@@ -47,6 +48,8 @@ namespace AkVCam
             int64_t &den();
             double value() const;
             std::string toString() const;
+            bool isValid() const;
+            bool isNull() const;
             bool isInfinity() const;
             int sign() const;
             static bool isFraction(const std::string &str);
@@ -58,4 +61,4 @@ namespace AkVCam
 
 std::ostream &operator <<(std::ostream &os, const AkVCam::Fraction &fraction);
 
-#endif // FRACTION_H
+#endif // AKVCAMUTILS_FRACTION_H

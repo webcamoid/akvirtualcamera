@@ -32,6 +32,9 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/logger.h"
 #include "VCamUtils/src/timer.h"
+#include "VCamUtils/src/fraction.h"
+#include "VCamUtils/src/videoadjusts.h"
+#include "VCamUtils/src/videoconverter.h"
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/videoframe.h"
 
@@ -48,8 +51,11 @@ namespace AkVCam
             CMTime m_pts;
             SampleBufferQueuePtr m_queue;
             CMIODeviceStreamQueueAlteredProc m_queueAltered {nullptr};
+            VideoFormat m_format;
             VideoFrame m_currentFrame;
             VideoFrame m_testFrame;
+            VideoAdjusts m_videoAdjusts;
+            VideoConverter m_videoConverter;
             void *m_queueAlteredRefCon {nullptr};
             Timer m_timer;
             std::mutex m_mutex;
@@ -191,23 +197,9 @@ void AkVCam::Stream::setFormats(const std::vector<VideoFormat> &formats)
     if (formats.empty())
         return;
 
-    std::vector<VideoFormat> formatsAdjusted;
-
-    for (auto format: formats) {
-        int width;
-        int height;
-        AkVCam::VideoFormat::roundNearest(format.width(),
-                                          format.height(),
-                                          &width,
-                                          &height);
-        format.width() = width;
-        format.height() = height;
-        formatsAdjusted.push_back(format);
-    }
-
-    for (auto &format: formatsAdjusted)
+    for (auto &format: formats)
         AkLogInfo() << "Format: "
-                    << enumToString(format.fourcc())
+                    << enumToString(format.format())
                     << " "
                     << format.width()
                     << "x"
@@ -215,8 +207,42 @@ void AkVCam::Stream::setFormats(const std::vector<VideoFormat> &formats)
                     << std::endl;
 
     this->m_properties.setProperty(kCMIOStreamPropertyFormatDescriptions,
-                                   formatsAdjusted);
-    this->setFormat(formatsAdjusted[0]);
+                                   formats);
+
+    std::vector<Fraction> frameRates;
+    auto minimumFrameRate = std::numeric_limits<double>::max();
+
+    for (auto &format: formats) {
+        auto fps = format.fps();
+        auto value = fps.value();
+
+        if (std::find(frameRates.begin(), frameRates.end(), fps) == frameRates.end())
+            frameRates.push_back(fps);
+
+        if (value < minimumFrameRate)
+            minimumFrameRate = value;
+    }
+
+    std::sort(frameRates.begin(), frameRates.end());
+    std::vector<FractionRange> frameRateRanges;
+
+    if (!frameRates.empty()) {
+        auto min = *std::min_element(frameRates.begin(),
+                                     frameRates.end());
+        auto max = *std::max_element(frameRates.begin(),
+                                     frameRates.end());
+        frameRateRanges.emplace_back(FractionRange {min, max});
+    }
+
+    if (!formats.empty()) {
+        this->m_properties.setProperty(kCMIOStreamPropertyFrameRates,
+                                       frameRates);
+        this->m_properties.setProperty(kCMIOStreamPropertyFrameRateRanges,
+                                       frameRateRanges);
+        this->m_properties.setProperty(kCMIOStreamPropertyMinimumFrameRate,
+                                       minimumFrameRate);
+        this->setFormat(formats.front());
+    }
 }
 
 void AkVCam::Stream::setFormat(const VideoFormat &format)
@@ -224,21 +250,16 @@ void AkVCam::Stream::setFormat(const VideoFormat &format)
     AkLogFunction();
     this->m_properties.setProperty(kCMIOStreamPropertyFormatDescription,
                                    format);
-    this->m_properties.setProperty(kCMIOStreamPropertyFrameRates,
-                                   format.frameRates());
-    this->m_properties.setProperty(kCMIOStreamPropertyFrameRateRanges,
-                                   format.frameRateRanges());
-    this->m_properties.setProperty(kCMIOStreamPropertyMinimumFrameRate,
-                                   format.minimumFrameRate().value());
+    auto fps = format.fps();
 
-    if (!format.frameRates().empty())
-        this->setFrameRate(format.frameRates().front());
-}
+    if (fps.isNull())
+        this->m_properties.setProperty(kCMIOStreamPropertyFrameRate,
+                                       30.0);
+    else
+        this->m_properties.setProperty(kCMIOStreamPropertyFrameRate,
+                                       fps.value());
 
-void AkVCam::Stream::setFrameRate(const Fraction &frameRate)
-{
-    this->m_properties.setProperty(kCMIOStreamPropertyFrameRate,
-                                   frameRate.value());
+    this->d->m_format = format;
 }
 
 bool AkVCam::Stream::start()
@@ -252,6 +273,7 @@ bool AkVCam::Stream::start()
     memset(&this->d->m_pts, 0, sizeof(CMTime));
     this->d->m_running = this->d->startTimer();
     AkLogInfo() << "Running: " << this->d->m_running << std::endl;
+    this->d->m_videoConverter.setOutputFormat(this->d->m_format);
 
     if (this->d->m_running && this->d->m_bridge)
         this->d->m_bridge->deviceStart(IpcBridge::StreamType_Input,
@@ -272,7 +294,7 @@ void AkVCam::Stream::stop()
 
     this->d->m_running = false;
     this->d->stopTimer();
-    this->d->m_currentFrame.clear();
+    this->d->m_currentFrame = {};
 }
 
 bool AkVCam::Stream::running()
@@ -295,10 +317,10 @@ void AkVCam::Stream::frameReady(const AkVCam::VideoFrame &frame, bool isActive)
     auto frameAdjusted =
             this->d->applyAdjusts(isActive? frame: this->d->m_testFrame);
 
-    if (frameAdjusted.format().size() > 0)
+    if (frameAdjusted.size() > 0)
         this->d->m_currentFrame = frameAdjusted;
     else
-        this->d->m_currentFrame.clear();
+        this->d->m_currentFrame = {};
 
     this->d->m_mutex.unlock();
 }
@@ -312,6 +334,7 @@ void AkVCam::Stream::setHorizontalMirror(bool horizontalMirror)
         return;
 
     this->d->m_horizontalMirror = horizontalMirror;
+    this->d->m_videoAdjusts.setHorizontalMirror(horizontalMirror);
 }
 
 void AkVCam::Stream::setVerticalMirror(bool verticalMirror)
@@ -323,6 +346,7 @@ void AkVCam::Stream::setVerticalMirror(bool verticalMirror)
         return;
 
     this->d->m_verticalMirror = verticalMirror;
+    this->d->m_videoAdjusts.setVerticalMirror(verticalMirror);
 }
 
 void AkVCam::Stream::setScaling(Scaling scaling)
@@ -334,6 +358,7 @@ void AkVCam::Stream::setScaling(Scaling scaling)
         return;
 
     this->d->m_scaling = scaling;
+    this->d->m_videoConverter.setScalingMode(VideoConverter::ScalingMode(scaling));
 }
 
 void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
@@ -345,6 +370,7 @@ void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
         return;
 
     this->d->m_aspectRatio = aspectRatio;
+    this->d->m_videoConverter.setAspectRatioMode(VideoConverter::AspectRatioMode(aspectRatio));
 }
 
 void AkVCam::Stream::setSwapRgb(bool swap)
@@ -356,6 +382,7 @@ void AkVCam::Stream::setSwapRgb(bool swap)
         return;
 
     this->d->m_swapRgb = swap;
+    this->d->m_videoAdjusts.setSwapRGB(swap);
 }
 
 OSStatus AkVCam::Stream::copyBufferQueue(CMIODeviceStreamQueueAlteredProc queueAlteredProc,
@@ -444,7 +471,7 @@ void AkVCam::StreamPrivate::streamLoop(void *userData)
 
     self->m_mutex.lock();
 
-    if (self->m_currentFrame.format().size() < 1)
+    if (self->m_currentFrame.size() < 1)
         self->sendFrame(self->randomFrame());
     else
         self->sendFrame(self->m_currentFrame);
@@ -459,7 +486,7 @@ void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
     if (this->m_queue->fullness() >= 1.0f)
         return;
 
-    FourCC fourcc = frame.format().fourcc();
+    PixelFormat fourcc = frame.format().format();
     int width = frame.format().width();
     int height = frame.format().height();
 
@@ -508,7 +535,7 @@ void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
 
     CVPixelBufferLockBaseAddress(imageBuffer, 0);
     auto data = CVPixelBufferGetBaseAddress(imageBuffer);
-    memcpy(data, frame.data().data(), frame.data().size());
+    memcpy(data, frame.constData(), frame.size());
     CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
 
     CMVideoFormatDescriptionRef format = nullptr;
@@ -554,27 +581,25 @@ AkVCam::VideoFrame AkVCam::StreamPrivate::applyAdjusts(const VideoFrame &frame)
     this->self->m_properties.getProperty(kCMIOStreamPropertyFormatDescription,
                                          &format);
 
-    FourCC fourcc = format.fourcc();
     int width = format.width();
     int height = format.height();
 
+    VideoFrame newFrame;
+
+    this->m_videoConverter.begin();
+
     if (width * height > frame.format().width() * frame.format().height()) {
-        return frame.mirror(this->m_horizontalMirror,
-                            this->m_verticalMirror)
-                    .swapRgb(this->m_swapRgb)
-                    .scaled(width, height,
-                            this->m_scaling,
-                            this->m_aspectRatio)
-                    .convert(fourcc);
+        newFrame = this->m_videoAdjusts.adjust(frame);
+        newFrame = this->m_videoConverter.convert(newFrame);
+    } else {
+        newFrame = this->m_videoConverter.convert(frame);
+        newFrame = this->m_videoAdjusts.adjust(newFrame);
+
     }
 
-    return frame.scaled(width, height,
-                        this->m_scaling,
-                        this->m_aspectRatio)
-                .mirror(this->m_horizontalMirror,
-                        this->m_verticalMirror)
-                .swapRgb(this->m_swapRgb)
-            .convert(fourcc);
+    this->m_videoConverter.end();
+
+    return newFrame;
 }
 
 AkVCam::VideoFrame AkVCam::StreamPrivate::randomFrame()
@@ -582,17 +607,14 @@ AkVCam::VideoFrame AkVCam::StreamPrivate::randomFrame()
     VideoFormat format;
     this->self->m_properties.getProperty(kCMIOStreamPropertyFormatDescription,
                                          &format);
-    VideoData data(format.size());
-    static std::uniform_int_distribution<uint8_t> distribution(std::numeric_limits<uint8_t>::min(),
-                                                               std::numeric_limits<uint8_t>::max());
+    VideoFrame frame(format);
+    static std::uniform_int_distribution<int> distribution(0, 255);
     static std::default_random_engine engine;
-    std::generate(data.begin(), data.end(), [] () {
-        return distribution(engine);
+    std::generate(frame.data(),
+                  frame.data() + frame.size(),
+                  [] () {
+        return uint8_t(distribution(engine));
     });
 
-    VideoFrame frame;
-    frame.format() = format;
-    frame.data() = data;
-
-    return frame;
+    return this->m_videoAdjusts.adjust(frame);
 }

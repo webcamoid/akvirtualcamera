@@ -16,8 +16,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef AKVCAM_SETTINGS_H
-#define AKVCAM_SETTINGS_H
+#ifndef AKVCAMUTILS_SETTINGS_H
+#define AKVCAMUTILS_SETTINGS_H
 
 #include <cstdint>
 #include <string>
@@ -57,4 +57,4 @@ namespace AkVCam
     };
 }
 
-#endif // AKVCAM_SETTINGS_H
+#endif // AKVCAMUTILS_SETTINGS_H

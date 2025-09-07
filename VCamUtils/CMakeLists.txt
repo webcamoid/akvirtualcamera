@@ -27,7 +27,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(VCamUtils STATIC
+            src/algorithm.h
             src/color.h
+            src/colorcomponent.cpp
+            src/colorcomponent.h
+            src/colorconvert.cpp
+            src/colorconvert.h
+            src/colorplane.cpp
+            src/colorplane.h
+            src/commons.h
             src/fraction.cpp
             src/fraction.h
             src/ipcbridge.h
@@ -39,6 +47,8 @@ add_library(VCamUtils STATIC
             src/messageclient.h
             src/messageserver.cpp
             src/messageserver.h
+            src/rect.cpp
+            src/rect.h
             src/servicemsg.h
             src/settings.cpp
             src/settings.h
@@ -48,8 +58,14 @@ add_library(VCamUtils STATIC
             src/timer.h
             src/utils.cpp
             src/utils.h
+            src/videoadjusts.cpp
+            src/videoadjusts.h
+            src/videoconverter.cpp
+            src/videoconverter.h
             src/videoformat.cpp
             src/videoformat.h
+            src/videoformatspec.cpp
+            src/videoformatspec.h
             src/videoformattypes.h
             src/videoframe.cpp
             src/videoframe.h

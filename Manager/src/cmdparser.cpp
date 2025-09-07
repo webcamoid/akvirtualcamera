@@ -37,6 +37,8 @@
 #endif
 
 #include "cmdparser.h"
+#include "PlatformUtils/src/utils.h"
+#include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/settings.h"
 #include "VCamUtils/src/videoformat.h"
@@ -1026,8 +1028,15 @@ int AkVCam::CmdParserPrivate::showSupportedFormats(const StringMap &flags,
         std::cout << std::endl;
     }
 
+    std::vector<std::string> supportedFormats;
+
     for (auto &format: formats)
-        std::cout << VideoFormat::stringFromFourcc(format) << std::endl;
+        supportedFormats.push_back(pixelFormatToCommonString(format));
+
+    std::sort(supportedFormats.begin(), supportedFormats.end());
+
+    for (auto &format: supportedFormats)
+        std::cout << format << std::endl;
 
     return 0;
 }
@@ -1042,7 +1051,7 @@ int AkVCam::CmdParserPrivate::showDefaultFormat(const AkVCam::StringMap &flags,
                 IpcBridge::StreamType_Input:
                 IpcBridge::StreamType_Output;
     auto format = this->m_ipcBridge.defaultPixelFormat(type);
-    std::cout << VideoFormat::stringFromFourcc(format) << std::endl;
+    std::cout << pixelFormatToCommonString(format) << std::endl;
 
     return 0;
 }
@@ -1070,15 +1079,15 @@ int AkVCam::CmdParserPrivate::showFormats(const StringMap &flags,
 
     if (this->m_parseable) {
         for  (auto &format: this->m_ipcBridge.formats(args[1]))
-            std::cout << VideoFormat::stringFromFourcc(format.fourcc())
+            std::cout << pixelFormatToCommonString(format.format())
                       << ' '
                       << format.width()
                       << ' '
                       << format.height()
                       << ' '
-                      << format.minimumFrameRate().num()
+                      << format.fps().num()
                       << ' '
-                      << format.minimumFrameRate().den()
+                      << format.fps().den()
                       << std::endl;
     } else {
         int i = 0;
@@ -1086,15 +1095,15 @@ int AkVCam::CmdParserPrivate::showFormats(const StringMap &flags,
         for  (auto &format: this->m_ipcBridge.formats(args[1])) {
             std::cout << i
                       << ": "
-                      << VideoFormat::stringFromFourcc(format.fourcc())
+                      << pixelFormatToCommonString(format.format())
                       << ' '
                       << format.width()
                       << 'x'
                       << format.height()
                       << ' '
-                      << format.minimumFrameRate().num()
+                      << format.fps().num()
                       << '/'
-                      << format.minimumFrameRate().den()
+                      << format.fps().den()
                       << " FPS"
                       << std::endl;
             i++;
@@ -1123,7 +1132,7 @@ int AkVCam::CmdParserPrivate::addFormat(const StringMap &flags,
         return -ENODEV;
     }
 
-    auto format = VideoFormat::fourccFromString(args[2]);
+    auto format = pixelFormatFromCommonString(args[2]);
 
     if (!format) {
         std::cerr << "Invalid pixel format." << std::endl;
@@ -1317,7 +1326,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
         return -ENODEV;
     }
 
-    auto format = VideoFormat::fourccFromString(args[2]);
+    auto format = pixelFormatFromCommonString(args[2]);
 
     if (!format) {
         std::cerr << "Invalid pixel format." << std::endl;
@@ -1380,7 +1389,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     VideoFormat fmt(format,
                     int(width),
                     int(height),
-                    {{int(std::round(fps)), 1}});
+                    Fraction(int(std::round(fps)), 1));
 
     if (!this->m_ipcBridge.deviceStart(IpcBridge::StreamType_Output, deviceId)) {
         std::cerr << "Can't start stream." << std::endl;
@@ -1423,12 +1432,12 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     uint64_t i = 0;
 
     do {
-        std::cin.read(reinterpret_cast<char *>(frame.data().data()
+        std::cin.read(reinterpret_cast<char *>(frame.data()
                                                + bufferSize),
-                      std::streamsize(frame.data().size() - bufferSize));
+                      std::streamsize(frame.size() - bufferSize));
         bufferSize += size_t(std::cin.gcount());
 
-        if (bufferSize == frame.data().size()) {
+        if (bufferSize == frame.size()) {
             if (fpsStr.empty()) {
                 this->m_ipcBridge.write(deviceId, frame);
             } else {
@@ -1499,7 +1508,7 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
         return -ENODEV;
     }
 
-    static const AkVCam::FourCC format = AkVCam::PixelFormatRGB24;
+    static const AkVCam::PixelFormat format = AkVCam::PixelFormat_rgb24;
     auto formats =
             this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamType_Output);
     auto fit = std::find(formats.begin(), formats.end(), format);
@@ -1555,7 +1564,7 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
     VideoFormat fmt(format,
                     int(width),
                     int(height),
-                    {{int(std::round(fps)), 1}});
+                    Fraction(int(std::round(fps)), 1));
 
     if (!this->m_ipcBridge.deviceStart(IpcBridge::StreamType_Output, deviceId)) {
         std::cerr << "Can't start stream." << std::endl;
@@ -1675,7 +1684,7 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
             pixel[2] = color.b;
         }
 
-        auto lineSize = frame.format().bypl(0);
+        auto lineSize = frame.lineSize(0);
 
         // Copy first line to all rows
         for (int y = 1; y < height; ++y)
@@ -2161,7 +2170,7 @@ int AkVCam::CmdParserPrivate::dumpInfo(const AkVCam::StringMap &flags,
             std::cout << 4 * indent << "<format>" << std::endl;
             std::cout << 5 * indent
                       << "<pixel-format>"
-                      << VideoFormat::stringFromFourcc(format.fourcc())
+                      << pixelFormatToCommonString(format.format())
                       << "</pixel-format>"
                       << std::endl;
             std::cout << 5 * indent
@@ -2176,7 +2185,7 @@ int AkVCam::CmdParserPrivate::dumpInfo(const AkVCam::StringMap &flags,
                       << std::endl;
             std::cout << 5 * indent
                       << "<fps>"
-                      << format.minimumFrameRate().toString()
+                      << format.fps().toString()
                       << "</fps>"
                       << std::endl;
             std::cout << 4 * indent << "</format>" << std::endl;
@@ -2255,7 +2264,7 @@ int AkVCam::CmdParserPrivate::dumpInfo(const AkVCam::StringMap &flags,
     for (auto &format: this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamType_Input))
         std::cout << 2 * indent
                   << "<pixel-format>"
-                  << VideoFormat::stringFromFourcc(format)
+                  << pixelFormatToCommonString(format)
                   << "</pixel-format>"
                   << std::endl;
 
@@ -2265,7 +2274,7 @@ int AkVCam::CmdParserPrivate::dumpInfo(const AkVCam::StringMap &flags,
             this->m_ipcBridge.defaultPixelFormat(IpcBridge::StreamType_Input);
     std::cout << indent
               << "<default-input-format>"
-              << VideoFormat::stringFromFourcc(defInputFormat)
+              << pixelFormatToCommonString(defInputFormat)
               << "</default-input-format>"
               << std::endl;
 
@@ -2274,7 +2283,7 @@ int AkVCam::CmdParserPrivate::dumpInfo(const AkVCam::StringMap &flags,
     for (auto &format: this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamType_Output))
         std::cout << 2 * indent
                   << "<pixel-format>"
-                  << VideoFormat::stringFromFourcc(format)
+                  << pixelFormatToCommonString(format)
                   << "</pixel-format>"
                   << std::endl;
 
@@ -2284,7 +2293,7 @@ int AkVCam::CmdParserPrivate::dumpInfo(const AkVCam::StringMap &flags,
             this->m_ipcBridge.defaultPixelFormat(IpcBridge::StreamType_Output);
     std::cout << indent
               << "<default-output-format>"
-              << VideoFormat::stringFromFourcc(defOutputFormat)
+              << pixelFormatToCommonString(defOutputFormat)
               << "</default-output-format>"
               << std::endl;
 
@@ -2522,7 +2531,7 @@ std::vector<AkVCam::VideoFormat> AkVCam::CmdParserPrivate::readFormat(Settings &
     formatMatrix.push_back(frameRates);
 
     for (auto &formatList: this->matrixCombine(formatMatrix)) {
-        auto pixFormat = VideoFormat::fourccFromString(formatList[0]);
+        auto pixFormat = pixelFormatFromCommonString(formatList[0]);
         char *p = nullptr;
         auto width = strtol(formatList[1].c_str(), &p, 10);
         p = nullptr;
@@ -2617,7 +2626,7 @@ void AkVCam::CmdParserPrivate::createDevice(Settings &settings,
     for (auto &format: formats) {
         auto it = std::find(supportedFormats.begin(),
                             supportedFormats.end(),
-                            format.fourcc());
+                            format.format());
 
         if (it != supportedFormats.end())
             this->m_ipcBridge.addFormat(deviceId, format, -1);

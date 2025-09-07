@@ -43,6 +43,10 @@ namespace AkVCam
             void frameReady(const VideoFrame &frame, bool isActive);
             void setPicture(const std::string &picture);
             void setControls(const std::map<std::string, int> &controls);
+            bool horizontalFlip() const;
+            void setHorizontalFlip(bool flip);
+            bool verticalFlip() const;
+            void setVerticalFlip(bool flip);
             HRESULT start(IMFMediaType *mediaType);
             HRESULT stop();
             HRESULT pause();

@@ -143,10 +143,6 @@ AkVCam::IpcBridge::~IpcBridge()
     for (auto &device: this->devices())
         this->deviceStop(device);
 
-    this->d->m_messagesTimer.stop();
-
-    AkLogDebug() << "Bridge Destroyed" << std::endl;
-
     delete this->d;
 }
 
@@ -229,24 +225,24 @@ void AkVCam::IpcBridge::setDescription(const std::string &deviceId,
 std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats(StreamType type) const
 {
     if (type == StreamType_Input)
-        return {PixelFormatRGB24};
+        return VideoFormat::supportedPixelFormats();
 
     return {
-        PixelFormatRGB32,
-        PixelFormatRGB24,
-        PixelFormatRGB16,
-        PixelFormatRGB15,
-        PixelFormatUYVY,
-        PixelFormatYUY2,
-        PixelFormatNV12
+        PixelFormat_bgrx,
+        PixelFormat_rgb24,
+        PixelFormat_rgb565,
+        PixelFormat_rgb555,
+        PixelFormat_uyvy422,
+        PixelFormat_yuyv422,
+        PixelFormat_nv12
     };
 }
 
 AkVCam::PixelFormat AkVCam::IpcBridge::defaultPixelFormat(StreamType type) const
 {
     return type == StreamType_Input?
-                PixelFormatRGB24:
-                PixelFormatYUY2;
+                PixelFormat_rgb24:
+                PixelFormat_yuyv422;
 }
 
 std::vector<AkVCam::VideoFormat> AkVCam::IpcBridge::formats(const std::string &deviceId) const
@@ -477,6 +473,7 @@ void AkVCam::IpcBridge::deviceStop(const std::string &deviceId)
 
         if (this->d->m_broadcasts.count(deviceId) < 1) {
             AkLogDebug() << "Device " << deviceId << " not found in broadcasts" << std::endl;
+
             return;
         }
 
@@ -646,6 +643,9 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
 AkVCam::IpcBridgePrivate::~IpcBridgePrivate()
 {
     AkLogFunction();
+
+    this->m_messagesTimer.stop();
+    AkLogDebug() << "Bridge Destroyed" << std::endl;
 }
 
 bool AkVCam::IpcBridgePrivate::launchService()

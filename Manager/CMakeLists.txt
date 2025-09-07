@@ -47,10 +47,17 @@ if (APPLE OR FAKE_APPLE)
     add_dependencies(Manager
                      VCamIPC_cmio
                      PlatformUtils_cmio)
+    target_include_directories(Manager
+                               PRIVATE
+                               ../cmio
+                               ../cmio/FakeAPI)
 elseif (WIN32)
     add_dependencies(Manager
                      VCamIPC_windows
                      PlatformUtils_windows)
+    target_include_directories(Manager
+                               PRIVATE
+                               ../windows)
 endif ()
 
 target_include_directories(Manager

@@ -40,6 +40,8 @@ namespace AkVCam
     std::string enumToString(uint32_t value);
     FourCharCode formatToCM(PixelFormat format);
     PixelFormat formatFromCM(FourCharCode format);
+    PixelFormat pixelFormatFromCommonString(const std::string &format);
+    std::string pixelFormatToCommonString(PixelFormat format);
     std::string dirname(const std::string &path);
     std::string realPath(const std::string &path);
     VideoFrame loadPicture(const std::string &fileName);

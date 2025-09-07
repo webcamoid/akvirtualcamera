@@ -23,6 +23,7 @@
 
 #include "preferences.h"
 #include "utils.h"
+#include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/logger.h"
 
@@ -394,11 +395,11 @@ std::string AkVCam::Preferences::addCamera(const std::string &deviceId,
                     + std::to_string(cameraIndex)
                     + ".formats."
                     + std::to_string(i);
-        auto formatStr = VideoFormat::stringFromFourcc(format.fourcc());
+        auto formatStr = pixelFormatToCommonString(format.format());
         write(prefix + ".format", formatStr);
         write(prefix + ".width", format.width());
         write(prefix + ".height", format.height());
-        write(prefix + ".fps", format.minimumFrameRate().toString());
+        write(prefix + ".fps", format.fps().toString());
     }
 
     sync();
@@ -507,7 +508,7 @@ AkVCam::VideoFormat AkVCam::Preferences::cameraFormat(size_t cameraIndex,
                 + ".formats."
                 + std::to_string(formatIndex);
     auto format = readString(prefix + ".format");
-    auto fourcc = VideoFormat::fourccFromString(format);
+    auto fourcc = pixelFormatFromCommonString(format);
     int width = readInt(prefix + ".width");
     int height = readInt(prefix + ".height");
     auto fps = Fraction(readString(prefix + ".fps"));
@@ -549,11 +550,11 @@ bool AkVCam::Preferences::cameraSetFormats(size_t cameraIndex,
                       + std::to_string(cameraIndex)
                       + ".formats."
                       + std::to_string(i);
-        auto formatStr = VideoFormat::stringFromFourcc(format.fourcc());
+        auto formatStr = pixelFormatToCommonString(format.format());
         write(prefix + ".format", formatStr);
         write(prefix + ".width", format.width());
         write(prefix + ".height", format.height());
-        write(prefix + ".fps", format.minimumFrameRate().toString());
+        write(prefix + ".fps", format.fps().toString());
     }
 
     sync();
@@ -583,11 +584,11 @@ bool AkVCam::Preferences::cameraAddFormat(size_t cameraIndex,
                     + std::to_string(cameraIndex)
                     + ".formats."
                     + std::to_string(i);
-        auto formatStr = VideoFormat::stringFromFourcc(format.fourcc());
+        auto formatStr = pixelFormatToCommonString(format.format());
         write(prefix + ".format", formatStr);
         write(prefix + ".width", format.width());
         write(prefix + ".height", format.height());
-        write(prefix + ".fps", format.minimumFrameRate().toString());
+        write(prefix + ".fps", format.fps().toString());
     }
 
     sync();
@@ -616,11 +617,11 @@ bool AkVCam::Preferences::cameraRemoveFormat(size_t cameraIndex, int index)
                     + std::to_string(cameraIndex)
                     + ".formats."
                     + std::to_string(i);
-        auto formatStr = VideoFormat::stringFromFourcc(format.fourcc());
+        auto formatStr = pixelFormatToCommonString(format.format());
         write(prefix + ".format", formatStr);
         write(prefix + ".width", format.width());
         write(prefix + ".height", format.height());
-        write(prefix + ".fps", format.minimumFrameRate().toString());
+        write(prefix + ".fps", format.fps().toString());
     }
 
     sync();

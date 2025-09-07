@@ -22,6 +22,7 @@
 
 #include "capi.h"
 #include "PlatformUtils/src/utils.h"
+#include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/settings.h"
 #include "VCamUtils/src/videoformat.h"
@@ -416,9 +417,8 @@ CAPI_EXPORT int vcam_supported_input_formats(void *vcam,
     auto formatList =
             vcamApi->m_bridge.supportedPixelFormats(AkVCam::IpcBridge::StreamType_Input);
 
-    for (const auto &format
-         : formatList)
-        formatStrings.push_back(AkVCam::VideoFormat::stringFromFourcc(format));
+    for (const auto &format: formatList)
+        formatStrings.push_back(AkVCam::pixelFormatToCommonString(format));
 
     // Calculate required buffer size
     size_t totalSize = 1; // Final \x0
@@ -472,9 +472,8 @@ CAPI_EXPORT int vcam_supported_output_formats(void *vcam,
     auto formatList =
             vcamApi->m_bridge.supportedPixelFormats(AkVCam::IpcBridge::StreamType_Output);
 
-    for (const auto &format
-         : formatList)
-        formatStrings.push_back(AkVCam::VideoFormat::stringFromFourcc(format));
+    for (const auto &format: formatList)
+        formatStrings.push_back(AkVCam::pixelFormatToCommonString(format));
 
     // Calculate required buffer size
     size_t totalSize = 1; // Final \x0
@@ -526,7 +525,7 @@ CAPI_EXPORT int vcam_default_input_format(void *vcam,
     // Get default pixel format and convert to string
     auto defaultFormat =
             vcamApi->m_bridge.defaultPixelFormat(AkVCam::IpcBridge::StreamType_Input);
-    auto formatString = AkVCam::VideoFormat::stringFromFourcc(defaultFormat);
+    auto formatString = AkVCam::pixelFormatToCommonString(defaultFormat);
     *buffer_size = formatString.size() + 1; // Include null terminator
 
     // Return 0 if format is null
@@ -558,7 +557,7 @@ CAPI_EXPORT int vcam_default_output_format(void *vcam,
     // Get default pixel format and convert to string
     auto defaultFormat =
             vcamApi->m_bridge.defaultPixelFormat(AkVCam::IpcBridge::StreamType_Output);
-    auto formatString = AkVCam::VideoFormat::stringFromFourcc(defaultFormat);
+    auto formatString = AkVCam::pixelFormatToCommonString(defaultFormat);
     *buffer_size = formatString.size() + 1; // Include null terminator
 
     // Return 0 if format is null
@@ -625,7 +624,7 @@ CAPI_EXPORT int vcam_format(void *vcam,
 
     // Handle format string
     auto formatString =
-            AkVCam::VideoFormat::stringFromFourcc(selectedFormat.fourcc());
+            AkVCam::pixelFormatToCommonString(selectedFormat.format());
 
     if (format_bfsz)
         *format_bfsz = formatString.size() + 1; // Include null terminator
@@ -644,11 +643,13 @@ CAPI_EXPORT int vcam_format(void *vcam,
     if (height)
         *height = selectedFormat.height();
 
+    auto fps = selectedFormat.fps();
+
     if (fps_num)
-        *fps_num = static_cast<int>(selectedFormat.minimumFrameRate().num());
+        *fps_num = static_cast<int>(fps.num());
 
     if (fps_den)
-        *fps_den = static_cast<int>(selectedFormat.minimumFrameRate().den());
+        *fps_den = static_cast<int>(fps.den());
 
     return static_cast<int>(formatList.size());
 }
@@ -710,7 +711,7 @@ CAPI_EXPORT int vcam_add_format(void *vcam,
     if (dit == devices.end())
         return -ENODEV;
 
-    auto fmt = AkVCam::VideoFormat::fourccFromString(format);
+    auto fmt = AkVCam::pixelFormatFromCommonString(format);
 
     auto formats =
             vcamApi->m_bridge.supportedPixelFormats(AkVCam::IpcBridge::StreamType_Output);
@@ -909,7 +910,7 @@ CAPI_EXPORT int vcam_stream_send(void *vcam,
         return -EINVAL;
 
     // Convert and validate format
-    auto fourCC = AkVCam::VideoFormat::fourccFromString(format);
+    auto fourCC = AkVCam::pixelFormatFromCommonString(format);
 
     if (fourCC == 0)
         return -EINVAL;
@@ -928,15 +929,14 @@ CAPI_EXPORT int vcam_stream_send(void *vcam,
         return -EINVAL;
 
     // Create video format and frame
-    AkVCam::VideoFormat videoFormat(fourCC, width, height, {{30, 1}});
-    AkVCam::VideoFrame frame(videoFormat);
+    AkVCam::VideoFrame frame({fourCC, width, height, {30, 1}});
 
     // Copy data to frame for each plane
-    for (size_t plane = 0; plane < videoFormat.planes(); ++plane) {
+    for (size_t plane = 0; plane < frame.planes(); ++plane) {
         if (!data[plane] || line_size[plane] < 1)
             continue;
 
-        size_t bytesPerLine = videoFormat.bypl(plane);
+        size_t bytesPerLine = frame.lineSize(plane);
         size_t copySize = std::min<size_t>(bytesPerLine, line_size[plane]);
 
         for (int y = 0; y < height; ++y) {
@@ -1391,7 +1391,7 @@ std::vector<AkVCam::VideoFormat> VCamAPI::readFormat(AkVCam::Settings &settings)
     formatMatrix.push_back(frameRates);
 
     for (auto &formatList: this->matrixCombine(formatMatrix)) {
-        auto pixFormat = AkVCam::VideoFormat::fourccFromString(formatList[0]);
+        auto pixFormat = AkVCam::pixelFormatFromCommonString(formatList[0]);
         char *p = nullptr;
         auto width = strtol(formatList[1].c_str(), &p, 10);
         p = nullptr;
@@ -1471,7 +1471,7 @@ void VCamAPI::createDevice(AkVCam::Settings &settings, const VideoFormatMatrix &
     for (auto &format: formats) {
         auto it = std::find(supportedFormats.begin(),
                             supportedFormats.end(),
-                            format.fourcc());
+                            format.format());
 
         if (it != supportedFormats.end())
             this->m_bridge.addFormat(deviceId, format, -1);

@@ -24,6 +24,7 @@
 #include "utils.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
+#include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/logger.h"
 #include "VCamUtils/src/videoformat.h"
 
@@ -34,30 +35,31 @@ namespace AkVCam
 {
     struct AkPixelFormatMF
     {
-        FourCC format;
+        PixelFormat format;
+        const char *name;
         GUID mfFormat;
 
         static const AkPixelFormatMF *table()
         {
             static const AkPixelFormatMF akPixelFormatMFTable[] = {
-                {PixelFormatRGB32    , MFVideoFormat_RGB32 },
-                {PixelFormatRGB24    , MFVideoFormat_RGB24 },
-                {PixelFormatRGB16    , MFVideoFormat_RGB565},
-                {PixelFormatRGB15    , MFVideoFormat_RGB555},
-                {PixelFormatUYVY     , MFVideoFormat_UYVY  },
-                {PixelFormatYUY2     , MFVideoFormat_YUY2  },
-                {PixelFormatNV12     , MFVideoFormat_NV12  },
-                {MKFOURCC(0, 0, 0, 0), GUID_NULL           },
+                {PixelFormat_bgrx   , "RGB32", MFVideoFormat_RGB32 },
+                {PixelFormat_rgb24  , "RGB24", MFVideoFormat_RGB24 },
+                {PixelFormat_rgb565 , "RGB16", MFVideoFormat_RGB565},
+                {PixelFormat_rgb555 , "RGB15", MFVideoFormat_RGB555},
+                {PixelFormat_uyvy422, "UYVY" , MFVideoFormat_UYVY  },
+                {PixelFormat_yuyv422, "YUY2" , MFVideoFormat_YUY2  },
+                {PixelFormat_nv12   , "NV12" , MFVideoFormat_NV12  },
+                {PixelFormat_none   , ""     , GUID_NULL           },
             };
 
             return akPixelFormatMFTable;
         }
 
-        inline static const AkPixelFormatMF *byFormat(FourCC format)
+        inline static const AkPixelFormatMF *byFormat(PixelFormat format)
         {
             auto it = table();
 
-            for (; it->format != MKFOURCC(0, 0, 0, 0); ++it)
+            for (; it->format != PixelFormat_none; ++it)
                 if (it->format == format)
                     return it;
 
@@ -68,8 +70,19 @@ namespace AkVCam
         {
             auto it = table();
 
-            for (; it->format != MKFOURCC(0, 0, 0, 0); ++it)
+            for (; it->format != PixelFormat_none; ++it)
                 if (IsEqualGUID(it->mfFormat, mfFormat))
+                    return it;
+
+            return it;
+        }
+
+        inline static const AkPixelFormatMF *byName(const char *name)
+        {
+            auto it = table();
+
+            for (; it->format != PixelFormat_none; ++it)
+                if (strcmp(it->name, name) == 0)
                     return it;
 
             return it;
@@ -271,19 +284,19 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
     return cameras;
 }
 
-AkVCam::FourCC AkVCam::pixelFormatFromMediaFormat(const GUID &mfFormat)
+AkVCam::PixelFormat AkVCam::pixelFormatFromMediaFormat(const GUID &mfFormat)
 {
     return AkPixelFormatMF::byMFFormat(mfFormat)->format;
 }
 
-GUID AkVCam::mediaFormatFromPixelFormat(FourCC format)
+GUID AkVCam::mediaFormatFromPixelFormat(PixelFormat format)
 {
     return AkPixelFormatMF::byFormat(format)->mfFormat;
 }
 
 IMFMediaType *AkVCam::mfMediaTypeFromFormat(const VideoFormat &videoFormat)
 {
-    auto formatGUID = mediaFormatFromPixelFormat(videoFormat.fourcc());
+    auto formatGUID = mediaFormatFromPixelFormat(videoFormat.format());
 
     if (IsEqualGUID(formatGUID, GUID_NULL))
         return nullptr;
@@ -316,7 +329,7 @@ IMFMediaType *AkVCam::mfMediaTypeFromFormat(const VideoFormat &videoFormat)
         return nullptr;
     }
 
-    auto fps = videoFormat.minimumFrameRate();
+    auto fps = videoFormat.fps();
     hr = MFSetAttributeRatio(mediaType, MF_MT_FRAME_RATE, fps.num(), fps.den());
 
     if (FAILED(hr)) {
@@ -354,7 +367,7 @@ AkVCam::VideoFormat AkVCam::formatFromMFMediaType(IMFMediaType *mediaType)
 
     auto format = AkPixelFormatMF::byMFFormat(subType)->format;
 
-    if (format == MKFOURCC(0, 0, 0, 0))
+    if (format == PixelFormat_none)
         return {};
 
     UINT32 width = 0;
@@ -374,5 +387,25 @@ AkVCam::VideoFormat AkVCam::formatFromMFMediaType(IMFMediaType *mediaType)
     if (FAILED(hr) || fpsNum < 1 || fpsDen < 1)
         return {};
 
-    return VideoFormat(format, width, height, {Fraction(fpsNum, fpsDen)});
+    return VideoFormat(format, width, height, Fraction(fpsNum, fpsDen));
+}
+
+AkVCam::PixelFormat AkVCam::pixelFormatMFFromCommonString(const std::string &format)
+{
+    auto pixelFormat = AkPixelFormatMF::byName(format.c_str())->format;
+
+    if (pixelFormat != PixelFormat_none)
+        return pixelFormat;
+
+    return VideoFormat::pixelFormatFromString(format);
+}
+
+std::string AkVCam::pixelFormatMFToCommonString(PixelFormat format)
+{
+    auto name = std::string(AkPixelFormatMF::byFormat(format)->name);
+
+    if (!name.empty())
+        return name;
+
+    return VideoFormat::pixelFormatToString(format);
 }

@@ -230,21 +230,21 @@ void AkVCam::IpcBridge::setDescription(const std::string &deviceId,
 std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats(StreamType type) const
 {
     if (type == StreamType_Input)
-        return {PixelFormatRGB24};
+        return VideoFormat::supportedPixelFormats();
 
     return {
-        PixelFormatRGB32,
-        PixelFormatRGB24,
-        PixelFormatUYVY,
-        PixelFormatYUY2
+        PixelFormat_argb,
+        PixelFormat_rgb24,
+        PixelFormat_uyvy422,
+        PixelFormat_yuyv422
     };
 }
 
 AkVCam::PixelFormat AkVCam::IpcBridge::defaultPixelFormat(StreamType type) const
 {
     return type == StreamType_Input?
-                PixelFormatRGB24:
-                PixelFormatYUY2;
+                PixelFormat_rgb24:
+                PixelFormat_yuyv422;
 }
 
 std::vector<AkVCam::VideoFormat> AkVCam::IpcBridge::formats(const std::string &deviceId) const

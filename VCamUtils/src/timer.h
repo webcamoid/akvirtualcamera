@@ -17,8 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#ifndef TIMER_H
-#define TIMER_H
+#ifndef AKVCAMUTILS_TIMER_H
+#define AKVCAMUTILS_TIMER_H
 
 #include "utils.h"
 
@@ -49,4 +49,4 @@ namespace AkVCam
     };
 }
 
-#endif // TIMER_H
+#endif // AKVCAMUTILS_TIMER_H

@@ -50,7 +50,6 @@ namespace AkVCam
             void setBridge(IpcBridgePtr bridge);
             void setFormats(const std::vector<VideoFormat> &formats);
             void setFormat(const VideoFormat &format);
-            void setFrameRate(const Fraction &frameRate);
             bool start();
             void stop();
             bool running();

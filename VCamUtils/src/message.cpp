@@ -463,7 +463,7 @@ AkVCam::MsgFrameReady::MsgFrameReady(const Message &message):
         memcpy(&deviceSize, message.data().data() + totalSize, sizeof(size_t));
         totalSize += sizeof(size_t) + deviceSize;
 
-        totalSize += sizeof(FourCC);
+        totalSize += sizeof(PixelFormat);
         totalSize += sizeof(int);
         totalSize += sizeof(int);
 
@@ -489,7 +489,7 @@ AkVCam::MsgFrameReady::MsgFrameReady(const Message &message):
         offset += deviceSize;
     }
 
-    FourCC fourcc = 0;
+    PixelFormat fourcc = PixelFormat_none;
     memcpy(&fourcc, message.data().data() + offset, sizeof(fourcc));
     offset += sizeof(fourcc);
 
@@ -507,7 +507,7 @@ AkVCam::MsgFrameReady::MsgFrameReady(const Message &message):
 
     if (dataSize > 0) {
         this->d->m_frame = {VideoFormat(fourcc, width, height)};
-        memcpy(this->d->m_frame.data().data(), message.data().data() + offset, dataSize);
+        memcpy(this->d->m_frame.data(), message.data().data() + offset, dataSize);
         offset += dataSize;
     }
 
@@ -543,11 +543,11 @@ AkVCam::Message AkVCam::MsgFrameReady::toMessage() const
 {
     size_t totalSize = sizeof(size_t)
                        + this->d->m_device.size()
-                       + sizeof(FourCC)
+                       + sizeof(PixelFormat)
                        + sizeof(int)
                        + sizeof(int)
                        + sizeof(size_t)
-                       + this->d->m_frame.data().size()
+                       + this->d->m_frame.size()
                        + sizeof(this->d->m_isActive);
     std::vector<char> data(totalSize);
     size_t offset = 0;
@@ -561,7 +561,7 @@ AkVCam::Message AkVCam::MsgFrameReady::toMessage() const
         offset += this->d->m_device.size();
     }
 
-    auto fourcc = this->d->m_frame.format().fourcc();
+    auto fourcc = this->d->m_frame.format().format();
     memcpy(data.data() + offset, &fourcc, sizeof(fourcc));
     offset += sizeof(fourcc);
 
@@ -573,12 +573,12 @@ AkVCam::Message AkVCam::MsgFrameReady::toMessage() const
     memcpy(data.data() + offset, &height, sizeof(height));
     offset += sizeof(height);
 
-    size_t dataSize = this->d->m_frame.data().size();
+    size_t dataSize = this->d->m_frame.size();
     memcpy(data.data() + offset, &dataSize, sizeof(size_t));
     offset += sizeof(size_t);
 
     if (dataSize > 0) {
-        memcpy(data.data() + offset, this->d->m_frame.data().data(), dataSize);
+        memcpy(data.data() + offset, this->d->m_frame.constData(), dataSize);
         offset += dataSize;
     }
 
@@ -688,7 +688,7 @@ AkVCam::MsgBroadcast::MsgBroadcast(const Message &message):
         totalSize += sizeof(size_t) + deviceSize;
 
         totalSize += sizeof(this->d->m_pid);
-        totalSize += sizeof(FourCC);
+        totalSize += sizeof(PixelFormat);
         totalSize += sizeof(int);
         totalSize += sizeof(int);
 
@@ -715,7 +715,7 @@ AkVCam::MsgBroadcast::MsgBroadcast(const Message &message):
     memcpy(&this->d->m_pid, message.data().data() + offset, sizeof(this->d->m_pid));
     offset += sizeof(this->d->m_pid);
 
-    FourCC fourcc = 0;
+    PixelFormat fourcc = PixelFormat_none;
     memcpy(&fourcc, message.data().data() + offset, sizeof(fourcc));
     offset += sizeof(fourcc);
 
@@ -733,9 +733,9 @@ AkVCam::MsgBroadcast::MsgBroadcast(const Message &message):
 
     if (dataSize > 0) {
         this->d->m_frame = {VideoFormat(fourcc, width, height)};
-        memcpy(this->d->m_frame.data().data(),
+        memcpy(this->d->m_frame.data(),
                message.data().data() + offset,
-               std::min(dataSize, this->d->m_frame.data().size()));
+               std::min(dataSize, this->d->m_frame.size()));
     }
 }
 
@@ -769,11 +769,11 @@ AkVCam::Message AkVCam::MsgBroadcast::toMessage() const
     size_t totalSize = sizeof(size_t)
                        + this->d->m_device.size()
                        + sizeof(this->d->m_pid)
-                       + sizeof(FourCC)
+                       + sizeof(PixelFormat)
                        + sizeof(int)
                        + sizeof(int)
                        + sizeof(size_t)
-                       + this->d->m_frame.data().size();
+                       + this->d->m_frame.size();
     std::vector<char> data(totalSize);
     size_t offset = 0;
 
@@ -789,7 +789,7 @@ AkVCam::Message AkVCam::MsgBroadcast::toMessage() const
     memcpy(data.data() + offset, &this->d->m_pid, sizeof(this->d->m_pid));
     offset += sizeof(this->d->m_pid);
 
-    auto fourcc = this->d->m_frame.format().fourcc();
+    auto fourcc = this->d->m_frame.format().format();
     memcpy(data.data() + offset, &fourcc, sizeof(fourcc));
     offset += sizeof(fourcc);
 
@@ -801,12 +801,12 @@ AkVCam::Message AkVCam::MsgBroadcast::toMessage() const
     memcpy(data.data() + offset, &height, sizeof(height));
     offset += sizeof(height);
 
-    size_t dataSize = this->d->m_frame.data().size();
+    size_t dataSize = this->d->m_frame.size();
     memcpy(data.data() + offset, &dataSize, sizeof(size_t));
     offset += sizeof(size_t);
 
     if (dataSize > 0)
-        memcpy(data.data() + offset, this->d->m_frame.data().data(), dataSize);
+        memcpy(data.data() + offset, this->d->m_frame.constData(), dataSize);
 
     return {AKVCAM_SERVICE_MSG_BROADCAST, this->queryId(), data};
 }
