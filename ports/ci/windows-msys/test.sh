@@ -30,6 +30,10 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 "${manager}" devices
 "${manager}" formats FakeCamera0
 
+# Is the assistant actually working
+
+"${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"
+
 # Compile the testing program and execute it
 
 "${COMPILER}" -o test.exe ports/ci/windows-msys/test.cpp -lole32 -lmf -lmfplat -lmfuuid
