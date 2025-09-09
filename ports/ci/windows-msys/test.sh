@@ -30,11 +30,12 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 "${manager}" devices
 "${manager}" formats FakeCamera0
 
-# Is the assistant actually working
+echo "Testing the virtual camera in DirectShow"
 
-"${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"
+"${COMPILER}" -o testds.exe ports/ci/windows-msys/testds.cpp -lole32 -loleaut32 -lstrmiids
+./testds.exe
 
-# Compile the testing program and execute it
+echo "Testing the virtual camera in Media Foundation"
 
-"${COMPILER}" -o test.exe ports/ci/windows-msys/test.cpp -lole32 -lmf -lmfplat -lmfuuid
-./test.exe
+"${COMPILER}" -o testmf.exe ports/ci/windows-msys/testmf.cpp -lole32 -lmf -lmfplat -lmfuuid
+./testmf.exe

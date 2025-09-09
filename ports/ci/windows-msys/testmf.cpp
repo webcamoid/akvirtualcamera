@@ -29,7 +29,7 @@
 
 int main()
 {
-    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    auto hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     if (FAILED(hr)) {
         printf("Error initializing COM: 0x%08X\n", hr);
@@ -46,7 +46,7 @@ int main()
         return -1;
     }
 
-    IMFAttributes* pAttributes = nullptr;
+    IMFAttributes *pAttributes = nullptr;
     hr = MFCreateAttributes(&pAttributes, 1);
 
     if (FAILED(hr)) {
@@ -82,7 +82,7 @@ int main()
         return -1;
     }
 
-    printf("Found cameras: %u\n", count);
+    printf("Found cameras: %u\n\n", count);
 
     for (UINT32 i = 0; i < count; i++) {
         WCHAR *pName = nullptr;
@@ -91,7 +91,7 @@ int main()
                                               nullptr);
 
         if (SUCCEEDED(hr)) {
-            printf("Device %u: %s\n", i, pName);
+            printf("\tDevice %u: %S\n", i, pName);
             CoTaskMemFree(pName);
         } else {
             printf("Error reading the device name %u: 0x%08X\n", i, hr);
