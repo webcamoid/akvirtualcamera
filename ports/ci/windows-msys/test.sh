@@ -32,5 +32,5 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 
 # Compile the testing program and execute it
 
-"${COMPILER}" -o test.exe test.cpp -lole32 -lmf -lmfplat -lmfuuid
+"${COMPILER}" -o test.exe ports/ci/windows-msys/test.cpp -lole32 -lmf -lmfplat -lmfuuid
 ./test.exe
