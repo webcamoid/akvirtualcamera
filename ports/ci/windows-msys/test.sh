@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # akvirtualcamera, virtual camera for Mac and Windows.
-# Copyright (C) 2023  Gonzalo Exequiel Pedone
+# Copyright (C) 2025  Gonzalo Exequiel Pedone
 #
 # akvirtualcamera is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,16 +18,19 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-if [[ "${UPLOAD}" != 1 ]]; then
-    exit 0
-fi
+export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 
-brew install gh
+# configure a virtual camera for testing
 
-if [[ "$CIRRUS_RELEASE" == "" ]]; then
-    releaseName=daily-build
-else
-    releaseName=$CIRRUS_RELEASE
-fi
+manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 
-gh release upload "$releaseName" packages/mac/* --clobber -R "$CIRRUS_REPO_FULL_NAME"
+"${manager}" add-device -i FakeCamera0 "Virtual Camera"
+"${manager}" add-format FakeCamera0 RGB24 640 480 30
+"${manager}" update
+"${manager}" devices
+"${manager}" formats FakeCamera0
+
+# Compile the testing program and execute it
+
+"${COMPILER}" -o test.exe test.cpp -lole32 -lmf -lmfplat -lmfuuid
+./test.exe
