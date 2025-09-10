@@ -64,7 +64,9 @@ set(SOURCES
     src/streamconfig.cpp
     src/streamconfig.h
     src/videocontrol.cpp
-    src/videocontrol.h)
+    src/videocontrol.h
+    src/videoprocamp.h
+    src/videoprocamp.cpp)
 
 if (WIN32)
     add_library(VCamBaseFilter STATIC ${SOURCES})

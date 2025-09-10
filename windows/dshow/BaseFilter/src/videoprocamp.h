@@ -22,7 +22,7 @@
 
 #include <strmif.h>
 
-#include "cunknown.h"
+#include "PlatformUtils/src/cunknown.h"
 #include "VCamUtils/src/utils.h"
 
 namespace AkVCam

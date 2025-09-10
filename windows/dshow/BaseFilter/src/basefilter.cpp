@@ -28,9 +28,9 @@
 #include "referenceclock.h"
 #include "specifypropertypages.h"
 #include "videocontrol.h"
+#include "videoprocamp.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
-#include "PlatformUtils/src/videoprocamp.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/utils.h"
 

@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "videoprocamp.h"
-#include "utils.h"
+#include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
 namespace AkVCam
@@ -96,38 +96,39 @@ HRESULT AkVCam::VideoProcAmp::GetRange(LONG property,
     *pDefault = 0;
     *pCapsFlags = 0;
 
-    for (auto &control: ProcAmpPrivate::controls())
-        if (control.property == property) {
-            *pMin = control.min;
-            *pMax = control.max;
-            *pSteppingDelta = control.step;
-            *pDefault = control.defaultValue;
-            *pCapsFlags = control.flags;
+    auto control = ProcAmpPrivate::byProperty(property);
 
-            return S_OK;
-        }
+    if (!control)
+        return E_INVALIDARG;
 
-    return E_FAIL;
+    *pMin = control->min;
+    *pMax = control->max;
+    *pSteppingDelta = control->step;
+    *pDefault = control->defaultValue;
+    *pCapsFlags = control->flags;
+
+    return S_OK;
 }
 
 HRESULT AkVCam::VideoProcAmp::Set(LONG property, LONG lValue, LONG flags)
 {
     AkLogFunction();
 
-    for (auto &control: ProcAmpPrivate::controls())
-        if (control.property == property) {
-            if (lValue < control.min
-                || lValue > control.max
-                || flags != control.flags)
-                return E_INVALIDARG;
+    auto control = ProcAmpPrivate::byProperty(property);
 
-            this->d->m_control[property] = lValue;
-            AKVCAM_EMIT(this, PropertyChanged, property, lValue, flags)
+    if (!control)
+        return E_INVALIDARG;
 
-            return S_OK;
-        }
+    if (lValue < control->min
+        || lValue > control->max
+        || flags != control->flags) {
+        return E_INVALIDARG;
+    }
 
-    return E_FAIL;
+    this->d->m_control[property] = lValue;
+    AKVCAM_EMIT(this, PropertyChanged, property, lValue, flags)
+
+    return S_OK;
 }
 
 HRESULT AkVCam::VideoProcAmp::Get(LONG property, LONG *lValue, LONG *flags)
@@ -140,17 +141,17 @@ HRESULT AkVCam::VideoProcAmp::Get(LONG property, LONG *lValue, LONG *flags)
     *lValue = 0;
     *flags = 0;
 
-    for (auto &control: ProcAmpPrivate::controls())
-        if (control.property == property) {
-            if (this->d->m_control.count(property))
-                *lValue = this->d->m_control[property];
-            else
-                *lValue = control.defaultValue;
+    auto control = ProcAmpPrivate::byProperty(property);
 
-            *flags = control.flags;
+    if (!control)
+        return E_INVALIDARG;
 
-            return S_OK;
-        }
+    if (this->d->m_control.count(property))
+        *lValue = this->d->m_control[property];
+    else
+        *lValue = control->defaultValue;
 
-    return E_FAIL;
+    *flags = control->flags;
+
+    return S_OK;
 }

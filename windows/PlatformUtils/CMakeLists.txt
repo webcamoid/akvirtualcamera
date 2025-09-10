@@ -32,9 +32,7 @@ set(SOURCES
     src/preferences.cpp
     src/preferences.h
     src/utils.cpp
-    src/utils.h
-    src/videoprocamp.cpp
-    src/videoprocamp.h)
+    src/utils.h)
 
 if (WIN32)
     add_library(PlatformUtils_windows STATIC ${SOURCES})

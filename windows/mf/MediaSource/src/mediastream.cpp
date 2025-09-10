@@ -30,9 +30,9 @@
 
 #include "mediastream.h"
 #include "mediasource.h"
+#include "controls.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/preferences.h"
-#include "PlatformUtils/src/videoprocamp.h"
 #include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/videoadjusts.h"
 #include "VCamUtils/src/videoconverter.h"
@@ -57,7 +57,7 @@ namespace AkVCam
             MediaStream *self;
             IpcBridgePtr m_bridge;
             MediaSource *m_mediaSource {nullptr};
-            VideoProcAmp *m_videoProcAmp {nullptr};
+            Controls *m_ksControls {nullptr};
             IMFStreamDescriptor *m_streamDescriptor {nullptr};
             MediaStreamState m_state {MediaStreamState_Stopped};
             LONGLONG m_sampleCount {0};
@@ -134,26 +134,20 @@ AkVCam::MediaStream::MediaStream(MediaSource *mediaSource,
 
     if (mediaSource)
         mediaSource->QueryInterface(IID_IAMVideoProcAmp,
-                                    reinterpret_cast<void **>(&this->d->m_videoProcAmp));
+                                    reinterpret_cast<void **>(&this->d->m_ksControls));
 
-    LONG flags = 0;
-    this->d->m_videoProcAmp->Get(VideoProcAmp_Brightness,
-                                 &this->d->m_brightness,
-                                 &flags);
-    this->d->m_videoProcAmp->Get(VideoProcAmp_Contrast,
-                                 &this->d->m_contrast, &flags);
-    this->d->m_videoProcAmp->Get(VideoProcAmp_Saturation,
-                                 &this->d->m_saturation,
-                                 &flags);
-    this->d->m_videoProcAmp->Get(VideoProcAmp_Gamma,
-                                 &this->d->m_gamma,
-                                 &flags);
-    this->d->m_videoProcAmp->Get(VideoProcAmp_Hue,
-                                 &this->d->m_hue,
-                                 &flags);
-    this->d->m_videoProcAmp->Get(VideoProcAmp_ColorEnable,
-                                 &this->d->m_colorenable,
-                                 &flags);
+    this->d->m_brightness =
+            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_BRIGHTNESS);
+    this->d->m_contrast =
+            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_CONTRAST);
+    this->d->m_saturation =
+            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_SATURATION);
+    this->d->m_gamma =
+            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_GAMMA);
+    this->d->m_hue =
+            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_HUE);
+    this->d->m_colorenable =
+            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_COLORENABLE);
 
     this->d->m_videoAdjusts.setHue(this->d->m_hue);
     this->d->m_videoAdjusts.setSaturation(this->d->m_saturation);
@@ -162,7 +156,7 @@ AkVCam::MediaStream::MediaStream(MediaSource *mediaSource,
     this->d->m_videoAdjusts.setContrast(this->d->m_contrast);
     this->d->m_videoAdjusts.setGrayScaled(!this->d->m_colorenable);
 
-    this->d->m_videoProcAmp->connectPropertyChanged(this->d,
+    this->d->m_ksControls->connectPropertyChanged(this->d,
                                                     &MediaStreamPrivate::propertyChanged);
 }
 
@@ -174,8 +168,8 @@ AkVCam::MediaStream::~MediaStream()
     if (this->d->m_mediaSource)
         this->d->m_mediaSource->Release();
 
-    if (this->d->m_videoProcAmp)
-        this->d->m_videoProcAmp->Release();
+    if (this->d->m_ksControls)
+        this->d->m_ksControls->Release();
 
     delete this->d;
 }

@@ -28,9 +28,9 @@
 
 #include "mediasource.h"
 #include "mediastream.h"
+#include "controls.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/preferences.h"
-#include "PlatformUtils/src/videoprocamp.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/videoformat.h"
 #include "MFUtils/src/utils.h"
@@ -51,7 +51,7 @@ namespace AkVCam
             MediaStream *m_pStream {nullptr};
             MediaSourceState m_state {MediaSourceState_Stopped};
             IMFStreamDescriptor *m_pStreamDesc {nullptr};
-            VideoProcAmp *m_videoProcAmp {nullptr};
+            Controls *m_controls {nullptr};
             IpcBridgePtr m_ipcBridge;
             std::string m_deviceId;
             CLSID m_clsid;
@@ -162,11 +162,11 @@ HRESULT AkVCam::MediaSource::QueryInterface(REFIID riid, void **ppvObject)
         *ppvObject = this;
 
         return S_OK;
-    } else if (IsEqualIID(riid, IID_IAMVideoProcAmp)) {
-        auto videoProcAmp = this->d->m_videoProcAmp;
-        AkLogInterface(IAMVideoProcAmp, videoProcAmp);
-        videoProcAmp->AddRef();
-        *ppvObject = videoProcAmp;
+    } else if (IsEqualIID(riid, IID_VCamControl)) {
+        auto controls = this->d->m_controls;
+        AkLogInterface(IAMVideoProcAmp, controls);
+        controls->AddRef();
+        *ppvObject = controls;
 
         return S_OK;
     }
@@ -395,9 +395,9 @@ HRESULT AkVCam::MediaSource::Shutdown()
 
 AkVCam::MediaSourcePrivate::MediaSourcePrivate(MediaSource *self):
     self(self),
-    m_videoProcAmp(new VideoProcAmp)
+    m_controls(new Controls)
 {
-    this->m_videoProcAmp->AddRef();
+    this->m_controls->AddRef();
 
     this->m_ipcBridge = std::make_shared<IpcBridge>();
     this->m_ipcBridge->connectDevicesChanged(this,
@@ -414,7 +414,7 @@ AkVCam::MediaSourcePrivate::~MediaSourcePrivate()
 {
     AkLogFunction();
     this->m_ipcBridge->stopNotifications();
-    this->m_videoProcAmp->Release();
+    this->m_controls->Release();
 }
 
 void AkVCam::MediaSourcePrivate::frameReady(void *userData,

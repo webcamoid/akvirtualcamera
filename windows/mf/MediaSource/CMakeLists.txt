@@ -28,6 +28,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
     src/mfvcam.h
+    src/controls.cpp
+    src/controls.h
     src/mediaeventgenerator.cpp
     src/mediaeventgenerator.h
     src/mediasource.cpp
