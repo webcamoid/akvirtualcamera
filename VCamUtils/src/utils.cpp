@@ -58,7 +58,7 @@ std::string AkVCam::basename(const std::string &path)
     });
 
     program =
-            it == path.end()?
+            it == program.end()?
                 program:
                 program.substr(0, size_t(it - program.begin()));
 
