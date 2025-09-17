@@ -30,28 +30,31 @@ namespace AkVCam
     class ControlsPrivate
     {
         public:
-            std::map<KSPROPERTY_VIDCAP_VIDEOPROCAMP, LONG> m_control;
+            std::map<std::string, LONG> m_control;
     };
 
     class ProcAmpPrivate
     {
         public:
+            const char *name;
             KSPROPERTY_VIDCAP_VIDEOPROCAMP property;
+            LONG propertyDS;
             LONG min;
             LONG max;
             LONG step;
             LONG defaultValue;
             LONG flags;
+            LONG flagsDS;
 
             inline static const std::vector<ProcAmpPrivate> &controls()
             {
                 static const std::vector<ProcAmpPrivate> controls {
-                    {KSPROPERTY_VIDEOPROCAMP_BRIGHTNESS , -255, 255, 1, 0, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL},
-                    {KSPROPERTY_VIDEOPROCAMP_CONTRAST   , -255, 255, 1, 0, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL},
-                    {KSPROPERTY_VIDEOPROCAMP_SATURATION , -255, 255, 1, 0, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL},
-                    {KSPROPERTY_VIDEOPROCAMP_GAMMA      , -255, 255, 1, 0, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL},
-                    {KSPROPERTY_VIDEOPROCAMP_HUE        , -359, 359, 1, 0, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL},
-                    {KSPROPERTY_VIDEOPROCAMP_COLORENABLE,    0,   1, 1, 1, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL}
+                    {"Brightness" , KSPROPERTY_VIDEOPROCAMP_BRIGHTNESS , VideoProcAmp_Brightness , -255, 255, 1, 0, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL, VideoProcAmp_Flags_Manual},
+                    {"Contrast"   , KSPROPERTY_VIDEOPROCAMP_CONTRAST   , VideoProcAmp_Contrast   , -255, 255, 1, 0, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL, VideoProcAmp_Flags_Manual},
+                    {"Saturation" , KSPROPERTY_VIDEOPROCAMP_SATURATION , VideoProcAmp_Saturation , -255, 255, 1, 0, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL, VideoProcAmp_Flags_Manual},
+                    {"Gamma"      , KSPROPERTY_VIDEOPROCAMP_GAMMA      , VideoProcAmp_Gamma      , -255, 255, 1, 0, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL, VideoProcAmp_Flags_Manual},
+                    {"Hue"        , KSPROPERTY_VIDEOPROCAMP_HUE        , VideoProcAmp_Hue        , -359, 359, 1, 0, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL, VideoProcAmp_Flags_Manual},
+                    {"ColorEnable", KSPROPERTY_VIDEOPROCAMP_COLORENABLE, VideoProcAmp_ColorEnable,    0,   1, 1, 1, KSPROPERTY_VIDEOPROCAMP_FLAGS_MANUAL, VideoProcAmp_Flags_Manual}
                 };
 
                 return controls;
@@ -61,6 +64,24 @@ namespace AkVCam
             {
                 for (auto &control: controls())
                     if (control.property == property)
+                        return &control;
+
+                return nullptr;
+            }
+
+            static inline const ProcAmpPrivate *byPropertyDS(LONG property)
+            {
+                for (auto &control: controls())
+                    if (control.propertyDS == property)
+                        return &control;
+
+                return nullptr;
+            }
+
+            static inline const ProcAmpPrivate *byName(const std::string &name)
+            {
+                for (auto &control: controls())
+                    if (control.name == name)
                         return &control;
 
                 return nullptr;
@@ -79,12 +100,31 @@ AkVCam::Controls::~Controls()
     delete this->d;
 }
 
-LONG AkVCam::Controls::value(KSPROPERTY_VIDCAP_VIDEOPROCAMP property) const
+LONG AkVCam::Controls::value(const std::string &property) const
 {
     if (!this->d->m_control.contains(property))
         return 0;
 
     return this->d->m_control[property];
+}
+
+HRESULT STDMETHODCALLTYPE AkVCam::Controls::QueryInterface(REFIID riid,
+                                                           void **ppvObject)
+{
+    if (!ppvObject)
+        return E_POINTER;
+
+    *ppvObject = nullptr;
+
+    if (IsEqualIID(riid, IID_VCamControl)
+        || IsEqualIID(riid, IID_IAMVideoProcAmp)) {
+        this->AddRef();
+        *ppvObject = this;
+
+        return S_OK;
+    }
+
+    return CUnknown::QueryInterface(riid, ppvObject);
 }
 
 NTSTATUS AkVCam::Controls::KsEvent(PKSEVENT event,
@@ -146,7 +186,8 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
         return STATUS_NOT_IMPLEMENTED;
     }
 
-    auto control = ProcAmpPrivate::byProperty(KSPROPERTY_VIDCAP_VIDEOPROCAMP(property->Id));
+    auto control =
+            ProcAmpPrivate::byProperty(KSPROPERTY_VIDCAP_VIDEOPROCAMP(property->Id));
 
     if (!control) {
         AkLogWarning() << "Unsupported property ID: " << property->Id;
@@ -154,51 +195,124 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
         return STATUS_NOT_FOUND;
     }
 
-    if (dataLength < sizeof(KSPROPERTY_VIDEOPROCAMP_S)) {
-        AkLogError() << "Insufficient data length: " << dataLength;
+    // Handle KSPROPERTY_TYPE_BASICSUPPORT
 
-        return STATUS_BUFFER_TOO_SMALL;
+    if (property->Flags & KSPROPERTY_TYPE_BASICSUPPORT) {
+        if (dataLength < sizeof(KSPROPERTY_DESCRIPTION)) {
+            AkLogError() << "Insufficient data length for BASICSUPPORT: " << dataLength;
+
+            return STATUS_BUFFER_TOO_SMALL;
+        }
+
+        auto description = static_cast<KSPROPERTY_DESCRIPTION *>(propertyData);
+        description->AccessFlags = KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_SET;
+        description->DescriptionSize = sizeof(KSPROPERTY_DESCRIPTION)
+                                     + sizeof(KSPROPERTY_MEMBERSHEADER)
+                                     + sizeof(KSPROPERTY_STEPPING_LONG);
+        description->PropTypeSet.Set = PROPSETID_VIDCAP_VIDEOPROCAMP;
+        description->PropTypeSet.Id = property->Id;
+        description->PropTypeSet.Flags = 0;
+        description->MembersListCount = 1;
+
+        if (dataLength >= description->DescriptionSize) {
+            auto membersHeader = reinterpret_cast<KSPROPERTY_MEMBERSHEADER *>(description + 1);
+            membersHeader->MembersFlags = KSPROPERTY_MEMBER_RANGES;
+            membersHeader->MembersSize = sizeof(KSPROPERTY_STEPPING_LONG);
+            membersHeader->MembersCount = 1;
+            membersHeader->Flags = 0;
+
+            auto stepping = reinterpret_cast<KSPROPERTY_STEPPING_LONG *>(membersHeader + 1);
+            stepping->Bounds.SignedMinimum = control->min;
+            stepping->Bounds.SignedMaximum = control->max;
+            stepping->SteppingDelta = control->step;
+            stepping->Reserved = 0;
+
+            *bytesReturned = description->DescriptionSize;
+            AkLogInfo() << "BASICSUPPORT for property " << control->name
+                        << ": Min=" << control->min
+                        << ", Max=" << control->max
+                        << ", Step=" << control->step;
+        } else {
+            *bytesReturned = description->DescriptionSize;
+
+            // The buffer is too short
+
+            return STATUS_BUFFER_OVERFLOW;
+        }
+
+        return STATUS_SUCCESS;
     }
 
-    auto procAmp = static_cast<KSPROPERTY_VIDEOPROCAMP_S *>(propertyData);
+    // Handle KSPROPERTY_TYPE_DEFAULTVALUES
+
+    if (property->Flags & KSPROPERTY_TYPE_DEFAULTVALUES) {
+        if (dataLength < sizeof(KSPROPERTY_VIDEOPROCAMP_S)) {
+            AkLogError() << "Insufficient data length for DEFAULTVALUES: " << dataLength;
+
+            return STATUS_BUFFER_TOO_SMALL;
+        }
+
+        auto procAmp = static_cast<KSPROPERTY_VIDEOPROCAMP_S *>(propertyData);
+        procAmp->Value = control->defaultValue;
+        procAmp->Flags = control->flags;
+        procAmp->Capabilities = control->flags;
+        *bytesReturned = sizeof(KSPROPERTY_VIDEOPROCAMP_S);
+        AkLogInfo() << "DEFAULTVALUES for property "
+                    << control->name
+                    << ": DefaultValue=" << procAmp->Value;
+
+        return STATUS_SUCCESS;
+    }
+
+    // Handle KSPROPERTY_TYPE_GET
 
     if (property->Flags & KSPROPERTY_TYPE_GET) {
-        procAmp->Value = this->d->m_control[control->property];
+        if (dataLength < sizeof(KSPROPERTY_VIDEOPROCAMP_S)) {
+            AkLogError() << "Insufficient data length for GET: " << dataLength;
+
+            return STATUS_BUFFER_TOO_SMALL;
+        }
+
+        auto procAmp = static_cast<KSPROPERTY_VIDEOPROCAMP_S *>(propertyData);
+        procAmp->Value = this->d->m_control[control->name];
         procAmp->Flags = control->flags;
         procAmp->Capabilities = control->flags;
         *bytesReturned = sizeof(KSPROPERTY_VIDEOPROCAMP_S);
         AkLogInfo() << "Get property "
-                    << property->Id
-                    << ": Value="
-                    << procAmp->Value
-                    << ", Flags="
-                    << std::hex
-                    << procAmp->Flags;
+                    << control->name
+                    << ": Value=" << procAmp->Value
+                    << ", Flags=" << std::hex << procAmp->Flags;
 
         return STATUS_SUCCESS;
-    } else if (property->Flags & KSPROPERTY_TYPE_SET) {
+    }
+
+    // Handle KSPROPERTY_TYPE_SET
+
+    if (property->Flags & KSPROPERTY_TYPE_SET) {
+        if (dataLength < sizeof(KSPROPERTY_VIDEOPROCAMP_S)) {
+            AkLogError() << "Insufficient data length for SET: " << dataLength;
+
+            return STATUS_BUFFER_TOO_SMALL;
+        }
+
+        auto procAmp = static_cast<KSPROPERTY_VIDEOPROCAMP_S *>(propertyData);
         LONG newValue = procAmp->Value;
         LONG newFlags = procAmp->Flags;
 
         if (newFlags & ~control->flags) {
             AkLogError() << "Unsupported flags for property "
-                         << property->Id
-                         << ": "
-                         << std::hex
-                         << newFlags;
+                         << control->name
+                         << ": " << std::hex << newFlags;
 
             return STATUS_INVALID_PARAMETER;
         }
 
         if (newValue < control->min || newValue > control->max) {
             AkLogError() << "Value out of range for property "
-                         << property->Id
-                         << ": "
-                         << newValue
-                         << " (min="
-                         << control->min
-                         << ", max="
-                         << control->max
+                         << control->name
+                         << ": " << newValue
+                         << " (min=" << control->min
+                         << ", max=" << control->max
                          << ")";
 
             return STATUS_INVALID_PARAMETER;
@@ -206,23 +320,23 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
 
         if ((newValue - control->min) % control->step != 0) {
             AkLogError() << "Invalid step for property "
-                         << property->Id
-                         << ": "
-                         << newValue
-                         << " (step="
-                         << control->step
+                         << control->name
+                         << ": " << newValue
+                         << " (step=" << control->step
                          << ")";
 
             return STATUS_INVALID_PARAMETER;
         }
 
-        if (this->d->m_control[control->property] != newValue) {
-            this->d->m_control[control->property] = newValue;
+        if (this->d->m_control[control->name] != newValue) {
+            this->d->m_control[control->name] = newValue;
             AkLogInfo() << "Set property "
-                        << property->Id
-                        << ": Value="
-                        << newValue;
-            AKVCAM_EMIT(this, PropertyChanged, control->property, newValue, property->Flags)
+                        << control->name
+                        << ": Value=" << newValue;
+            AKVCAM_EMIT(this, PropertyChanged,
+                        control->property,
+                        newValue,
+                        property->Flags);
         }
 
         *bytesReturned = sizeof(KSPROPERTY_VIDEOPROCAMP_S);
@@ -235,4 +349,82 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
                    << property->Flags;
 
     return STATUS_NOT_IMPLEMENTED;
+}
+
+HRESULT AkVCam::Controls::GetRange(LONG property,
+                                   LONG *pMin,
+                                   LONG *pMax,
+                                   LONG *pSteppingDelta,
+                                   LONG *pDefault,
+                                   LONG *pCapsFlags)
+{
+    AkLogFunction();
+
+    if (!pMin || !pMax || !pSteppingDelta || !pDefault || !pCapsFlags)
+        return E_POINTER;
+
+    *pMin = 0;
+    *pMax = 0;
+    *pSteppingDelta = 0;
+    *pDefault = 0;
+    *pCapsFlags = 0;
+
+    auto control = ProcAmpPrivate::byPropertyDS(property);
+
+    if (!control)
+        return E_INVALIDARG;
+
+    *pMin = control->min;
+    *pMax = control->max;
+    *pSteppingDelta = control->step;
+    *pDefault = control->defaultValue;
+    *pCapsFlags = control->flags;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Controls::Set(LONG property, LONG lValue, LONG flags)
+{
+    AkLogFunction();
+
+    auto control = ProcAmpPrivate::byPropertyDS(property);
+
+    if (!control)
+        return E_INVALIDARG;
+
+    if (lValue < control->min
+        || lValue > control->max
+        || flags != control->flags) {
+        return E_INVALIDARG;
+    }
+
+    this->d->m_control[control->name] = lValue;
+    AKVCAM_EMIT(this, PropertyChanged, control->property, lValue, flags)
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Controls::Get(LONG property, LONG *lValue, LONG *flags)
+{
+    AkLogFunction();
+
+    if (!lValue || !flags)
+        return E_POINTER;
+
+    *lValue = 0;
+    *flags = 0;
+
+    auto control = ProcAmpPrivate::byPropertyDS(property);
+
+    if (!control)
+        return E_INVALIDARG;
+
+    if (this->d->m_control.count(control->name))
+        *lValue = this->d->m_control[control->name];
+    else
+        *lValue = control->defaultValue;
+
+    *flags = control->flags;
+
+    return S_OK;
 }

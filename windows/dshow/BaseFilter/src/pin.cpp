@@ -91,9 +91,9 @@ namespace AkVCam
             HRESULT sendFrame();
             VideoFrame applyAdjusts(const VideoFrame &frame);
             static void propertyChanged(void *userData,
-                                        LONG Property,
-                                        LONG lValue,
-                                        LONG Flags);
+                                        LONG property,
+                                        LONG value,
+                                        LONG flags);
             VideoFrame randomFrame();
     };
 }
@@ -981,47 +981,47 @@ AkVCam::VideoFrame AkVCam::PinPrivate::applyAdjusts(const VideoFrame &frame)
 }
 
 void AkVCam::PinPrivate::propertyChanged(void *userData,
-                                         LONG Property,
-                                         LONG lValue,
-                                         LONG Flags)
+                                         LONG property,
+                                         LONG value,
+                                         LONG flags)
 {
     AkLogFunction();
-    UNUSED(Flags);
+    UNUSED(flags);
     auto self = reinterpret_cast<PinPrivate *>(userData);
 
-    switch (Property) {
+    switch (property) {
     case VideoProcAmp_Brightness:
-        self->m_brightness = lValue;
+        self->m_brightness = value;
         self->m_videoAdjusts.setLuminance(self->m_brightness);
 
         break;
 
     case VideoProcAmp_Contrast:
-        self->m_contrast = lValue;
+        self->m_contrast = value;
         self->m_videoAdjusts.setContrast(self->m_contrast);
 
         break;
 
     case VideoProcAmp_Saturation:
-        self->m_saturation = lValue;
+        self->m_saturation = value;
         self->m_videoAdjusts.setSaturation(self->m_saturation);
 
         break;
 
     case VideoProcAmp_Gamma:
-        self->m_gamma = lValue;
+        self->m_gamma = value;
         self->m_videoAdjusts.setGamma(self->m_gamma);
 
         break;
 
     case VideoProcAmp_Hue:
-        self->m_hue = lValue;
+        self->m_hue = value;
         self->m_videoAdjusts.setHue(self->m_hue);
 
         break;
 
     case VideoProcAmp_ColorEnable:
-        self->m_colorenable = lValue;
+        self->m_colorenable = value;
         self->m_videoAdjusts.setGrayScaled(!self->m_colorenable);
 
         break;

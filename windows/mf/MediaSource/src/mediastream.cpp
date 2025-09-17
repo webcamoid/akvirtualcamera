@@ -86,9 +86,9 @@ namespace AkVCam
             HRESULT queueSample();
             VideoFrame applyAdjusts(const VideoFrame &frame);
             static void propertyChanged(void *userData,
-                                        LONG Property,
-                                        LONG lValue,
-                                        LONG Flags);
+                                        KSPROPERTY_VIDCAP_VIDEOPROCAMP property,
+                                        LONG value,
+                                        LONG flags);
             VideoFrame randomFrame();
     };
 }
@@ -136,18 +136,12 @@ AkVCam::MediaStream::MediaStream(MediaSource *mediaSource,
         mediaSource->QueryInterface(IID_IAMVideoProcAmp,
                                     reinterpret_cast<void **>(&this->d->m_ksControls));
 
-    this->d->m_brightness =
-            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_BRIGHTNESS);
-    this->d->m_contrast =
-            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_CONTRAST);
-    this->d->m_saturation =
-            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_SATURATION);
-    this->d->m_gamma =
-            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_GAMMA);
-    this->d->m_hue =
-            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_HUE);
-    this->d->m_colorenable =
-            this->d->m_ksControls->value(KSPROPERTY_VIDEOPROCAMP_COLORENABLE);
+    this->d->m_brightness = this->d->m_ksControls->value("Brightness");
+    this->d->m_contrast = this->d->m_ksControls->value("Contrast");
+    this->d->m_saturation = this->d->m_ksControls->value("Saturation");
+    this->d->m_gamma = this->d->m_ksControls->value("Gamma");
+    this->d->m_hue = this->d->m_ksControls->value("Hue");
+    this->d->m_colorenable = this->d->m_ksControls->value("ColorEnable");
 
     this->d->m_videoAdjusts.setHue(this->d->m_hue);
     this->d->m_videoAdjusts.setSaturation(this->d->m_saturation);
@@ -564,47 +558,47 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
 }
 
 void AkVCam::MediaStreamPrivate::propertyChanged(void *userData,
-                                                 LONG Property,
-                                                 LONG lValue,
-                                                 LONG Flags)
+                                                 KSPROPERTY_VIDCAP_VIDEOPROCAMP property,
+                                                 LONG value,
+                                                 LONG flags)
 {
     AkLogFunction();
-    UNUSED(Flags);
+    UNUSED(flags);
     auto self = reinterpret_cast<MediaStreamPrivate *>(userData);
 
-    switch (Property) {
-    case VideoProcAmp_Brightness:
-        self->m_brightness = lValue;
+    switch (property) {
+    case KSPROPERTY_VIDEOPROCAMP_BRIGHTNESS:
+        self->m_brightness = value;
         self->m_videoAdjusts.setLuminance(self->m_brightness);
 
         break;
 
-    case VideoProcAmp_Contrast:
-        self->m_contrast = lValue;
+    case KSPROPERTY_VIDEOPROCAMP_CONTRAST:
+        self->m_contrast = value;
         self->m_videoAdjusts.setContrast(self->m_contrast);
 
         break;
 
-    case VideoProcAmp_Saturation:
-        self->m_saturation = lValue;
+    case KSPROPERTY_VIDEOPROCAMP_SATURATION:
+        self->m_saturation = value;
         self->m_videoAdjusts.setSaturation(self->m_saturation);
 
         break;
 
-    case VideoProcAmp_Gamma:
-        self->m_gamma = lValue;
+    case KSPROPERTY_VIDEOPROCAMP_GAMMA:
+        self->m_gamma = value;
         self->m_videoAdjusts.setGamma(self->m_gamma);
 
         break;
 
-    case VideoProcAmp_Hue:
-        self->m_hue = lValue;
+    case KSPROPERTY_VIDEOPROCAMP_HUE:
+        self->m_hue = value;
         self->m_videoAdjusts.setHue(self->m_hue);
 
         break;
 
-    case VideoProcAmp_ColorEnable:
-        self->m_colorenable = lValue;
+    case KSPROPERTY_VIDEOPROCAMP_COLORENABLE:
+        self->m_colorenable = value;
         self->m_videoAdjusts.setGrayScaled(!self->m_colorenable);
 
         break;

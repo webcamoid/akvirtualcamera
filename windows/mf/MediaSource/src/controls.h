@@ -23,6 +23,7 @@
 #include <windows.h>
 #include <ks.h>
 #include <ksmedia.h>
+#include <strmif.h>
 #include <initguid.h>
 
 #include "PlatformUtils/src/cunknown.h"
@@ -34,17 +35,27 @@ namespace AkVCam
 {
     class ControlsPrivate;
 
-    class Controls: public CUnknown
+    class Controls:
+        public IAMVideoProcAmp,
+        public CUnknown
     {
-        AKVCAM_SIGNAL(PropertyChanged, LONG Property,  LONG lValue, LONG Flags)
+        AKVCAM_SIGNAL(PropertyChanged,
+                      KSPROPERTY_VIDCAP_VIDEOPROCAMP Property,
+                      LONG lValue,
+                      LONG Flags)
 
         public:
             Controls();
             virtual ~Controls();
 
-            DECLARE_IUNKNOWN(IID_VCamControl)
+            DECLARE_IUNKNOWN_NQ
 
-            LONG value(KSPROPERTY_VIDCAP_VIDEOPROCAMP property) const;
+            LONG value(const std::string &property) const;
+
+            // IUnknown
+
+            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                                     void **ppvObject);
 
             // IKsControl
 
@@ -63,6 +74,21 @@ namespace AkVCam
                                                   PVOID propertyData,
                                                   ULONG dataLength,
                                                   ULONG *bytesReturned);
+
+            // IAMVideoProcAmp
+
+            HRESULT STDMETHODCALLTYPE GetRange(LONG property,
+                                               LONG *pMin,
+                                               LONG *pMax,
+                                               LONG *pSteppingDelta,
+                                               LONG *pDefault,
+                                               LONG *pCapsFlags) override;
+            HRESULT STDMETHODCALLTYPE Set(LONG property,
+                                          LONG lValue,
+                                          LONG flags) override;
+            HRESULT STDMETHODCALLTYPE Get(LONG property,
+                                          LONG *lValue,
+                                          LONG *flags) override;
 
         private:
             ControlsPrivate *d;

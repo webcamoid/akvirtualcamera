@@ -162,7 +162,8 @@ HRESULT AkVCam::MediaSource::QueryInterface(REFIID riid, void **ppvObject)
         *ppvObject = this;
 
         return S_OK;
-    } else if (IsEqualIID(riid, IID_VCamControl)) {
+    } else if (IsEqualIID(riid, IID_VCamControl)
+               || IsEqualIID(riid, IID_IAMVideoProcAmp)) {
         auto controls = this->d->m_controls;
         AkLogInterface(IAMVideoProcAmp, controls);
         controls->AddRef();
