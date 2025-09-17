@@ -52,6 +52,8 @@ add_library(VCamUtils STATIC
             src/servicemsg.h
             src/settings.cpp
             src/settings.h
+            src/sharedmemory.cpp
+            src/sharedmemory.h
             src/sockets.cpp
             src/sockets.h
             src/timer.cpp
