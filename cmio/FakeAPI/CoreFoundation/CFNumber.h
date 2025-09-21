@@ -29,6 +29,7 @@ using CFNumberRef = CFTypeRef;
 enum CFNumberType
 {
     kCFNumberIntType = 9,
+    kCFNumberLongLongType = 11,
     kCFNumberDoubleType = 13
 };
 

@@ -102,8 +102,14 @@ AkVCam::Controls::~Controls()
 
 LONG AkVCam::Controls::value(const std::string &property) const
 {
-    if (!this->d->m_control.contains(property))
+
+    auto control = ProcAmpPrivate::byName(property);
+
+    if (!control)
         return 0;
+
+    if (!this->d->m_control.contains(property))
+        return control->defaultValue;
 
     return this->d->m_control[property];
 }
@@ -264,6 +270,10 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
         return STATUS_SUCCESS;
     }
 
+    auto currentValue = this->d->m_control.contains(control->name)?
+                            this->d->m_control[control->name]:
+                            control->defaultValue;
+
     // Handle KSPROPERTY_TYPE_GET
 
     if (property->Flags & KSPROPERTY_TYPE_GET) {
@@ -274,7 +284,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
         }
 
         auto procAmp = static_cast<KSPROPERTY_VIDEOPROCAMP_S *>(propertyData);
-        procAmp->Value = this->d->m_control[control->name];
+        procAmp->Value = currentValue;
         procAmp->Flags = control->flags;
         procAmp->Capabilities = control->flags;
         *bytesReturned = sizeof(KSPROPERTY_VIDEOPROCAMP_S);
@@ -328,7 +338,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
             return STATUS_INVALID_PARAMETER;
         }
 
-        if (this->d->m_control[control->name] != newValue) {
+        if (currentValue != newValue) {
             this->d->m_control[control->name] = newValue;
             AkLogInfo() << "Set property "
                         << control->name

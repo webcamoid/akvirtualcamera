@@ -335,7 +335,7 @@ void AkVCam::SharedMemory::close()
     }
 #else
     if (this->d->m_sharedHandle != -1) {
-        close(this->d->m_sharedHandle);
+        ::close(this->d->m_sharedHandle);
         this->d->m_sharedHandle = -1;
 
         if (this->d->m_mode != OpenModeRead)

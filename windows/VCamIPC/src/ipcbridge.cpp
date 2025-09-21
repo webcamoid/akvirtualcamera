@@ -30,6 +30,7 @@
 #include "VCamUtils/src/message.h"
 #include "VCamUtils/src/messageclient.h"
 #include "VCamUtils/src/servicemsg.h"
+#include "VCamUtils/src/sharedmemory.h"
 #include "VCamUtils/src/timer.h"
 #include "VCamUtils/src/utils.h"
 #include "VCamUtils/src/videoformat.h"
@@ -73,6 +74,7 @@ namespace AkVCam
         VideoFrame frame;
         std::condition_variable_any frameAvailable;
         std::mutex frameMutex;
+        SharedMemory sharedMemory;
         bool available {false};
         bool run {false};
 
@@ -95,6 +97,14 @@ namespace AkVCam
 
             return *this;
         }
+    };
+
+    struct SharedFrame
+    {
+        PixelFormat format;
+        int width;
+        int height;
+        uint8_t data[1];
     };
 
     class IpcBridgePrivate
@@ -167,6 +177,28 @@ void AkVCam::IpcBridge::setLogLevel(int logLevel)
     AkLogFunction();
     Preferences::setLogLevel(logLevel);
     Logger::setLogLevel(logLevel);
+}
+
+AkVCam::DataMode AkVCam::IpcBridge::dataMode()
+{
+    return Preferences::dataMode();
+}
+
+void AkVCam::IpcBridge::setDataMode(DataMode dataMode)
+{
+    AkLogFunction();
+    Preferences::setDataMode(dataMode);
+}
+
+size_t AkVCam::IpcBridge::pageSize()
+{
+    return Preferences::pageSize();
+}
+
+void AkVCam::IpcBridge::setPageSize(size_t pageSize)
+{
+    AkLogFunction();
+    Preferences::setPageSize(pageSize);
 }
 
 std::string AkVCam::IpcBridge::logPath(const std::string &logName) const
@@ -441,6 +473,11 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
     slot.type = StreamType_Input;
     slot.run = true;
 
+    /* NOTE: When the data mode is configured as SharedMemory, the socket
+     * channel is not used to send/receive data, but to indicate that the
+     * virtual camera is in use.
+     */
+
     if (type == StreamType_Input) {
         slot.messageFuture =
             this->d->m_messageClient.send(MsgListen(deviceId, currentPid()).toMessage(),
@@ -454,6 +491,14 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
             return this->d->frameRequired(deviceId, message);
         });
         AkLogDebug() << "Started output stream for device: " << deviceId << std::endl;
+    }
+
+    if (Preferences::dataMode() == DataMode_SharedMemory) {
+        slot.sharedMemory.setName(deviceId + "Shm");
+        slot.sharedMemory.open(Preferences::pageSize(),
+                               type == StreamType_Input?
+                                   SharedMemory::OpenModeRead:
+                                   SharedMemory::OpenModeWrite);
     }
 
     this->d->m_broadcastsMutex.unlock();
@@ -478,6 +523,7 @@ void AkVCam::IpcBridge::deviceStop(const std::string &deviceId)
         }
 
         auto &slot = this->d->m_broadcasts[deviceId];
+        slot.sharedMemory.close();
         slot.run = false;
         messageFuture = std::move(slot.messageFuture); // Move the future
         AkLogDebug() << "Set run = false for device: " << deviceId << std::endl;
@@ -526,9 +572,33 @@ bool AkVCam::IpcBridge::write(const std::string &deviceId,
     }
 
     slot.frameMutex.lock();
-    slot.frame = frame;
-    slot.available = true;
-    slot.frameAvailable.notify_all();
+
+    if (slot.sharedMemory.isOpen()) {
+        auto sharedFrame = reinterpret_cast<SharedFrame *>(slot.sharedMemory.lock());
+
+        if (sharedFrame) {
+            sharedFrame->format = frame.format().format();
+            sharedFrame->width = frame.format().width();
+            sharedFrame->height = frame.format().height();
+            auto dataSize =
+                    std::min(slot.sharedMemory.pageSize()
+                             - sizeof(SharedFrame)
+                             + sizeof(void *),
+                             frame.size());
+
+            if (dataSize > 0)
+                memcpy(sharedFrame->data, frame.constData(), dataSize);
+
+            slot.sharedMemory.unlock();
+            slot.available = true;
+            slot.frameAvailable.notify_all();
+        }
+    } else {
+        slot.frame = frame;
+        slot.available = true;
+        slot.frameAvailable.notify_all();
+    }
+
     slot.frameMutex.unlock();
 
     this->d->m_broadcastsMutex.unlock();
@@ -732,7 +802,7 @@ bool AkVCam::IpcBridgePrivate::frameRequired(const std::string &deviceId,
         slot.frameAvailable.wait_for(lock,
                                      std::chrono::seconds(1));
 
-    auto frame = slot.frame;
+    auto &frame = slot.frame;
     auto run = slot.run;
     slot.available = false;
     lock.unlock();
@@ -748,6 +818,7 @@ bool AkVCam::IpcBridgePrivate::frameReady(const Message &message)
     AkLogFunction();
 
     MsgFrameReady msgFrameReady(message);
+    VideoFrame frame;
 
     this->m_broadcastsMutex.lock();
 
@@ -761,13 +832,44 @@ bool AkVCam::IpcBridgePrivate::frameReady(const Message &message)
 
     auto &slot = this->m_broadcasts[deviceId];
     auto run = slot.run;
+
+    if (slot.sharedMemory.isOpen()) {
+        auto sharedFrame =
+                reinterpret_cast<SharedFrame *>(slot.sharedMemory.lock());
+
+        if (sharedFrame) {
+            frame = VideoFrame(VideoFormat(sharedFrame->format,
+                                           sharedFrame->width,
+                                           sharedFrame->height));
+            auto dataSize =
+                    std::min(slot.sharedMemory.pageSize()
+                             - sizeof(SharedFrame)
+                             + sizeof(void *),
+                             frame.size());
+
+            if (dataSize > 0)
+                memcpy(frame.data(), sharedFrame->data, dataSize);
+            else
+                frame = {};
+
+            slot.sharedMemory.unlock();
+        }
+    }
+
     this->m_broadcastsMutex.unlock();
 
-    AKVCAM_EMIT(this->self,
-                FrameReady,
-                deviceId,
-                msgFrameReady.frame(),
-                msgFrameReady.isActive())
+    if (frame)
+        AKVCAM_EMIT(this->self,
+                    FrameReady,
+                    deviceId,
+                    frame,
+                    msgFrameReady.isActive())
+    else
+        AKVCAM_EMIT(this->self,
+                    FrameReady,
+                    deviceId,
+                    msgFrameReady.frame(),
+                    msgFrameReady.isActive())
 
     return run;
 }

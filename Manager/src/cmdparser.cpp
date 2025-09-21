@@ -142,6 +142,11 @@ namespace AkVCam {
             int writeControls(const StringMap &flags, const StringVector &args);
             int picture(const StringMap &flags, const StringVector &args);
             int setPicture(const StringMap &flags, const StringVector &args);
+            int dataModes(const StringMap &flags, const StringVector &args);
+            int dataMode(const StringMap &flags, const StringVector &args);
+            int setDataMode(const StringMap &flags, const StringVector &args);
+            int pageSize(const StringMap &flags, const StringVector &args);
+            int setPageSize(const StringMap &flags, const StringVector &args);
             int logLevel(const StringMap &flags, const StringVector &args);
             int setLogLevel(const StringMap &flags, const StringVector &args);
             int showClients(const StringMap &flags, const StringVector &args);
@@ -333,6 +338,26 @@ AkVCam::CmdParser::CmdParser()
                      "FILE",
                      "Set placeholder picture.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::setPicture));
+    this->addCommand("data-modes",
+                     "",
+                     "Show the available data transfer modes.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::dataModes));
+    this->addCommand("data-mode",
+                     "",
+                     "Show the current data transfer mode.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::dataMode));
+    this->addCommand("set-data-mode",
+                     "MODE",
+                     "Set the current data transfer mode.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::setDataMode));
+    this->addCommand("page-size",
+                     "",
+                     "Show the page size for the shared memory mode.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::pageSize));
+    this->addCommand("set-page-size",
+                     "BYTES",
+                     "Set page size for the shared memory mode.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::setPageSize));
     this->addCommand("loglevel",
                      "",
                      "Show current debugging level.",
@@ -620,7 +645,7 @@ size_t AkVCam::CmdParserPrivate::maxFlagsValueLength(const std::vector<CmdParser
     return length;
 }
 
-size_t AkVCam::CmdParserPrivate::maxColumnLength(const AkVCam::StringVector &table,
+size_t AkVCam::CmdParserPrivate::maxColumnLength(const StringVector &table,
                                                  size_t width,
                                                  size_t column)
 {
@@ -635,7 +660,7 @@ size_t AkVCam::CmdParserPrivate::maxColumnLength(const AkVCam::StringVector &tab
     return length;
 }
 
-std::vector<size_t> AkVCam::CmdParserPrivate::maxColumnsLength(const AkVCam::StringVector &table,
+std::vector<size_t> AkVCam::CmdParserPrivate::maxColumnsLength(const StringVector &table,
                                                                size_t width)
 {
     std::vector<size_t> lengths;
@@ -662,7 +687,7 @@ void AkVCam::CmdParserPrivate::drawTableHLine(const std::vector<size_t> &columns
     *out << std::endl;
 }
 
-void AkVCam::CmdParserPrivate::drawTable(const AkVCam::StringVector &table,
+void AkVCam::CmdParserPrivate::drawTable(const StringVector &table,
                                          size_t width,
                                          bool toStdErr)
 {
@@ -738,7 +763,7 @@ bool AkVCam::CmdParserPrivate::containsFlag(const StringMap &flags,
     return false;
 }
 
-std::string AkVCam::CmdParserPrivate::flagValue(const AkVCam::StringMap &flags,
+std::string AkVCam::CmdParserPrivate::flagValue(const StringMap &flags,
                                                 const std::string &command,
                                                 const std::string &flagAlias)
 {
@@ -944,8 +969,8 @@ int AkVCam::CmdParserPrivate::removeDevice(const StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::removeDevices(const AkVCam::StringMap &flags,
-                                            const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::removeDevices(const StringMap &flags,
+                                            const StringVector &args)
 {
     UNUSED(flags);
     UNUSED(args);
@@ -982,8 +1007,8 @@ int AkVCam::CmdParserPrivate::showDeviceDescription(const StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::setDeviceDescription(const AkVCam::StringMap &flags,
-                                                   const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::setDeviceDescription(const StringMap &flags,
+                                                   const StringVector &args)
 {
     UNUSED(flags);
 
@@ -1041,8 +1066,8 @@ int AkVCam::CmdParserPrivate::showSupportedFormats(const StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::showDefaultFormat(const AkVCam::StringMap &flags,
-                                                const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::showDefaultFormat(const StringMap &flags,
+                                                const StringVector &args)
 {
     UNUSED(args);
 
@@ -1239,8 +1264,8 @@ int AkVCam::CmdParserPrivate::removeFormat(const StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::removeFormats(const AkVCam::StringMap &flags,
-                                           const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::removeFormats(const StringMap &flags,
+                                            const StringVector &args)
 {
     UNUSED(flags);
 
@@ -1275,8 +1300,8 @@ int AkVCam::CmdParserPrivate::update(const StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::loadSettings(const AkVCam::StringMap &flags,
-                                           const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::loadSettings(const StringMap &flags,
+                                           const StringVector &args)
 {
     UNUSED(flags);
 
@@ -1305,8 +1330,8 @@ int AkVCam::CmdParserPrivate::loadSettings(const AkVCam::StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
-                                     const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::stream(const StringMap &flags,
+                                     const StringVector &args)
 {
     UNUSED(flags);
 
@@ -1409,7 +1434,7 @@ int AkVCam::CmdParserPrivate::stream(const AkVCam::StringMap &flags,
     });
 #endif
 
-    AkVCam::VideoFrame frame(fmt);
+    VideoFrame frame(fmt);
     size_t bufferSize = 0;
 
 #ifdef _WIN32
@@ -1508,7 +1533,7 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
         return -ENODEV;
     }
 
-    static const AkVCam::PixelFormat format = AkVCam::PixelFormat_rgb24;
+    static const PixelFormat format = PixelFormat_rgb24;
     auto formats =
             this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamType_Output);
     auto fit = std::find(formats.begin(), formats.end(), format);
@@ -1584,7 +1609,7 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
     });
 #endif
 
-    AkVCam::VideoFrame frame(fmt);
+    VideoFrame frame(fmt);
 
 #ifdef _WIN32
     // Set std::cin in binary mode.
@@ -1734,8 +1759,8 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::listenEvents(const AkVCam::StringMap &flags,
-                                           const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::listenEvents(const StringMap &flags,
+                                           const StringVector &args)
 {
     UNUSED(flags);
     UNUSED(args);
@@ -2043,8 +2068,8 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::picture(const AkVCam::StringMap &flags,
-                                      const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::picture(const StringMap &flags,
+                                      const StringVector &args)
 {
     UNUSED(flags);
     UNUSED(args);
@@ -2054,8 +2079,8 @@ int AkVCam::CmdParserPrivate::picture(const AkVCam::StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::setPicture(const AkVCam::StringMap &flags,
-                                         const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::setPicture(const StringMap &flags,
+                                         const StringVector &args)
 {
     UNUSED(flags);
 
@@ -2070,8 +2095,123 @@ int AkVCam::CmdParserPrivate::setPicture(const AkVCam::StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::logLevel(const AkVCam::StringMap &flags,
-                                       const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::dataModes(const StringMap &flags,
+                                        const StringVector &args)
+{
+    UNUSED(flags);
+    UNUSED(args);
+
+    static const struct
+    {
+        const char *mode;
+        const char *description;
+    } akvcamAvailableDataModes[] = {
+        {"mmap"   , "Transfer data using shared memory"},
+        {"sockets", "Transfer data using sockets"      },
+        {nullptr  , nullptr                            }
+    };
+
+    if (this->m_parseable) {
+        for (auto it = akvcamAvailableDataModes; it->mode; ++it)
+            std::cout << it->mode << std::endl;
+    } else {
+        std::vector<std::string> table {
+            "Mode",
+            "Description"
+        };
+        auto columns = table.size();
+
+        for (auto it = akvcamAvailableDataModes; it->mode; ++it) {
+            table.push_back(it->mode);
+            table.push_back(it->description);
+        }
+
+        this->drawTable(table, columns);
+    }
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::dataMode(const StringMap &flags,
+                                       const StringVector &args)
+{
+    UNUSED(flags);
+    UNUSED(args);
+
+    std::cout << (this->m_ipcBridge.dataMode() == DataMode_Sockets? "sockets": "mmap") << std::endl;
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::setDataMode(const StringMap &flags,
+                                          const StringVector &args)
+{
+    UNUSED(flags);
+
+    if (args.size() < 2) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -EINVAL;
+    }
+
+    auto dataMode = args[1];
+
+    if (dataMode != "sockets" && dataMode != "mmap") {
+        std::cerr << "Invalid data mode: '" << dataMode << "'" << std::endl;
+
+        return -EINVAL;
+    }
+
+    this->m_ipcBridge.setDataMode(dataMode == "sockets"? DataMode_Sockets: DataMode_SharedMemory);
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::pageSize(const StringMap &flags,
+                                       const StringVector &args)
+{
+    UNUSED(flags);
+    UNUSED(args);
+
+    std::cout << this->m_ipcBridge.pageSize() << std::endl;
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::setPageSize(const StringMap &flags,
+                                          const StringVector &args)
+{
+    UNUSED(flags);
+
+    if (args.size() < 2) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -EINVAL;
+    }
+
+    auto levelStr = args[1];
+    char *p = nullptr;
+    auto pageSize = strtoull(levelStr.c_str(), &p, 10);
+
+    if (*p) {
+        std::cerr << "Invalid page size." << std::endl;
+
+        return -EINVAL;
+    }
+
+    if (pageSize < 1) {
+        std::cerr << "The page size must be big enough to contain a video frame." << std::endl;
+
+        return -EINVAL;
+    }
+
+    this->m_ipcBridge.setPageSize(pageSize);
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::logLevel(const StringMap &flags,
+                                       const StringVector &args)
 {
     UNUSED(flags);
     UNUSED(args);
@@ -2081,13 +2221,13 @@ int AkVCam::CmdParserPrivate::logLevel(const AkVCam::StringMap &flags,
     if (this->m_parseable)
         std::cout << level << std::endl;
     else
-        std::cout << AkVCam::Logger::levelToString(level) << std::endl;
+        std::cout << Logger::levelToString(level) << std::endl;
 
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::setLogLevel(const AkVCam::StringMap &flags,
-                                          const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::setLogLevel(const StringMap &flags,
+                                          const StringVector &args)
 {
     UNUSED(flags);
 
@@ -2102,7 +2242,7 @@ int AkVCam::CmdParserPrivate::setLogLevel(const AkVCam::StringMap &flags,
     auto level = strtol(levelStr.c_str(), &p, 10);
 
     if (*p)
-        level = AkVCam::Logger::levelFromString(levelStr);
+        level = Logger::levelFromString(levelStr);
 
     this->m_ipcBridge.setLogLevel(level);
 
@@ -2143,8 +2283,8 @@ int AkVCam::CmdParserPrivate::showClients(const StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::dumpInfo(const AkVCam::StringMap &flags,
-                                       const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::dumpInfo(const StringMap &flags,
+                                       const StringVector &args)
 {
     UNUSED(flags);
     UNUSED(args);
@@ -2326,8 +2466,8 @@ int AkVCam::CmdParserPrivate::dumpInfo(const AkVCam::StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::hacks(const AkVCam::StringMap &flags,
-                                    const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::hacks(const StringMap &flags,
+                                    const StringVector &args)
 {
     UNUSED(flags);
     UNUSED(args);
@@ -2371,8 +2511,8 @@ int AkVCam::CmdParserPrivate::hacks(const AkVCam::StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::hackInfo(const AkVCam::StringMap &flags,
-                                       const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::hackInfo(const StringMap &flags,
+                                       const StringVector &args)
 {
     if (args.size() < 2) {
         std::cerr << "Not enough arguments." << std::endl;
@@ -2403,8 +2543,8 @@ int AkVCam::CmdParserPrivate::hackInfo(const AkVCam::StringMap &flags,
     return 0;
 }
 
-int AkVCam::CmdParserPrivate::hack(const AkVCam::StringMap &flags,
-                                   const AkVCam::StringVector &args)
+int AkVCam::CmdParserPrivate::hack(const StringMap &flags,
+                                   const StringVector &args)
 {
     if (args.size() < 2) {
         std::cerr << "Not enough arguments." << std::endl;
@@ -2481,7 +2621,7 @@ void AkVCam::CmdParserPrivate::loadGenerals(Settings &settings)
         auto level = strtol(logLevel.c_str(), &p, 10);
 
         if (*p)
-            level = AkVCam::Logger::levelFromString(logLevel);
+            level = Logger::levelFromString(logLevel);
 
         this->m_ipcBridge.setLogLevel(level);
     }
@@ -2508,7 +2648,7 @@ AkVCam::VideoFormatMatrix AkVCam::CmdParserPrivate::readFormats(Settings &settin
 
 std::vector<AkVCam::VideoFormat> AkVCam::CmdParserPrivate::readFormat(Settings &settings)
 {
-    std::vector<AkVCam::VideoFormat> formats;
+    std::vector<VideoFormat> formats;
 
     auto pixFormats = settings.valueList("format", ",");
     auto widths = settings.valueList("width", ",");
@@ -2636,7 +2776,7 @@ void AkVCam::CmdParserPrivate::createDevice(Settings &settings,
 std::vector<AkVCam::VideoFormat> AkVCam::CmdParserPrivate::readDeviceFormats(Settings &settings,
                                                                              const VideoFormatMatrix &availableFormats)
 {
-    std::vector<AkVCam::VideoFormat> formats;
+    std::vector<VideoFormat> formats;
     auto formatsIndex = settings.valueList("formats", ",");
 
     for (auto &indexStr: formatsIndex) {
@@ -2685,8 +2825,8 @@ AkVCam::CmdParserCommand::CmdParserCommand()
 AkVCam::CmdParserCommand::CmdParserCommand(const std::string &command,
                                            const std::string &arguments,
                                            const std::string &helpString,
-                                           const AkVCam::ProgramOptionsFunc &func,
-                                           const std::vector<AkVCam::CmdParserFlags> &flags,
+                                           const ProgramOptionsFunc &func,
+                                           const std::vector<CmdParserFlags> &flags,
                                            bool advanced):
     command(command),
     arguments(arguments),

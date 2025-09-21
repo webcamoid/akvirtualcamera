@@ -84,7 +84,7 @@ namespace AkVCam
             LONG m_saturation {0};
             LONG m_gamma {0};
             LONG m_hue {0};
-            LONG m_colorenable {0};
+            LONG m_colorEnable {0};
 
             void sendFrameOneShot();
             void sendFrameLoop();
@@ -159,7 +159,7 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
                                  &this->d->m_hue,
                                  &flags);
     this->d->m_videoProcAmp->Get(VideoProcAmp_ColorEnable,
-                                 &this->d->m_colorenable,
+                                 &this->d->m_colorEnable,
                                  &flags);
 
     this->d->m_videoAdjusts.setHue(this->d->m_hue);
@@ -167,7 +167,7 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     this->d->m_videoAdjusts.setLuminance(this->d->m_brightness);
     this->d->m_videoAdjusts.setGamma(this->d->m_gamma);
     this->d->m_videoAdjusts.setContrast(this->d->m_contrast);
-    this->d->m_videoAdjusts.setGrayScaled(!this->d->m_colorenable);
+    this->d->m_videoAdjusts.setGrayScaled(!this->d->m_colorEnable);
 
     this->d->m_videoProcAmp->connectPropertyChanged(this->d,
                                                     &PinPrivate::propertyChanged);
@@ -1021,8 +1021,8 @@ void AkVCam::PinPrivate::propertyChanged(void *userData,
         break;
 
     case VideoProcAmp_ColorEnable:
-        self->m_colorenable = value;
-        self->m_videoAdjusts.setGrayScaled(!self->m_colorenable);
+        self->m_colorEnable = value;
+        self->m_videoAdjusts.setGrayScaled(!self->m_colorEnable);
 
         break;
 

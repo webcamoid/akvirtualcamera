@@ -24,6 +24,7 @@
 #include <map>
 #include <memory>
 
+#include "datamodetypes.h"
 #include "videoformattypes.h"
 #include "videoframetypes.h"
 #include "utils.h"
@@ -89,6 +90,10 @@ namespace AkVCam
             void setPicture(const std::string &picture);
             int logLevel() const;
             void setLogLevel(int logLevel);
+            DataMode dataMode();
+            void setDataMode(DataMode dataMode);
+            size_t pageSize();
+            void setPageSize(size_t pageSize);
             std::string logPath(const std::string &logName={}) const;
             void stopNotifications();
 

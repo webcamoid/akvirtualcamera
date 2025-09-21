@@ -77,6 +77,20 @@ bool AkVCam::Preferences::write(const std::string &key, int value, bool global)
 }
 
 bool AkVCam::Preferences::write(const std::string &key,
+                                int64_t value,
+                                bool global)
+{
+    AkLogFunction();
+    AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
+
+    return setValue(key,
+                    REG_QWORD,
+                    reinterpret_cast<const char *>(&value),
+                    DWORD(sizeof(int64_t)),
+                    global);
+}
+
+bool AkVCam::Preferences::write(const std::string &key,
                                 double value,
                                 bool global)
 {
@@ -124,6 +138,20 @@ int AkVCam::Preferences::readInt(const std::string &key,
     DWORD valueSize = sizeof(DWORD);
 
     if (!readValue(key, RRF_RT_REG_DWORD, &value, &valueSize, global))
+        return defaultValue;
+
+    return int(value);
+}
+
+int64_t AkVCam::Preferences::readInt64(const std::string &key,
+                                       int64_t defaultValue,
+                                       bool global)
+{
+    AkLogFunction();
+    DWORD64 value = 0;
+    DWORD valueSize = sizeof(DWORD64);
+
+    if (!readValue(key, RRF_RT_REG_QWORD, &value, &valueSize, global))
         return defaultValue;
 
     return int(value);
@@ -600,6 +628,32 @@ int AkVCam::Preferences::serviceTimeout()
 bool AkVCam::Preferences::setServiceTimeout(int timeoutSecs)
 {
     return write("serviceTimeout", timeoutSecs, true);
+}
+
+AkVCam::DataMode AkVCam::Preferences::dataMode()
+{
+    auto dataMode = readString("dataMode", "mmap", true);
+
+    return dataMode == "sockets"? DataMode_Sockets: DataMode_SharedMemory;
+}
+
+bool AkVCam::Preferences::setDataMode(DataMode dataMode)
+{
+    return write("dataMode",
+                 dataMode == DataMode_Sockets? "sockets": "mmap",
+                 true);
+}
+
+size_t AkVCam::Preferences::pageSize()
+{
+    static const int64_t defaultPageSize = 4L * 1920L * 1280L;
+
+    return readInt64("pageSize", defaultPageSize, true);
+}
+
+bool AkVCam::Preferences::setPageSize(size_t pageSize)
+{
+    return write("pageSize", static_cast<int64_t>(pageSize));
 }
 
 void AkVCam::Preferences::splitSubKey(const std::string &key,

@@ -25,6 +25,8 @@
 #include <vector>
 #include <strmif.h>
 
+#include "VCamUtils/src/datamodetypes.h"
+
 namespace AkVCam
 {
     class VideoFormat;
@@ -35,6 +37,7 @@ namespace AkVCam
                    const std::string &value,
                    bool global=false);
         bool write(const std::string &key, int value, bool global=false);
+        bool write(const std::string &key, int64_t value, bool global=false);
         bool write(const std::string &key, double value, bool global=false);
         bool write(const std::string &key,
                    std::vector<std::string> &value,
@@ -45,6 +48,9 @@ namespace AkVCam
         int readInt(const std::string &key,
                     int defaultValue=0,
                     bool global=false);
+        int64_t readInt64(const std::string &key,
+                          int64_t defaultValue=0L,
+                          bool global=false);
         double readDouble(const std::string &key,
                           double defaultValue=0.0,
                           bool global=false);
@@ -90,6 +96,10 @@ namespace AkVCam
         bool setServicePort(int servicePort);
         int serviceTimeout();
         bool setServiceTimeout(int timeoutSecs);
+        DataMode dataMode();
+        bool setDataMode(DataMode dataMode);
+        size_t pageSize();
+        bool setPageSize(size_t pageSize);
     }
 }
 

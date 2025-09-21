@@ -36,6 +36,7 @@ add_library(VCamUtils STATIC
             src/colorplane.cpp
             src/colorplane.h
             src/commons.h
+            src/datamodetypes.h
             src/fraction.cpp
             src/fraction.h
             src/ipcbridge.h

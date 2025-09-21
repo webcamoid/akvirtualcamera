@@ -733,9 +733,11 @@ AkVCam::MsgBroadcast::MsgBroadcast(const Message &message):
 
     if (dataSize > 0) {
         this->d->m_frame = {VideoFormat(fourcc, width, height)};
-        memcpy(this->d->m_frame.data(),
-               message.data().data() + offset,
-               std::min(dataSize, this->d->m_frame.size()));
+
+        if (this->d->m_frame.size() > 0)
+            memcpy(this->d->m_frame.data(),
+                   message.data().data() + offset,
+                   std::min(dataSize, this->d->m_frame.size()));
     }
 }
 

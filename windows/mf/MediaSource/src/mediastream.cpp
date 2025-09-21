@@ -80,7 +80,7 @@ namespace AkVCam
             LONG m_saturation {0};
             LONG m_gamma {0};
             LONG m_hue {0};
-            LONG m_colorenable {0};
+            LONG m_colorEnable {0};
 
             explicit MediaStreamPrivate(MediaStream *self);
             HRESULT queueSample();
@@ -141,14 +141,14 @@ AkVCam::MediaStream::MediaStream(MediaSource *mediaSource,
     this->d->m_saturation = this->d->m_ksControls->value("Saturation");
     this->d->m_gamma = this->d->m_ksControls->value("Gamma");
     this->d->m_hue = this->d->m_ksControls->value("Hue");
-    this->d->m_colorenable = this->d->m_ksControls->value("ColorEnable");
+    this->d->m_colorEnable = this->d->m_ksControls->value("ColorEnable");
 
     this->d->m_videoAdjusts.setHue(this->d->m_hue);
     this->d->m_videoAdjusts.setSaturation(this->d->m_saturation);
     this->d->m_videoAdjusts.setLuminance(this->d->m_brightness);
     this->d->m_videoAdjusts.setGamma(this->d->m_gamma);
     this->d->m_videoAdjusts.setContrast(this->d->m_contrast);
-    this->d->m_videoAdjusts.setGrayScaled(!this->d->m_colorenable);
+    this->d->m_videoAdjusts.setGrayScaled(!this->d->m_colorEnable);
 
     this->d->m_ksControls->connectPropertyChanged(this->d,
                                                     &MediaStreamPrivate::propertyChanged);
@@ -598,8 +598,8 @@ void AkVCam::MediaStreamPrivate::propertyChanged(void *userData,
         break;
 
     case KSPROPERTY_VIDEOPROCAMP_COLORENABLE:
-        self->m_colorenable = value;
-        self->m_videoAdjusts.setGrayScaled(!self->m_colorenable);
+        self->m_colorEnable = value;
+        self->m_videoAdjusts.setGrayScaled(!self->m_colorEnable);
 
         break;
 

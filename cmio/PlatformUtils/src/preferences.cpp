@@ -121,6 +121,25 @@ void AkVCam::Preferences::write(const std::string &key, int value)
     CFRelease(cfKey);
 }
 
+void AkVCam::Preferences::write(const std::string &key, int64_t value)
+{
+    AkLogFunction();
+    AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
+    auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
+                                           key.c_str(),
+                                           kCFStringEncodingUTF8);
+    auto cfValue = CFNumberCreate(kCFAllocatorDefault,
+                                  kCFNumberLongLongType,
+                                  &value);
+    CFPreferencesSetValue(cfKey,
+                          CFTypeRef(cfValue),
+                          PREFERENCES_ID,
+                          kCFPreferencesCurrentUser,
+                          kCFPreferencesAnyHost);
+    CFRelease(cfValue);
+    CFRelease(cfKey);
+}
+
 void AkVCam::Preferences::write(const std::string &key, double value)
 {
     AkLogFunction();
@@ -204,6 +223,29 @@ int AkVCam::Preferences::readInt(const std::string &key, int defaultValue)
 
     if (cfValue) {
         CFNumberGetValue(CFNumberRef(cfValue), kCFNumberIntType, &value);
+        CFRelease(cfValue);
+    }
+
+    CFRelease(cfKey);
+
+    return value;
+}
+
+int64_t AkVCam::Preferences::readInt64(const std::string &key,
+                                       int64_t defaultValue)
+{
+    AkLogFunction();
+    auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
+                                           key.c_str(),
+                                           kCFStringEncodingUTF8);
+    auto cfValue = CFPreferencesCopyValue(cfKey,
+                                          PREFERENCES_ID,
+                                          kCFPreferencesCurrentUser,
+                                          kCFPreferencesAnyHost);
+    auto value = defaultValue;
+
+    if (cfValue) {
+        CFNumberGetValue(CFNumberRef(cfValue), kCFNumberLongLongType, &value);
         CFRelease(cfValue);
     }
 
@@ -692,6 +734,36 @@ int AkVCam::Preferences::serviceTimeout()
 bool AkVCam::Preferences::setServiceTimeout(int timeoutSecs)
 {
     write("serviceTimeout", timeoutSecs);
+    sync();
+
+    return true;
+}
+
+AkVCam::DataMode AkVCam::Preferences::dataMode()
+{
+    auto dataMode = readString("dataMode", "mmap");
+
+    return dataMode == "sockets"? DataMode_Sockets: DataMode_SharedMemory;
+}
+
+bool AkVCam::Preferences::setDataMode(DataMode dataMode)
+{
+    write("dataMode", dataMode == DataMode_Sockets? "sockets": "mmap");
+    sync();
+
+    return true;
+}
+
+size_t AkVCam::Preferences::pageSize()
+{
+    static const int64_t defaultPageSize = 4L * 1920L * 1280L;
+
+    return readInt64("pageSize", defaultPageSize);
+}
+
+bool AkVCam::Preferences::setPageSize(size_t pageSize)
+{
+    write("pageSize", static_cast<int64_t>(pageSize));
     sync();
 
     return true;
