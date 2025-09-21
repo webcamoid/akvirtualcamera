@@ -56,7 +56,6 @@ target_include_directories(VirtualCamera_mf
 
 if (WIN32)
     set(EXTRA_LIBS
-        ksguid
         mfplat
         mfuuid
         winmm)

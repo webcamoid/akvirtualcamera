@@ -21,10 +21,10 @@
 #define CONTROLS_H
 
 #include <windows.h>
+#include <initguid.h>
 #include <ks.h>
 #include <ksmedia.h>
 #include <strmif.h>
-#include <initguid.h>
 
 #include "PlatformUtils/src/cunknown.h"
 #include "VCamUtils/src/utils.h"

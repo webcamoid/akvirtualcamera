@@ -30,6 +30,33 @@
 #include "sharedmemory.h"
 #include "logger.h"
 
+#ifdef __APPLE__
+int sem_timedwait(sem_t *sem, const timespec *timeout)
+{
+    while (true) {
+        if (sem_trywait(sem) == 0)
+            return 0;
+
+        if (errno != EAGAIN && errno != EBUSY)
+            return -1;
+
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+
+        if (now.tv_sec > timeout->tv_sec
+            || (now.tv_sec == timeout->tv_sec
+                && now.tv_nsec >= timeout->tv_nsec)) {
+            errno = ETIMEDOUT;
+
+            return -1;
+        }
+
+        // Sleep a little so as not to occupy 100% of the CPU
+        usleep(1000); // 1ms
+    }
+}
+#endif
+
 namespace AkVCam
 {
     class SharedMemoryPrivate

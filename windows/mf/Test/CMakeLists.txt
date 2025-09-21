@@ -46,7 +46,6 @@ add_definitions(-DNOMINMAX)
 
 if (WIN32)
     set(EXTRA_LIBS
-        ksguid
         mfplat
         mfreadwrite
         mfuuid

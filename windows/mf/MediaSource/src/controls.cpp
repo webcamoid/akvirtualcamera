@@ -25,6 +25,8 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
+DEFINE_GUID(IID_VIDEOPROCAMP, 0xc6e13360, 0x30ac, 0x11d0, 0xa1, 0x8c, 0x00, 0xa0,0xc9, 0x11, 0x89, 0x56);
+
 namespace AkVCam
 {
     class ControlsPrivate
@@ -186,7 +188,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
 
     *bytesReturned = 0;
 
-    if (!IsEqualGUID(property->Set, PROPSETID_VIDCAP_VIDEOPROCAMP)) {
+    if (!IsEqualGUID(property->Set, IID_VIDEOPROCAMP)) {
         AkLogWarning() << "Unsupported property set";
 
         return STATUS_NOT_IMPLEMENTED;
@@ -215,7 +217,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
         description->DescriptionSize = sizeof(KSPROPERTY_DESCRIPTION)
                                      + sizeof(KSPROPERTY_MEMBERSHEADER)
                                      + sizeof(KSPROPERTY_STEPPING_LONG);
-        description->PropTypeSet.Set = PROPSETID_VIDCAP_VIDEOPROCAMP;
+        description->PropTypeSet.Set = IID_VIDEOPROCAMP;
         description->PropTypeSet.Id = property->Id;
         description->PropTypeSet.Flags = 0;
         description->MembersListCount = 1;
