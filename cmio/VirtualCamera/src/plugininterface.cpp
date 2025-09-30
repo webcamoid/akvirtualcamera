@@ -41,7 +41,6 @@ namespace AkVCam
             ULONG m_reserved;
             IpcBridgePtr m_ipcBridge;
 
-            void updateDevices();
             static HRESULT QueryInterface(void *self,
                                           REFIID uuid,
                                           LPVOID *interface);
@@ -325,22 +324,8 @@ void AkVCam::PluginInterface::controlsChanged(void *userData,
     auto self = reinterpret_cast<PluginInterface *>(userData);
 
     for (auto device: self->m_devices)
-        if (device->deviceId() == deviceId) {
-            if (controls.count("hflip"))
-                device->setHorizontalMirror(controls.at("hflip"));
-
-            if (controls.count("vflip"))
-                device->setVerticalMirror(controls.at("vflip"));
-
-            if (controls.count("scaling"))
-                device->setScaling(Scaling(controls.at("scaling")));
-
-            if (controls.count("aspect_ratio"))
-                device->setAspectRatio(AspectRatio(controls.at("aspect_ratio")));
-
-            if (controls.count("swap_rgb"))
-                device->setSwapRgb(controls.at("swap_rgb"));
-        }
+        if (device->deviceId() == deviceId)
+            device->setControls(controls);
 }
 
 bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
@@ -356,12 +341,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
     device->setDeviceId(deviceId);
     this->m_devices.push_back(device);
 
-    auto cameraIndex = Preferences::cameraFromId(deviceId);
-    auto hflip = Preferences::cameraControlValue(cameraIndex, "hflip");
-    auto vflip = Preferences::cameraControlValue(cameraIndex, "vflip");
-    auto scaling = Preferences::cameraControlValue(cameraIndex, "scaling");
-    auto aspectRatio = Preferences::cameraControlValue(cameraIndex, "aspect_ratio");
-    auto swapRgb = Preferences::cameraControlValue(cameraIndex, "swap_rgb");
+    device->setDirectMode(Preferences::cameraDirectMode(deviceId));
 
     // Define device properties.
     device->properties().setProperty(kCMIOObjectPropertyName,
@@ -421,12 +401,6 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
         goto createDevice_failed;
     }
 
-    device->setHorizontalMirror(hflip);
-    device->setVerticalMirror(vflip);
-    device->setScaling(Scaling(scaling));
-    device->setAspectRatio(AspectRatio(aspectRatio));
-    device->setSwapRgb(swapRgb);
-
     return true;
 
 createDevice_failed:
@@ -454,23 +428,6 @@ void AkVCam::PluginInterface::destroyDevice(const std::string &deviceId)
 
             break;
         }
-    }
-}
-
-void AkVCam::PluginInterfacePrivate::updateDevices()
-{
-    for (auto &device: this->self->m_devices) {
-        auto cameraIndex = Preferences::cameraFromId(device->deviceId());
-        auto hflip = Preferences::cameraControlValue(cameraIndex, "hflip");
-        auto vflip = Preferences::cameraControlValue(cameraIndex, "vflip");
-        auto scaling = Preferences::cameraControlValue(cameraIndex, "scaling");
-        auto aspectRatio = Preferences::cameraControlValue(cameraIndex, "aspect_ratio");
-        auto swapRgb = Preferences::cameraControlValue(cameraIndex, "swap_rgb");
-        device->setHorizontalMirror(hflip);
-        device->setVerticalMirror(vflip);
-        device->setScaling(Scaling(scaling));
-        device->setAspectRatio(AspectRatio(aspectRatio));
-        device->setSwapRgb(swapRgb);
     }
 }
 

@@ -200,40 +200,26 @@ void AkVCam::Device::frameReady(const AkVCam::VideoFrame &frame, bool isActive)
         stream.second->frameReady(frame, isActive);
 }
 
+bool AkVCam::Device::directMode() const
+{
+    return this->m_directMode;
+}
+
+void AkVCam::Device::setDirectMode(bool directMode)
+{
+    this->m_directMode = directMode;
+}
+
 void AkVCam::Device::setPicture(const std::string &picture)
 {
     for (auto &stream: this->m_streams)
         stream.second->setPicture(picture);
 }
 
-void AkVCam::Device::setHorizontalMirror(bool horizontalMirror)
+void AkVCam::Device::setControls(const std::map<std::string, int> &controls)
 {
     for (auto &stream: this->m_streams)
-        stream.second->setHorizontalMirror(horizontalMirror);
-}
-
-void AkVCam::Device::setVerticalMirror(bool verticalMirror)
-{
-    for (auto &stream: this->m_streams)
-        stream.second->setVerticalMirror(verticalMirror);
-}
-
-void AkVCam::Device::setScaling(Scaling scaling)
-{
-    for (auto &stream: this->m_streams)
-        stream.second->setScaling(scaling);
-}
-
-void AkVCam::Device::setAspectRatio(AspectRatio aspectRatio)
-{
-    for (auto &stream: this->m_streams)
-        stream.second->setAspectRatio(aspectRatio);
-}
-
-void AkVCam::Device::setSwapRgb(bool swap)
-{
-    for (auto &stream: this->m_streams)
-        stream.second->setSwapRgb(swap);
+        stream.second->setControls(controls);
 }
 
 OSStatus AkVCam::Device::suspend()

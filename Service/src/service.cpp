@@ -56,6 +56,7 @@ namespace AkVCam
         Peer broadcaster;
         std::vector<Peer> listeners;
         VideoFrame frame;
+        bool frameReady {false};
     };
 
     typedef std::map<std::string, BroadcastSlot> Broadcasts;
@@ -240,6 +241,7 @@ bool AkVCam::ServicePrivate::broadcast(uint64_t clientId,
         && slot.broadcaster.clientId == clientId) {
         AkLogDebug() << "Save frame" << std::endl;
         slot.frame = msgBroadcast.frame();
+        slot.frameReady = true;
         status = MsgStatus(0, inMessage.queryId());
         this->m_frameAvailable.notify_all();
     }
@@ -268,7 +270,7 @@ bool AkVCam::ServicePrivate::listen(uint64_t clientId,
     auto &slot = this->m_broadcasts[msgListen.device()];
     slot.listeners.push_back({clientId, msgListen.pid()});
 
-    if (!slot.frame)
+    if (!slot.frameReady)
         this->m_frameAvailable.wait_for(this->m_peerMutex,
                                         std::chrono::seconds(1));
 
@@ -276,7 +278,7 @@ bool AkVCam::ServicePrivate::listen(uint64_t clientId,
                                slot.frame,
                                slot.broadcaster.pid != 0,
                                inMessage.queryId()).toMessage();
-    slot.frame = {};
+    slot.frameReady = false;
     ok = true;
     this->m_peerMutex.unlock();
 

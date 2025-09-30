@@ -65,6 +65,7 @@ namespace AkVCam
             bool m_horizontalMirror {false};
             bool m_verticalMirror {false};
             bool m_swapRgb {false};
+            bool m_frameReady {false};
 
             explicit StreamPrivate(Stream *self);
             bool startTimer();
@@ -174,6 +175,20 @@ AkVCam::Device *AkVCam::Stream::device() const
 void AkVCam::Stream::setDevice(Device *device)
 {
     this->d->m_device = device;
+
+    auto cameraIndex = Preferences::cameraFromId(device->deviceId());
+
+    auto horizontalMirror = Preferences::cameraControlValue(cameraIndex, "hflip") > 0;
+    auto verticalMirror = Preferences::cameraControlValue(cameraIndex, "vflip") > 0;
+    auto scaling = VideoConverter::ScalingMode(Preferences::cameraControlValue(cameraIndex, "scaling"));
+    auto aspectRatio = VideoConverter::AspectRatioMode(Preferences::cameraControlValue(cameraIndex, "aspect_ratio"));
+    auto swapRgb = Preferences::cameraControlValue(cameraIndex, "swap_rgb") > 0;
+
+    this->d->m_videoAdjusts.setHorizontalMirror(horizontalMirror);
+    this->d->m_videoAdjusts.setVerticalMirror(verticalMirror);
+    this->d->m_videoAdjusts.setSwapRGB(swapRgb);
+    this->d->m_videoConverter.setAspectRatioMode(VideoConverter::AspectRatioMode(aspectRatio));
+    this->d->m_videoConverter.setScalingMode(VideoConverter::ScalingMode(scaling));
 }
 
 void AkVCam::Stream::setPicture(const std::string &picture)
@@ -183,6 +198,29 @@ void AkVCam::Stream::setPicture(const std::string &picture)
 
     this->d->m_testFrame = loadPicture(picture);
     this->d->m_mutex.unlock();
+}
+
+void AkVCam::Stream::setControls(const std::map<std::string, int> &controls)
+{
+    AkLogFunction();
+
+    if (this->d->m_device->directMode())
+        return;
+
+    for (auto &control: controls) {
+        AkLogDebug() << control.first << ": " << control.second << std::endl;
+
+        if (control.first == "hflip")
+            this->d->m_videoAdjusts.setHorizontalMirror(control.second > 0);
+        else if (control.first == "vflip")
+            this->d->m_videoAdjusts.setVerticalMirror(control.second > 0);
+        else if (control.first == "swap_rgb")
+            this->d->m_videoAdjusts.setSwapRGB(control.second > 0);
+        else if (control.first == "aspect_ratio")
+            this->d->m_videoConverter.setAspectRatioMode(VideoConverter::AspectRatioMode(control.second));
+        else if (control.first == "scaling")
+            this->d->m_videoConverter.setScalingMode(VideoConverter::ScalingMode(control.second));
+    }
 }
 
 void AkVCam::Stream::setBridge(IpcBridgePtr bridge)
@@ -272,6 +310,8 @@ bool AkVCam::Stream::start()
     this->d->m_sequence = 0;
     memset(&this->d->m_pts, 0, sizeof(CMTime));
     this->d->m_running = this->d->startTimer();
+    this->d->m_frameReady = false;
+    this->d->m_currentFrame = {this->d->m_format};
     AkLogInfo() << "Running: " << this->d->m_running << std::endl;
     this->d->m_videoConverter.setOutputFormat(this->d->m_format);
 
@@ -302,7 +342,7 @@ bool AkVCam::Stream::running()
     return this->d->m_running;
 }
 
-void AkVCam::Stream::frameReady(const AkVCam::VideoFrame &frame, bool isActive)
+void AkVCam::Stream::frameReady(const VideoFrame &frame, bool isActive)
 {
     AkLogFunction();
     AkLogInfo() << "Running: " << this->d->m_running << std::endl;
@@ -314,75 +354,32 @@ void AkVCam::Stream::frameReady(const AkVCam::VideoFrame &frame, bool isActive)
 
     this->d->m_mutex.lock();
 
-    auto frameAdjusted =
-            this->d->applyAdjusts(isActive? frame: this->d->m_testFrame);
+    if (this->d->m_device->directMode()) {
+        if (isActive && frame & this->d->m_format.isSameFormat(frame.format())) {
+            memcpy(this->d->m_currentFrame.data(),
+                   frame.constData(),
+                   frame.size());
+            this->d->m_frameReady = true;
+        } else if (!isActive && this->d->m_testFrame) {
+            this->d->m_currentFrame =
+                    this->d->applyAdjusts(this->d->m_testFrame);
+            this->d->m_frameReady = true;
+        } else {
+            this->d->m_frameReady = false;
+        }
+    } else {
+        auto frameAdjusted =
+                this->d->applyAdjusts(isActive? frame: this->d->m_testFrame);
 
-    if (frameAdjusted.size() > 0)
-        this->d->m_currentFrame = frameAdjusted;
-    else
-        this->d->m_currentFrame = {};
+        if (frameAdjusted) {
+            this->d->m_currentFrame = frameAdjusted;
+            this->d->m_frameReady = true;
+        } else {
+            this->d->m_frameReady = false;
+        }
+    }
 
     this->d->m_mutex.unlock();
-}
-
-void AkVCam::Stream::setHorizontalMirror(bool horizontalMirror)
-{
-    AkLogFunction();
-    AkLogDebug() << "Mirror: " << horizontalMirror << std::endl;
-
-    if (this->d->m_horizontalMirror == horizontalMirror)
-        return;
-
-    this->d->m_horizontalMirror = horizontalMirror;
-    this->d->m_videoAdjusts.setHorizontalMirror(horizontalMirror);
-}
-
-void AkVCam::Stream::setVerticalMirror(bool verticalMirror)
-{
-    AkLogFunction();
-    AkLogDebug() << "Mirror: " << verticalMirror << std::endl;
-
-    if (this->d->m_verticalMirror == verticalMirror)
-        return;
-
-    this->d->m_verticalMirror = verticalMirror;
-    this->d->m_videoAdjusts.setVerticalMirror(verticalMirror);
-}
-
-void AkVCam::Stream::setScaling(Scaling scaling)
-{
-    AkLogFunction();
-    AkLogDebug() << "Scaling: " << scaling << std::endl;
-
-    if (this->d->m_scaling == scaling)
-        return;
-
-    this->d->m_scaling = scaling;
-    this->d->m_videoConverter.setScalingMode(VideoConverter::ScalingMode(scaling));
-}
-
-void AkVCam::Stream::setAspectRatio(AspectRatio aspectRatio)
-{
-    AkLogFunction();
-    AkLogDebug() << "Aspect ratio: " << aspectRatio << std::endl;
-
-    if (this->d->m_aspectRatio == aspectRatio)
-        return;
-
-    this->d->m_aspectRatio = aspectRatio;
-    this->d->m_videoConverter.setAspectRatioMode(VideoConverter::AspectRatioMode(aspectRatio));
-}
-
-void AkVCam::Stream::setSwapRgb(bool swap)
-{
-    AkLogFunction();
-    AkLogDebug() << "Swap: " << swap << std::endl;
-
-    if (this->d->m_swapRgb == swap)
-        return;
-
-    this->d->m_swapRgb = swap;
-    this->d->m_videoAdjusts.setSwapRGB(swap);
 }
 
 OSStatus AkVCam::Stream::copyBufferQueue(CMIODeviceStreamQueueAlteredProc queueAlteredProc,
@@ -577,24 +574,26 @@ AkVCam::VideoFrame AkVCam::StreamPrivate::applyAdjusts(const VideoFrame &frame)
 {
     AkLogFunction();
 
-    VideoFormat format;
-    this->self->m_properties.getProperty(kCMIOStreamPropertyFormatDescription,
-                                         &format);
-
-    int width = format.width();
-    int height = format.height();
-
     VideoFrame newFrame;
 
     this->m_videoConverter.begin();
 
-    if (width * height > frame.format().width() * frame.format().height()) {
-        newFrame = this->m_videoAdjusts.adjust(frame);
-        newFrame = this->m_videoConverter.convert(newFrame);
-    } else {
+    if (this->m_device->directMode()) {
         newFrame = this->m_videoConverter.convert(frame);
-        newFrame = this->m_videoAdjusts.adjust(newFrame);
+    } else {
+        VideoFormat format;
+        this->self->m_properties.getProperty(kCMIOStreamPropertyFormatDescription,
+                                             &format);
+        int width = format.width();
+        int height = format.height();
 
+        if (width * height > frame.format().width() * frame.format().height()) {
+            newFrame = this->m_videoAdjusts.adjust(frame);
+            newFrame = this->m_videoConverter.convert(newFrame);
+        } else {
+            newFrame = this->m_videoConverter.convert(frame);
+            newFrame = this->m_videoAdjusts.adjust(newFrame);
+        }
     }
 
     this->m_videoConverter.end();

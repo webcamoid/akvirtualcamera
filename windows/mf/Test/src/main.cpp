@@ -150,7 +150,6 @@ int WINAPI WinMain(HINSTANCE hInstance,
                        TEXT("It was not possible to set RGB32 format."),
                        TEXT("Error"),
                        MB_OK | MB_ICONERROR);
-
             pReader->Release();
             pMediaSource->Release();
             MFShutdown();
@@ -228,6 +227,9 @@ HRESULT renderFrame(HWND hwnd, IMFSourceReader *pReader)
 
         return hr;
     }
+
+    if (!pSample)
+        return hr;
 
     // Get the frame buffer
     IMFMediaBuffer *pBuffer = nullptr;
@@ -308,6 +310,7 @@ HRESULT renderFrame(HWND hwnd, IMFSourceReader *pReader)
             ReleaseDC(hwnd, hdc);
 
             pBuffer->Unlock();
+            pType->Release();
         }
 
         pBuffer->Release();

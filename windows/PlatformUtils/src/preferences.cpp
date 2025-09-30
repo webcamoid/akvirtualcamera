@@ -590,6 +590,37 @@ bool AkVCam::Preferences::cameraSetControlValue(size_t cameraIndex,
                  value);
 }
 
+bool AkVCam::Preferences::cameraDirectMode(const std::string &deviceId)
+{
+    int cameraIndex = cameraFromId(deviceId);
+
+    if (cameraIndex < 0)
+        return false;
+
+    return cameraDirectMode(cameraIndex);
+}
+
+bool AkVCam::Preferences::cameraDirectMode(size_t cameraIndex)
+{
+    return readInt("Cameras\\"
+                   + std::to_string(cameraIndex + 1)
+                   + "\\directMode") > 0;
+}
+
+bool AkVCam::Preferences::setCameraDirectMode(const std::string &deviceId,
+                                              bool directMode)
+{
+    int cameraIndex = cameraFromId(deviceId);
+
+    if (cameraIndex < 0)
+        return false;
+
+    return write("Cameras\\"
+                 + std::to_string(cameraIndex + 1)
+                 + "\\directMode",
+                 directMode? 1: 0);
+}
+
 std::string AkVCam::Preferences::picture()
 {
     return readString("picture");

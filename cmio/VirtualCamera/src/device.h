@@ -51,12 +51,10 @@ namespace AkVCam
             void stopStreams();
 
             void frameReady(const VideoFrame &frame, bool isActive);
+            bool directMode() const;
+            void setDirectMode(bool directMode);
             void setPicture(const std::string &picture);
-            void setHorizontalMirror(bool horizontalMirror);
-            void setVerticalMirror(bool verticalMirror);
-            void setScaling(Scaling scaling);
-            void setAspectRatio(AspectRatio aspectRatio);
-            void setSwapRgb(bool swap);
+            void setControls(const std::map<std::string, int> &controls);
 
             // Device Interface
             OSStatus suspend();
@@ -69,6 +67,7 @@ namespace AkVCam
         private:
             std::string m_deviceId;
             std::map<CMIOObjectID, StreamPtr> m_streams;
+            bool m_directMode {false};
 
             void updateStreamsProperty();
     };

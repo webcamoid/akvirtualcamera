@@ -24,9 +24,11 @@
 #include "utils.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
+#include "VCamUtils/src/algorithm.h"
 #include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/logger.h"
 #include "VCamUtils/src/videoformat.h"
+#include "VCamUtils/src/videoformatspec.h"
 
 #define ROOT_HKEY HKEY_LOCAL_MACHINE
 #define SUBKEY_PREFIX "Software\\Classes\\CLSID"
@@ -345,6 +347,61 @@ IMFMediaType *AkVCam::mfMediaTypeFromFormat(const VideoFormat &videoFormat)
 
         return nullptr;
     }
+
+    // Calculate stride and sample size
+
+    DWORD width  = videoFormat.width();
+    DWORD height = videoFormat.height();
+    DWORD stride = 0;
+    DWORD sampleSize = 0;
+
+    if (IsEqualGUID(formatGUID, MFVideoFormat_RGB32)) {
+        stride = width * 4;
+        sampleSize = stride * height;
+    } else if (IsEqualGUID(formatGUID, MFVideoFormat_RGB24)) {
+        stride = (3 * width + 3) & ~3;
+        sampleSize = stride * height;
+    } else if (IsEqualGUID(formatGUID, MFVideoFormat_RGB565)
+               || IsEqualGUID(formatGUID, MFVideoFormat_RGB555)
+               || IsEqualGUID(formatGUID, MFVideoFormat_UYVY)
+               || IsEqualGUID(formatGUID, MFVideoFormat_YUY2)) {
+        stride = (2 * width + 3) & ~3;
+        sampleSize = stride * height;
+    } else if (IsEqualGUID(formatGUID, MFVideoFormat_NV12)) {
+        stride = width;
+        sampleSize = 3 * width * height / 2;
+    }
+
+    if (stride < 0 || sampleSize < 0) {
+        mediaType->Release();
+
+        return nullptr;
+    }
+
+    mediaType->SetUINT32(MF_MT_DEFAULT_STRIDE, stride);
+
+    if (FAILED(hr)) {
+        mediaType->Release();
+
+        return nullptr;
+    }
+
+    mediaType->SetUINT32(MF_MT_SAMPLE_SIZE, sampleSize);
+
+    if (FAILED(hr)) {
+        mediaType->Release();
+
+        return nullptr;
+    }
+
+    mediaType->SetUINT32(MF_MT_FIXED_SIZE_SAMPLES, 1);
+
+    if (FAILED(hr)) {
+        mediaType->Release();
+
+        return nullptr;
+    }
+
 
     return mediaType;
 }

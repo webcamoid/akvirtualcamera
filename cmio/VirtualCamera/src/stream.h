@@ -56,11 +56,7 @@ namespace AkVCam
 
             void frameReady(const VideoFrame &frame, bool isActive);
             void setPicture(const std::string &picture);
-            void setHorizontalMirror(bool horizontalMirror);
-            void setVerticalMirror(bool verticalMirror);
-            void setScaling(Scaling scaling);
-            void setAspectRatio(AspectRatio aspectRatio);
-            void setSwapRgb(bool swap);
+            void setControls(const std::map<std::string, int> &controls);
 
             // Stream Interface
             OSStatus copyBufferQueue(CMIODeviceStreamQueueAlteredProc queueAlteredProc,

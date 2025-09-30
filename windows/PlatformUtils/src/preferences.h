@@ -88,6 +88,9 @@ namespace AkVCam
         bool cameraSetControlValue(size_t cameraIndex,
                                    const std::string &key,
                                    int value);
+        bool cameraDirectMode(const std::string &deviceId);
+        bool cameraDirectMode(size_t cameraIndex);
+        bool setCameraDirectMode(const std::string &deviceId, bool directMode);
         std::string picture();
         bool setPicture(const std::string &picture);
         int logLevel();

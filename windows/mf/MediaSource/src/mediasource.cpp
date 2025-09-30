@@ -56,6 +56,7 @@ namespace AkVCam
             std::string m_deviceId;
             CLSID m_clsid;
             std::mutex m_mutex;
+            bool m_directMode {false};
 
             MediaSourcePrivate(MediaSource *self);
             ~MediaSourcePrivate();
@@ -88,9 +89,21 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
     std::vector<IMFMediaType *> mediaTypes;
 
     if (cameraIndex >= 0) {
-        AkLogDebug() << "Virtual camera formats:";
+        this->d->m_directMode = Preferences::cameraDirectMode(cameraIndex);
 
-        for (auto &format: Preferences::cameraFormats(size_t(cameraIndex))) {
+        AkLogDebug() << "Virtual camera formats:";
+        std::vector<AkVCam::VideoFormat> formats;
+
+        if (this->d->m_directMode) {
+            auto fmts = Preferences::cameraFormats(size_t(cameraIndex));
+
+            if (!fmts.empty())
+                formats.push_back(fmts.front());
+        } else {
+            formats = Preferences::cameraFormats(size_t(cameraIndex));
+        }
+
+        for (auto &format: formats) {
             auto mediaType = mfMediaTypeFromFormat(format);
 
             if (mediaType) {
@@ -103,16 +116,24 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
                                  mediaTypes.size(),
                                  mediaTypes.data(),
                                  &this->d->m_pStreamDesc);
+
+        if (!mediaTypes.empty()) {
+            IMFMediaTypeHandler *mediaTypeHandler = nullptr;
+
+            if (SUCCEEDED(this->d->m_pStreamDesc->GetMediaTypeHandler(&mediaTypeHandler))) {
+                mediaTypeHandler->SetCurrentMediaType(mediaTypes.front());
+                mediaTypeHandler->Release();
+            }
+        }
     }
 
     this->d->m_pStream = new MediaStream(this, this->d->m_pStreamDesc);
     this->d->m_pStream->setBridge(this->d->m_ipcBridge);
 
-    if (cameraIndex >= 0)
+    if (cameraIndex >= 0) {
         for (auto mediaType: mediaTypes)
             mediaType->Release();
 
-    if (cameraIndex >= 0) {
         auto deviceId = Preferences::cameraId(size_t(cameraIndex));
 
         if (!deviceId.empty()) {
@@ -139,9 +160,14 @@ AkVCam::MediaSource::~MediaSource()
     delete this->d;
 }
 
-std::string AkVCam::MediaSource::deviceId()
+std::string AkVCam::MediaSource::deviceId() const
 {
     return this->d->m_deviceId;
+}
+
+bool AkVCam::MediaSource::directMode() const
+{
+    return this->d->m_directMode;
 }
 
 HRESULT AkVCam::MediaSource::QueryInterface(REFIID riid, void **ppvObject)
@@ -162,8 +188,9 @@ HRESULT AkVCam::MediaSource::QueryInterface(REFIID riid, void **ppvObject)
         *ppvObject = this;
 
         return S_OK;
-    } else if (IsEqualIID(riid, IID_VCamControl)
-               || IsEqualIID(riid, IID_IAMVideoProcAmp)) {
+    } else if (!this->d->m_directMode
+               && (IsEqualIID(riid, IID_VCamControl)
+                   || IsEqualIID(riid, IID_IAMVideoProcAmp))) {
         auto controls = this->d->m_controls;
         AkLogInterface(IAMVideoProcAmp, controls);
         controls->AddRef();
@@ -266,6 +293,13 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
         return hr;
     }
 
+    if (!selected) {
+        AkLogError() << "Stream not selected" << std::endl;
+        pStreamDesc->Release();
+
+        return MF_E_INVALIDREQUEST;
+    }
+
     IMFMediaTypeHandler *mediaTypeHandler = nullptr;
     hr = pStreamDesc->GetMediaTypeHandler(&mediaTypeHandler);
     pStreamDesc->Release();
@@ -286,19 +320,12 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
         return hr;
     }
 
-    if (!selected) {
-        AkLogError() << "Stream not selected" << std::endl;
-        mediaType->Release();
-
-        return MF_E_INVALIDREQUEST;
-    }
-
     // Change the state and start the stream
     this->d->m_state = MediaSourceState_Started;
     this->eventQueue()->QueueEventParamUnk(MENewStream,
-                                              GUID_NULL,
-                                              S_OK,
-                                              reinterpret_cast<IUnknown *>(this->d->m_pStream));
+                                           GUID_NULL,
+                                           S_OK,
+                                           reinterpret_cast<IUnknown *>(this->d->m_pStream));
 
     hr = this->d->m_pStream->start(mediaType);
     mediaType->Release();
@@ -453,9 +480,12 @@ void AkVCam::MediaSourcePrivate::setControls(void *userData,
                                              const std::string &deviceId,
                                              const std::map<std::string, int> &controls)
 {
+    UNUSED(deviceId);
     AkLogFunction();
     auto self = reinterpret_cast<MediaSourcePrivate *>(userData);
-    self->m_pStream->setControls(controls);
+
+    if (!self->m_directMode)
+        self->m_pStream->setControls(controls);
 }
 
 BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData)

@@ -21,6 +21,7 @@
 #include <cstring>
 
 #include "capi.h"
+#include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/ipcbridge.h"
@@ -394,6 +395,75 @@ CAPI_EXPORT int vcam_set_description(void *vcam,
         return -ENODEV;
 
     vcamApi->m_bridge.setDescription(device_id, description);
+
+    return 0;
+}
+
+CAPI_EXPORT int vcam_direct_mode(void *vcam,
+                                 const char *device_id,
+                                 bool *direct_mode)
+{
+    // Cast vcam to VCamAPI
+    auto vcamApi = reinterpret_cast<VCamAPI *>(vcam);
+
+    if (!vcamApi)
+        return -EINVAL;
+
+    // Validate device_id
+    if (!device_id)
+        return -EINVAL;
+
+    if (!direct_mode)
+        return -EINVAL;
+
+    // Get devices and check if device_id exists
+    auto deviceList = vcamApi->m_bridge.devices();
+    std::string deviceIdStr(device_id);
+    auto it = std::find(deviceList.begin(), deviceList.end(), deviceIdStr);
+
+    if (it == deviceList.end())
+        return -EINVAL;
+
+    *direct_mode = AkVCam::Preferences::cameraDirectMode(device_id);
+
+    return 0;
+}
+
+CAPI_EXPORT int vcam_set_direct_mode(void *vcam,
+                                     const char *device_id,
+                                     bool direct_mode)
+{
+    // Validate device_id
+    if (!device_id)
+        return -EINVAL;
+
+    if (AkVCam::needsRoot("set-direct-mode")) {
+        auto manager = AkVCam::locateManagerPath();
+
+        if (manager.empty())
+            return -ENOENT;
+
+        return AkVCam::sudo({manager,
+                             "set-direct-mode",
+                             device_id,
+                             std::to_string(direct_mode)});
+    }
+
+    // Cast vcam to VCamAPI
+    auto vcamApi = reinterpret_cast<VCamAPI *>(vcam);
+
+    if (!vcamApi)
+        return -EINVAL;
+
+    // Get devices and check if device_id exists
+    auto deviceList = vcamApi->m_bridge.devices();
+    std::string deviceIdStr(device_id);
+    auto it = std::find(deviceList.begin(), deviceList.end(), deviceIdStr);
+
+    if (it == deviceList.end())
+        return -EINVAL;
+
+    AkVCam::Preferences::setCameraDirectMode(device_id, direct_mode);
 
     return 0;
 }
@@ -1203,6 +1273,124 @@ CAPI_EXPORT int vcam_set_picture(void *vcam, const char *file_path)
     return 0;
 }
 
+CAPI_EXPORT int vcam_data_modes(void *vcam,
+                                size_t index,
+                                char *mode,
+                                size_t buffer_size)
+{
+    // Validate buffer_size
+    if (!mode || buffer_size < 1)
+        return -EINVAL;
+
+    // Cast vcam to VCamAPI
+    auto vcamApi = reinterpret_cast<VCamAPI *>(vcam);
+
+    if (!vcamApi)
+        return -EINVAL;
+
+    switch (index) {
+    case 0:
+        if (buffer_size < strlen("mmap") + 1)
+            return -ENOMEM;
+
+        snprintf(mode, buffer_size, "mmap");
+
+        break;
+
+    case 1:
+        if (buffer_size < strlen("sockets") + 1)
+            return -ENOMEM;
+
+        snprintf(mode, buffer_size, "sockets");
+
+        break;
+
+    default:
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+CAPI_EXPORT int vcam_default_data_mode(void *vcam,
+                                       char *mode,
+                                       size_t buffer_size)
+{
+    auto vcamApi = reinterpret_cast<VCamAPI *>(vcam);
+
+    if (!vcamApi || !mode || buffer_size < 1)
+        return -EINVAL;
+
+    if (buffer_size < strlen("mmap") + 1)
+        return -ENOMEM;
+
+    snprintf(mode, buffer_size, "mmap");
+
+    return 0;
+}
+
+CAPI_EXPORT int vcam_data_mode(void *vcam, char *mode, size_t buffer_size)
+{
+    auto vcamApi = reinterpret_cast<VCamAPI *>(vcam);
+
+    if (!vcamApi || !mode || buffer_size < 1)
+        return -EINVAL;
+
+    switch (vcamApi->m_bridge.dataMode()) {
+    case AkVCam::DataMode_SharedMemory:
+        if (buffer_size < strlen("mmap") + 1)
+            return -ENOMEM;
+
+        snprintf(mode, buffer_size, "mmap");
+
+        break;
+
+    case AkVCam::DataMode_Sockets:
+        if (buffer_size < strlen("sockets") + 1)
+            return -ENOMEM;
+
+        snprintf(mode, buffer_size, "sockets");
+
+        break;
+
+    default:
+        memset(mode, 0, buffer_size);
+
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+CAPI_EXPORT int vcam_set_data_mode(void *vcam, const char *mode)
+{
+    if (!mode)
+        return -EINVAL;
+
+    if (AkVCam::needsRoot("set-data-mode")) {
+        auto manager = AkVCam::locateManagerPath();
+
+        if (manager.empty())
+            return -ENOENT;
+
+        return AkVCam::sudo({manager, "set-data-mode", mode});
+    }
+
+    auto vcamApi = reinterpret_cast<VCamAPI *>(vcam);
+
+    if (!vcamApi)
+        return -EINVAL;
+
+    if (strncmp(mode, "mmap", 1024) == 0)
+        vcamApi->m_bridge.setDataMode(AkVCam::DataMode_SharedMemory);
+    else if (strncmp(mode, "sockets", 1024) == 0)
+        vcamApi->m_bridge.setDataMode(AkVCam::DataMode_Sockets);
+    else
+        return -EINVAL;
+
+    return 0;
+}
+
 CAPI_EXPORT int vcam_loglevel(void *vcam, int *level)
 {
     auto vcamApi = reinterpret_cast<VCamAPI *>(vcam);
@@ -1332,6 +1520,15 @@ void VCamAPI::loadGenerals(AkVCam::Settings &settings)
             level = AkVCam::Logger::levelFromString(logLevel);
 
         this->m_bridge.setLogLevel(level);
+    }
+
+    if (settings.contains("data_mode")) {
+        auto dataMode = settings.value("data_mode");
+
+        if (dataMode == "mmap")
+            this->m_bridge.setDataMode(AkVCam::DataMode_SharedMemory);
+        else if (dataMode == "sockets")
+            this->m_bridge.setDataMode(AkVCam::DataMode_Sockets);
     }
 
     settings.endGroup();
@@ -1475,6 +1672,11 @@ void VCamAPI::createDevice(AkVCam::Settings &settings, const VideoFormatMatrix &
 
         if (it != supportedFormats.end())
             this->m_bridge.addFormat(deviceId, format, -1);
+    }
+
+    if (settings.contains("direct_mode")) {
+        auto directMode = settings.valueBool("direct_mode");
+        AkVCam::Preferences::setCameraDirectMode(deviceId, directMode);
     }
 }
 

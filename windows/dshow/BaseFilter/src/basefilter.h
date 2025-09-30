@@ -46,6 +46,7 @@ namespace AkVCam
             IFilterGraph *filterGraph() const;
             IReferenceClock *referenceClock() const;
             std::string deviceId();
+            bool directMode() const;
 
             DECLARE_IMEDIAFILTER_NQ
 

@@ -107,6 +107,49 @@ namespace AkVCam
         uint8_t data[1];
     };
 
+    struct DirectModeStatus
+    {
+        bool directMode {false};
+        VideoFormat format;
+
+        DirectModeStatus()
+        {
+        }
+
+        DirectModeStatus(const std::string &deviceId)
+        {
+            auto cameraId = Preferences::cameraFromId(deviceId);
+
+            if (cameraId >= 0
+                && Preferences::cameraDirectMode(size_t(cameraId))) {
+                this->directMode = true;
+                this->format = Preferences::cameraFormat(size_t(cameraId), 0);
+            }
+        }
+
+        DirectModeStatus(const DirectModeStatus &other):
+            directMode(other.directMode),
+            format(other.format)
+        {
+
+        }
+
+        DirectModeStatus &operator =(const DirectModeStatus &other)
+        {
+            if (this != &other) {
+                this->directMode = other.directMode;
+                this->format = other.format;
+            }
+
+            return *this;
+        }
+
+        inline bool isValid(const VideoFormat &format) const
+        {
+            return !this->directMode || format.isSameFormat(this->format);
+        }
+    };
+
     class IpcBridgePrivate
     {
         public:
@@ -114,6 +157,7 @@ namespace AkVCam
             MessageClient m_messageClient;
             std::map<std::string, BroadcastSlot> m_broadcasts;
             std::map<std::string, std::map<std::string, int>> m_controlValues;
+            std::map<std::string, DirectModeStatus> m_directModeStatus;
             std::vector<std::string> m_devices;
             std::string m_picture;
             std::mutex m_broadcastsMutex;
@@ -557,6 +601,15 @@ bool AkVCam::IpcBridge::write(const std::string &deviceId,
 
     this->d->m_broadcastsMutex.lock();
 
+    if (!this->d->m_directModeStatus.contains(deviceId))
+        this->d->m_directModeStatus[deviceId] = {deviceId};
+
+    if (!this->d->m_directModeStatus[deviceId].isValid(frame.format())) {
+        this->d->m_broadcastsMutex.unlock();
+
+        return false;
+    }
+
     if (this->d->m_broadcasts.count(deviceId) < 1) {
         this->d->m_broadcastsMutex.unlock();
 
@@ -818,7 +871,6 @@ bool AkVCam::IpcBridgePrivate::frameReady(const Message &message)
     AkLogFunction();
 
     MsgFrameReady msgFrameReady(message);
-    VideoFrame frame;
 
     this->m_broadcastsMutex.lock();
 
@@ -838,19 +890,23 @@ bool AkVCam::IpcBridgePrivate::frameReady(const Message &message)
                 reinterpret_cast<SharedFrame *>(slot.sharedMemory.lock());
 
         if (sharedFrame) {
-            frame = VideoFrame(VideoFormat(sharedFrame->format,
-                                           sharedFrame->width,
-                                           sharedFrame->height));
+            VideoFormat format(sharedFrame->format,
+                               sharedFrame->width,
+                               sharedFrame->height);
+
+            if (!format.isSameFormat(slot.frame.format()))
+                slot.frame = VideoFrame(format);
+
             auto dataSize =
                     std::min(slot.sharedMemory.pageSize()
                              - sizeof(SharedFrame)
                              + sizeof(void *),
-                             frame.size());
+                             slot.frame.size());
 
             if (dataSize > 0)
-                memcpy(frame.data(), sharedFrame->data, dataSize);
+                memcpy(slot.frame.data(), sharedFrame->data, dataSize);
             else
-                frame = {};
+                slot.frame = {};
 
             slot.sharedMemory.unlock();
         }
@@ -858,11 +914,11 @@ bool AkVCam::IpcBridgePrivate::frameReady(const Message &message)
 
     this->m_broadcastsMutex.unlock();
 
-    if (frame)
+    if (slot.sharedMemory.isOpen())
         AKVCAM_EMIT(this->self,
                     FrameReady,
                     deviceId,
-                    frame,
+                    slot.frame,
                     msgFrameReady.isActive())
     else
         AKVCAM_EMIT(this->self,

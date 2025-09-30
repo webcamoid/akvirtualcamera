@@ -21,14 +21,24 @@
 
 #include "clock.h"
 
+namespace AkVCam
+{
+    class ClockPrivate
+    {
+        public:
+            void *m_parent {nullptr};
+            CFTypeRef m_clock {nullptr};
+    };
+}
+
 AkVCam::Clock::Clock(const std::string& name,
                      const CMTime getTimeCallMinimumInterval,
                      UInt32 numberOfEventsForRateSmoothing,
                      UInt32 numberOfAveragesForRateSmoothing,
-                     void *parent):
-    m_parent(parent),
-    m_clock(nullptr)
+                     void *parent)
 {
+    this->d = new ClockPrivate;
+    this->d->m_parent = parent;
     auto nameRef =
             CFStringCreateWithCString(kCFAllocatorDefault,
                                       name.c_str(),
@@ -37,29 +47,31 @@ AkVCam::Clock::Clock(const std::string& name,
     auto status =
             CMIOStreamClockCreate(kCFAllocatorDefault,
                                   nameRef,
-                                  this->m_parent,
+                                  this->d->m_parent,
                                   getTimeCallMinimumInterval,
                                   numberOfEventsForRateSmoothing,
                                   numberOfAveragesForRateSmoothing,
-                                  &this->m_clock);
+                                  &this->d->m_clock);
 
     if (status != noErr)
-        this->m_clock = nullptr;
+        this->d->m_clock = nullptr;
 
     CFRelease(nameRef);
 }
 
 AkVCam::Clock::~Clock()
 {
-    if (this->m_clock) {
-        CMIOStreamClockInvalidate(this->m_clock);
-        CFRelease(this->m_clock);
+    if (this->d->m_clock) {
+        CMIOStreamClockInvalidate(this->d->m_clock);
+        CFRelease(this->d->m_clock);
     }
+
+    delete this->d;
 }
 
 CFTypeRef AkVCam::Clock::ref() const
 {
-    return this->m_clock;
+    return this->d->m_clock;
 }
 
 OSStatus AkVCam::Clock::postTimingEvent(CMTime eventTime,
@@ -69,5 +81,5 @@ OSStatus AkVCam::Clock::postTimingEvent(CMTime eventTime,
     return CMIOStreamClockPostTimingEvent(eventTime,
                                           hostTime,
                                           resynchronize,
-                                          this->m_clock);
+                                          this->d->m_clock);
 }

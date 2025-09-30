@@ -71,20 +71,20 @@ namespace AkVCam
             std::thread m_sendFrameThread;
             std::atomic<bool> m_running {false};
             std::mutex m_mutex;
-            std::mutex m_controlsMutex;
             VideoFrame m_currentFrame;
             VideoFrame m_testFrame;
             VideoAdjusts m_videoAdjusts;
             VideoConverter m_videoConverter;
             bool m_horizontalFlip {false};   // Controlled by client
             bool m_verticalFlip {false};
-            std::map<std::string, int> m_controls;
             LONG m_brightness {0};
             LONG m_contrast {0};
             LONG m_saturation {0};
             LONG m_gamma {0};
             LONG m_hue {0};
-            LONG m_colorEnable {0};
+            LONG m_colorEnable {1};
+            bool m_isRgb {false};
+            bool m_frameReady {false};
 
             void sendFrameOneShot();
             void sendFrameLoop();
@@ -118,18 +118,23 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
 
     auto cameraIndex = Preferences::cameraFromId(baseFilter->deviceId());
 
-    this->d->m_controlsMutex.lock();
-    this->d->m_controls["hflip"] =
-            Preferences::cameraControlValue(cameraIndex, "hflip");
-    this->d->m_controls["vflip"] =
-            Preferences::cameraControlValue(cameraIndex, "vflip");
-    this->d->m_controls["scaling"] =
-            Preferences::cameraControlValue(cameraIndex, "scaling");
-    this->d->m_controls["aspect_ratio"] =
-            Preferences::cameraControlValue(cameraIndex, "aspect_ratio");
-    this->d->m_controls["swap_rgb"] =
-            Preferences::cameraControlValue(cameraIndex, "swap_rgb");
-    this->d->m_controlsMutex.unlock();
+    auto horizontalMirror = Preferences::cameraControlValue(cameraIndex, "hflip") > 0;
+    auto verticalMirror = Preferences::cameraControlValue(cameraIndex, "vflip") > 0;
+    auto scaling = VideoConverter::ScalingMode(Preferences::cameraControlValue(cameraIndex, "scaling"));
+    auto aspectRatio = VideoConverter::AspectRatioMode(Preferences::cameraControlValue(cameraIndex, "aspect_ratio"));
+    auto swapRgb = Preferences::cameraControlValue(cameraIndex, "swap_rgb") > 0;
+
+    this->d->m_videoAdjusts.setHue(this->d->m_hue);
+    this->d->m_videoAdjusts.setSaturation(this->d->m_saturation);
+    this->d->m_videoAdjusts.setLuminance(this->d->m_brightness);
+    this->d->m_videoAdjusts.setGamma(this->d->m_gamma);
+    this->d->m_videoAdjusts.setContrast(this->d->m_contrast);
+    this->d->m_videoAdjusts.setGrayScaled(!this->d->m_colorEnable);
+    this->d->m_videoAdjusts.setHorizontalMirror(horizontalMirror);
+    this->d->m_videoAdjusts.setVerticalMirror(verticalMirror);
+    this->d->m_videoAdjusts.setSwapRGB(swapRgb);
+    this->d->m_videoConverter.setAspectRatioMode(VideoConverter::AspectRatioMode(aspectRatio));
+    this->d->m_videoConverter.setScalingMode(VideoConverter::ScalingMode(scaling));
 
     auto picture = Preferences::picture();
 
@@ -142,35 +147,30 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
     baseFilter->QueryInterface(IID_IAMVideoProcAmp,
                                reinterpret_cast<void **>(&this->d->m_videoProcAmp));
 
-    LONG flags = 0;
-    this->d->m_videoProcAmp->Get(VideoProcAmp_Brightness,
-                                 &this->d->m_brightness,
-                                 &flags);
-    this->d->m_videoProcAmp->Get(VideoProcAmp_Contrast,
-                                 &this->d->m_contrast,
-                                 &flags);
-    this->d->m_videoProcAmp->Get(VideoProcAmp_Saturation,
-                                 &this->d->m_saturation,
-                                 &flags);
-    this->d->m_videoProcAmp->Get(VideoProcAmp_Gamma,
-                                 &this->d->m_gamma,
-                                 &flags);
-    this->d->m_videoProcAmp->Get(VideoProcAmp_Hue,
-                                 &this->d->m_hue,
-                                 &flags);
-    this->d->m_videoProcAmp->Get(VideoProcAmp_ColorEnable,
-                                 &this->d->m_colorEnable,
-                                 &flags);
+    if (this->d->m_videoProcAmp) {
+        LONG flags = 0;
+        this->d->m_videoProcAmp->Get(VideoProcAmp_Brightness,
+                                     &this->d->m_brightness,
+                                     &flags);
+        this->d->m_videoProcAmp->Get(VideoProcAmp_Contrast,
+                                     &this->d->m_contrast,
+                                     &flags);
+        this->d->m_videoProcAmp->Get(VideoProcAmp_Saturation,
+                                     &this->d->m_saturation,
+                                     &flags);
+        this->d->m_videoProcAmp->Get(VideoProcAmp_Gamma,
+                                     &this->d->m_gamma,
+                                     &flags);
+        this->d->m_videoProcAmp->Get(VideoProcAmp_Hue,
+                                     &this->d->m_hue,
+                                     &flags);
+        this->d->m_videoProcAmp->Get(VideoProcAmp_ColorEnable,
+                                     &this->d->m_colorEnable,
+                                     &flags);
 
-    this->d->m_videoAdjusts.setHue(this->d->m_hue);
-    this->d->m_videoAdjusts.setSaturation(this->d->m_saturation);
-    this->d->m_videoAdjusts.setLuminance(this->d->m_brightness);
-    this->d->m_videoAdjusts.setGamma(this->d->m_gamma);
-    this->d->m_videoAdjusts.setContrast(this->d->m_contrast);
-    this->d->m_videoAdjusts.setGrayScaled(!this->d->m_colorEnable);
-
-    this->d->m_videoProcAmp->connectPropertyChanged(this->d,
-                                                    &PinPrivate::propertyChanged);
+        this->d->m_videoProcAmp->connectPropertyChanged(this->d,
+                                                        &PinPrivate::propertyChanged);
+    }
 }
 
 AkVCam::Pin::~Pin()
@@ -253,7 +253,12 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
                               period,
                               HSEMAPHORE(self->d->m_sendFrameEvent),
                               &self->d->m_adviseCookie);
+        self->d->m_frameReady = false;
+        self->d->m_currentFrame = {videoFormat};
         self->d->m_videoConverter.setOutputFormat(videoFormat);
+
+        auto specs = VideoFormat::formatSpecs(videoFormat.format());
+        self->d->m_isRgb = specs.type() == VideoFormatSpec::VFT_RGB;
 
         if (self->d->m_bridge)
             self->d->m_bridge->deviceStart(IpcBridge::StreamType_Input,
@@ -273,6 +278,7 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
         self->d->m_mutex.lock();
         self->d->m_currentFrame = {};
         self->d->m_mutex.unlock();
+        self->d->m_currentFrame = {};
     }
 
     self->d->m_prevState = state;
@@ -288,16 +294,39 @@ void AkVCam::Pin::frameReady(const VideoFrame &frame, bool isActive)
     if (!this->d->m_running)
         return;
 
+    AM_MEDIA_TYPE *mediaType = nullptr;
+    this->GetFormat(&mediaType);
+    auto format = formatFromMediaType(mediaType);
+    deleteMediaType(&mediaType);
+
     AkLogInfo() << "Active: " << isActive << std::endl;
 
     this->d->m_mutex.lock();
-    auto frameAdjusted =
-            this->d->applyAdjusts(isActive? frame: this->d->m_testFrame);
 
-    if (frameAdjusted)
-        this->d->m_currentFrame = frameAdjusted;
-    else
-        this->d->m_currentFrame = {};
+    if (this->d->m_baseFilter->directMode()) {
+        if (isActive && frame && format.isSameFormat(frame.format())) {
+            memcpy(this->d->m_currentFrame.data(),
+                   frame.constData(),
+                   frame.size());
+            this->d->m_frameReady = true;
+        } else if (!isActive && this->d->m_testFrame) {
+            this->d->m_currentFrame =
+                    this->d->applyAdjusts(this->d->m_testFrame);
+            this->d->m_frameReady = true;
+        } else {
+            this->d->m_frameReady = false;
+        }
+    } else {
+        auto frameAdjusted =
+                this->d->applyAdjusts(isActive? frame: this->d->m_testFrame);
+
+        if (frameAdjusted) {
+            this->d->m_currentFrame = frameAdjusted;
+            this->d->m_frameReady = true;
+        } else {
+            this->d->m_frameReady = false;
+        }
+    }
 
     this->d->m_mutex.unlock();
 }
@@ -314,19 +343,24 @@ void AkVCam::Pin::setPicture(const std::string &picture)
 void AkVCam::Pin::setControls(const std::map<std::string, int> &controls)
 {
     AkLogFunction();
-    this->d->m_controlsMutex.lock();
 
-    if (this->d->m_controls == controls) {
-        this->d->m_controlsMutex.unlock();
-
+    if (this->d->m_baseFilter->directMode())
         return;
-    }
 
-    for (auto &control: controls)
+    for (auto &control: controls) {
         AkLogDebug() << control.first << ": " << control.second << std::endl;
 
-    this->d->m_controls = controls;
-    this->d->m_controlsMutex.unlock();
+        if (control.first == "hflip")
+            this->d->m_videoAdjusts.setHorizontalMirror(control.second > 0);
+        else if (control.first == "vflip")
+            this->d->m_videoAdjusts.setVerticalMirror(control.second > 0);
+        else if (control.first == "swap_rgb")
+            this->d->m_videoAdjusts.setSwapRGB(control.second > 0);
+        else if (control.first == "aspect_ratio")
+            this->d->m_videoConverter.setAspectRatioMode(VideoConverter::AspectRatioMode(control.second));
+        else if (control.first == "scaling")
+            this->d->m_videoConverter.setScalingMode(VideoConverter::ScalingMode(control.second));
+    }
 }
 
 bool AkVCam::Pin::horizontalFlip() const
@@ -847,10 +881,10 @@ HRESULT AkVCam::PinPrivate::sendFrame()
         || !sample)
         return E_FAIL;
 
-    BYTE *buffer = nullptr;
+    BYTE *pData = nullptr;
     LONG size = sample->GetSize();
 
-    if (size < 1 || FAILED(sample->GetPointer(&buffer)) || !buffer) {
+    if (size < 1 || FAILED(sample->GetPointer(&pData)) || !pData) {
         sample->Release();
 
         return E_FAIL;
@@ -858,17 +892,28 @@ HRESULT AkVCam::PinPrivate::sendFrame()
 
     this->m_mutex.lock();
 
-    if (this->m_currentFrame.size() > 0) {
-        auto copyBytes = std::min(size_t(size), this->m_currentFrame.size());
+    if (this->m_frameReady && this->m_currentFrame.size() > 0) {
+        if (this->m_isRgb) {
+            auto line = pData;
+            auto lineSize = this->m_currentFrame.lineSize(0);
+            auto height = this->m_currentFrame.format().height();
 
-        if (copyBytes > 0)
-            memcpy(buffer, this->m_currentFrame.constData(), copyBytes);
+            for (int y = 0; y < height; ++y) {
+                memcpy(line, this->m_currentFrame.constLine(0, height - y - 1), lineSize);
+                line += lineSize;
+            }
+        } else {
+            auto copyBytes = std::min(size_t(size), this->m_currentFrame.size());
+
+            if (copyBytes > 0)
+                memcpy(pData, this->m_currentFrame.constData(), copyBytes);
+        }
     } else {
         auto frame = this->randomFrame();
         auto copyBytes = std::min(size_t(size), frame.size());
 
         if (copyBytes > 0)
-            memcpy(buffer, frame.constData(), copyBytes);
+            memcpy(pData, frame.constData(), copyBytes);
     }
 
     this->m_mutex.unlock();
@@ -923,56 +968,23 @@ AkVCam::VideoFrame AkVCam::PinPrivate::applyAdjusts(const VideoFrame &frame)
 
     auto format = formatFromMediaType(mediaType);
     deleteMediaType(&mediaType);
-    PixelFormat pixelFormat = format.format();
-    int width = format.width();
-    int height = format.height();
-
-    bool horizontalMirror = false;
-    bool verticalMirror = false;
-    Scaling scaling = ScalingFast;
-    AspectRatio aspectRatio = AspectRatioIgnore;
-    bool swapRgb = false;
-    this->m_controlsMutex.lock();
-
-    if (this->m_controls.count("hflip") > 0)
-        horizontalMirror = this->m_controls["hflip"];
-
-    if (this->m_controls.count("vflip") > 0)
-        verticalMirror = this->m_controls["vflip"];
-
-    if (this->m_controls.count("scaling") > 0)
-        scaling = Scaling(this->m_controls["scaling"]);
-
-    if (this->m_controls.count("aspect_ratio") > 0)
-        aspectRatio = AspectRatio(this->m_controls["aspect_ratio"]);
-
-    if (this->m_controls.count("swap_rgb") > 0)
-        swapRgb = this->m_controls["swap_rgb"];
-
-    this->m_controlsMutex.unlock();
-
-    auto specs = VideoFormat::formatSpecs(pixelFormat);
-    bool vmirror = specs.type() == VideoFormatSpec::VFT_RGB?
-                       verticalMirror == this->m_verticalFlip:
-                       verticalMirror != this->m_verticalFlip;
-
-    this->m_videoAdjusts.setHorizontalMirror(horizontalMirror);
-    this->m_videoAdjusts.setVerticalMirror(vmirror);
-    this->m_videoAdjusts.setSwapRGB(swapRgb);
-    this->m_videoConverter.setAspectRatioMode(VideoConverter::AspectRatioMode(aspectRatio));
-    this->m_videoConverter.setScalingMode(VideoConverter::ScalingMode(scaling));
-
     VideoFrame newFrame;
 
     this->m_videoConverter.begin();
 
-    if (width * height > frame.format().width() * frame.format().height()) {
-        newFrame = this->m_videoAdjusts.adjust(frame);
-        newFrame = this->m_videoConverter.convert(newFrame);
-    } else {
+    if (this->m_baseFilter->directMode()) {
         newFrame = this->m_videoConverter.convert(frame);
-        newFrame = this->m_videoAdjusts.adjust(newFrame);
+    } else {
+        int width = format.width();
+        int height = format.height();
 
+        if (width * height > frame.format().width() * frame.format().height()) {
+            newFrame = this->m_videoAdjusts.adjust(frame);
+            newFrame = this->m_videoConverter.convert(newFrame);
+        } else {
+            newFrame = this->m_videoConverter.convert(frame);
+            newFrame = this->m_videoAdjusts.adjust(newFrame);
+        }
     }
 
     this->m_videoConverter.end();

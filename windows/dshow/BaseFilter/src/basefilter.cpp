@@ -62,6 +62,7 @@ namespace AkVCam
             std::string m_filterName;
             IFilterGraph *m_filterGraph {nullptr};
             IpcBridgePtr m_ipcBridge;
+            bool m_directMode {false};
 
             BaseFilterPrivate(BaseFilter *self);
             BaseFilterPrivate(const BaseFilterPrivate &other) = delete;
@@ -93,8 +94,19 @@ AkVCam::BaseFilter::BaseFilter(const GUID &clsid):
 
     if (camera >= 0) {
         this->d->m_filterName = Preferences::cameraDescription(size_t(camera));
+        this->d->m_directMode = Preferences::cameraDirectMode(camera);
         auto formats = Preferences::cameraFormats(size_t(camera));
-        this->addPin(formats, "Video", false);
+
+        if (this->d->m_directMode) {
+            std::vector<AkVCam::VideoFormat> fmts;
+
+            if (!formats.empty())
+                fmts.push_back(formats.front());
+
+            this->addPin(fmts, "Video", false);
+        } else {
+            this->addPin(formats, "Video", false);
+        }
     }
 }
 
@@ -151,6 +163,11 @@ std::string AkVCam::BaseFilter::deviceId()
     return Preferences::cameraId(size_t(cameraIndex));
 }
 
+bool AkVCam::BaseFilter::directMode() const
+{
+    return this->d->m_directMode;
+}
+
 HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppvObject)
 {
     AkLogFunction();
@@ -176,7 +193,8 @@ HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppvObject)
         *ppvObject = filterMiscFlags;
 
         return S_OK;
-    } else if (IsEqualIID(riid, IID_IAMVideoControl)) {
+    } else if (!this->d->m_directMode
+               && IsEqualIID(riid, IID_IAMVideoControl)) {
         IEnumPins *pins = nullptr;
         this->d->m_pins->Clone(&pins);
         auto videoControl = new VideoControl(pins);
@@ -186,7 +204,8 @@ HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppvObject)
         *ppvObject = videoControl;
 
         return S_OK;
-    } else if (IsEqualIID(riid, IID_IAMVideoProcAmp)) {
+    } else if (!this->d->m_directMode
+               && IsEqualIID(riid, IID_IAMVideoProcAmp)) {
         auto videoProcAmp = this->d->m_videoProcAmp;
         AkLogInterface(IAMVideoProcAmp, videoProcAmp);
         videoProcAmp->AddRef();

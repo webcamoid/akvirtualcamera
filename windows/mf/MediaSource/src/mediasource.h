@@ -37,7 +37,8 @@ namespace AkVCam
             MediaSource(const GUID &clsid);
             ~MediaSource();
 
-            std::string deviceId();
+            std::string deviceId() const;
+            bool directMode() const;
 
             DECLARE_IMFMEDIAEVENTGENERATOR_NQ
 

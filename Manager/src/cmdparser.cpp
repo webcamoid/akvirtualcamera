@@ -37,10 +37,12 @@
 #endif
 
 #include "cmdparser.h"
+#include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/settings.h"
+#include "VCamUtils/src/videoconverter.h"
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/videoframe.h"
 #include "VCamUtils/src/logger.h"
@@ -124,6 +126,8 @@ namespace AkVCam {
                                       const StringVector &args);
             int setDeviceDescription(const StringMap &flags,
                                      const StringVector &args);
+            int isDirectMode(const StringMap &flags, const StringVector &args);
+            int setDirectMode(const StringMap &flags, const StringVector &args);
             int showSupportedFormats(const StringMap &flags,
                                      const StringVector &args);
             int showDefaultFormat(const StringMap &flags,
@@ -143,6 +147,7 @@ namespace AkVCam {
             int picture(const StringMap &flags, const StringVector &args);
             int setPicture(const StringMap &flags, const StringVector &args);
             int dataModes(const StringMap &flags, const StringVector &args);
+            int defaultDataMode(const StringMap &flags, const StringVector &args);
             int dataMode(const StringMap &flags, const StringVector &args);
             int setDataMode(const StringMap &flags, const StringVector &args);
             int pageSize(const StringMap &flags, const StringVector &args);
@@ -229,6 +234,14 @@ AkVCam::CmdParser::CmdParser()
                      "DEVICE DESCRIPTION",
                      "Set device description.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::setDeviceDescription));
+    this->addCommand("is-direct-mode",
+                     "DEVICE",
+                     "Indicates if direct mode is enabled for this device.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::isDirectMode));
+    this->addCommand("set-direct-mode",
+                     "DEVICE ENABLED",
+                     "Set direct mode for this device.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::setDirectMode));
     this->addCommand("supported-formats",
                      "",
                      "Show supported formats.",
@@ -286,7 +299,7 @@ AkVCam::CmdParser::CmdParser()
                    "FPS",
                    "Read stream input at a constant frame rate.");
     this->addCommand("stream-pattern",
-                     "DEVICE WIDTH HEIGHT",
+                     "DEVICE",
                      "Send a test video pattern to the device.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::streamPattern));
     this->addFlags("stream-pattern",
@@ -342,6 +355,10 @@ AkVCam::CmdParser::CmdParser()
                      "",
                      "Show the available data transfer modes.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::dataModes));
+    this->addCommand("default-data-mode",
+                     "",
+                     "Show the default data transfer mode.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::defaultDataMode));
     this->addCommand("data-mode",
                      "",
                      "Show the current data transfer mode.",
@@ -504,9 +521,12 @@ int AkVCam::CmdParser::parse(int argc, char **argv)
         || (command->command == "hack"
             && arguments.size() >= 2
             && this->d->m_ipcBridge.hackNeedsRoot(arguments[1]))) {
-        std::cerr << "You must run this command with administrator privileges." << std::endl;
+        StringVector args;
 
-        return -EPERM;
+        for (int i = 0; i < argc; i++)
+            args.push_back(argv[i]);
+
+        return sudo(args);
     }
 
     return command->func(flags, arguments);
@@ -964,7 +984,7 @@ int AkVCam::CmdParserPrivate::removeDevice(const StringMap &flags,
         return -ENODEV;
     }
 
-    this->m_ipcBridge.removeDevice(args[1]);
+    this->m_ipcBridge.removeDevice(deviceId);
 
     return 0;
 }
@@ -1002,7 +1022,7 @@ int AkVCam::CmdParserPrivate::showDeviceDescription(const StringMap &flags,
         return -ENODEV;
     }
 
-    std::cout << this->m_ipcBridge.description(args[1]) << std::endl;
+    std::cout << this->m_ipcBridge.description(deviceId) << std::endl;
 
     return 0;
 }
@@ -1029,6 +1049,67 @@ int AkVCam::CmdParserPrivate::setDeviceDescription(const StringMap &flags,
     }
 
     this->m_ipcBridge.setDescription(deviceId, args[2]);
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::isDirectMode(const StringMap &flags,
+                                           const StringVector &args)
+{
+    UNUSED(flags);
+
+    if (args.size() < 2) {
+        std::cerr << "Device not provided." << std::endl;
+
+        return -EINVAL;
+    }
+
+    auto deviceId = args[1];
+    auto devices = this->m_ipcBridge.devices();
+    auto it = std::find(devices.begin(), devices.end(), deviceId);
+
+    if (it == devices.end()) {
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
+
+        return -ENODEV;
+    }
+
+    std::cout << Preferences::cameraDirectMode(deviceId) << std::endl;
+
+    return 0;
+}
+
+int AkVCam::CmdParserPrivate::setDirectMode(const StringMap &flags,
+                                            const StringVector &args)
+{
+    UNUSED(flags);
+
+    if (args.size() < 3) {
+        std::cerr << "Not enough arguments." << std::endl;
+
+        return -EINVAL;
+    }
+
+    auto deviceId = args[1];
+    auto devices = this->m_ipcBridge.devices();
+    auto dit = std::find(devices.begin(), devices.end(), deviceId);
+
+    if (dit == devices.end()) {
+        std::cerr << "'" << deviceId << "' doesn't exists." << std::endl;
+
+        return -ENODEV;
+    }
+
+    char *p = nullptr;
+    auto directMode = strtoul(args[2].c_str(), &p, 10);
+
+    if (*p || (directMode != 0 && directMode != 1)) {
+        std::cerr << "Direct mode must be 0 or 1." << std::endl;
+
+        return -EINVAL;
+    }
+
+    Preferences::setCameraDirectMode(deviceId, directMode);
 
     return 0;
 }
@@ -1416,6 +1497,18 @@ int AkVCam::CmdParserPrivate::stream(const StringMap &flags,
                     int(height),
                     Fraction(int(std::round(fps)), 1));
 
+    auto cameraId = Preferences::cameraFromId(deviceId);
+
+    if (Preferences::cameraDirectMode(size_t(cameraId))) {
+        auto cameraFormat = Preferences::cameraFormat(size_t(cameraId), 0);
+
+        if (!cameraFormat.isSameFormat(fmt)) {
+            std::cerr << "This camera is configured in direct mode. You must send the frames as: " << cameraFormat << std::endl;
+
+            return -EINVAL;
+        }
+    }
+
     if (!this->m_ipcBridge.deviceStart(IpcBridge::StreamType_Output, deviceId)) {
         std::cerr << "Can't start stream." << std::endl;
 
@@ -1566,7 +1659,7 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
     double fps = 30.0;
 
     if (!fpsStr.empty()) {
-        p = nullptr;
+        char *p = nullptr;
         fps = int(strtod(fpsStr.c_str(), &p));
 
         if (*p) {
@@ -1637,15 +1730,15 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
     };
 
     const int numBars = colors.size();
-    const int barWidth = width / numBars;
+    const int barWidth = fmt.width() / numBars;
 
     // Square properties
 
-    const int squareSize = std::min(width, height) / 8; // Square side length
-    double squareX = width / 2.0;     // Initial position (center)
-    double squareY = height / 2.0;
-    double speedX = 0.1 * width; // Speed: 10% of width per second
-    double speedY = 0.1 * height; // Speed: 10% of height per second
+    const int squareSize = std::min(fmt.width(), fmt.height()) / 8; // Square side length
+    double squareX = fmt.width() / 2.0;     // Initial position (center)
+    double squareY = fmt.height() / 2.0;
+    double speedX = 0.1 * fmt.width(); // Speed: 10% of width per second
+    double speedY = 0.1 * fmt.height(); // Speed: 10% of height per second
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> colorDist(0, numBars - 1);
@@ -1662,6 +1755,13 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
     double drift = 0;
     uint64_t i = 0;
 
+    auto cameraId = Preferences::cameraFromId(deviceId);
+    auto directMode = Preferences::cameraDirectMode(size_t(cameraId));
+    auto cameraFormat = Preferences::cameraFormat(size_t(cameraId), 0);
+
+    VideoConverter videoConverter;
+    videoConverter.setOutputFormat(cameraFormat);
+
     do {
         // Update square position based on elapsed time
         double currentTime = clock(t0);
@@ -1676,15 +1776,15 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
         // Check for collisions and update direction/color
         bool collision = false;
 
-        if (squareX <= 0 || squareX + squareSize >= width) {
+        if (squareX <= 0 || squareX + squareSize >= fmt.width()) {
             speedX = -speedX;
-            squareX = std::max(0.0, std::min(double(width - squareSize), squareX));
+            squareX = std::max(0.0, std::min(double(fmt.width() - squareSize), squareX));
             collision = true;
         }
 
-        if (squareY <= 0 || squareY + squareSize >= height) {
+        if (squareY <= 0 || squareY + squareSize >= fmt.height()) {
             speedY = -speedY;
-            squareY = std::max(0.0, std::min(double(height - squareSize), squareY));
+            squareY = std::max(0.0, std::min(double(fmt.height() - squareSize), squareY));
             collision = true;
         }
 
@@ -1696,7 +1796,7 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
         auto firstLine = frame.line(0, 0);
 
         // Fill first line with color bars
-        for (int x = 0; x < width; ++x) {
+        for (int x = 0; x < fmt.width(); ++x) {
             int barIndex = x / barWidth;
 
             if (barIndex >= numBars)
@@ -1712,14 +1812,14 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
         auto lineSize = frame.lineSize(0);
 
         // Copy first line to all rows
-        for (int y = 1; y < height; ++y)
+        for (int y = 1; y < fmt.height(); ++y)
             memcpy(frame.line(0, y), firstLine, lineSize);
 
         // Draw square
         int xStart = std::max(0, int(squareX));
-        int xEnd = std::min(int(width), int(squareX + squareSize));
+        int xEnd = std::min(int(fmt.width()), int(squareX + squareSize));
         int yStart = std::max(0, int(squareY));
-        int yEnd = std::min(int(height), int(squareY + squareSize));
+        int yEnd = std::min(int(fmt.height()), int(squareY + squareSize));
 
         auto line = frame.line(0, yStart);
 
@@ -1750,7 +1850,14 @@ int AkVCam::CmdParserPrivate::streamPattern(const StringMap &flags,
             drift = clock(t0) - targetPts;
         }
 
-        this->m_ipcBridge.write(deviceId, frame);
+        if (directMode) {
+            videoConverter.begin();
+            this->m_ipcBridge.write(deviceId, videoConverter.convert(frame));
+            videoConverter.end();
+        } else {
+            this->m_ipcBridge.write(deviceId, frame);
+        }
+
         i++;
     } while (!exit);
 
@@ -2132,6 +2239,17 @@ int AkVCam::CmdParserPrivate::dataModes(const StringMap &flags,
     return 0;
 }
 
+int AkVCam::CmdParserPrivate::defaultDataMode(const StringMap &flags,
+                                              const StringVector &args)
+{
+    UNUSED(flags);
+    UNUSED(args);
+
+    std::cout << "mmap" << std::endl;
+
+    return 0;
+}
+
 int AkVCam::CmdParserPrivate::dataMode(const StringMap &flags,
                                        const StringVector &args)
 {
@@ -2304,6 +2422,11 @@ int AkVCam::CmdParserPrivate::dumpInfo(const StringMap &flags,
                   << this->m_ipcBridge.description(device)
                   << "</description>"
                   << std::endl;
+        std::cout << 3 * indent
+                  << "<direct-mode>"
+                  << Preferences::cameraDirectMode(device)
+                  << "</direct-mode>"
+                  << std::endl;
         std::cout << 3 * indent << "<formats>" << std::endl;
 
         for  (auto &format: this->m_ipcBridge.formats(device)) {
@@ -2461,6 +2584,17 @@ int AkVCam::CmdParserPrivate::dumpInfo(const StringMap &flags,
               << this->m_ipcBridge.logLevel()
               << "</loglevel>"
               << std::endl;
+    std::cout << indent << "<data-modes>" << std::endl;
+    std::cout << 2 * indent << "<data-mode>mmap</data-mode>" << std::endl;
+    std::cout << 2 * indent << "<data-mode>sockets</data-mode>" << std::endl;
+    std::cout << indent << "</data-modes>" << std::endl;
+    std::cout << indent << "<default-data-mode>mmap</default-data-mode>" << std::endl;
+    std::cout << indent
+              << "<data-mode>"
+              << (this->m_ipcBridge.dataMode() == DataMode_Sockets?
+                      "sockets":
+                      "mmap")
+              << "</data-mode>" << std::endl;
     std::cout << "</info>" << std::endl;
 
     return 0;
@@ -2626,6 +2760,15 @@ void AkVCam::CmdParserPrivate::loadGenerals(Settings &settings)
         this->m_ipcBridge.setLogLevel(level);
     }
 
+    if (settings.contains("data_mode")) {
+        auto dataMode = settings.value("data_mode");
+
+        if (dataMode == "mmap")
+            this->m_ipcBridge.setDataMode(DataMode_SharedMemory);
+        else if (dataMode == "sockets")
+            this->m_ipcBridge.setDataMode(DataMode_Sockets);
+    }
+
     settings.endGroup();
 }
 
@@ -2770,6 +2913,11 @@ void AkVCam::CmdParserPrivate::createDevice(Settings &settings,
 
         if (it != supportedFormats.end())
             this->m_ipcBridge.addFormat(deviceId, format, -1);
+    }
+
+    if (settings.contains("direct_mode")) {
+        auto directMode = settings.valueBool("direct_mode");
+        Preferences::setCameraDirectMode(deviceId, directMode);
     }
 }
 

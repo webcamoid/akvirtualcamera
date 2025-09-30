@@ -17,6 +17,9 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <chrono>
+#include <thread>
+
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -57,6 +60,12 @@ int sem_timedwait(sem_t *sem, const timespec *timeout)
 }
 #endif
 
+#ifdef _WIN32
+using MutexType = HANDLE;
+#else
+using MutexType = sem_t *;
+#endif
+
 namespace AkVCam
 {
     class SharedMemoryPrivate
@@ -64,16 +73,22 @@ namespace AkVCam
         public:
 #ifdef _WIN32
             HANDLE m_sharedHandle {nullptr};
-            HANDLE m_mutex {nullptr};
 #else
             int m_sharedHandle {-1};
-            sem_t *m_mutex {nullptr};
 #endif
+            MutexType m_mutex {nullptr};
             std::string m_name;
             void *m_buffer {nullptr};
             size_t m_pageSize {0};
             SharedMemory::OpenMode m_mode {SharedMemory::OpenModeRead};
             bool m_isOpen {false};
+            bool m_readyRead {false};
+
+            bool wait(MutexType mutex, int timeout);
+            bool createMutex();
+            void destroyMutex();
+            bool openRead(size_t pageSize);
+            bool openWrite(size_t pageSize);
     };
 }
 
@@ -128,153 +143,20 @@ void AkVCam::SharedMemory::setName(const std::string &name)
 
 bool AkVCam::SharedMemory::open(size_t pageSize, OpenMode mode)
 {
-    if (this->d->m_isOpen)
+    if (this->d->m_isOpen || this->d->m_name.empty())
+            return false;
+
+    this->d->m_readyRead = false;
+
+    if (!this->d->createMutex())
         return false;
 
-    if (this->d->m_name.empty())
-        return false;
-
-    auto mutexName = this->d->m_name + "_mutex";
-
-#ifdef _WIN32
-    // Create mutex
-    this->d->m_mutex = CreateMutexA(nullptr, FALSE, mutexName.c_str());
-
-    if (!this->d->m_mutex) {
-        AkLogError() << "Error creating mutex ("
-                     << this->d->m_name
-                     << ") with error 0x"
-                     << std::hex << GetLastError()
-                     << std::endl;
-
-        return false;
-    }
-
-    // Open or create shared memory
-    if (mode == OpenModeRead) {
-        this->d->m_sharedHandle =
-                OpenFileMappingA(FILE_MAP_ALL_ACCESS,
-                                 FALSE,
-                                 this->d->m_name.c_str());
-    } else {
-        if (pageSize < 1) {
-            CloseHandle(this->d->m_mutex);
-            this->d->m_mutex = nullptr;
+    if (mode == OpenModeWrite)
+        if (!this->d->openWrite(pageSize)) {
+            this->d->destroyMutex();
 
             return false;
         }
-
-        this->d->m_sharedHandle =
-                CreateFileMappingA(INVALID_HANDLE_VALUE,
-                                   nullptr,
-                                   PAGE_READWRITE,
-                                   0,
-                                   DWORD(pageSize),
-                                   this->d->m_name.c_str());
-    }
-
-    if (!this->d->m_sharedHandle) {
-        AkLogError() << "Error opening shared memory ("
-                     << this->d->m_name
-                     << ") with error 0x"
-                     << std::hex << GetLastError()
-                     << std::endl;
-        CloseHandle(this->d->m_mutex);
-        this->d->m_mutex = nullptr;
-
-        return false;
-    }
-
-    // Map shared memory
-    this->d->m_buffer = MapViewOfFile(this->d->m_sharedHandle,
-                                      FILE_MAP_ALL_ACCESS,
-                                      0,
-                                      0,
-                                      pageSize);
-#else
-    // Create semaphore
-    this->d->m_mutex = sem_open(mutexName.c_str(), O_CREAT, 0644, 1);
-
-    if (this->d->m_mutex == SEM_FAILED) {
-        AkLogError() << "Error creating semaphore ("
-                     << mutexName
-                     << ") with error "
-                     << errno
-                     << std::endl;
-
-        return false;
-    }
-
-    // Open or create shared memory
-    if (mode == OpenModeRead) {
-        this->d->m_sharedHandle =
-                shm_open(this->d->m_name.c_str(), O_RDWR, 0644);
-    } else {
-        if (pageSize < 1) {
-            sem_close(this->d->m_mutex);
-            sem_unlink(mutexName.c_str());
-            this->d->m_mutex = nullptr;
-
-            return false;
-        }
-
-        this->d->m_sharedHandle = shm_open(this->d->m_name.c_str(),
-                                           O_CREAT | O_RDWR,
-                                           0644);
-
-        if (this->d->m_sharedHandle != -1
-            && ftruncate(this->d->m_sharedHandle, pageSize) == -1) {
-            AkLogError() << "Error setting shared memory size ("
-                         << this->d->m_name
-                         << ") with error "
-                         << errno
-                         << std::endl;
-            ::close(this->d->m_sharedHandle);
-            this->d->m_sharedHandle = -1;
-            sem_close(this->d->m_mutex);
-            sem_unlink(mutexName.c_str());
-            this->d->m_mutex = nullptr;
-
-            return false;
-        }
-    }
-
-    if (this->d->m_sharedHandle == -1) {
-        AkLogError() << "Error opening shared memory ("
-                     << this->d->m_name
-                     << ") with error "
-                     << errno
-                     << std::endl;
-        sem_close(this->d->m_mutex);
-        sem_unlink(mutexName.c_str());
-        this->d->m_mutex = nullptr;
-
-        return false;
-    }
-
-    // Map shared memory
-    this->d->m_buffer = mmap(nullptr,
-                             pageSize,
-                             PROT_READ | PROT_WRITE,
-                             MAP_SHARED,
-                             this->d->m_sharedHandle,
-                             0);
-
-    if (this->d->m_buffer == MAP_FAILED) {
-        AkLogError() << "Error mapping shared memory ("
-                     << this->d->m_name
-                     << ") with error "
-                     << errno
-                     << std::endl;
-        ::close(this->d->m_sharedHandle);
-        this->d->m_sharedHandle = -1;
-        sem_close(this->d->m_mutex);
-        sem_unlink(mutexName.c_str());
-        this->d->m_mutex = nullptr;
-
-        return false;
-    }
-#endif
 
     this->d->m_pageSize = pageSize;
     this->d->m_mode = mode;
@@ -301,33 +183,20 @@ AkVCam::SharedMemory::OpenMode AkVCam::SharedMemory::mode() const
 void *AkVCam::SharedMemory::lock(int timeout)
 {
     if (!this->d->m_mutex)
-        return nullptr;
-
-#ifdef _WIN32
-    DWORD waitResult = WaitForSingleObject(this->d->m_mutex,
-                                           !timeout? INFINITE: DWORD(timeout));
-
-    if (waitResult == WAIT_FAILED || waitResult == WAIT_TIMEOUT)
-        return nullptr;
-#else
-    if (timeout == 0) {
-        if (sem_wait(this->d->m_mutex) != 0)
             return nullptr;
-    } else {
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_sec += timeout / 1000;
-        ts.tv_nsec += (timeout % 1000) * 1000000;
 
-        if (ts.tv_nsec >= 1000000000) {
-            ts.tv_sec += 1;
-            ts.tv_nsec -= 1000000000;
+    if (this->d->m_mode == OpenModeRead && !this->d->m_readyRead) {
+        if (!this->d->openRead(this->d->m_pageSize)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+            return nullptr;
         }
 
-        if (sem_timedwait(this->d->m_mutex, &ts) != 0)
-            return nullptr;
+        this->d->m_readyRead = true;
     }
-#endif
+
+    if (!this->d->wait(this->d->m_mutex, timeout))
+       return nullptr;
 
     return this->d->m_buffer;
 }
@@ -370,18 +239,249 @@ void AkVCam::SharedMemory::close()
     }
 #endif
 
-    if (this->d->m_mutex) {
-#ifdef _WIN32
-        CloseHandle(this->d->m_mutex);
-#else
-        sem_close(this->d->m_mutex);
-        sem_unlink((this->d->m_name + "_mutex").c_str());
-#endif
-
-        this->d->m_mutex = nullptr;
-    }
+    this->d->destroyMutex();
 
     this->d->m_pageSize = 0;
     this->d->m_mode = OpenModeRead;
     this->d->m_isOpen = false;
+    this->d->m_readyRead = false;
+}
+
+bool AkVCam::SharedMemoryPrivate::wait(MutexType mutex, int timeout)
+{
+    if (!mutex)
+        return false;
+
+ #ifdef _WIN32
+     DWORD waitResult =
+             WaitForSingleObject(mutex, timeout == 0? INFINITE: DWORD(timeout));
+
+     if (waitResult == WAIT_FAILED || waitResult == WAIT_TIMEOUT)
+         return false;
+ #else
+     if (timeout == 0) {
+         if (sem_wait(mutex) != 0)
+             return false;
+     } else {
+         struct timespec ts;
+         clock_gettime(CLOCK_REALTIME, &ts);
+         ts.tv_sec += timeout / 1000;
+         ts.tv_nsec += (timeout % 1000) * 1000000;
+
+         if (ts.tv_nsec >= 1000000000) {
+             ts.tv_sec += 1;
+             ts.tv_nsec -= 1000000000;
+         }
+
+         if (sem_timedwait(mutex, &ts) != 0)
+             return false;
+     }
+ #endif
+
+     return true;
+}
+
+bool AkVCam::SharedMemoryPrivate::createMutex()
+{
+    if (this->m_name.empty())
+        return false;
+
+    auto mutexName = this->m_name + "_mutex";
+
+#ifdef _WIN32
+    // Create mutex
+    this->m_mutex = CreateMutexA(nullptr, FALSE, mutexName.c_str());
+
+    if (!this->m_mutex) {
+        AkLogError() << "Error creating mutex ("
+                     << this->m_name
+                     << ") with error 0x"
+                     << std::hex << GetLastError()
+                     << std::endl;
+
+        return false;
+    }
+#else
+    // Create semaphore
+    this->m_mutex = sem_open(mutexName.c_str(), O_CREAT, 0644, 1);
+
+    if (this->m_mutex == SEM_FAILED) {
+        AkLogError() << "Error creating semaphore ("
+                     << mutexName
+                     << ") with error "
+                     << errno
+                     << std::endl;
+
+        return false;
+    }
+#endif
+
+    return true;
+}
+
+void AkVCam::SharedMemoryPrivate::destroyMutex()
+{
+    if (this->m_mutex) {
+#ifdef _WIN32
+        CloseHandle(this->m_mutex);
+#else
+        sem_close(this->m_mutex);
+
+        if (this->m_mode != SharedMemory::OpenModeRead)
+            sem_unlink((this->m_name + "_mutex").c_str());
+#endif
+
+        this->m_mutex = nullptr;
+    }
+}
+
+bool AkVCam::SharedMemoryPrivate::openRead(size_t pageSize)
+{
+    if (pageSize < 1 || this->m_name.empty())
+        return false;
+
+#ifdef _WIN32
+    // Open shared memory
+    this->m_sharedHandle =
+            OpenFileMappingA(FILE_MAP_ALL_ACCESS,
+                             FALSE,
+                             this->m_name.c_str());
+
+    if (!this->m_sharedHandle) {
+        AkLogError() << "Error opening shared memory ("
+                     << this->m_name
+                     << ") with error 0x"
+                     << std::hex << GetLastError()
+                     << std::endl;
+
+        return false;
+    }
+
+    // Map shared memory
+    this->m_buffer = MapViewOfFile(this->m_sharedHandle,
+                                   FILE_MAP_ALL_ACCESS,
+                                   0,
+                                   0,
+                                   pageSize);
+#else
+    // Open shared memory
+    this->m_sharedHandle = shm_open(this->m_name.c_str(), O_RDWR, 0644);
+
+    if (this->m_sharedHandle == -1) {
+        AkLogError() << "Error opening shared memory ("
+                     << this->m_name
+                     << ") with error "
+                     << errno
+                     << std::endl;
+
+        return false;
+    }
+
+    // Map shared memory
+    this->m_buffer = mmap(nullptr,
+                          pageSize,
+                          PROT_READ | PROT_WRITE,
+                          MAP_SHARED,
+                          this->m_sharedHandle,
+                          0);
+
+    if (this->m_buffer == MAP_FAILED) {
+        AkLogError() << "Error mapping shared memory ("
+                     << this->m_name
+                     << ") with error "
+                     << errno
+                     << std::endl;
+        ::close(this->m_sharedHandle);
+        this->m_sharedHandle = -1;
+
+        return false;
+    }
+#endif
+
+    return true;
+}
+
+bool AkVCam::SharedMemoryPrivate::openWrite(size_t pageSize)
+{
+    if (this->m_isOpen || pageSize < 1 || this->m_name.empty())
+        return false;
+
+#ifdef _WIN32
+    // Create shared memory
+
+    this->m_sharedHandle =
+            CreateFileMappingA(INVALID_HANDLE_VALUE,
+                               nullptr,
+                               PAGE_READWRITE,
+                               0,
+                               DWORD(pageSize),
+                               this->m_name.c_str());
+
+    if (!this->m_sharedHandle) {
+        AkLogError() << "Error creating shared memory ("
+                     << this->m_name
+                     << ") with error 0x"
+                     << std::hex << GetLastError()
+                     << std::endl;
+
+        return false;
+    }
+
+    // Map shared memory
+    this->m_buffer = MapViewOfFile(this->m_sharedHandle,
+                                   FILE_MAP_ALL_ACCESS,
+                                   0,
+                                   0,
+                                   pageSize);
+#else
+    // Create shared memory
+
+    this->m_sharedHandle = shm_open(this->m_name.c_str(),
+                                    O_CREAT | O_RDWR,
+                                    0644);
+
+    if (this->m_sharedHandle == -1) {
+        AkLogError() << "Error opening shared memory ("
+                     << this->m_name
+                     << ") with error "
+                     << errno
+                     << std::endl;
+
+        return false;
+    }
+
+    if (ftruncate(this->m_sharedHandle, pageSize) == -1) {
+        AkLogError() << "Error setting shared memory size ("
+                     << this->m_name
+                     << ") with error "
+                     << errno
+                     << std::endl;
+        ::close(this->m_sharedHandle);
+        this->m_sharedHandle = -1;
+
+        return false;
+    }
+
+    // Map shared memory
+    this->m_buffer = mmap(nullptr,
+                          pageSize,
+                          PROT_READ | PROT_WRITE,
+                          MAP_SHARED,
+                          this->m_sharedHandle,
+                          0);
+
+    if (this->m_buffer == MAP_FAILED) {
+        AkLogError() << "Error mapping shared memory ("
+                     << this->m_name
+                     << ") with error "
+                     << errno
+                     << std::endl;
+        ::close(this->m_sharedHandle);
+        this->m_sharedHandle = -1;
+
+        return false;
+    }
+#endif
+
+    return true;
 }

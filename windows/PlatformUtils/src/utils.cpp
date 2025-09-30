@@ -1763,16 +1763,18 @@ bool AkVCam::needsRoot(const std::string &task)
 
     static const char *akvcamRootRequiredTasks[] = {
         "add-device",
+        "add-format",
+        "load",
         "remove-device",
         "remove-devices",
-        "set-description",
-        "add-format",
         "remove-format",
         "remove-formats",
-        "update",
-        "load",
-        "set-picture",
+        "set-data-mode",
+        "set-description",
+        "set-direct-mode",
         "set-loglevel",
+        "set-picture",
+        "update",
         nullptr
     };
 

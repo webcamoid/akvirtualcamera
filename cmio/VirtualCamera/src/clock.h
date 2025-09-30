@@ -27,6 +27,7 @@
 namespace AkVCam
 {
     class Clock;
+    class ClockPrivate;
     typedef std::shared_ptr<Clock> ClockPtr;
 
     class Clock
@@ -45,8 +46,7 @@ namespace AkVCam
                                      Boolean resynchronize);
 
         private:
-            void *m_parent;
-            CFTypeRef m_clock;
+            ClockPrivate *d;
     };
 }
 
