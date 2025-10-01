@@ -182,67 +182,6 @@ int WINAPI WinMain(HINSTANCE hInstance,
         return -1;
     }
 
-    // Configure the video format
-    IAMStreamConfig *pConfig = nullptr;
-    hr = pSourceFilter->QueryInterface(IID_IAMStreamConfig,
-                                       reinterpret_cast<void **>(&pConfig));
-
-    if (SUCCEEDED(hr)) {
-        AM_MEDIA_TYPE *pMediaType = nullptr;
-        int iCount = 0;
-        int iSize = 0;
-        hr = pConfig->GetNumberOfCapabilities(&iCount, &iSize);
-
-        if (SUCCEEDED(hr)) {
-            std::vector<BYTE> scc(iSize);
-
-            for (int i = 0; i < iCount; i++) {
-                AM_MEDIA_TYPE *pMt = nullptr;
-                hr = pConfig->GetStreamCaps(i, &pMt, scc.data());
-
-                if (SUCCEEDED(hr)) {
-                    if (pMt->majortype == MEDIATYPE_Video
-                        && pMt->subtype == MEDIASUBTYPE_RGB32) {
-                        pMediaType = pMt;
-
-                        break;
-                    }
-
-                    AkVCam::deleteMediaType(&pMt);
-                }
-            }
-        }
-
-        if (!pMediaType) {
-            hr = pConfig->GetFormat(&pMediaType);
-
-            if (SUCCEEDED(hr)
-                && (pMediaType->majortype != MEDIATYPE_Video
-                    || pMediaType->subtype != MEDIASUBTYPE_RGB32)) {
-                pMediaType->majortype = MEDIATYPE_Video;
-                pMediaType->subtype = MEDIASUBTYPE_RGB32;
-                hr = pConfig->SetFormat(pMediaType);
-
-                if (FAILED(hr)) {
-                    MessageBox(nullptr,
-                               TEXT("Failed to set RGB32 format."),
-                               TEXT("Error"),
-                               MB_OK | MB_ICONERROR);
-                    AkVCam::deleteMediaType(&pMediaType);
-                    pConfig->Release();
-                    pRenderer->Release();
-                    pSourceFilter->Release();
-                    pGraph->Release();
-                    CoUninitialize();
-
-                    return -1;
-                }
-            }
-        }
-        AkVCam::deleteMediaType(&pMediaType);
-        pConfig->Release();
-    }
-
     // Connect the source to the renderer
     auto sourcePin = getPin(pSourceFilter, PINDIR_OUTPUT);
 

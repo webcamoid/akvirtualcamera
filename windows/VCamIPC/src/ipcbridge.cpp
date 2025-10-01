@@ -306,8 +306,6 @@ std::vector<AkVCam::PixelFormat> AkVCam::IpcBridge::supportedPixelFormats(Stream
     return {
         PixelFormat_bgrx,
         PixelFormat_rgb24,
-        PixelFormat_rgb565,
-        PixelFormat_rgb555,
         PixelFormat_uyvy422,
         PixelFormat_yuyv422,
         PixelFormat_nv12
