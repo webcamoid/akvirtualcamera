@@ -163,10 +163,14 @@ namespace AkVCam
             std::mutex m_broadcastsMutex;
             std::mutex m_statusMutex;
             Timer m_messagesTimer;
+            int m_logLevel {-1};
+            DataMode m_dataMode {DataMode_SharedMemory};
+            size_t m_pageSize {0};
 
             explicit IpcBridgePrivate(IpcBridge *self);
             ~IpcBridgePrivate();
 
+            void updateDevices();
             bool launchService();
             inline const std::vector<DeviceControl> &controls() const;
 
@@ -202,46 +206,50 @@ AkVCam::IpcBridge::~IpcBridge()
 
 std::string AkVCam::IpcBridge::picture() const
 {
-    return Preferences::picture();
+    return this->d->m_picture;
 }
 
 void AkVCam::IpcBridge::setPicture(const std::string &picture)
 {
     AkLogFunction();
+    this->d->m_picture = picture;
     Preferences::setPicture(picture);
 }
 
 int AkVCam::IpcBridge::logLevel() const
 {
-    return Preferences::logLevel();
+    return this->d->m_logLevel;
 }
 
 void AkVCam::IpcBridge::setLogLevel(int logLevel)
 {
     AkLogFunction();
+    this->d->m_logLevel = logLevel;
     Preferences::setLogLevel(logLevel);
     Logger::setLogLevel(logLevel);
 }
 
 AkVCam::DataMode AkVCam::IpcBridge::dataMode()
 {
-    return Preferences::dataMode();
+    return this->d->m_dataMode;
 }
 
 void AkVCam::IpcBridge::setDataMode(DataMode dataMode)
 {
     AkLogFunction();
+    this->d->m_dataMode = dataMode;
     Preferences::setDataMode(dataMode);
 }
 
 size_t AkVCam::IpcBridge::pageSize()
 {
-    return Preferences::pageSize();
+    return this->d->m_pageSize;
 }
 
 void AkVCam::IpcBridge::setPageSize(size_t pageSize)
 {
     AkLogFunction();
+    this->d->m_pageSize = pageSize;
     Preferences::setPageSize(pageSize);
 }
 
@@ -252,7 +260,7 @@ std::string AkVCam::IpcBridge::logPath(const std::string &logName) const
 
     auto defaultLogFile = AkVCam::tempPath() + "\\" + logName + ".log";
 
-    return AkVCam::Preferences::readString("logfile", defaultLogFile);
+    return Preferences::readString("logfile", defaultLogFile);
 }
 
 void AkVCam::IpcBridge::stopNotifications()
@@ -263,18 +271,7 @@ void AkVCam::IpcBridge::stopNotifications()
 
 std::vector<std::string> AkVCam::IpcBridge::devices() const
 {
-    AkLogFunction();
-    std::vector<std::string> devices;
-    auto nCameras = Preferences::camerasCount();
-    AkLogInfo() << "Devices:" << std::endl;
-
-    for (size_t i = 0; i < nCameras; i++) {
-        auto deviceId = Preferences::cameraId(i);
-        devices.push_back(deviceId);
-        AkLogInfo() << "    " << deviceId << std::endl;
-    }
-
-    return devices;
+    return this->d->m_devices;
 }
 
 std::string AkVCam::IpcBridge::description(const std::string &deviceId) const
@@ -411,15 +408,17 @@ std::string AkVCam::IpcBridge::addDevice(const std::string &description,
                                          const std::string &deviceId)
 {
     AkLogFunction();
+    auto device = Preferences::addDevice(description, deviceId);
+    this->updateDevices();
 
-    return Preferences::addDevice(description, deviceId);
+    return device;
 }
 
 void AkVCam::IpcBridge::removeDevice(const std::string &deviceId)
 {
     AkLogFunction();
-
     Preferences::removeCamera(deviceId);
+    this->updateDevices();
 }
 
 void AkVCam::IpcBridge::addFormat(const std::string &deviceId,
@@ -535,9 +534,9 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
         AkLogDebug() << "Started output stream for device: " << deviceId << std::endl;
     }
 
-    if (Preferences::dataMode() == DataMode_SharedMemory) {
+    if (this->d->m_dataMode == DataMode_SharedMemory) {
         slot.sharedMemory.setName(deviceId + "Shm");
-        slot.sharedMemory.open(Preferences::pageSize(),
+        slot.sharedMemory.open(this->d->m_pageSize,
                                type == StreamType_Input?
                                    SharedMemory::OpenModeRead:
                                    SharedMemory::OpenModeWrite);
@@ -749,8 +748,12 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
 {
     AkLogFunction();
 
-    auto loglevel = AkVCam::Preferences::logLevel();
-    AkVCam::Logger::setLogLevel(loglevel);
+    this->m_logLevel = Preferences::logLevel();
+    AkVCam::Logger::setLogLevel(this->m_logLevel);
+    this->m_picture = Preferences::picture();
+    this->m_dataMode = Preferences::dataMode();
+    this->m_pageSize = Preferences::pageSize();
+    this->updateDevices();
 
     if (!this->launchService())
         AkLogWarning() << "There was not possible to communicate with the server consider increasing the timeout." << std::endl;
@@ -767,6 +770,21 @@ AkVCam::IpcBridgePrivate::~IpcBridgePrivate()
 
     this->m_messagesTimer.stop();
     AkLogDebug() << "Bridge Destroyed" << std::endl;
+}
+
+void AkVCam::IpcBridgePrivate::updateDevices()
+{
+    AkLogFunction();
+
+    this->m_devices.clear();
+    auto nCameras = Preferences::camerasCount();
+    AkLogInfo() << "Devices:" << std::endl;
+
+    for (size_t i = 0; i < nCameras; i++) {
+        auto deviceId = Preferences::cameraId(i);
+        this->m_devices.push_back(deviceId);
+        AkLogInfo() << "    " << deviceId << std::endl;
+    }
 }
 
 bool AkVCam::IpcBridgePrivate::launchService()
