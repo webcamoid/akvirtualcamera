@@ -71,6 +71,16 @@ CAPI_EXPORT int vcam_set_description(void *vcam,
                                      const char *device_id,
                                      const char *description);
 
+// Check if the device is configured in direct mode.
+CAPI_EXPORT int vcam_direct_mode(void *vcam,
+                                 const char *device_id,
+                                 bool *direct_mode);
+
+// Configure the direct mode forthe device.
+CAPI_EXPORT int vcam_direct_mode(void *vcam,
+                                 const char *device_id,
+                                 bool *direct_mode);
+
 // List supported input formats.
 CAPI_EXPORT int vcam_supported_input_formats(void *vcam,
                                              char *formats,
@@ -177,6 +187,23 @@ CAPI_EXPORT int vcam_picture(void *vcam, char *file_path, size_t *buffer_size);
 
 // Set placeholder picture.
 CAPI_EXPORT int vcam_set_picture(void *vcam, const char *file_path);
+
+// Get available data modes.
+CAPI_EXPORT int vcam_data_modes(void *vcam,
+                                size_t index,
+                                char *mode,
+                                size_t buffer_size);
+
+// Get the default data mode.
+CAPI_EXPORT int vcam_default_data_mode(void *vcam,
+                                       char *mode,
+                                       size_t buffer_size);
+
+// Get current data mode.
+CAPI_EXPORT int vcam_data_mode(void *vcam, char *mode, size_t buffer_size);
+
+// Set the data mode.
+CAPI_EXPORT int vcam_set_data_mode(void *vcam, const char *mode);
 
 // Show current debugging level.
 CAPI_EXPORT int vcam_loglevel(void *vcam, int *level);
