@@ -299,7 +299,7 @@ AkVCam::CmdParser::CmdParser()
                    "FPS",
                    "Read stream input at a constant frame rate.");
     this->addCommand("stream-pattern",
-                     "DEVICE",
+                     "DEVICE WIDTH HEIGHT",
                      "Send a test video pattern to the device.",
                      AKVCAM_BIND_FUNC(CmdParserPrivate::streamPattern));
     this->addFlags("stream-pattern",
