@@ -1,3 +1,22 @@
+akvirtualcamera 9.3.0:
+
+- Added support for Microsoft Media Foundation.
+- Added stream-pattern to the manager, for sending a testing pattern the virtual
+  camera without reuiring a real source.
+- Added a testing program for DirectShow and Media Foundation.
+- Now the input stream support many popular RGB and YUV formats.
+- Video frames can be sent either using shared memory (default) or sockets.
+- Removed RGB 16 bits formats support in Windows.
+- Added direct mode (pass-through) support for sending the frames as-is, as
+  fast as possible.
+
+akvirtualcamera 9.2.0:
+
+- Using sockets as IPC mechanism.
+- Added FAKE_APPLE build option, this will allow to test the plugin in, for
+  example, Linux platforms.
+- Added a simple C API library to communicate with the virtual camera.
+
 akvirtualcamera 9.1.3:
 
 - Quote file path if it contains spaces (issue #75).
