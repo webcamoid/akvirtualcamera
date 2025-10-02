@@ -920,13 +920,15 @@ int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,
     } else {
         std::vector<std::string> table {
             "Device",
-            "Description"
+            "Description",
+            "Direct mode"
         };
         auto columns = table.size();
 
         for (auto &device: devices) {
             table.push_back(device);
             table.push_back(this->m_ipcBridge.description(device));
+            table.push_back(Preferences::cameraDirectMode(device)? "true": "false");
         }
 
         this->drawTable(table, columns);
