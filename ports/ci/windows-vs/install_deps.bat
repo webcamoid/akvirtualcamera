@@ -16,22 +16,16 @@ REM along with akvirtualcamera. If not, see <http://www.gnu.org/licenses/>.
 REM
 REM Web-Site: http://webcamoid.github.io/
 
-if not "%GITHUB_SHA%" == "" set GIT_COMMIT_HASH="%GITHUB_SHA%"
-if not "%CIRRUS_CHANGE_IN_REPO%" == "" set GIT_COMMIT_HASH="%CIRRUS_CHANGE_IN_REPO%"
+@echo off
 
-if not "%GITHUB_REF_NAME%" == "" set GIT_BRANCH_NAME="%GITHUB_REF_NAME%"
-if not "%CIRRUS_BRANCH%" == "" set GIT_BRANCH_NAME="%CIRRUS_BRANCH%"
-if not "%GIT_BRANCH_NAME%" == "" set GIT_BRANCH_NAME=master
+set "DOWNLOAD_CMD=curl --retry 10 -sS -k -L -O -C -"
 
-git clone https://github.com/webcamoid/DeployTools.git
+set "MAJOR_VERSION=%NSIS_VERSION:~0,1%"
+set "nsis=nsis-%NSIS_VERSION%-setup.exe"
+set "URL=https://sourceforge.net/projects/nsis/files/NSIS %%20%MAJOR_VERSION%/%NSIS_VERSION%/%nsis%"
 
-set Path="C:\Program Files (x86)\NSIS;%PATH%"
-set INSTALL_PREFIX=%CD%\package-data
-set PACKAGES_DIR=%CD%\packages\windows
-set BUILD_PATH=%CD%\build-x64
-set PYTHONPATH=%CD%\DeployTools
+%DOWNLOAD_CMD% "%URL%"
 
-python DeployTools\deploy.py ^
-    -d "%INSTALL_PREFIX%" ^
-    -c "%BUILD_PATH%\package_info.conf" ^
-    -o "%PACKAGES_DIR%"
+if exist "%nsis%" (
+    "%nsis%" /S
+)

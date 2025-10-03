@@ -3,6 +3,7 @@ name: Windows Visual Studio
 on: [push, pull_request]
 
 env:
+  NSIS_VERSION: 3.10
   CMAKE_GENERATOR: Visual Studio 17 2022
   PYTHON_VERSION: Python312
   NJOBS: 4
@@ -15,6 +16,8 @@ jobs:
         shell: cmd
     steps:
     - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: ports\ci\windows-vs\install_deps.bat
     - name: Build
       run: ports\ci\windows-vs\build.bat
     - name: Deploy

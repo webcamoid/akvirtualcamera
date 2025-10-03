@@ -1,8 +1,12 @@
+akvirtualcamera 9.3.1:
+
+- Fix Windows packages build.
+
 akvirtualcamera 9.3.0:
 
 - Added support for Microsoft Media Foundation.
 - Added stream-pattern to the manager, for sending a testing pattern the virtual
-  camera without reuiring a real source.
+  camera without requiring a real source.
 - Added a testing program for DirectShow and Media Foundation.
 - Now the input stream support many popular RGB and YUV formats.
 - Video frames can be sent either using shared memory (default) or sockets.
