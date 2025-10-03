@@ -16,11 +16,11 @@ REM along with akvirtualcamera. If not, see <http://www.gnu.org/licenses/>.
 REM
 REM Web-Site: http://webcamoid.github.io/
 
-@echo on
+@echo off
 
 set "DOWNLOAD_CMD=curl --retry 10 -sS -k -L -O -C -"
 
-set NSIS_VERSION=3.10
+if "%NSIS_VERSION%" == "" set NSIS_VERSION=3.10
 set "MAJOR_VERSION=%NSIS_VERSION:~0,1%"
 set "nsis=nsis-%NSIS_VERSION%-setup.exe"
 set "URL=https://sourceforge.net/projects/nsis/files/NSIS%%20%MAJOR_VERSION%/%NSIS_VERSION%/%nsis%/download"
