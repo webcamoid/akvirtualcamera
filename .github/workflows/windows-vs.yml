@@ -23,7 +23,7 @@ jobs:
     - name: Install NSIS
       uses: repolevedavaj/install-nsis@v1.0.3
       with:
-        nsis-version: ${{ env.NSIS_VERSION }}
+        nsis-version: 3.10
     - name: Build
       run: ports\ci\windows-vs\build.bat
     - name: Deploy
