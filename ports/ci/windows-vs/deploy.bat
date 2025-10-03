@@ -25,13 +25,14 @@ if "%GIT_BRANCH_NAME%" == "" set GIT_BRANCH_NAME=master
 
 git clone https://github.com/webcamoid/DeployTools.git
 
-set PATH="C:\Program Files (x86)\NSIS;%Python_ROOT_DIR%;%PATH%"
+set PATH="C:\Program Files (x86)\NSIS;%PATH%"
 set INSTALL_PREFIX=%CD%\package-data
 set PACKAGES_DIR=%CD%\packages\windows
 set BUILD_PATH=%CD%\build-x64
 set PYTHONPATH=%CD%\DeployTools
+set PYTHON_EXE="%Python_ROOT_DIR%\python.exe"
 
-python DeployTools\deploy.py ^
+%PYTHON_EXE% DeployTools\deploy.py ^
     -d "%INSTALL_PREFIX%" ^
     -c "%BUILD_PATH%\package_info.conf" ^
     -o "%PACKAGES_DIR%"
