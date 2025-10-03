@@ -22,7 +22,7 @@ set "DOWNLOAD_CMD=curl --retry 10 -sS -k -L -O -C -"
 
 set "MAJOR_VERSION=%NSIS_VERSION:~0,1%"
 set "nsis=nsis-%NSIS_VERSION%-setup.exe"
-set "URL=https://sourceforge.net/projects/nsis/files/NSIS %%20%MAJOR_VERSION%/%NSIS_VERSION%/%nsis%"
+set "URL=https://sourceforge.net/projects/nsis/files/NSIS%%20%MAJOR_VERSION%/%NSIS_VERSION%/%nsis%/download"
 
 %DOWNLOAD_CMD% "%URL%"
 
