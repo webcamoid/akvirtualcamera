@@ -21,11 +21,11 @@ if not "%CIRRUS_CHANGE_IN_REPO%" == "" set GIT_COMMIT_HASH="%CIRRUS_CHANGE_IN_RE
 
 if not "%GITHUB_REF_NAME%" == "" set GIT_BRANCH_NAME="%GITHUB_REF_NAME%"
 if not "%CIRRUS_BRANCH%" == "" set GIT_BRANCH_NAME="%CIRRUS_BRANCH%"
-if not "%GIT_BRANCH_NAME%" == "" set GIT_BRANCH_NAME=master
+if "%GIT_BRANCH_NAME%" == "" set GIT_BRANCH_NAME=master
 
 git clone https://github.com/webcamoid/DeployTools.git
 
-set Path="C:\Program Files (x86)\NSIS;%PATH%"
+set PATH="C:\Program Files (x86)\NSIS;%PATH%"
 set INSTALL_PREFIX=%CD%\package-data
 set PACKAGES_DIR=%CD%\packages\windows
 set BUILD_PATH=%CD%\build-x64

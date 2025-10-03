@@ -5,7 +5,7 @@ on: [push, pull_request]
 env:
   NSIS_VERSION: 3.10
   CMAKE_GENERATOR: Visual Studio 17 2022
-  PYTHON_VERSION: Python312
+  PYTHON_VERSION: 3.12
   NJOBS: 4
 
 jobs:
@@ -16,6 +16,10 @@ jobs:
         shell: cmd
     steps:
     - uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
     - name: Install dependencies
       run: ports\ci\windows-vs\install_deps.bat
     - name: Build
