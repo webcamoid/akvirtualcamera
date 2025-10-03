@@ -24,7 +24,12 @@ jobs:
       COMPILER: ${{ matrix.compiler }}
     steps:
     - uses: actions/checkout@v2
-    - uses: msys2/setup-msys2@v2
+    - name: Install NSIS
+      uses: repolevedavaj/install-nsis@v1.0.3
+      with:
+        nsis-version: ${{ env.NSIS_VERSION }}
+    - name: Install MSYS2 dependencies
+      uses: msys2/setup-msys2@v2
       with:
         update: true
         msystem: mingw64
@@ -46,8 +51,6 @@ jobs:
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-gcc
           mingw-w64-x86_64-pkgconf
-    - name: Install dependencies
-      run: ./ports/ci/windows-msys/install_deps.sh
     - name: Release Build
       if: ${{ startsWith(github.ref, 'refs/tags/') }}
       run: ./ports/ci/windows-msys/build.sh
