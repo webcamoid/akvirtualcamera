@@ -36,6 +36,7 @@ jobs:
           make
           pkgconf
           python3
+          unzip
           mingw-w64-i686-binutils
           mingw-w64-i686-clang
           mingw-w64-i686-cmake
