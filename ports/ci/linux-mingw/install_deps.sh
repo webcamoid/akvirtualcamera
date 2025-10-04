@@ -62,6 +62,7 @@ pacman --noconfirm --needed -S \
     pkgconf \
     python \
     sed \
+    unzip \
     vulkan-icd-loader \
     wine \
     xorg-server-xvfb
