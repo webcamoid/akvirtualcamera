@@ -39,5 +39,5 @@ ${DOWNLOAD_CMD} "${url}"
 if [ -e download ]; then
     echo "installing ${nsis}"
     mv -f download "${nsis}"
-    ./${nsis} /S
+    cmd //c ./${nsis} /S
 fi
