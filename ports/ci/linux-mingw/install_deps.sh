@@ -68,6 +68,10 @@ pacman --noconfirm --needed -S \
 
 # Install NSIS
 
+if [ -z "${NSIS_VERSION}" ]; then
+    NSIS_VERSION=3.10
+fi
+
 nsis=nsis-${NSIS_VERSION}-setup.exe
 ${DOWNLOAD_CMD} "https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
 
