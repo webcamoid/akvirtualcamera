@@ -47,7 +47,7 @@ jobs:
           mingw-w64-x86_64-gcc
           mingw-w64-x86_64-pkgconf
     - name: Install dependencies
-      run: ports\ci\windows-msys\install_deps.bat
+      run: cmd //c ports/ci/windows-msys/install_deps.bat
 #    - name: Install dependencies
 #      run: ./ports/ci/windows-msys/install_deps.sh
     - name: Release Build
