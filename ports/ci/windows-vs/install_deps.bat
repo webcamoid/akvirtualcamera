@@ -20,16 +20,15 @@ REM Web-Site: http://webcamoid.github.io/
 
 set "DOWNLOAD_CMD=curl --retry 10 -sS -k -L -O -C -"
 
-if "%NSIS_VERSION%" == "" set NSIS_VERSION=3.10
+if "%NSIS_VERSION%" == "" set NSIS_VERSION=3.11
 set "MAJOR_VERSION=%NSIS_VERSION:~0,1%"
 set "nsis=nsis-%NSIS_VERSION%-setup.exe"
-set "URL=https://sourceforge.net/projects/nsis/files/NSIS%%20%MAJOR_VERSION%/%NSIS_VERSION%/%nsis%/download"
+set "URL=https://sourceforge.net/projects/nsis/files/NSIS%%20%MAJOR_VERSION%/%NSIS_VERSION%/%nsis%"
 
 echo Downloading %URL%
 %DOWNLOAD_CMD% "%URL%"
 
-if exist download (
+if exist %nsis% (
     echo installing %nsis%
-    ren download %nsis%
     "%nsis%" /S
 )

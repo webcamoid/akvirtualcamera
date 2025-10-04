@@ -66,21 +66,29 @@ pacman --noconfirm --needed -S \
     wine \
     xorg-server-xvfb
 
+# Setup wine
+
+export WINEPREFIX=/opt/.wine
+
+xvfb-run --auto-servernum wineboot --init
+
 # Install NSIS
 
 if [ -z "${NSIS_VERSION}" ]; then
-    NSIS_VERSION=3.10
+    NSIS_VERSION=3.11
 fi
 
-nsis=nsis-${NSIS_VERSION}-setup.exe
-${DOWNLOAD_CMD} "https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
+nsis=nsis-${NSIS_VERSION}.zip
+url="https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
+
+echo "Downloading ${url}"
+${DOWNLOAD_CMD} "${url}"
 
 if [ -e "${nsis}" ]; then
-    export WINEPREFIX=/opt/.wine
+    echo "installing ${nsis}"
 
-    xvfb-run --auto-servernum wineboot --init
-    xvfb-run --auto-servernum wine ./${nsis} /S
-
-    ls "${WINEPREFIX}/drive_c/Program Files (x86)/NSIS/makensis.exe"
-    find ${WINEPREFIX} -type f
+    NSIS_INSTALL_DIR="${WINEPREFIX}/Program Files (x86)"
+    mkdir -p "${NSIS_INSTALL_DIR}"
+    unzip -q "${nsis}" -d "${NSIS_INSTALL_DIR}"
+    mv -f "${NSIS_INSTALL_DIR}/nsis-${NSIS_VERSION}" "${NSIS_INSTALL_DIR}/NSIS"
 fi

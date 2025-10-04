@@ -27,18 +27,17 @@ fi
 # Install NSIS
 
 if [ -z "${NSIS_VERSION}" ]; then
-    NSIS_VERSION=3.10
+    NSIS_VERSION=3.11
 fi
 
 nsis=nsis-${NSIS_VERSION}.zip
-url="https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}/download"
+url="https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
 
 echo "Downloading ${url}"
 ${DOWNLOAD_CMD} "${url}"
 
-if [ -e download ]; then
+if [ -e ${nsis} ]; then
     echo "installing ${nsis}"
-    mv -f download "${nsis}"
 
     NSIS_INSTALL_DIR="/c/Program Files (x86)"
     mkdir -p "${NSIS_INSTALL_DIR}"
