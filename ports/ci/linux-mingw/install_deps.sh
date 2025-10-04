@@ -81,5 +81,6 @@ if [ -e "${nsis}" ]; then
     xvfb-run --auto-servernum wineboot --init
     xvfb-run --auto-servernum wine ./${nsis} /S
 
-    ls "/opt/.wine/drive_c/Program Files (x86)/NSIS/makensis.exe"
+    ls "${WINEPREFIX}/drive_c/Program Files (x86)/NSIS/makensis.exe"
+    find ${WINEPREFIX} -type f
 fi
