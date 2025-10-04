@@ -31,12 +31,13 @@ if [ -z "${NSIS_VERSION}" ]; then
 fi
 
 nsis=nsis-${NSIS_VERSION}-setup.exe
-url="https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}"
+url="https://sourceforge.net/projects/nsis/files/NSIS%20${NSIS_VERSION:0:1}/${NSIS_VERSION}/${nsis}/download"
 
 echo "Downloading ${url}"
 ${DOWNLOAD_CMD} "${url}"
 
 if [ -e download ]; then
-    ren download "${nsis}"
+    echo "installing ${nsis}"
+    mf -f download "${nsis}"
     ./${nsis} /S
 fi

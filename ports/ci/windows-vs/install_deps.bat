@@ -29,6 +29,7 @@ echo Downloading %URL%
 %DOWNLOAD_CMD% "%URL%"
 
 if exist download (
+    echo installing %nsis%
     ren download %nsis%
     "%nsis%" /S
 )
