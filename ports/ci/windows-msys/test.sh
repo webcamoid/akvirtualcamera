@@ -39,3 +39,7 @@ echo "Testing the virtual camera in Media Foundation"
 
 "${COMPILER}" -o testmf.exe ports/ci/windows-msys/testmf.cpp -lole32 -lmf -lmfplat -lmfuuid
 ./testmf.exe
+
+echo "Checking if the services are up"
+
+ps aux | grep -i AkVCam
