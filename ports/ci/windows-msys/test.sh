@@ -42,4 +42,4 @@ echo "Testing the virtual camera in Media Foundation"
 
 echo "Checking if the services are up"
 
-ps aux | grep -i AkVCam
+pgrep -a AkVCam
