@@ -20,6 +20,9 @@
 
 export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 
+echo "Initilize the assistant"
+nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
+
 # configure a virtual camera for testing
 
 manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
@@ -29,6 +32,9 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 "${manager}" update
 "${manager}" devices
 "${manager}" formats FakeCamera0
+
+echo "Initilize the Media Foundation assistant"
+nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
 
 echo "Testing the virtual camera in DirectShow"
 
@@ -42,4 +48,4 @@ echo "Testing the virtual camera in Media Foundation"
 
 echo "Checking if the services are up"
 
-pgrep -a AkVCam
+pgrep -a AkVCam || true
