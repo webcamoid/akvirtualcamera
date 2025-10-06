@@ -158,6 +158,8 @@ void updateCameras(void *, const std::vector<std::string> &)
             continue;
         }
 
+        // For creating the virtual camera, the MediaSource must be registered
+
         auto deviceId = AkVCam::Preferences::cameraId(cameraIndex);
         std::cout << "Registering device '" << description << "' (" << deviceId << ", " << clsidStr << ")" << std::endl;
 
@@ -168,7 +170,16 @@ void updateCameras(void *, const std::vector<std::string> &)
             continue;
         }
 
-        // For creating the virtual camera, the MediaSource must be registered
+        IMFMediaSource *mediaSource = nullptr;
+        hr = CoCreateInstance(clsid,
+                              nullptr,
+                              CLSCTX_INPROC_SERVER,
+                              IID_PPV_ARGS(&mediaSource));
+
+        if (SUCCEEDED(hr))
+            mediaSource->Release();
+        else
+            std::cerr << "CoCreateInstance failed: " << hr << std::endl;
 
         IMFVCam *vcam = nullptr;
         auto hr = mfCreateVirtualCamera(MFVCamType_SoftwareCameraSource,
