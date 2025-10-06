@@ -176,7 +176,7 @@ void updateCameras(void *, const std::vector<std::string> &)
                               CLSCTX_INPROC_SERVER,
                               IID_PPV_ARGS(&mediaSource));
 
-        if (SUCCEEDED(hr))
+        if (SUCCEEDED(hr) && mediaSource)
             mediaSource->Release();
         else
             std::cerr << "CoCreateInstance failed: " << hr << std::endl;
