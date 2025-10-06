@@ -108,7 +108,7 @@ int main(int argc, char **argv)
         ipcBridgePtr->disconnectDevicesChanged(nullptr, updateCameras);
         mtxPtr->lock();
         camerasPtr->clear();
-        mtxPtr->lock();
+        mtxPtr->unlock();
         FreeLibrary(mfsensorgroupHnd);
         MFShutdown();
     });
@@ -144,7 +144,8 @@ void updateCameras(void *, const std::vector<std::string> &)
         if (description.empty())
             continue;
 
-        auto clsidWStr = AkVCam::wstrFromString(AkVCam::stringFromClsid(clsid));
+        auto clsidStr = AkVCam::stringFromClsid(clsid);
+        auto clsidWStr = AkVCam::wstrFromString(clsidStr);
 
         if (!clsidWStr)
             continue;
@@ -152,6 +153,16 @@ void updateCameras(void *, const std::vector<std::string> &)
         auto descriptionWStr = AkVCam::wstrFromString(description);
 
         if (!descriptionWStr) {
+            CoTaskMemFree(clsidWStr);
+
+            continue;
+        }
+
+        auto deviceId = AkVCam::Preferences::cameraId(cameraIndex);
+        std::cout << "Registering device '" << description << "' (" << deviceId << ", " << clsidStr << ")" << std::endl;
+
+        if (!AkVCam::isDeviceIdMFTaken(deviceId)) {
+            std::cerr << "WARNING: The device is not registered" << std::endl;
             CoTaskMemFree(clsidWStr);
 
             continue;
@@ -190,7 +201,7 @@ void updateCameras(void *, const std::vector<std::string> &)
         }
 
         camerasPtr->push_back(std::shared_ptr<IMFVCam>(vcam, [] (IMFVCam *vcam) {
-            vcam->Stop();
+            vcam->Remove();
             vcam->Shutdown();
             vcam->Release();
         }));
