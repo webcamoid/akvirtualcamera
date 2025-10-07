@@ -30,6 +30,8 @@ if [ "${DISABLE_CCACHE}" != 1 ]; then
     EXTRA_PARAMS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache"
 fi
 
+#BUILD_TYPE=Release
+BUILD_TYPE=Debug
 INSTALL_PREFIX=${PWD}/package-data-${COMPILER}
 ORIG_PATH=${PATH}
 
@@ -45,7 +47,7 @@ cmake \
     -S . \
     -B ${buildDir} \
     -G "MSYS Makefiles" \
-    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_C_COMPILER="${COMPILER_C}" \
     -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
@@ -66,7 +68,7 @@ cmake \
     -S . \
     -B ${buildDir} \
     -G "MSYS Makefiles" \
-    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_C_COMPILER="${COMPILER_C}" \
     -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \

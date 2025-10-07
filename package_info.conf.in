@@ -11,6 +11,7 @@ outputFormats = @OUTPUT_FORMATS@
 hideArch = @PACKET_HIDE_ARCH@
 writeLauncher = false
 dailyBuild = @DAILY_BUILD@
+buildType = @CMAKE_BUILD_TYPE@
 
 [MacPkg]
 appName = AkVirtualCamera
