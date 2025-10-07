@@ -87,6 +87,7 @@ namespace AkVCam
     VideoFrame loadPicture(const std::string &fileName);
     bool isDeviceIdTaken(const std::string &deviceId);
     std::string createDeviceId();
+    std::string cameraIdFromCLSID(const CLSID &clsid);
     std::vector<CLSID> listAllCameras();
     std::vector<CLSID> listRegisteredCameras();
     std::vector<uint64_t> systemProcesses();

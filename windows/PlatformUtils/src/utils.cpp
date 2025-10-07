@@ -1313,6 +1313,16 @@ std::string AkVCam::createDeviceId()
     return {};
 }
 
+std::string AkVCam::cameraIdFromCLSID(const CLSID &clsid)
+{
+    auto cameraIndex = Preferences::cameraFromCLSID(clsid);
+
+    if (cameraIndex < 0)
+        return {};
+
+    return Preferences::cameraId(cameraIndex);
+}
+
 std::vector<CLSID> AkVCam::listAllCameras()
 {
     AkLogFunction();

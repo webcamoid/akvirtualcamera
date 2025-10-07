@@ -114,12 +114,36 @@ int WINAPI WinMain(HINSTANCE hInstance,
     ShowWindow(hwnd, nCmdShow);
     UpdateWindow(hwnd);
 
-    // Inicialize IMFMediaSource and IMFSourceReader
-    auto pMediaSource = new AkVCam::MediaSource(cameras.front());
+    auto deviceId = AkVCam::cameraIdFromCLSID(cameras.front());
+    IMFMediaSource *pMediaSource = nullptr;
+    HRESULT hr = S_OK;
+
+    if (AkVCam::isDeviceIdMFTaken(deviceId)) {
+        // Is the MediaSource registered? load it from the plugin.
+        hr = CoCreateInstance(cameras.front(),
+                              nullptr,
+                              CLSCTX_INPROC_SERVER,
+                              IID_PPV_ARGS(&pMediaSource));
+    } else {
+        // Otherwise load it directly from the class.
+        pMediaSource = new AkVCam::MediaSource(cameras.front());
+    }
+
+    if (FAILED(hr)) {
+        MessageBox(nullptr,
+                   TEXT("Failed creating the MediaSource."),
+                   TEXT("Error"),
+                   MB_OK | MB_ICONERROR);
+        MFShutdown();
+        CoUninitialize();
+
+        return -1;
+    }
+
     IMFSourceReader *pReader = nullptr;
-    auto hr = MFCreateSourceReaderFromMediaSource(pMediaSource,
-                                                  nullptr,
-                                                  &pReader);
+    hr = MFCreateSourceReaderFromMediaSource(pMediaSource,
+                                             nullptr,
+                                             &pReader);
 
     if (FAILED(hr)) {
         MessageBox(nullptr,

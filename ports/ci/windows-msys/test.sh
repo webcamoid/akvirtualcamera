@@ -34,7 +34,8 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 "${manager}" formats FakeCamera0
 
 echo "Initilize the Media Foundation assistant"
-nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
+#nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
+nohup gdb -ex=r --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
 
 echo "Testing the virtual camera in DirectShow"
 
