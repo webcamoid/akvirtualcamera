@@ -22,6 +22,7 @@ export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
+sleep 5
 
 # configure a virtual camera for testing
 
@@ -32,25 +33,19 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 "${manager}" update
 "${manager}" devices
 "${manager}" formats FakeCamera0
+sleep 5
 
 echo "Initilize the Media Foundation assistant"
 #nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
-nohup gdb -batch -return-child-result \
--ex 'set pagination off' \
--ex 'set pagination off' \
-    -ex 'set logging file gdb_crash.log' \
-    -ex 'set logging enabled on' \
-    -ex 'set logging redirect on' \
-    -ex 'handle SIGSEGV stop noprint nostop' \
-    -ex 'catch signal SIGSEGV' \
-    -ex 'commands 1' \
-    -ex 'silent' \
+nohup gdb -batch \
+    -ex 'set pagination off' \
+    -ex 'handle SIGSEGV stop' \
+    -ex 'run' \
     -ex 'bt full' \
     -ex 'info registers' \
     -ex 'quit' \
-    -ex 'end' \
-    -ex 'run' \
     --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"> gdb_output.log 2>&1 &
+sleep 5
 
 echo "Testing the virtual camera in DirectShow"
 
@@ -67,6 +62,7 @@ echo "Checking if the services are up"
 pgrep -a AkVCam || true
 
 echo "GDB log"
+sleep 10
 
 if [ -f gdb_crash.log ]; then
     cat gdb_crash.log
