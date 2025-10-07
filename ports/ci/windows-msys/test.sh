@@ -37,15 +37,17 @@ echo "Initilize the Media Foundation assistant"
 #nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
 nohup gdb -batch -return-child-result \
 -ex 'set pagination off' \
+-ex 'set pagination off' \
     -ex 'set logging file gdb_crash.log' \
-    -ex 'set logging on' \
+    -ex 'set logging enabled on' \
+    -ex 'set logging redirect on' \
     -ex 'handle SIGSEGV stop noprint nostop' \
     -ex 'catch signal SIGSEGV' \
-    -ex 'commands' \
+    -ex 'commands 1' \
     -ex 'silent' \
     -ex 'bt full' \
     -ex 'info registers' \
-    -ex 'continue' \
+    -ex 'quit' \
     -ex 'end' \
     -ex 'run' \
     --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"> gdb_output.log 2>&1 &
