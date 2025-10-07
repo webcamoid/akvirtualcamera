@@ -35,7 +35,11 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 
 echo "Initilize the Media Foundation assistant"
 #nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
-nohup gdb -ex=r --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
+nohup gdb -batch -return-child-result \
+    -ex 'set pagination off' \
+    -ex 'handle SIGSEGV stop print stack full' \
+    -ex 'run' \
+    --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"> gdb_output.log 2>&1 &
 
 echo "Testing the virtual camera in DirectShow"
 
@@ -50,3 +54,7 @@ echo "Testing the virtual camera in Media Foundation"
 echo "Checking if the services are up"
 
 pgrep -a AkVCam || true
+
+echo "GDB log"
+
+cat gdb_output.log || true
