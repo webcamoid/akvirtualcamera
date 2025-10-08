@@ -18,6 +18,10 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
+# Try disabling the frame server
+
+reg add "HKLM\SOFTWARE\Microsoft\Windows Media Foundation\Platform" /v EnableFrameServerMode /t REG_DWORD /d 0 /f || true
+
 export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 
 echo "Initilize the assistant"

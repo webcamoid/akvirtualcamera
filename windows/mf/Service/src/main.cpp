@@ -171,9 +171,9 @@ void updateCameras(void *, const std::vector<std::string> &)
         }
 
         HRESULT hr = S_OK;
-        /*
+        /***/
         IMFMediaSource *mediaSource = nullptr;
-        auto hr = CoCreateInstance(clsid,
+        hr = CoCreateInstance(clsid,
                               nullptr,
                               CLSCTX_INPROC_SERVER,
                               IID_PPV_ARGS(&mediaSource));
@@ -182,7 +182,7 @@ void updateCameras(void *, const std::vector<std::string> &)
             mediaSource->Release();
         else
             std::cerr << "CoCreateInstance failed: " << hr << std::endl;
-*/
+//*/
         IMFVCam *vcam = nullptr;
         /*auto */hr = mfCreateVirtualCamera(MFVCamType_SoftwareCameraSource,
                                             MFVCamLifetime_Session,
