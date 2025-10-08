@@ -64,10 +64,6 @@ pgrep -a AkVCam || true
 echo "GDB log"
 sleep 10
 
-if [ -f gdb_crash.log ]; then
-    cat gdb_crash.log
-fi
-
 if [ -f gdb_output.log ]; then
     cat gdb_output.log
 fi

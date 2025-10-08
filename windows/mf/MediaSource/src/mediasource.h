@@ -31,6 +31,7 @@ namespace AkVCam
 
     class MediaSource:
             public IMFMediaSource,
+            public IMFGetService,
             public MediaEventGenerator
     {
         public:
@@ -55,6 +56,11 @@ namespace AkVCam
             HRESULT STDMETHODCALLTYPE Stop() override;
             HRESULT STDMETHODCALLTYPE Pause() override;
             HRESULT STDMETHODCALLTYPE Shutdown() override;
+
+            // IMFGetService
+            HRESULT STDMETHODCALLTYPE GetService(REFGUID service,
+                                                 REFIID riid,
+                                                 LPVOID *ppvObject) override;
 
         private:
             MediaSourcePrivate *d;

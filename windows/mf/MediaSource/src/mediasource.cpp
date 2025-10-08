@@ -182,6 +182,7 @@ HRESULT AkVCam::MediaSource::QueryInterface(REFIID riid, void **ppvObject)
 
     if (IsEqualIID(riid, IID_IUnknown)
         || IsEqualIID(riid, IID_IMFMediaSource)
+        || IsEqualIID(riid, IID_IMFGetService)
         || IsEqualIID(riid, IID_IMFMediaEventGenerator)) {
         AkLogInterface(IMFMediaSource, this);
         this->AddRef();
@@ -419,6 +420,17 @@ HRESULT AkVCam::MediaSource::Shutdown()
     }
 
     return this->eventQueue()->Shutdown();
+}
+
+HRESULT AkVCam::MediaSource::GetService(REFGUID service,
+                                        REFIID riid,
+                                        LPVOID *ppvObject)
+{
+    UNUSED(service);
+    UNUSED(riid);
+    UNUSED(ppvObject);
+
+    return MF_E_UNSUPPORTED_SERVICE;
 }
 
 AkVCam::MediaSourcePrivate::MediaSourcePrivate(MediaSource *self):
