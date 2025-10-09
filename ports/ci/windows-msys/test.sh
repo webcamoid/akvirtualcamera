@@ -68,3 +68,5 @@ if [ -f gdb_output.log ]; then
     sleep 10
     cat gdb_output.log
 fi
+
+ls /msys64/tmp

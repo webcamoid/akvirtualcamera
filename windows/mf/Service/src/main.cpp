@@ -163,6 +163,8 @@ void updateCameras(void *, const std::vector<std::string> &)
             continue;
         }
 
+        std::cout << "Creating '" << description << "'" << std::endl;
+
         IMFVCam *vcam = nullptr;
         auto hr = mfCreateVirtualCamera(MFVCamType_SoftwareCameraSource,
                                         MFVCamLifetime_Session,
@@ -181,6 +183,8 @@ void updateCameras(void *, const std::vector<std::string> &)
             continue;
         }
 
+        std::cout << "Starting '" << description << "'" << std::endl;
+
         CoTaskMemFree(clsidWStr);
         CoTaskMemFree(descriptionWStr);
         hr = vcam->Start(nullptr);
@@ -192,6 +196,8 @@ void updateCameras(void *, const std::vector<std::string> &)
 
             continue;
         }
+
+        std::cout << "Appending '" << description << "' to the virtual cameras list" << std::endl;
 
         camerasPtr->push_back(std::shared_ptr<IMFVCam>(vcam, [] (IMFVCam *vcam) {
             vcam->Remove();
