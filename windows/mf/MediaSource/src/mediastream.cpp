@@ -24,10 +24,13 @@
 #include <mutex>
 #include <random>
 #include <windows.h>
+#include <initguid.h>
 #include <mfapi.h>
 #include <mferror.h>
 #include <mfidl.h>
 #include <mfobjects.h>
+#include <ks.h>
+#include <ksmedia.h>
 
 #include "mediastream.h"
 #include "mediasource.h"
