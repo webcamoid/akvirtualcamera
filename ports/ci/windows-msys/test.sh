@@ -18,15 +18,13 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-# Try disabling the frame server
-
 export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
-sleep 5
+sleep 10
 
-# configure a virtual camera for testing
+# Configure a virtual camera for testing
 
 manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 
@@ -39,16 +37,16 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 sleep 5
 
 echo "Initilize the Media Foundation assistant"
-#nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
-nohup gdb -batch \
-    -ex 'set pagination off' \
-    -ex 'handle SIGSEGV stop' \
-    -ex 'run' \
-    -ex 'bt full' \
-    -ex 'info registers' \
-    -ex 'quit' \
-    --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"> gdb_output.log 2>&1 &
-sleep 5
+nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
+# nohup gdb -batch \
+#     -ex 'set pagination off' \
+#     -ex 'handle SIGSEGV stop' \
+#     -ex 'run' \
+#     -ex 'bt full' \
+#     -ex 'info registers' \
+#     -ex 'quit' \
+#     --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"> gdb_output.log 2>&1 &
+sleep 20
 
 echo "Testing the virtual camera in DirectShow"
 
@@ -65,8 +63,8 @@ echo "Checking if the services are up"
 pgrep -a AkVCam || true
 
 echo "GDB log"
-sleep 10
 
 if [ -f gdb_output.log ]; then
+    sleep 10
     cat gdb_output.log
 fi
