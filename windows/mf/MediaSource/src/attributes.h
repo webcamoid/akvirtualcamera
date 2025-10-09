@@ -40,7 +40,7 @@ namespace AkVCam
                                                   MF_ATTRIBUTE_TYPE *pType) override;
             HRESULT STDMETHODCALLTYPE CompareItem(REFGUID guidKey,
                                                   REFPROPVARIANT Value,
-                                                  BOOL *pbResult) override;
+                                                  WINBOOL *pbResult) override;
             HRESULT STDMETHODCALLTYPE Compare(IMFAttributes *pTheirs,
                                               MF_ATTRIBUTES_MATCH_TYPE MatchType,
                                               BOOL *pbResult) override;
