@@ -26,6 +26,7 @@
 #include <windows.h>
 #include <mfapi.h>
 #include <mferror.h>
+#include <mfidl.h>
 #include <mfobjects.h>
 
 #include "mediastream.h"
@@ -41,6 +42,16 @@
 #include "MFUtils/src/utils.h"
 
 #define TIME_BASE 1.0e7
+
+DEFINE_GUID(DEVICESTREAM_STREAM_CATEGORY, 0x2939e7b8, 0xa62e, 0x4579, 0xb6, 0x74, 0xd4, 0x7, 0x3d, 0xfa, 0xbb, 0xba);
+DEFINE_GUID(DEVICESTREAM_STREAM_ID, 0x11bd5120, 0xd124, 0x446b, 0x88, 0xe6, 0x17, 0x6, 0x2, 0x57, 0xff, 0xf9);
+DEFINE_GUID(DEVICESTREAM_FRAMESERVER_SHARED, 0x1cb378e9, 0xb279, 0x41d4, 0xaf, 0x97, 0x34, 0xa2, 0x43, 0xe6, 0x83, 0x20);
+DEFINE_GUID(DEVICESTREAM_ATTRIBUTE_FRAMESOURCE_TYPES, 0x17145fd1, 0x1b2b, 0x423c, 0x80, 0x1, 0x2b, 0x68, 0x33, 0xed, 0x35, 0x88);
+
+enum FrameSourceTypes
+{
+    FrameSourceTypes_Color = 0x1,
+};
 
 enum MediaStreamState
 {
@@ -96,6 +107,7 @@ namespace AkVCam
 
 AkVCam::MediaStream::MediaStream(MediaSource *mediaSource,
                                  IMFStreamDescriptor *streamDescriptor):
+    Attributes(),
     MediaEventGenerator()
 {
     this->d = new MediaStreamPrivate(this);
@@ -109,6 +121,12 @@ AkVCam::MediaStream::MediaStream(MediaSource *mediaSource,
         streamDescriptor->AddRef();
         this->d->m_streamDescriptor = streamDescriptor;
     }
+
+    this->SetGUID(DEVICESTREAM_STREAM_CATEGORY, PINNAME_VIDEO_CAPTURE);
+    this->SetUINT32(DEVICESTREAM_STREAM_ID, 0);
+    this->SetUINT32(DEVICESTREAM_FRAMESERVER_SHARED, 1);
+    this->SetUINT32(DEVICESTREAM_ATTRIBUTE_FRAMESOURCE_TYPES,
+                    FrameSourceTypes_Color);
 
     auto cameraIndex = Preferences::cameraFromId(mediaSource->deviceId());
 
@@ -363,13 +381,10 @@ HRESULT AkVCam::MediaStream::QueryInterface(const IID &riid, void **ppvObject)
 
     *ppvObject = nullptr;
 
-    if (IsEqualIID(riid, IID_IMFMediaEventGenerator)) {
-        AkLogInterface(IMFMediaEventGenerator, this);
-        this->AddRef();
-        *ppvObject = this;
-
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_IMFMediaStream)) {
+    if (IsEqualIID(riid, IID_IUnknown)
+        || IsEqualIID(riid, IID_IMFMediaStream)
+        || IsEqualIID(riid, IID_IMFAttributes)
+        || IsEqualIID(riid, IID_IMFMediaEventGenerator)) {
         AkLogInterface(IMFMediaStream, this);
         this->AddRef();
         *ppvObject = this;

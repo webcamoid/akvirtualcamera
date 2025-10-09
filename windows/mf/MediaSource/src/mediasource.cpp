@@ -28,6 +28,7 @@
 
 #include "mediasource.h"
 #include "mediastream.h"
+#include "mfvcam.h"
 #include "controls.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/preferences.h"
@@ -77,11 +78,16 @@ namespace AkVCam
 BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
 
 AkVCam::MediaSource::MediaSource(const GUID &clsid):
+    Attributes(),
     MediaEventGenerator()
 {
     AkLogFunction();
     this->d = new MediaSourcePrivate(this);
     this->d->m_clsid = clsid;
+
+    //this->SetUINT32(MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 1);
+    //this->SetGUID(MFT_TRANSFORM_CLSID_Attribute, clsid);
+
     AkLogDebug() << "CLSID: " << AkVCam::stringFromClsid(clsid) << std::endl;
 
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);
@@ -182,6 +188,7 @@ HRESULT AkVCam::MediaSource::QueryInterface(REFIID riid, void **ppvObject)
 
     if (IsEqualIID(riid, IID_IUnknown)
         || IsEqualIID(riid, IID_IMFMediaSource)
+        || IsEqualIID(riid, IID_IMFAttributes)
         || IsEqualIID(riid, IID_IMFGetService)
         || IsEqualIID(riid, IID_IMFMediaEventGenerator)) {
         AkLogInterface(IMFMediaSource, this);

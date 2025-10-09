@@ -20,8 +20,11 @@
 #ifndef MFVCAM_H
 #define MFVCAM_H
 
+#include <initguid.h>
 #include <devpropdef.h>
 #include <mfobjects.h>
+
+DEFINE_GUID(MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 0xf0273718, 0x4a4d, 0x4ac5, 0xa1, 0x5d, 0x30, 0x5e, 0xb5, 0xe9, 0x06, 0x67);
 
 enum MFVCamType
 {

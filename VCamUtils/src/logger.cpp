@@ -20,9 +20,8 @@
 #include <chrono>
 #include <ctime>
 #include <fstream>
-#include <map>
+#include <memory>
 #include <mutex>
-#include <sstream>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -68,6 +67,50 @@ namespace AkVCam
         }
     };
 
+    class TeeStreambuf: public std::streambuf
+    {
+        public:
+            TeeStreambuf(const std::vector<std::streambuf *> &buffers={}):
+                m_buffers(buffers)
+            {
+            }
+
+            TeeStreambuf(const TeeStreambuf &other):
+                m_buffers(other.m_buffers)
+            {
+
+            }
+
+            TeeStreambuf &operator =(const TeeStreambuf &other)
+            {
+                if (this != &other)
+                    this->m_buffers = other.m_buffers;
+
+                return *this;
+            }
+
+        protected:
+            int overflow(int c) override
+            {
+                if (c != EOF)
+                    for (auto &buffer: this->m_buffers)
+                        buffer->sputc(c);
+
+                return c;
+            }
+
+            int sync() override
+            {
+                for (auto &buffer: this->m_buffers)
+                    buffer->pubsync();
+
+                return 0;
+            }
+
+        private:
+            std::vector<std::streambuf *> m_buffers;
+    };
+
     class LoggerPrivate
     {
         public:
@@ -75,6 +118,18 @@ namespace AkVCam
             std::string fileName;
             int logLevel {AKVCAM_LOGLEVEL_DEFAULT};
             std::fstream stream;
+            TeeStreambuf teeOutBuf;
+            TeeStreambuf teeErrBuf;
+            std::shared_ptr<std::ostream> teeOut;
+            std::shared_ptr<std::ostream> teeErr;
+
+            LoggerPrivate()
+            {
+            }
+
+            ~LoggerPrivate()
+            {
+            }
 
             inline static uint64_t threadID()
             {
@@ -108,6 +163,9 @@ void AkVCam::Logger::setLogFile(const std::string &fileName)
 {
     loggerPrivate()->logFile = fileName;
     auto index = fileName.rfind('.');
+
+    if (loggerPrivate()->stream.is_open())
+        loggerPrivate()->stream.close();
 
     if (index == fileName.npos) {
         loggerPrivate()->fileName = fileName + "-" + timeStamp();
@@ -187,14 +245,29 @@ std::ostream &AkVCam::Logger::log(int logLevel)
     if (loggerPrivate()->fileName.empty())
         return logLevel == AKVCAM_LOGLEVEL_INFO? std::cout: std::cerr;
 
-    if (!loggerPrivate()->stream.is_open())
+    if (!loggerPrivate()->stream.is_open()) {
         loggerPrivate()->stream.open(loggerPrivate()->fileName,
                                      std::ios_base::out | std::ios_base::app);
+
+        loggerPrivate()->teeOutBuf = {{loggerPrivate()->stream.rdbuf(), std::cout.rdbuf()}};
+        loggerPrivate()->teeErrBuf = {{loggerPrivate()->stream.rdbuf(), std::cerr.rdbuf()}};
+
+        loggerPrivate()->teeOut = std::make_shared<std::ostream>(&loggerPrivate()->teeOutBuf);
+        loggerPrivate()->teeErr = std::make_shared<std::ostream>(&loggerPrivate()->teeErrBuf);
+    }
 
     if (!loggerPrivate()->stream.is_open())
         return logLevel == AKVCAM_LOGLEVEL_INFO? std::cout: std::cerr;
 
-    return loggerPrivate()->stream;
+    if (logLevel == AKVCAM_LOGLEVEL_INFO) {
+        loggerPrivate()->teeOut->flush();
+
+        return *loggerPrivate()->teeOut;
+    }
+
+    loggerPrivate()->teeErr->flush();
+
+    return *loggerPrivate()->teeErr;
 }
 
 int AkVCam::Logger::levelFromString(const std::string &level)

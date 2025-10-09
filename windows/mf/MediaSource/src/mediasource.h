@@ -23,6 +23,7 @@
 #include <string>
 #include <mfidl.h>
 
+#include "attributes.h"
 #include "mediaeventgenerator.h"
 
 namespace AkVCam
@@ -32,6 +33,7 @@ namespace AkVCam
     class MediaSource:
             public IMFMediaSource,
             public IMFGetService,
+            public Attributes,
             public MediaEventGenerator
     {
         public:

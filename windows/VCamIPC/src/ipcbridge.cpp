@@ -799,7 +799,7 @@ bool AkVCam::IpcBridgePrivate::launchService()
             execDetached({servicePath});
         else
             AkLogDebug() << "Service path not found" << std::endl;
-/*
+
         if (supportsMediaFoundationVCam()) {
             AkLogDebug() << "Launching the Media Foundation service" << std::endl;
             auto mfServicePath = locateMFServicePath();
@@ -808,7 +808,7 @@ bool AkVCam::IpcBridgePrivate::launchService()
                 execDetached({mfServicePath});
             else
                 AkLogDebug() << "Media Foundation Service path not found" << std::endl;
-        }*/
+        }
     }
 
     bool ok = false;

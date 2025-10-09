@@ -22,6 +22,7 @@
 
 #include <mfidl.h>
 
+#include "attributes.h"
 #include "mediaeventgenerator.h"
 #include "VCamUtils/src/ipcbridge.h"
 
@@ -32,6 +33,7 @@ namespace AkVCam
 
     class MediaStream:
             public IMFMediaStream,
+            public Attributes,
             public MediaEventGenerator
     {
         public:

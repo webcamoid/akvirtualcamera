@@ -35,6 +35,7 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 "${manager}" update
 "${manager}" devices
 "${manager}" formats FakeCamera0
+"${manager}" set-loglevel 7
 sleep 5
 
 echo "Initilize the Media Foundation assistant"
