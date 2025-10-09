@@ -107,4 +107,4 @@ namespace AkVCam
     };
 }
 
-#endif ATTRIBUTES_H
+#endif // ATTRIBUTES_H
