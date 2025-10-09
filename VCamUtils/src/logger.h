@@ -56,6 +56,8 @@ namespace AkVCam
 {
     namespace Logger
     {
+        std::string context();
+        void setContext(const std::string &context);
         std::string logFile();
         void setLogFile(const std::string &fileName);
         int logLevel();

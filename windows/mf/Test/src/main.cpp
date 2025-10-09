@@ -41,16 +41,8 @@ int WINAPI WinMain(HINSTANCE hInstance,
                    LPSTR lpCmdLine,
                    int nCmdShow)
 {
-    char exePath[MAX_PATH];
-    GetModuleFileNameA(nullptr, exePath, MAX_PATH);
-    auto loglevel = AkVCam::Preferences::logLevel();
-    AkVCam::Logger::setLogLevel(loglevel);
-    auto defaultLogFile = AkVCam::tempPath()
-                          + "/"
-                          + AkVCam::basename(exePath)
-                          + ".log";
-    auto logFile = AkVCam::Preferences::readString("logfile", defaultLogFile);
-    AkVCam::Logger::setLogFile(logFile);
+    AkVCam::logSetup();
+
     CoInitializeEx(NULL, COINIT_MULTITHREADED);
     MFStartup(MF_VERSION, MFSTARTUP_FULL);
 

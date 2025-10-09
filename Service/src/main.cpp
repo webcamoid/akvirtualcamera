@@ -29,14 +29,7 @@ AkVCam::Service *servicePtr = nullptr;
 
 int main(int argc, char **argv)
 {
-    auto loglevel = AkVCam::Preferences::logLevel();
-    AkVCam::Logger::setLogLevel(loglevel);
-    auto defaultLogFile = AkVCam::tempPath()
-                          + "/"
-                          + AkVCam::basename(argv[0])
-                          + ".log";
-    auto logFile = AkVCam::Preferences::readString("logfile", defaultLogFile);
-    AkVCam::Logger::setLogFile(logFile);
+    AkVCam::logSetup();
     AkVCam::Service service;
     servicePtr = &service;
 

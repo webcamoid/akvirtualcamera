@@ -138,9 +138,7 @@ CAPI_EXPORT void *vcam_open()
 {
     auto vcamApi = new VCamAPI;
 
-    auto logFile = vcamApi->m_bridge.logPath("AkVCamAPI");
-    AkLogInfo() << "Sending debug output to " << logFile << std::endl;
-    AkVCam::Logger::setLogFile(logFile);
+    AkVCam::logSetup();
 
     return vcamApi;
 }

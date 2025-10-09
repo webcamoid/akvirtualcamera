@@ -253,16 +253,6 @@ void AkVCam::IpcBridge::setPageSize(size_t pageSize)
     Preferences::setPageSize(pageSize);
 }
 
-std::string AkVCam::IpcBridge::logPath(const std::string &logName) const
-{
-    if (logName.empty())
-        return {};
-
-    auto defaultLogFile = AkVCam::tempPath() + "\\" + logName + ".log";
-
-    return Preferences::readString("logfile", defaultLogFile);
-}
-
 void AkVCam::IpcBridge::stopNotifications()
 {
     AkLogFunction();

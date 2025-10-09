@@ -1262,6 +1262,27 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     return frame;
 }
 
+std::string AkVCam::logPath(const std::string &logName)
+{
+    if (logName.empty())
+        return {};
+
+    auto defaultLogFile = tempPath() + "\\" + logName + ".log";
+
+    return Preferences::readString("logfile", defaultLogFile);
+}
+
+void AkVCam::logSetup(const std::string &context)
+{
+    auto loglevel = Preferences::logLevel();
+    Logger::setLogLevel(loglevel);
+    auto contextName = context.empty()? basename(currentBinaryPath()): context;
+    Logger::setContext(contextName);
+    auto logFile = logPath(contextName);
+    AkLogInfo() << "Sending debug output to " << logFile << std::endl;
+    Logger::setLogFile(logFile);
+}
+
 bool AkVCam::isDeviceIdTaken(const std::string &deviceId)
 {
     AkLogFunction();

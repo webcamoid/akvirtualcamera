@@ -109,8 +109,8 @@ void AkVCam::PluginInterface::initializeLogger() const
     if (loggerReady)
         return;
 
-    auto loglevel = AkVCam::Preferences::logLevel();
-    AkVCam::Logger::setLogLevel(loglevel);
+    auto loglevel = Preferences::logLevel();
+    Logger::setLogLevel(loglevel);
 
     if (loglevel > AKVCAM_LOGLEVEL_DEFAULT) {
         // Turn on lights
@@ -126,10 +126,7 @@ void AkVCam::PluginInterface::initializeLogger() const
 #endif
     }
 
-    auto defaultLogFile = AkVCam::tempPath() + "\\" AKVCAM_PLUGIN_NAME ".log";
-    auto logFile = AkVCam::Preferences::readString("logfile", defaultLogFile);
-    AkLogInfo() << "Sending debug output to " << logFile << std::endl;
-    AkVCam::Logger::setLogFile(logFile);
+    logSetup();
     loggerReady = true;
 }
 

@@ -51,14 +51,7 @@ void updateCameras(void *, const std::vector<std::string> &);
 
 int main(int argc, char **argv)
 {
-    auto loglevel = AkVCam::Preferences::logLevel();
-    AkVCam::Logger::setLogLevel(loglevel);
-    auto defaultLogFile = AkVCam::tempPath()
-                          + "/"
-                          + AkVCam::basename(argv[0])
-                          + ".log";
-    auto logFile = AkVCam::Preferences::readString("logfile", defaultLogFile);
-    AkVCam::Logger::setLogFile(logFile);
+    AkVCam::logSetup();
     std::cout << "Starting the virtual camera service." << std::endl;
     auto hr = MFStartup(MF_VERSION);
 

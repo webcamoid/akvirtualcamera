@@ -48,6 +48,8 @@ namespace AkVCam
     bool fileExists(const std::string &path);
     bool readEntitlements(const std::string &app,
                           const std::string &output);
+    std::string logPath(const std::string &logName);
+    void logSetup(const std::string &context={});
     bool isDeviceIdTaken(const std::string &deviceId);
     std::string createDeviceId();
     std::vector<uint64_t> systemProcesses();

@@ -420,6 +420,27 @@ bool AkVCam::readEntitlements(const std::string &app,
     return writen;
 }
 
+std::string AkVCam::logPath(const std::string &logName)
+{
+    if (logName.empty())
+        return {};
+
+    auto defaultLogFile = "/tmp/" + logName + ".log";
+
+    return Preferences::readString("logfile", defaultLogFile);
+}
+
+void AkVCam::logSetup(const std::string &context)
+{
+    auto loglevel = Preferences::logLevel();
+    Logger::setLogLevel(loglevel);
+    auto contextName = context.empty()? basename(currentBinaryPath()): context;
+    Logger::setContext(contextName);
+    auto logFile = logPath(contextName);
+    AkLogInfo() << "Sending debug output to " << logFile << std::endl;
+    Logger::setLogFile(logFile);
+}
+
 bool AkVCam::isDeviceIdTaken(const std::string &deviceId)
 {
     AkLogFunction();

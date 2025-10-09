@@ -182,9 +182,7 @@ namespace AkVCam {
 AkVCam::CmdParser::CmdParser()
 {
     this->d = new CmdParserPrivate();
-    auto logFile = this->d->m_ipcBridge.logPath("AkVCamManager");
-    AkLogInfo() << "Sending debug output to " << logFile << std::endl;
-    AkVCam::Logger::setLogFile(logFile);
+    logSetup();
 
     this->d->m_commands.push_back({});
     this->setDefaultFuntion(AKVCAM_BIND_FUNC(CmdParserPrivate::defaultHandler));

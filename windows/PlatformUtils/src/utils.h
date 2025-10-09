@@ -85,6 +85,8 @@ namespace AkVCam
     LSTATUS deleteTree(HKEY key, LPCSTR subkey, REGSAM samFlags);
     LSTATUS copyTree(HKEY src, LPCSTR subkey, HKEY dst, REGSAM samFlags);
     VideoFrame loadPicture(const std::string &fileName);
+    std::string logPath(const std::string &logName);
+    void logSetup(const std::string &context={});
     bool isDeviceIdTaken(const std::string &deviceId);
     std::string createDeviceId();
     std::string cameraIdFromCLSID(const CLSID &clsid);

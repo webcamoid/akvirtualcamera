@@ -94,7 +94,6 @@ namespace AkVCam
             void setDataMode(DataMode dataMode);
             size_t pageSize();
             void setPageSize(size_t pageSize);
-            std::string logPath(const std::string &logName={}) const;
             void stopNotifications();
 
             // List available devices.

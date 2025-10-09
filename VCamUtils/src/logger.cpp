@@ -114,6 +114,7 @@ namespace AkVCam
     class LoggerPrivate
     {
         public:
+            std::string context;
             std::string logFile;
             std::string fileName;
             int logLevel {AKVCAM_LOGLEVEL_DEFAULT};
@@ -152,6 +153,16 @@ namespace AkVCam
 
         return &logger;
     }
+}
+
+std::string AkVCam::Logger::context()
+{
+    return loggerPrivate()->context;
+}
+
+void AkVCam::Logger::setContext(const std::string &context)
+{
+    loggerPrivate()->context = context;
 }
 
 std::string AkVCam::Logger::logFile()
@@ -213,20 +224,22 @@ std::string AkVCam::Logger::header(int logLevel,
 #ifdef _WIN32
     _snprintf_s(buffer,
                 sizeof(buffer),
-                "%s.%03lld, %llu, %s (%d)] %s: ",
+                "%s.%03lld, %llu, %s, %s (%d)] %s: ",
                 timestamp,
                 nowMSecs.count() % 1000,
                 LoggerPrivate::threadID(),
+                loggerPrivate()->context.c_str(),
                 file.c_str(),
                 line,
                 levelToString(logLevel).c_str());
 #else
     snprintf(buffer,
              sizeof(buffer),
-             "%s.%03lld, %llu, %s (%d)] %s: ",
+             "%s.%03lld, %llu, %s, %s (%d)] %s: ",
              timestamp,
              nowMSecs.count() % 1000,
              LoggerPrivate::threadID(),
+             loggerPrivate()->context.c_str(),
              file.c_str(),
              line,
              levelToString(logLevel).c_str());
