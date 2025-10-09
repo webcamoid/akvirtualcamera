@@ -69,4 +69,4 @@ if [ -f gdb_output.log ]; then
     cat gdb_output.log
 fi
 
-ls /msys64/tmp
+ls /d/a/_temp/msys64/tmp
