@@ -43,7 +43,8 @@ namespace AkVCam
 
             // IUnknown
 
-            HRESULT QueryInterface(REFIID riid, void **ppvObject) override;
+            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                                     void **ppvObject) override;
 
             // IMFActivate
 
