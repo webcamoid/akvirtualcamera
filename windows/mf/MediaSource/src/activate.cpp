@@ -103,23 +103,10 @@ HRESULT AkVCam::Activate::ActivateObject(REFIID riid, void **ppv)
 
     *ppv = nullptr;
 
-    if (!IsEqualGUID(riid, IID_IMFMediaSource))
-        return E_NOINTERFACE;
+    if (!this->d->m_mediaSource)
+        this->d->m_mediaSource = new MediaSource(this->d->m_clsid);
 
-    if (this->d->m_mediaSource)
-        return this->d->m_mediaSource->QueryInterface(riid, ppv);
-
-    auto mediaSource = new MediaSource(this->d->m_clsid);
-    auto hr = mediaSource->QueryInterface(riid, ppv);
-
-    if (SUCCEEDED(hr)) {
-        this->d->m_mediaSource = mediaSource;
-        this->d->m_mediaSource->AddRef();
-    } else {
-        mediaSource->Release();
-    }
-
-    return hr;
+    return this->d->m_mediaSource->QueryInterface(riid, ppv);
 }
 
 HRESULT AkVCam::Activate::DetachObject()
