@@ -28,6 +28,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
     src/mfvcam.h
+    src/activate.cpp
+    src/activate.h
     src/attributes.cpp
     src/attributes.h
     src/controls.cpp

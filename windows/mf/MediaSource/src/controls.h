@@ -55,7 +55,7 @@ namespace AkVCam
             // IUnknown
 
             HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
-                                                     void **ppvObject);
+                                                     void **ppvObject) override;
 
             // IKsControl
 

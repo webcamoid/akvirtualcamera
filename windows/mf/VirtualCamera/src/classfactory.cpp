@@ -18,6 +18,7 @@
  */
 
 #include "classfactory.h"
+#include "activate.h"
 #include "mediasource.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
@@ -100,8 +101,7 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
     if (pUnkOuter && !IsEqualIID(riid, IID_IUnknown))
         return E_NOINTERFACE;
 
-    this->AddRef();
-    *ppvObject = this;
+    *ppvObject = new Activate(this->d->m_clsid);
 
     return S_OK;
 }
