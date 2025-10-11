@@ -57,6 +57,7 @@ AkVCam::Activate::~Activate()
 HRESULT AkVCam::Activate::QueryInterface(REFIID riid, void **ppvObject)
 {
     AkLogFunction();
+    AkLogDebug() << "Created Activate for IID: " << stringFromClsid(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;
@@ -66,7 +67,7 @@ HRESULT AkVCam::Activate::QueryInterface(REFIID riid, void **ppvObject)
     if (IsEqualGUID(riid, IID_IUnknown)
         || IsEqualGUID(riid, IID_IMFActivate)
         || IsEqualGUID(riid, IID_IMFAttributes)) {
-        *ppvObject = static_cast<IMFActivate *>(this);
+        *ppvObject = this;
         this->AddRef();
 
         return S_OK;
