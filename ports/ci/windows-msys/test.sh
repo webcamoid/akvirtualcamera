@@ -20,7 +20,7 @@
 
 export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 
-reg add "HKLM\\SOFTWARE\\Webcamoid\\VirtualCamera" /v logfile /t REG_SZ /d "D:\\a\\_temp\\msys64\\tmp\\akvirtualcamera.log" /f
+cmd //c 'reg add "HKLM\SOFTWARE\Webcamoid\VirtualCamera" /v logfile /t REG_SZ /d "D:\a\_temp\msys64\tmp\akvirtualcamera.log" /f'
 
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
