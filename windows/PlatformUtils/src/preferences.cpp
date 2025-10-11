@@ -126,6 +126,9 @@ std::string AkVCam::Preferences::readString(const std::string &key,
     if (!readValue(key, RRF_RT_REG_SZ, &value, &valueSize, global))
         return defaultValue;
 
+    if (strnlen(value, MAX_PATH) < 1)
+        return defaultValue;
+
     return {value};
 }
 

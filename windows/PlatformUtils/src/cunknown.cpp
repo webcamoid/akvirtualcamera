@@ -24,24 +24,25 @@
 #include "VCamUtils/src/utils.h"
 
 #define AkCUnknownLogMethod() \
-    AkLogFunction() << " " \
-                    << (this->d->m_parent? \
-                            stringFromClsid(this->d->m_parentCLSID): \
-                            std::string("CUnknown")) \
-                    << "(" \
-                    << (this->d->m_parent? this->d->m_parent: this) \
-                    << ")" \
-                    << std::endl
+    AkLogFunction(); \
+    AkLogDebug() << "Object: " \
+                 << (this->d->m_parent? \
+                         stringFromClsid(this->d->m_parentCLSID): \
+                         std::string("CUnknown")) \
+                 << "(" \
+                 << (this->d->m_parent? this->d->m_parent: this) \
+                 << ")" \
+                 << std::endl
 
 #define AkCUnknownLogThis() \
-    AkLogInfo() << "Returning " \
-                << (this->d->m_parent? \
-                        stringFromClsid(this->d->m_parentCLSID): \
-                        std::string("CUnknown")) \
-                << "(" \
-                << (this->d->m_parent? this->d->m_parent: this) \
-                << ")" \
-                << std::endl
+    AkLogDebug() << "Returning " \
+                 << (this->d->m_parent? \
+                         stringFromClsid(this->d->m_parentCLSID): \
+                         std::string("CUnknown")) \
+                 << "(" \
+                 << (this->d->m_parent? this->d->m_parent: this) \
+                 << ")" \
+                 << std::endl
 
 namespace AkVCam
 {

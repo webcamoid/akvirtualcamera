@@ -206,6 +206,9 @@ std::string AkVCam::Preferences::readString(const std::string &key,
 
     CFRelease(cfKey);
 
+    if (value.empty())
+        return defaultValue;
+
     return value;
 }
 

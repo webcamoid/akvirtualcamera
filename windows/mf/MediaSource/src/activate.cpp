@@ -98,11 +98,10 @@ HRESULT AkVCam::Activate::DetachObject()
 {
     AkLogFunction();
 
-    if (!this->d->m_mediaSource)
-        return S_OK;
-
-    this->d->m_mediaSource->Release();
-    this->d->m_mediaSource = nullptr;
+    if (this->d->m_mediaSource) {
+        this->d->m_mediaSource->Release();
+        this->d->m_mediaSource = nullptr;
+    }
 
     return S_OK;
 }
@@ -111,12 +110,11 @@ HRESULT AkVCam::Activate::ShutdownObject()
 {
     AkLogFunction();
 
-    if (!this->d->m_mediaSource)
-        return S_OK;
-
-    this->d->m_mediaSource->Shutdown();
-    this->d->m_mediaSource->Release();
-    this->d->m_mediaSource = nullptr;
+    if (this->d->m_mediaSource) {
+        this->d->m_mediaSource->Shutdown();
+        this->d->m_mediaSource->Release();
+        this->d->m_mediaSource = nullptr;
+    }
 
     return S_OK;
 }

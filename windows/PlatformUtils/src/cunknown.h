@@ -37,9 +37,9 @@ namespace AkVCam
 
             // IUnknown
             HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
-                                                     void **ppvObject);
-            ULONG STDMETHODCALLTYPE AddRef();
-            ULONG STDMETHODCALLTYPE Release();
+                                                     void **ppvObject) override;
+            ULONG STDMETHODCALLTYPE AddRef() override;
+            ULONG STDMETHODCALLTYPE Release() override;
 
         private:
             CUnknownPrivate *d;
