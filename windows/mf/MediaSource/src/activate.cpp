@@ -57,7 +57,7 @@ AkVCam::Activate::~Activate()
 HRESULT AkVCam::Activate::QueryInterface(REFIID riid, void **ppvObject)
 {
     AkLogFunction();
-    AkLogDebug() << "Created Activate for IID: " << stringFromClsid(riid) << std::endl;
+    AkLogDebug() << "IID: " << stringFromClsid(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;
