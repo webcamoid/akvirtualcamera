@@ -85,9 +85,6 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
     this->d = new MediaSourcePrivate(this);
     this->d->m_clsid = clsid;
 
-    //this->SetUINT32(MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 1);
-    //this->SetGUID(MFT_TRANSFORM_CLSID_Attribute, clsid);
-
     AkLogDebug() << "CLSID: " << AkVCam::stringFromClsid(clsid) << std::endl;
 
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);

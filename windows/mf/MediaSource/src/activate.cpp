@@ -19,6 +19,7 @@
 
 #include "activate.h"
 #include "mediasource.h"
+#include "mfvcam.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/utils.h"
@@ -29,7 +30,7 @@ namespace AkVCam
     {
         public:
             CLSID m_clsid;
-            IMFMediaSource *m_mediaSource {nullptr};
+            MediaSource *m_mediaSource {nullptr};
     };
 }
 
@@ -39,27 +40,8 @@ AkVCam::Activate::Activate(const CLSID &clsid):
 {
     this->d = new ActivatePrivate;
     this->d->m_clsid = clsid;
-
-    HRESULT hr = E_FAIL;
-    auto cameraIndex = Preferences::cameraFromCLSID(clsid);
-
-    if (cameraIndex >= 0) {
-        auto description = Preferences::cameraDescription(cameraIndex);
-
-        if (!description.empty()) {
-            auto descriptionWStr = wstrFromString(description);
-
-            if (descriptionWStr) {
-                hr = this->SetString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME,
-                                     descriptionWStr);
-                CoTaskMemFree(descriptionWStr);
-            }
-        }
-    }
-
-    if (SUCCEEDED(hr))
-        hr = this->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
-                           MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
+    this->SetUINT32(MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 1);
+    this->SetGUID(MFT_TRANSFORM_CLSID_Attribute, clsid);
 
     AkLogDebug() << "Created Activate for CLSID: " << stringFromClsid(clsid) << std::endl;
 }
@@ -103,8 +85,10 @@ HRESULT AkVCam::Activate::ActivateObject(REFIID riid, void **ppv)
 
     *ppv = nullptr;
 
-    if (!this->d->m_mediaSource)
+    if (!this->d->m_mediaSource) {
         this->d->m_mediaSource = new MediaSource(this->d->m_clsid);
+        this->CopyAllItems(this->d->m_mediaSource);
+    }
 
     return this->d->m_mediaSource->QueryInterface(riid, ppv);
 }
