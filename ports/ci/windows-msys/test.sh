@@ -20,8 +20,8 @@
 
 export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 
+cmd //c 'sc start FrameServer'
 cmd //c 'sc query FrameServer'
-# cmd //c 'sc start FrameServer'
 
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
