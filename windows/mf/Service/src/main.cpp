@@ -53,7 +53,6 @@ int main(int argc, char **argv)
 {
     AkVCam::logSetup();
     std::cout << "Starting the virtual camera service." << std::endl;
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     auto hr = MFStartup(MF_VERSION);
 
     if (FAILED(hr))

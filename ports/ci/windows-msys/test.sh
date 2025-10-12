@@ -20,7 +20,9 @@
 
 export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 
-cmd //c 'reg add "HKLM\SOFTWARE\Webcamoid\VirtualCamera" /v logfile /t REG_SZ /d "D:\a\_temp\msys64\tmp\akvirtualcamera.log" /f'
+cmd //c 'sc query FrameServer'
+cmd //c 'tasklist /svc | findstr FrameServer'
+# cmd //c 'sc start FrameServer'
 
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
@@ -71,5 +73,4 @@ if [ -f gdb_output.log ]; then
     cat gdb_output.log
 fi
 
-cat /d/a/_temp/msys64/tmp/akvirtualcamera.log || true
 cat /d/a/_temp/msys64/tmp/AkVirtualCameraMF-*.log || true
