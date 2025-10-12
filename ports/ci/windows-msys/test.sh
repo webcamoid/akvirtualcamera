@@ -21,7 +21,6 @@
 export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 
 cmd //c 'sc query FrameServer'
-cmd //c 'tasklist /svc | findstr FrameServer'
 # cmd //c 'sc start FrameServer'
 
 echo "Initilize the assistant"
@@ -65,6 +64,7 @@ echo "Testing the virtual camera in Media Foundation"
 echo "Checking if the services are up"
 
 pgrep -a AkVCam || true
+cmd //c 'sc query FrameServer'
 
 echo "GDB log"
 
