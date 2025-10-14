@@ -20,9 +20,6 @@
 
 export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 
-cmd //c 'sc start FrameServer'
-cmd //c 'sc query FrameServer'
-
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
 sleep 10
@@ -41,14 +38,6 @@ sleep 5
 
 echo "Initilize the Media Foundation assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
-# nohup gdb -batch \
-#     -ex 'set pagination off' \
-#     -ex 'handle SIGSEGV stop' \
-#     -ex 'run' \
-#     -ex 'bt full' \
-#     -ex 'info registers' \
-#     -ex 'quit' \
-#     --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"> gdb_output.log 2>&1 &
 sleep 20
 
 echo "Testing the virtual camera in DirectShow"
@@ -64,7 +53,6 @@ echo "Testing the virtual camera in Media Foundation"
 echo "Checking if the services are up"
 
 pgrep -a AkVCam || true
-cmd //c 'sc query FrameServer'
 
 echo "GDB log"
 

@@ -178,6 +178,16 @@ std::string AkVCam::locateAltMFPluginPath()
 
 bool AkVCam::supportsMediaFoundationVCam()
 {
+    auto servicePath = locateMFServicePath();
+
+    if (servicePath.empty())
+        return false;
+
+    auto pluginPath = locateMFPluginPath();
+
+    if (pluginPath.empty())
+        return false;
+
     auto mfsensorgroupHnd = LoadLibrary(TEXT("mfsensorgroup.dll"));
 
     if (!mfsensorgroupHnd)
