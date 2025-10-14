@@ -75,7 +75,7 @@ HRESULT AkVCam::Attributes::CompareItem(const GUID &guidKey,
 
 HRESULT AkVCam::Attributes::Compare(IMFAttributes *pTheirs,
                                     MF_ATTRIBUTES_MATCH_TYPE MatchType,
-                                    WINBOOL *pbResult)
+                                    BOOL *pbResult)
 {
     AkLogFunction();
 
