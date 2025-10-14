@@ -124,7 +124,7 @@ namespace AkVCam
     \
     HRESULT STDMETHODCALLTYPE CompareItem(REFGUID guidKey, \
                                           REFPROPVARIANT Value, \
-                                          WINBOOL *pbResult) override \
+                                          BOOL *pbResult) override \
     { \
         return Attributes::CompareItem(guidKey, Value, pbResult); \
     } \
