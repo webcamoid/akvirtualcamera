@@ -20,6 +20,7 @@
 #ifndef ATTRIBUTES_H
 #define ATTRIBUTES_H
 
+#include <windows.h>
 #include <mfidl.h>
 
 namespace AkVCam
