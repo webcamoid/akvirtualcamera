@@ -21,7 +21,8 @@
 #define ATTRIBUTES_H
 
 #include <windows.h>
-#include <mfidl.h>
+#include <mfobjects.h>
+#include <mfapi.h>
 
 namespace AkVCam
 {
@@ -41,7 +42,7 @@ namespace AkVCam
                                                   MF_ATTRIBUTE_TYPE *pType) override;
             HRESULT STDMETHODCALLTYPE CompareItem(REFGUID guidKey,
                                                   REFPROPVARIANT Value,
-                                                  WINBOOL *pbResult) override;
+                                                  BOOL *pbResult) override;
             HRESULT STDMETHODCALLTYPE Compare(IMFAttributes *pTheirs,
                                               MF_ATTRIBUTES_MATCH_TYPE MatchType,
                                               BOOL *pbResult) override;

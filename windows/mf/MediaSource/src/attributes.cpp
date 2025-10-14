@@ -65,7 +65,7 @@ HRESULT AkVCam::Attributes::GetItemType(const GUID &guidKey,
 
 HRESULT AkVCam::Attributes::CompareItem(const GUID &guidKey,
                                         const PROPVARIANT &Value,
-                                        WINBOOL *pbResult)
+                                        BOOL *pbResult)
 {
     AkLogFunction();
     AkLogDebug() << "GUID: " << stringFromIid(guidKey) << std::endl;
