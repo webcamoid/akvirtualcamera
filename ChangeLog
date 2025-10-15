@@ -1,6 +1,12 @@
+akvirtualcamera 9.3.2:
+
+- Applied some fixes to the Media Foundation virtual camera.
+- Media Foundation is now optional in the installer, and marked as experimental.
+- Prevent opening multiple instances of the assistant.
+
 akvirtualcamera 9.3.1:
 
-- Fix Windows packages build.
+- Fixed Windows packages build.
 
 akvirtualcamera 9.3.0:
 

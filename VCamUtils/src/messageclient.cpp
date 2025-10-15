@@ -37,6 +37,7 @@ namespace AkVCam
             std::mutex m_logsMutex;
 
             explicit MessageClientPrivate(MessageClient *self);
+            static std::string getLastError();
             bool connection(uint16_t port,
                             MessageClient::InMessageHandler readData,
                             MessageClient::OutMessageHandler writeData);
@@ -90,7 +91,7 @@ bool AkVCam::MessageClient::isUp(uint16_t port)
                 reinterpret_cast<sockaddr *>(&serverAddress),
                 sizeof(sockaddr_in)) != 0) {
         AkLogCritical() << "Failed connecting to the socket: "
-                        << std::system_error(errno, std::system_category()).what()
+                        << MessageClientPrivate::getLastError()
                         << std::endl;
 
         return false;
@@ -160,6 +161,45 @@ std::future<bool> AkVCam::MessageClient::send(const Message &inMessage,
 AkVCam::MessageClientPrivate::MessageClientPrivate(MessageClient *self):
     self(self)
 {
+}
+
+std::string AkVCam::MessageClientPrivate::getLastError()
+{
+#ifdef _WIN32
+        int errorCode = WSAGetLastError();
+
+        if (errorCode == 0)
+            return {"No error"};
+
+        LPVOID msgBuffer = nullptr;
+
+        // Pide a Windows que traduzca el código de error en un texto legible
+        FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER
+                       | FORMAT_MESSAGE_FROM_SYSTEM
+                       | FORMAT_MESSAGE_IGNORE_INSERTS,
+                       nullptr,
+                       errorCode,
+                       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                       reinterpret_cast<LPSTR>(&msgBuffer),
+                       0,
+                       nullptr);
+
+        std::string message =
+                msgBuffer != nullptr?
+                                 std::string(reinterpret_cast<LPSTR>(msgBuffer)):
+                                 "Unknown error";
+
+        if (msgBuffer)
+            LocalFree(msgBuffer);
+
+        while (!message.empty()
+               && (message.back() == '\r' || message.back() == '\n'))
+            message.pop_back();
+
+        return message + " (code " + std::to_string(errorCode) + ")";
+#else
+        return std::system_error(errno, std::system_category()).what();
+#endif
 }
 
 bool AkVCam::MessageClientPrivate::connection(uint16_t port,

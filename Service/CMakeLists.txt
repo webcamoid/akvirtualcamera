@@ -88,6 +88,8 @@ if (WIN32)
                           ws2_32)
 endif ()
 
+add_definitions(-DAKVCAM_SERVICE_NAME="${AKVCAM_SERVICE_NAME}")
+
 if (APPLE OR FAKE_APPLE)
     install(TARGETS Service DESTINATION ${DATAROOTDIR})
 elseif (WIN32)

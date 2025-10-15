@@ -169,6 +169,7 @@ namespace AkVCam
             ~IpcBridgePrivate();
 
             void updateDevices();
+            bool isServiceRunning();
             bool launchService();
             inline const std::vector<DeviceControl> &controls() const;
 
@@ -728,11 +729,33 @@ void AkVCam::IpcBridgePrivate::updateDevices()
     }
 }
 
+bool AkVCam::IpcBridgePrivate::isServiceRunning()
+{
+    AkLogFunction();
+
+    AkVCam::SharedMemory serviceLock;
+    serviceLock.setName(AKVCAM_SERVICE_NAME "_Lock");
+    bool result = false;
+
+    if (serviceLock.open(1024)) {
+        if (serviceLock.lock()) {
+            result = true;
+            serviceLock.unlock();
+        }
+
+        serviceLock.close();
+    }
+
+    AkLogDebug() << "Result: " << result << std::endl;
+
+    return result;
+}
+
 bool AkVCam::IpcBridgePrivate::launchService()
 {
     AkLogFunction();
 
-    if (!isServicePortUp()) {
+    if (!isServiceRunning()) {
         AkLogDebug() << "Launching the service" << std::endl;
         auto servicePath = locateServicePath();
 
@@ -750,8 +773,11 @@ bool AkVCam::IpcBridgePrivate::launchService()
     AkLogDebug() << "Service check Timeout:" << timeout << std::endl;
 
     for (int i = 0; i < timeout; ++i) {
-        if (isServicePortUp())
+        if (isServicePortUp()) {
+            ok = true;
+
             break;
+        }
 
         std::this_thread::sleep_for(std::chrono::seconds(1));;
     }

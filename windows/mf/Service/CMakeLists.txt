@@ -58,7 +58,8 @@ target_link_libraries(VirtualCameraMFService
                       ${EXTRA_LIBS})
 
 add_definitions(-DNOMINMAX
-                -DSTRSAFE_NO_DEPRECATE)
+                -DSTRSAFE_NO_DEPRECATE
+                -DAKVCAM_SERVICE_MF_NAME="${AKVCAM_SERVICE_MF_NAME}")
 
 if (WIN32)
     install(TARGETS VirtualCameraMFService DESTINATION ${BINDIR})

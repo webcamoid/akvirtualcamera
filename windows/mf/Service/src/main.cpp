@@ -29,6 +29,7 @@
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/ipcbridge.h"
+#include "VCamUtils/src/sharedmemory.h"
 #include "MFUtils/src/utils.h"
 
 using MFCreateVirtualCameraType = HRESULT (*)(MFVCamType type,
@@ -51,6 +52,13 @@ void updateCameras(void *, const std::vector<std::string> &);
 
 int main(int argc, char **argv)
 {
+    // Only allow one instance
+    AkVCam::SharedMemory instanceLock;
+    instanceLock.setName(AKVCAM_SERVICE_MF_NAME "_Lock");
+
+    if (!instanceLock.open(1024, AkVCam::SharedMemory::OpenModeWrite))
+        return 0;
+
     AkVCam::logSetup();
     std::cout << "Starting the virtual camera service." << std::endl;
     auto hr = MFStartup(MF_VERSION);

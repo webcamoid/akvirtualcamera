@@ -24,11 +24,19 @@
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/logger.h"
+#include "VCamUtils/src/sharedmemory.h"
 
 AkVCam::Service *servicePtr = nullptr;
 
 int main(int argc, char **argv)
 {
+    // Only allow one instance
+    AkVCam::SharedMemory instanceLock;
+    instanceLock.setName(AKVCAM_SERVICE_NAME "_Lock");
+
+    if (!instanceLock.open(1024, AkVCam::SharedMemory::OpenModeWrite))
+        return 0;
+
     AkVCam::logSetup();
     AkVCam::Service service;
     servicePtr = &service;
