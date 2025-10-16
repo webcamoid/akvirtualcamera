@@ -26,6 +26,7 @@
 #include "logger.h"
 #include "message.h"
 #include "sockets.h"
+#include "utils.h"
 
 namespace AkVCam
 {

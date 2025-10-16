@@ -65,29 +65,6 @@ std::string AkVCam::basename(const std::string &path)
     return program;
 }
 
-std::string AkVCam::timeStamp()
-{
-    static std::mutex mutex;
-    auto now = std::chrono::system_clock::now();
-    auto time = std::chrono::system_clock::to_time_t(now);
-
-    char buffer[16];
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-
-#ifdef _WIN32
-        struct tm timeInfo;
-        localtime_s(&timeInfo, &time);
-#else
-        auto timeInfo = *std::localtime(&time);
-#endif
-
-        strftime(buffer, sizeof(buffer), "%Y%m%d%H%M%S", &timeInfo);
-    }
-
-    return std::string(buffer);
-}
-
 std::string AkVCam::replace(const std::string &str,
                             const std::string &from,
                             const std::string &to)

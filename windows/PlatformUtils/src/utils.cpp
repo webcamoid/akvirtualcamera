@@ -1518,8 +1518,8 @@ std::string AkVCam::currentBinaryPath()
     memset(path, 0, MAX_PATH);
     HMODULE hmodule = nullptr;
 
-    if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                          GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+    if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                          | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                           LPCTSTR(&currentBinaryPath),
                           &hmodule)) {
         GetModuleFileNameA(hmodule, path, MAX_PATH);

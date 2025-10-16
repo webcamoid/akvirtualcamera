@@ -22,8 +22,6 @@
 
 #include <iostream>
 
-#include "utils.h"
-
 #define AKVCAM_LOGLEVEL_DEFAULT    -1
 #define AKVCAM_LOGLEVEL_EMERGENCY   0
 #define AKVCAM_LOGLEVEL_FATAL       1

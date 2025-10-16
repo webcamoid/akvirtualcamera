@@ -21,6 +21,7 @@
 #define PLATFORM_UTILS_H
 
 #include <string>
+#include <vector>
 #include <strmif.h>
 
 #include "VCamUtils/src/videoformattypes.h"

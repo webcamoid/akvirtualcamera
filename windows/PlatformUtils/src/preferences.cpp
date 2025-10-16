@@ -28,8 +28,9 @@
 #include "preferences.h"
 #include "utils.h"
 #include "VCamUtils/src/fraction.h"
-#include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/logger.h"
+#include "VCamUtils/src/videoformat.h"
+#include "VCamUtils/src/utils.h"
 
 #define REG_PREFIX "SOFTWARE\\Webcamoid\\VirtualCamera"
 #define AKVCAM_SERVICETIMEOUT_DEFAULT 10

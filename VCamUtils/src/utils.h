@@ -154,7 +154,6 @@ namespace AkVCam
 {
     uint64_t id();
     std::string basename(const std::string &path);
-    std::string timeStamp();
     std::string replace(const std::string &str,
                         const std::string &from,
                         const std::string &to);

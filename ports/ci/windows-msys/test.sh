@@ -54,7 +54,7 @@ echo "Checking if the services are up"
 
 pgrep -a AkVCam || true
 
-echo "GDB log"
+echo "Log"
 
 if [ -f gdb_output.log ]; then
     sleep 10

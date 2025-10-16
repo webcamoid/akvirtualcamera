@@ -34,7 +34,6 @@
 #endif
 
 #include "logger.h"
-#include "utils.h"
 
 namespace AkVCam
 {
@@ -132,6 +131,8 @@ namespace AkVCam
             {
             }
 
+            static std::string timeStamp();
+
             inline static uint64_t threadID()
             {
 #ifdef _WIN32
@@ -179,11 +180,11 @@ void AkVCam::Logger::setLogFile(const std::string &fileName)
         loggerPrivate()->stream.close();
 
     if (index == fileName.npos) {
-        loggerPrivate()->fileName = fileName + "-" + timeStamp();
+        loggerPrivate()->fileName = fileName + "-" + LoggerPrivate::timeStamp();
     } else {
         std::string fname = fileName.substr(0, index);
         std::string extension = fileName.substr(index + 1);
-        loggerPrivate()->fileName = fname + "-" + timeStamp() + "." + extension;
+        loggerPrivate()->fileName = fname + "-" + LoggerPrivate::timeStamp() + "." + extension;
     }
 }
 
@@ -303,4 +304,28 @@ std::string AkVCam::Logger::levelToString(int level)
             return {lvl->str};
 
     return {lvl->str};
+}
+
+std::string AkVCam::LoggerPrivate::timeStamp()
+{
+    static std::mutex mutex;
+    auto now = std::chrono::system_clock::now();
+    auto time = std::chrono::system_clock::to_time_t(now);
+
+    char buffer[16];
+
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+
+#ifdef _WIN32
+        struct tm timeInfo;
+        localtime_s(&timeInfo, &time);
+#else
+        auto timeInfo = *std::localtime(&time);
+#endif
+
+        strftime(buffer, sizeof(buffer), "%Y%m%d%H%M%S", &timeInfo);
+    }
+
+    return std::string(buffer);
 }
