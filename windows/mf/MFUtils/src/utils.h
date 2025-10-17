@@ -39,6 +39,7 @@ namespace AkVCam
     VideoFormat formatFromMFMediaType(IMFMediaType *mediaType);
     PixelFormat pixelFormatMFFromCommonString(const std::string &format);
     std::string pixelFormatMFToCommonString(PixelFormat format);
+    std::string stringFromClsidMF(const CLSID &clsid);
 }
 
 #endif // MFUTILS_H

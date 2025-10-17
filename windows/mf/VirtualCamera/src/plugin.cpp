@@ -74,8 +74,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 {
     AkLogFunction();
-    AkLogInfo() << "CLSID: " << AkVCam::stringFromClsid(rclsid) << std::endl;
-    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(rclsid) << std::endl;
+    AkLogInfo() << "CLSID: " << AkVCam::stringFromClsidMF(rclsid) << std::endl;
+    AkLogInfo() << "IID: " << AkVCam::stringFromClsidMF(rclsid) << std::endl;
 
     if (!ppv)
         return E_INVALIDARG;
@@ -133,7 +133,7 @@ STDAPI DllUnregisterServer()
 
     for (auto camera: cameras) {
         AkLogInfo() << "Deleting "
-                    << AkVCam::stringFromClsid(camera)
+                    << AkVCam::stringFromClsidMF(camera)
                     << std::endl;
         pluginInterface()->destroyDevice(camera);
     }

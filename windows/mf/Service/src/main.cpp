@@ -145,7 +145,7 @@ void updateCameras(void *, const std::vector<std::string> &)
         if (description.empty())
             continue;
 
-        auto clsidStr = AkVCam::stringFromClsid(clsid);
+        auto clsidStr = AkVCam::stringFromClsidMF(clsid);
         auto clsidWStr = AkVCam::wstrFromString(clsidStr);
 
         if (!clsidWStr)

@@ -22,6 +22,7 @@
 #include "classfactory.h"
 #include "activate.h"
 #include "mediasource.h"
+#include "MFUtils/src/utils.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
@@ -57,7 +58,7 @@ bool AkVCam::ClassFactory::locked()
 HRESULT AkVCam::ClassFactory::QueryInterface(const IID &riid, void **ppvObject)
 {
     AkLogFunction();
-    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
+    AkLogInfo() << "IID: " << stringFromClsidMF(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;
@@ -93,7 +94,7 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
 {
     AkLogFunction();
     AkLogInfo() << "Outer: " << ULONG_PTR(pUnkOuter) << std::endl;
-    AkLogInfo() << "IID: " << stringFromClsid(riid) << std::endl;
+    AkLogInfo() << "IID: " << stringFromClsidMF(riid) << std::endl;
 
     if (!ppvObject)
         return E_INVALIDARG;

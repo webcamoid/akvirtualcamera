@@ -26,6 +26,7 @@
 #include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/logger.h"
+#include "VCamUtils/src/utils.h"
 
 #define PREFERENCES_ID CFSTR(CMIO_ASSISTANT_NAME)
 #define AKVCAM_SERVICETIMEOUT_DEFAULT 10

@@ -18,10 +18,13 @@
  */
 
 #include <algorithm>
+#include <map>
 #include <mfapi.h>
+#include <mfidl.h>
 #include <winreg.h>
 
 #include "utils.h"
+#include "MediaSource/src/mfvcam.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/algorithm.h"
@@ -105,7 +108,7 @@ bool AkVCam::isDeviceIdMFTaken(const std::string &deviceId)
     if (IsEqualCLSID(clsid, CLSID_NULL))
         return false;
 
-    std::string clsidStr = stringFromClsid(clsid);
+    std::string clsidStr = stringFromClsidMF(clsid);
 
     if (clsidStr.empty())
         return false;
@@ -274,7 +277,7 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
 
         // Compare the DLL path with pluginPath
         if (pluginPath == stringFromWSTR(dllPath)) {
-            AkLogDebug() << "Found matching camera CLSID: " << stringFromClsid(clsid) << std::endl;
+            AkLogDebug() << "Found matching camera CLSID: " << stringFromClsidMF(clsid) << std::endl;
             cameras.push_back(clsid);
         }
     }
@@ -465,4 +468,20 @@ std::string AkVCam::pixelFormatMFToCommonString(PixelFormat format)
         return name;
 
     return VideoFormat::pixelFormatToString(format);
+}
+
+std::string AkVCam::stringFromClsidMF(const CLSID &clsid)
+{
+    static const std::map<CLSID, std::string> clsidToStringMF {
+        {IID_IMFAttributes                                 , "IMFAttributes"                                     },
+        {IID_IMFActivate                                   , "IMFActivate"                                       },
+        {MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, "MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES"},
+        {MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME              , "MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME"              },
+    };
+
+    for (auto &id: clsidToStringMF)
+        if (IsEqualCLSID(id.first, clsid))
+            return id.second;
+
+    return stringFromClsid(clsid);
 }

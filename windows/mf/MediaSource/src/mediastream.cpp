@@ -375,7 +375,7 @@ HRESULT AkVCam::MediaStream::pause()
 HRESULT AkVCam::MediaStream::QueryInterface(const IID &riid, void **ppvObject)
 {
     AkLogFunction();
-    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
+    AkLogInfo() << "IID: " << stringFromClsidMF(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;

@@ -20,6 +20,7 @@
 #include "activate.h"
 #include "mediasource.h"
 #include "mfvcam.h"
+#include "MFUtils/src/utils.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/utils.h"
@@ -43,7 +44,7 @@ AkVCam::Activate::Activate(const CLSID &clsid):
     this->SetUINT32(MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 1);
     this->SetGUID(MFT_TRANSFORM_CLSID_Attribute, clsid);
 
-    AkLogDebug() << "Created Activate for CLSID: " << stringFromClsid(clsid) << std::endl;
+    AkLogDebug() << "Created Activate for CLSID: " << stringFromClsidMF(clsid) << std::endl;
 }
 
 AkVCam::Activate::~Activate()
@@ -57,7 +58,7 @@ AkVCam::Activate::~Activate()
 HRESULT AkVCam::Activate::QueryInterface(REFIID riid, void **ppvObject)
 {
     AkLogFunction();
-    AkLogDebug() << "IID: " << stringFromClsid(riid) << std::endl;
+    AkLogDebug() << "IID: " << stringFromClsidMF(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;
@@ -79,7 +80,7 @@ HRESULT AkVCam::Activate::QueryInterface(REFIID riid, void **ppvObject)
 HRESULT AkVCam::Activate::ActivateObject(REFIID riid, void **ppv)
 {
     AkLogFunction();
-    AkLogInfo() << "Activating for IID: " << stringFromClsid(riid) << std::endl;
+    AkLogInfo() << "Activating for IID: " << stringFromClsidMF(riid) << std::endl;
 
     if (!ppv)
         return E_POINTER;

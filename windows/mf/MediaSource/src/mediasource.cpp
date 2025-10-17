@@ -85,7 +85,7 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
     this->d = new MediaSourcePrivate(this);
     this->d->m_clsid = clsid;
 
-    AkLogDebug() << "CLSID: " << AkVCam::stringFromClsid(clsid) << std::endl;
+    AkLogDebug() << "CLSID: " << stringFromClsidMF(clsid) << std::endl;
 
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);
     AkLogDebug() << "Camera index: " << cameraIndex << std::endl;
@@ -176,7 +176,7 @@ bool AkVCam::MediaSource::directMode() const
 HRESULT AkVCam::MediaSource::QueryInterface(REFIID riid, void **ppvObject)
 {
     AkLogFunction();
-    AkLogDebug() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
+    AkLogDebug() << "IID: " << stringFromClsidMF(riid) << std::endl;
 
     if (!ppvObject)
         return E_POINTER;
