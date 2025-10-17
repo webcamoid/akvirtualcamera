@@ -22,6 +22,7 @@
 #include <fstream>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
