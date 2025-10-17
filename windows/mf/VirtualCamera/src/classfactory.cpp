@@ -108,6 +108,7 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
                                               [] (Activate *activate) {
         activate->Release();
     });
+    activate->AddRef();
 
     return activate->QueryInterface(riid, ppvObject);
 }
