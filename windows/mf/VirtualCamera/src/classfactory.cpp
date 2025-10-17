@@ -103,7 +103,10 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
     if (pUnkOuter && !IsEqualIID(riid, IID_IUnknown))
         return E_NOINTERFACE;
 
-    auto activate = std::make_shared<Activate>(this->d->m_clsid);
+    auto activate = std::shared_ptr<Activate>(new Activate(this->d->m_clsid),
+                                              [] (Activate *activate) {
+        activate->Release();
+    });
 
     return activate->QueryInterface(riid, ppvObject);
 }
