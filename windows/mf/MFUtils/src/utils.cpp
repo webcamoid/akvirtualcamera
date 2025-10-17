@@ -475,6 +475,13 @@ std::string AkVCam::stringFromClsidMF(const CLSID &clsid)
     static const std::map<CLSID, std::string> clsidToStringMF {
         {IID_IMFAttributes                                 , "IMFAttributes"                                     },
         {IID_IMFActivate                                   , "IMFActivate"                                       },
+        {IID_IMFMediaSourceEx                              , "IMFMediaSourceEx"                                  },
+        {IID_IMFMediaEventGenerator                        , "IMFMediaEventGenerator"                            },
+        {AKVCAM_PINNAME_VIDEO_CAPTURE                      , "PINNAME_VIDEO_CAPTURE"                             },
+        {AKVCAM_MF_DEVICESTREAM_STREAM_CATEGORY            , "MF_DEVICESTREAM_STREAM_CATEGORY"                   },
+        {AKVCAM_MF_DEVICESTREAM_STREAM_ID                  , "MF_DEVICESTREAM_STREAM_ID"                         },
+        {AKVCAM_MF_DEVICESTREAM_FRAMESERVER_SHARED         , "MF_DEVICESTREAM_FRAMESERVER_SHARED"                },
+        {AKVCAM_MF_DEVICESTREAM_ATTRIBUTE_FRAMESOURCE_TYPES, "MF_DEVICESTREAM_ATTRIBUTE_FRAMESOURCE_TYPES"       },
         {MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, "MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES"},
         {MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME              , "MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME"              },
     };

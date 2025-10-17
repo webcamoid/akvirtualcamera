@@ -353,6 +353,7 @@ std::string AkVCam::stringFromClsid(const CLSID &clsid)
         {IID_IFileSinkFilter      , "IFileSinkFilter"      },
         {IID_IFileSinkFilter2     , "IFileSinkFilter2"     },
         {IID_IFileSourceFilter    , "IFileSourceFilter"    },
+        {IID_IKsControl           , "IKsControl"           },
         {IID_IKsPropertySet       , "IKsPropertySet"       },
         {IID_IMarshal             , "IMarshal"             },
         {IID_IMediaControl        , "IMediaControl"        },
