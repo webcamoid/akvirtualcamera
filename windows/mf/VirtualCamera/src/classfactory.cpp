@@ -17,6 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <memory>
+
 #include "classfactory.h"
 #include "activate.h"
 #include "mediasource.h"
@@ -101,9 +103,9 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
     if (pUnkOuter && !IsEqualIID(riid, IID_IUnknown))
         return E_NOINTERFACE;
 
-    *ppvObject = new Activate(this->d->m_clsid);
+    auto activate = std::make_shared<Activate>(this->d->m_clsid);
 
-    return S_OK;
+    return activate->QueryInterface(riid, ppvObject);
 }
 
 HRESULT AkVCam::ClassFactory::LockServer(BOOL fLock)
