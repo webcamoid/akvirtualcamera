@@ -1188,7 +1188,7 @@ int AkVCam::CmdParserPrivate::showFormats(const StringMap &flags,
         for  (auto &format: this->m_ipcBridge.formats(args[1])) {
             AkPrintOut("%d: %s %dx%d %s FPS",
                        i,
-                       pixelFormatToCommonString(format.format()),
+                       pixelFormatToCommonString(format.format()).c_str(),
                        format.width(),
                        format.height(),
                        format.fps().toString().c_str());
