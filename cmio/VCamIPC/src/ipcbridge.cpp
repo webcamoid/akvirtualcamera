@@ -983,13 +983,13 @@ const std::vector<AkVCam::Hack> &AkVCam::IpcBridgePrivate::hacks()
 int AkVCam::IpcBridgePrivate::codeResign(const std::vector<std::string> &args)
 {
     if (args.size() < 1) {
-        AkPrintErr("Not enough arguments.")
+        AkPrintErr("Not enough arguments.");
 
         return -1;
     }
 
     if (!fileExists(args[0])) {
-        AkPrintErr("No such file or directory.")
+        AkPrintErr("No such file or directory.");
 
         return -1;
     }
@@ -1015,13 +1015,13 @@ int AkVCam::IpcBridgePrivate::codeResign(const std::vector<std::string> &args)
 int AkVCam::IpcBridgePrivate::unsign(const std::vector<std::string> &args)
 {
     if (args.size() < 1) {
-        AkPrintErr("Not enough arguments.")
+        AkPrintErr("Not enough arguments.");
 
         return -1;
     }
 
     if (!fileExists(args[0])) {
-        AkPrintErr("No such file or directory.")
+        AkPrintErr("No such file or directory.");
 
         return -1;
     }
@@ -1037,13 +1037,13 @@ int AkVCam::IpcBridgePrivate::disableSIP(const std::vector<std::string> &args)
                "inside the system, you must reboot your system and then "
                "press and hold Command + R keys on boot to enter to the "
                "recovery mode, then go to Utilities > Terminal and run:");
-    AkPrintErr("")
+    AkPrintErr("");
     AkPrintErr("csrutil enable --without fs");
-    AkPrintErr("")
+    AkPrintErr("");
     AkPrintErr("If that does not works, then run:");
-    AkPrintErr("")
+    AkPrintErr("");
     AkPrintErr("csrutil disable");
-    AkPrintErr("")
+    AkPrintErr("");
 
     return -1;
 }

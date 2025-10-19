@@ -248,7 +248,7 @@ void AkVCam::MediaStream::setControls(const std::map<std::string, int> &controls
         return;
 
     for (auto &control: controls) {
-        AkLogDebug("%s: %d", control.first, control.second);
+        AkLogDebug("%s: %d", control.first.c_str(), control.second);
 
         if (control.first == "hflip")
             this->d->m_videoAdjusts.setHorizontalMirror(control.second > 0);
