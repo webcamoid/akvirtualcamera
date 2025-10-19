@@ -216,7 +216,7 @@ HRESULT AkVCam::PluginInterface::QueryInterface(REFIID uuid, LPVOID *interface)
 
     if (uuidEqual(uuid, kCMIOHardwarePlugInInterfaceID)
         || uuidEqual(uuid, IUnknownUUID)) {
-        AkLogInfo() << "Found plugin interface." << std::endl;
+        AkLogInfo("Found plugin interface.");
         this->d->AddRef(this->d);
         *interface = this->d;
 
@@ -236,7 +236,7 @@ OSStatus AkVCam::PluginInterface::Initialize()
 OSStatus AkVCam::PluginInterface::InitializeWithObjectID(CMIOObjectID objectID)
 {
     AkLogFunction();
-    AkLogInfo() << objectID << std::endl;
+    AkLogInfo("ObjectID %d", objectID);
     this->m_objectID = objectID;
 
     for (auto &deviceId: this->d->m_ipcBridge->devices()) {
@@ -320,7 +320,7 @@ void AkVCam::PluginInterface::controlsChanged(void *userData,
                                               const std::map<std::string, int> &controls)
 {
     AkLogFunction();
-    AkLogInfo() << "Device: " << deviceId << std::endl;
+    AkLogInfo("Device: %s", deviceId.c_str());
     auto self = reinterpret_cast<PluginInterface *>(userData);
 
     for (auto device: self->m_devices)
@@ -386,7 +386,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
     stream->properties().setProperty(kCMIOStreamPropertyDirection, 0);
 
     if (device->registerStreams() != kCMIOHardwareNoError) {
-        AkLogDebug() << "Failed registering streams" << std::endl;
+        AkLogError("Failed registering streams");
         device->registerStreams(false);
 
         goto createDevice_failed;
@@ -394,7 +394,7 @@ bool AkVCam::PluginInterface::createDevice(const std::string &deviceId,
 
     // Register the device.
     if (device->registerObject() != kCMIOHardwareNoError) {
-        AkLogDebug() << "Failed registering device" << std::endl;
+        AkLogError("Failed registering device");
         device->registerObject(false);
         device->registerStreams(false);
 
@@ -521,7 +521,7 @@ void AkVCam::PluginInterfacePrivate::ObjectShow(CMIOHardwarePlugInRef self,
                                                 CMIOObjectID objectID)
 {
     AkLogFunction();
-    AkLogInfo() << "ObjectID " << objectID << std::endl;
+    AkLogInfo("ObjectID %d", objectID);
 
     if (!self)
         return;
@@ -539,7 +539,7 @@ Boolean AkVCam::PluginInterfacePrivate::ObjectHasProperty(CMIOHardwarePlugInRef 
                                                           const CMIOObjectPropertyAddress *address)
 {
     AkLogFunction();
-    AkLogInfo() << "ObjectID " << objectID << std::endl;
+    AkLogInfo("ObjectID %d", objectID);
     Boolean result = false;
 
     if (!self)
@@ -561,7 +561,7 @@ OSStatus AkVCam::PluginInterfacePrivate::ObjectIsPropertySettable(CMIOHardwarePl
                                                                   Boolean *isSettable)
 {
     AkLogFunction();
-    AkLogInfo() << "ObjectID " << objectID << std::endl;
+    AkLogInfo("ObjectID %d", objectID);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -587,7 +587,7 @@ OSStatus AkVCam::PluginInterfacePrivate::ObjectGetPropertyDataSize(CMIOHardwareP
                                                                    UInt32 *dataSize)
 {
     AkLogFunction();
-    AkLogInfo() << "ObjectID " << objectID << std::endl;
+    AkLogInfo("ObjectID %d", objectID);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -619,7 +619,7 @@ OSStatus AkVCam::PluginInterfacePrivate::ObjectGetPropertyData(CMIOHardwarePlugI
                                                                void *data)
 {
     AkLogFunction();
-    AkLogInfo() << "ObjectID " << objectID << std::endl;
+    AkLogInfo("ObjectID %d", objectID);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -654,7 +654,7 @@ OSStatus AkVCam::PluginInterfacePrivate::ObjectSetPropertyData(CMIOHardwarePlugI
                                                                const void *data)
 {
     AkLogFunction();
-    AkLogInfo() << "ObjectID " << objectID << std::endl;
+    AkLogInfo("ObjectID %d", objectID);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -682,7 +682,7 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceSuspend(CMIOHardwarePlugInRef sel
                                                        CMIODeviceID device)
 {
     AkLogFunction();
-    AkLogInfo() << "DeviceID " << device << std::endl;
+    AkLogInfo("DeviceID %d", device);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -701,7 +701,7 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceResume(CMIOHardwarePlugInRef self
                                                       CMIODeviceID device)
 {
     AkLogFunction();
-    AkLogInfo() << "DeviceID " << device << std::endl;
+    AkLogInfo("DeviceID %d", device);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -721,7 +721,7 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceStartStream(CMIOHardwarePlugInRef
                                                            CMIOStreamID stream)
 {
     AkLogFunction();
-    AkLogInfo() << "DeviceID " << device << std::endl;
+    AkLogInfo("DeviceID %d", device);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -741,7 +741,7 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceStopStream(CMIOHardwarePlugInRef 
                                                           CMIOStreamID stream)
 {
     AkLogFunction();
-    AkLogInfo() << "DeviceID " << device << std::endl;
+    AkLogInfo("DeviceID %d", device);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -761,7 +761,7 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceProcessAVCCommand(CMIOHardwarePlu
                                                                  CMIODeviceAVCCommand *ioAVCCommand)
 {
     AkLogFunction();
-    AkLogInfo() << "DeviceID " << device << std::endl;
+    AkLogInfo("DeviceID %d", device);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -781,7 +781,7 @@ OSStatus AkVCam::PluginInterfacePrivate::DeviceProcessRS422Command(CMIOHardwareP
                                                                    CMIODeviceRS422Command *ioRS422Command)
 {
     AkLogFunction();
-    AkLogInfo() << "DeviceID " << device << std::endl;
+    AkLogInfo("DeviceID %d", device);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -803,7 +803,7 @@ OSStatus AkVCam::PluginInterfacePrivate::StreamCopyBufferQueue(CMIOHardwarePlugI
                                                                CMSimpleQueueRef *queue)
 {
     AkLogFunction();
-    AkLogInfo() << "StreamID " << stream << std::endl;
+    AkLogInfo("StreamID %d", stream);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -824,7 +824,7 @@ OSStatus AkVCam::PluginInterfacePrivate::StreamDeckPlay(CMIOHardwarePlugInRef se
                                                         CMIOStreamID stream)
 {
     AkLogFunction();
-    AkLogInfo() << "StreamID " << stream << std::endl;
+    AkLogInfo("StreamID %d", stream);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -843,7 +843,7 @@ OSStatus AkVCam::PluginInterfacePrivate::StreamDeckStop(CMIOHardwarePlugInRef se
                                                         CMIOStreamID stream)
 {
     AkLogFunction();
-    AkLogInfo() << "StreamID " << stream << std::endl;
+    AkLogInfo("StreamID %d", stream);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -863,7 +863,7 @@ OSStatus AkVCam::PluginInterfacePrivate::StreamDeckJog(CMIOHardwarePlugInRef sel
                                                        SInt32 speed)
 {
     AkLogFunction();
-    AkLogInfo() << "StreamID " << stream << std::endl;
+    AkLogInfo("StreamID %d", stream);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)
@@ -884,7 +884,7 @@ OSStatus AkVCam::PluginInterfacePrivate::StreamDeckCueTo(CMIOHardwarePlugInRef s
                                                          Boolean playOnCue)
 {
     AkLogFunction();
-    AkLogInfo() << "StreamID " << stream << std::endl;
+    AkLogInfo("StreamID %d", stream);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!self)

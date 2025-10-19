@@ -531,7 +531,7 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
     }
 
     if (fileName.empty()) {
-        AkLogCritical() << "The file name is empty" << std::endl;
+        AkLogError("The file name is empty");
 
         return false;
     }
@@ -539,7 +539,7 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
     std::ifstream stream(fileName);
 
     if (!stream.is_open()) {
-        AkLogCritical() << "Failed to open the file" << std::endl;
+        AkLogError("Failed to open the file");
 
         return false;
     }
@@ -548,7 +548,7 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
     stream.read(type, 2);
 
     if (memcmp(type, "BM", 2) != 0) {
-        AkLogCritical() << "The file does not have the BMP signature" << std::endl;
+        AkLogError("The file does not have the BMP signature");
 
         return false;
     }
@@ -560,7 +560,7 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
     stream.read(reinterpret_cast<char *>(&imageHeader), sizeof(BmpImageHeader));
 
     if (imageHeader.width < 1 || imageHeader.height < 1) {
-        AkLogCritical() << "The image size is empty: " << imageHeader.width << "x" << imageHeader.height << std::endl;
+        AkLogError("The image size is empty: %dx%d", imageHeader.width, imageHeader.height);
 
         return false;
     }
@@ -630,17 +630,17 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
     }
 
     default:
-        AkLogCritical() << "Invalid bit cout: " << imageHeader.bitCount << std::endl;
+        AkLogError("Invalid bit cout: %d", imageHeader.bitCount);
 
         return false;
     }
 
-    AkLogDebug() << "BMP info:" << std::endl;
-    AkLogDebug() << "    Bits: " << imageHeader.bitCount << std::endl;
-    AkLogDebug() << "    width: " << imageHeader.width << std::endl;
-    AkLogDebug() << "    height: " << imageHeader.height << std::endl;
-    AkLogDebug() << "    Data size: " << imageHeader.sizeImage << std::endl;
-    AkLogDebug() << "Allocated frame size: " << this->d->m_dataSize << std::endl;
+    AkLogDebug("BMP info:");
+    AkLogDebug("    Bits: %d", imageHeader.bitCount);
+    AkLogDebug("    width: %d", imageHeader.width);
+    AkLogDebug("    height: %d", imageHeader.height);
+    AkLogDebug("    Data size: %d", imageHeader.sizeImage);
+    AkLogDebug("    Allocated frame size: %ull", this->d->m_dataSize);
 
     return true;
 }

@@ -71,7 +71,7 @@ bool AkVCam::Settings::load(const std::string &fileName)
     this->clear();
 
     if (fileName.empty()) {
-        AkLogError() << "Settings file name not valid" << std::endl;
+        AkLogError("Settings file name not valid");
 
         return false;
     }
@@ -79,7 +79,7 @@ bool AkVCam::Settings::load(const std::string &fileName)
     std::ifstream configFile(fileName);
 
     if (!configFile.is_open()) {
-        AkLogError() << "Can't open settings file: " << fileName << std::endl;
+        AkLogError("Can't open settings file: %s", fileName.c_str());
 
         return false;
     }
@@ -94,8 +94,8 @@ bool AkVCam::Settings::load(const std::string &fileName)
         auto element = this->d->parse(line, &ok);
 
         if (!ok) {
-            AkLogError() << "Error parsing settings file: " << fileName << std::endl;
-            AkLogError() << "Line: " << line << std::endl;
+            AkLogError("Error parsing settings file: %s", fileName.c_str());
+            AkLogError("Line: %s", line.c_str());
             this->clear();
             configFile.close();
 

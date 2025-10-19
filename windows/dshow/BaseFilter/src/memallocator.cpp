@@ -103,7 +103,7 @@ HRESULT AkVCam::MemAllocator::Commit()
 
     if (this->d->m_properties.cBuffers < 1
         || this->d->m_properties.cbBuffer < 1) {
-        AkLogError() << "Wrong memory allocator size" << std::endl;
+        AkLogError("Wrong memory allocator size");
 
         return VFW_E_SIZENOTSET;
     }
@@ -147,14 +147,10 @@ HRESULT AkVCam::MemAllocator::Decommit()
             freeSamples++;
         }
 
-    AkLogInfo() << "Free samples: "
-                << freeSamples
-                << "/"
-                << totalSamples
-                << std::endl;
+    AkLogInfo("Free samples: %ull/%ull", freeSamples, totalSamples);
 
     if (freeSamples >= totalSamples) {
-        AkLogInfo() << "Decommiting" << std::endl;
+        AkLogInfo("Decommiting");
         this->d->m_samples.clear();
         this->d->m_commited = false;
         this->d->m_decommiting = false;
@@ -182,7 +178,7 @@ HRESULT AkVCam::MemAllocator::GetBuffer(IMediaSample **ppBuffer,
         *pEndTime = 0;
 
     if (!this->d->m_commited || this->d->m_decommiting) {
-        AkLogError() << "Allocator not commited." << std::endl;
+        AkLogError("Allocator not commited.");
 
         return VFW_E_NOT_COMMITTED;
     }

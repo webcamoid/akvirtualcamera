@@ -136,7 +136,7 @@ void AkVCam::BaseFilter::removePin(IPin *pin, bool changed)
 AkVCam::BaseFilter *AkVCam::BaseFilter::create(const GUID &clsid)
 {
     AkLogFunction();
-    AkLogInfo() << "CLSID: " << stringFromIid(clsid) << std::endl;
+    AkLogDebug("CLSID: %s", stringFromIid(clsid).c_str());
 
     return new BaseFilter(clsid);
 }
@@ -171,7 +171,7 @@ bool AkVCam::BaseFilter::directMode() const
 HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppvObject)
 {
     AkLogFunction();
-    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
+    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
 
     if (!ppvObject)
         return E_POINTER;
@@ -332,8 +332,8 @@ HRESULT AkVCam::BaseFilter::JoinFilterGraph(IFilterGraph *pGraph, LPCWSTR pName)
     this->d->m_filterGraph = pGraph;
     this->d->m_filterName = pName? stringFromWSTR(pName): "";
 
-    AkLogInfo() << "Filter graph: " << this->d->m_filterGraph << std::endl;
-    AkLogInfo() << "Name: " << this->d->m_filterName << std::endl;
+    AkLogDebug("Filter graph: %p", this->d->m_filterGraph);
+    AkLogDebug("Name: %s", this->d->m_filterName.c_str());
 
     return S_OK;
 }

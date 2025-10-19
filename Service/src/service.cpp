@@ -132,7 +132,7 @@ void AkVCam::ServicePrivate::removeClientById(void *userData,
                                               uint64_t clientId)
 {
     AkLogFunction();
-    AkLogDebug() << "Removing client: " << clientId << std::endl;
+    AkLogDebug("Removing client: %ull", clientId);
     auto self = reinterpret_cast<ServicePrivate *>(userData);
 
     self->m_peerMutex.lock();
@@ -217,29 +217,31 @@ bool AkVCam::ServicePrivate::broadcast(uint64_t clientId,
     this->m_peerMutex.lock();
 
     bool isBroadcasting = this->m_broadcasts.count(msgBroadcast.device()) < 1;
-    AkLogDebug() << "Device" << msgBroadcast.device() << "is broadcasting?:" << (isBroadcasting? "YES": "NO") << std::endl;
+    AkLogDebug("Device %s is broadcasting? %s",
+               msgBroadcast.device().c_str(),
+               isBroadcasting? "YES": "NO");
 
     if (isBroadcasting) {
-        AkLogDebug() << "Adding device slot:" << std::endl;
-        AkLogDebug() << "    Device ID:" << msgBroadcast.device() << std::endl;
-        AkLogDebug() << "    Client ID:" << clientId << std::endl;
-        AkLogDebug() << "    Client PID:" << msgBroadcast.pid() << std::endl;
+        AkLogDebug("Adding device slot:");
+        AkLogDebug("    Device ID: %s", msgBroadcast.device().c_str());
+        AkLogDebug("    Client ID: %ull", clientId);
+        AkLogDebug("    Client PID: %ull", msgBroadcast.pid());
 
         this->m_broadcasts[msgBroadcast.device()] =
             {{clientId, msgBroadcast.pid()}, {}, {}};
     }
 
-    AkLogDebug() << "Get slot" << std::endl;
+    AkLogDebug("Get slot");
     auto &slot = this->m_broadcasts[msgBroadcast.device()];
 
     if (slot.broadcaster.pid == 0) {
-        AkLogDebug() << "Set client as broadcaster" << std::endl;
+        AkLogDebug("Set client as broadcaster");
         slot.broadcaster = {clientId, msgBroadcast.pid()};
     }
 
     if (slot.broadcaster.pid == msgBroadcast.pid()
         && slot.broadcaster.clientId == clientId) {
-        AkLogDebug() << "Save frame" << std::endl;
+        AkLogDebug("Save frame");
         slot.frame = msgBroadcast.frame();
         slot.frameReady = true;
         status = MsgStatus(0, inMessage.queryId());
@@ -248,7 +250,7 @@ bool AkVCam::ServicePrivate::broadcast(uint64_t clientId,
 
     this->m_peerMutex.unlock();
 
-    AkLogDebug() << "Sending the response" << std::endl;
+    AkLogDebug("Sending the response");
     outMessage = status.toMessage();
 
     return status.status() == 0;

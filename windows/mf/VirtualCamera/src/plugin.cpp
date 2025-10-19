@@ -48,22 +48,21 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
     switch (fdwReason) {
         case DLL_PROCESS_ATTACH:
-            AkLogInfo() << "Reason Attach" << std::endl;
-            AkLogInfo() << "Module file name: "
-                        << AkVCam::moduleFileName(hinstDLL)
-                        << std::endl;
+            AkLogInfo("Reason Attach");
+            AkLogInfo("Module file name: %s",
+                      AkVCam::moduleFileName(hinstDLL).c_str());
             DisableThreadLibraryCalls(hinstDLL);
             pluginInterface()->setPluginHinstance(hinstDLL);
 
             break;
 
         case DLL_PROCESS_DETACH:
-            AkLogInfo() << "Reason Detach" << std::endl;
+            AkLogInfo("Reason Detach");
 
             break;
 
         default:
-            AkLogInfo() << "Reason Unknown: " << fdwReason << std::endl;
+            AkLogInfo("Reason Unknown: %d", fdwReason);
 
             break;
     }
@@ -74,8 +73,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 {
     AkLogFunction();
-    AkLogInfo() << "CLSID: " << AkVCam::stringFromClsidMF(rclsid) << std::endl;
-    AkLogInfo() << "IID: " << AkVCam::stringFromClsidMF(rclsid) << std::endl;
+    AkLogDebug("CLSID: %s", AkVCam::stringFromClsidMF(rclsid).c_str());
+    AkLogDebug("IID: %s", AkVCam::stringFromClsidMF(riid).c_str());
 
     if (!ppv)
         return E_INVALIDARG;
@@ -114,10 +113,10 @@ STDAPI DllRegisterServer()
         auto deviceId = AkVCam::Preferences::cameraId(i);
         auto clsid = AkVCam::createClsidFromStr(deviceId);
 
-        AkLogInfo() << "Creating Camera" << std::endl;
-        AkLogInfo() << "\tDescription: " << description << std::endl;
-        AkLogInfo() << "\tID: " << deviceId << std::endl;
-        AkLogInfo() << "\tCLSID: " << AkVCam::stringFromIid(clsid) << std::endl;
+        AkLogInfo("Creating Camera");
+        AkLogInfo("    Description: %s", description.c_str());
+        AkLogInfo("    ID: %s", deviceId.c_str());
+        AkLogInfo("    CLSID: %s", AkVCam::stringFromIid(clsid).c_str());
 
         ok &= pluginInterface()->createDevice(deviceId, description);
     }
@@ -132,9 +131,7 @@ STDAPI DllUnregisterServer()
     auto cameras = AkVCam::listRegisteredMFCameras();
 
     for (auto camera: cameras) {
-        AkLogInfo() << "Deleting "
-                    << AkVCam::stringFromClsidMF(camera)
-                    << std::endl;
+        AkLogInfo("Deleting %s", AkVCam::stringFromClsidMF(camera).c_str());
         pluginInterface()->destroyDevice(camera);
     }
 

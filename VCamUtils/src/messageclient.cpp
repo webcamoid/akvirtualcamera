@@ -70,13 +70,12 @@ void AkVCam::MessageClient::setPort(uint16_t port)
 bool AkVCam::MessageClient::isUp(uint16_t port)
 {
     AkLogFunction();
-    AkLogDebug() << "Port: " << port << std::endl;
+    AkLogDebug("Port: %d", port);
     auto clientSocket = socket(AF_INET, SOCK_STREAM, 0);
 
     if (clientSocket < 0) {
-        AkLogCritical() << "Failed creating the socket: "
-                        << std::system_error(errno, std::system_category()).what()
-                        << std::endl;
+        AkLogCritical("Failed creating the socket: %s",
+                      std::system_error(errno, std::system_category()).what());
 
         return false;
     }
@@ -91,9 +90,8 @@ bool AkVCam::MessageClient::isUp(uint16_t port)
     if (connect(clientSocket,
                 reinterpret_cast<sockaddr *>(&serverAddress),
                 sizeof(sockaddr_in)) != 0) {
-        AkLogCritical() << "Failed connecting to the socket: "
-                        << MessageClientPrivate::getLastError()
-                        << std::endl;
+        AkLogCritical("Failed connecting to the socket: %s",
+                      MessageClientPrivate::getLastError().c_str());
 
         return false;
     }
@@ -208,11 +206,11 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
                                               MessageClient::OutMessageHandler writeData)
 {
     AkLogFunction();
-    AkLogDebug() << "Port: " << port << std::endl;
+    AkLogDebug("Port: %s", port);
     auto clientSocket = socket(AF_INET, SOCK_STREAM, 0);
 
     if (clientSocket < 0) {
-        AkLogDebug() << "Failed to create the socket" << std::endl;
+        AkLogError("Failed to create the socket");
 
         return false;
     }
@@ -241,7 +239,7 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
     if (connect(clientSocket,
                 reinterpret_cast<sockaddr *>(&serverAddress),
                 sizeof(sockaddr_in)) != 0) {
-        AkLogDebug() << "Failed to connect with the server" << std::endl;
+        AkLogError("Failed to connect with the server");
         Sockets::closeSocket(clientSocket);
 
         return false;
@@ -250,7 +248,7 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
     auto connectionId = AkVCam::id();
 
     this->m_logsMutex.lock();
-    AkLogDebug() << "Connection ready: " << connectionId << std::endl;
+    AkLogDebug("Connection ready: %lld", connectionId);
     this->m_logsMutex.unlock();
 
     bool ok = true;
@@ -263,11 +261,11 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
         more &= readData(inMessage);
 
         this->m_logsMutex.lock();
-        AkLogDebug() << "Send message:" << std::endl;
-        AkLogDebug() << "    Connection ID: " << connectionId << std::endl;
-        AkLogDebug() << "    Message ID: " << stringFromMessageId(inMessage.id()) << std::endl;
-        AkLogDebug() << "    Query ID: " << inMessage.queryId() << std::endl;
-        AkLogDebug() << "    Data size: " << inMessage.data().size() << std::endl;
+        AkLogDebug("Send message:");
+        AkLogDebug("    Connection ID: %lld", connectionId);
+        AkLogDebug("    Message ID: %s", stringFromMessageId(inMessage.id()).c_str());
+        AkLogDebug("    Query ID: %ull", inMessage.queryId());
+        AkLogDebug("    Data size: %ull", inMessage.data().size());
         this->m_logsMutex.unlock();
 
         if (!Sockets::send(clientSocket, inMessage.id())) {
@@ -313,11 +311,11 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
         }
 
         this->m_logsMutex.lock();
-        AkLogDebug() << "Received message:" << std::endl;
-        AkLogDebug() << "    Connection ID: " << connectionId << std::endl;
-        AkLogDebug() << "    Message ID: " << stringFromMessageId(messageId) << std::endl;
-        AkLogDebug() << "    Query ID: " << queryId << std::endl;
-        AkLogDebug() << "    Data size: " << outData.size() << std::endl;
+        AkLogDebug("Received message:");
+        AkLogDebug("    Connection ID: %lld", connectionId);
+        AkLogDebug("    Message ID: %s", stringFromMessageId(messageId).c_str());
+        AkLogDebug("    Query ID: %ull", queryId);
+        AkLogDebug("    Data size: %ull", outData.size());
         this->m_logsMutex.unlock();
 
         more &= writeData({messageId, queryId, outData});
@@ -327,7 +325,7 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
     }
 
     this->m_logsMutex.lock();
-    AkLogDebug() << "Connection closed: " << connectionId << std::endl;
+    AkLogDebug("Connection closed: %lld", connectionId);
     this->m_logsMutex.unlock();
 
     Sockets::closeSocket(clientSocket);

@@ -49,7 +49,7 @@ HRESULT AkVCam::PersistPropertyBag::QueryInterface(const IID &riid,
                                                    void **ppvObject)
 {
     AkLogFunction();
-    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
+    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
 
     if (!ppvObject)
         return E_POINTER;

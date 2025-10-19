@@ -75,14 +75,14 @@ HRESULT AkVCam::SpecifyPropertyPages::GetPages(CAUUID *pPages)
         pin->Release();
     }
 
-    pPages->cElems = ULONG(pages.size());
+    pPages->cElems = static_cast<ULONG>(pages.size());
     pPages->pElems =
             reinterpret_cast<GUID *>(CoTaskMemAlloc(sizeof(GUID) * pages.size()));
-    AkLogInfo() << "Returning property pages:" << std::endl;
+    AkLogInfo("Returning property pages:");
 
     for (size_t i = 0; i < pages.size(); i++) {
         memcpy(&pPages->pElems[i], &pages[i], sizeof(GUID));
-        AkLogInfo() << "    " << stringFromClsid(pages[i]) << std::endl;
+        AkLogInfo("    %s", stringFromClsid(pages[i]).c_str());
     }
 
     return S_OK;

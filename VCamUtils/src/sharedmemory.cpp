@@ -293,11 +293,9 @@ bool AkVCam::SharedMemoryPrivate::createMutex()
     this->m_mutex = CreateMutexA(nullptr, FALSE, mutexName.c_str());
 
     if (!this->m_mutex) {
-        AkLogError() << "Error creating mutex ("
-                     << this->m_name
-                     << ") with error 0x"
-                     << std::hex << GetLastError()
-                     << std::endl;
+        AkLogError("Error creating mutex (%s) with error 0x%x",
+                   this->m_name.c_str(),
+                   GetLastError());
 
         return false;
     }
@@ -306,11 +304,9 @@ bool AkVCam::SharedMemoryPrivate::createMutex()
     this->m_mutex = sem_open(mutexName.c_str(), O_CREAT, 0644, 1);
 
     if (this->m_mutex == SEM_FAILED) {
-        AkLogError() << "Error creating semaphore ("
-                     << mutexName
-                     << ") with error "
-                     << errno
-                     << std::endl;
+        AkLogError("Error creating semaphore (%s) with error %d",
+                   mutexName.c_str(),
+                   errno);
 
         return false;
     }
@@ -348,11 +344,9 @@ bool AkVCam::SharedMemoryPrivate::openRead(size_t pageSize)
                              this->m_name.c_str());
 
     if (!this->m_sharedHandle) {
-        AkLogError() << "Error opening shared memory ("
-                     << this->m_name
-                     << ") with error 0x"
-                     << std::hex << GetLastError()
-                     << std::endl;
+        AkLogError("Error opening shared memory (%s) with error 0x%x",
+                   this->m_name.c_str(),
+                   GetLastError());
 
         return false;
     }
@@ -368,11 +362,9 @@ bool AkVCam::SharedMemoryPrivate::openRead(size_t pageSize)
     this->m_sharedHandle = shm_open(this->m_name.c_str(), O_RDWR, 0644);
 
     if (this->m_sharedHandle == -1) {
-        AkLogError() << "Error opening shared memory ("
-                     << this->m_name
-                     << ") with error "
-                     << errno
-                     << std::endl;
+        AkLogError("Error opening shared memory (%s) with error %d",
+                   this->m_name.c_str(),
+                   errno);
 
         return false;
     }
@@ -386,12 +378,9 @@ bool AkVCam::SharedMemoryPrivate::openRead(size_t pageSize)
                           0);
 
     if (this->m_buffer == MAP_FAILED) {
-        AkLogError() << "Error mapping shared memory ("
-                     << this->m_name
-                     << ") with error "
-                     << errno
-                     << std::endl;
-        ::close(this->m_sharedHandle);
+        AkLogError("Error mapping shared memory (%s) with error %d",
+                   this->m_name.c_str(),
+                   this->m_sharedHandle);
         this->m_sharedHandle = -1;
 
         return false;
@@ -418,11 +407,9 @@ bool AkVCam::SharedMemoryPrivate::openWrite(size_t pageSize)
                                this->m_name.c_str());
 
     if (!this->m_sharedHandle) {
-        AkLogError() << "Error creating shared memory ("
-                     << this->m_name
-                     << ") with error 0x"
-                     << std::hex << GetLastError()
-                     << std::endl;
+        AkLogError("Error creating shared memory (%s) with error 0x%x",
+                   this->m_name.c_str(),
+                   GetLastError());
 
         return false;
     }
@@ -441,21 +428,17 @@ bool AkVCam::SharedMemoryPrivate::openWrite(size_t pageSize)
                                     0644);
 
     if (this->m_sharedHandle == -1) {
-        AkLogError() << "Error opening shared memory ("
-                     << this->m_name
-                     << ") with error "
-                     << errno
-                     << std::endl;
+        AkLogError("Error opening shared memory (%s) with error %d",
+                   this->m_name.c_str(),
+                   errno);
 
         return false;
     }
 
     if (ftruncate(this->m_sharedHandle, pageSize) == -1) {
-        AkLogError() << "Error setting shared memory size ("
-                     << this->m_name
-                     << ") with error "
-                     << errno
-                     << std::endl;
+        AkLogError("Error setting shared memory size (%s) with error %d",
+                   this->m_name.c_str(),
+                   errno);
         ::close(this->m_sharedHandle);
         this->m_sharedHandle = -1;
 
@@ -471,11 +454,9 @@ bool AkVCam::SharedMemoryPrivate::openWrite(size_t pageSize)
                           0);
 
     if (this->m_buffer == MAP_FAILED) {
-        AkLogError() << "Error mapping shared memory ("
-                     << this->m_name
-                     << ") with error "
-                     << errno
-                     << std::endl;
+        AkLogError("Error mapping shared memory (%s) with error %d",
+                   this->m_name.c_str(),
+                   errno);
         ::close(this->m_sharedHandle);
         this->m_sharedHandle = -1;
 

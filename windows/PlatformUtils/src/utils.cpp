@@ -258,7 +258,7 @@ std::string AkVCam::stringFromError(DWORD errorCode)
 CLSID AkVCam::createClsidFromStr(const std::string &str)
 {
     AkLogFunction();
-    AkLogDebug() << "String: " << str << std::endl;
+    AkLogDebug("String: %s", str.c_str());
     HCRYPTPROV provider = 0;
     HCRYPTHASH hash = 0;
     CLSID clsid;
@@ -294,7 +294,7 @@ clsidFromStr_failed:
     if (provider)
         CryptReleaseContext(provider, 0);
 
-    AkLogDebug() << "CLSID: " << stringFromIid(clsid) << std::endl;
+    AkLogDebug("CLSID: %s", stringFromIid(clsid).c_str());
 
     return clsid;
 }
@@ -1194,10 +1194,10 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     AkLogFunction();
     VideoFrame frame;
 
-    AkLogInfo() << "Loading picture: " << fileName << std::endl;
+    AkLogInfo("Loading picture: %s", fileName.c_str());
 
     if (frame.load(fileName)) {
-        AkLogDebug() << "Picture loaded as BMP" << std::endl;
+        AkLogInfo("Picture loaded as BMP");
 
         return frame;
     } else {
@@ -1262,13 +1262,10 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
         imagingFactory->Release();
     }
 
-    AkLogDebug() << "Picture loaded as: "
-                 << VideoFormat::pixelFormatToString(frame.format().format())
-                 << " "
-                 << frame.format().width()
-                 << "x"
-                 << frame.format().height()
-                 << std::endl;
+    AkLogInfo("Picture loaded as: %s %dx%d",
+              VideoFormat::pixelFormatToString(frame.format().format()).c_str(),
+              frame.format().width(),
+              frame.format().height());
 
     return frame;
 }
@@ -1290,7 +1287,7 @@ void AkVCam::logSetup(const std::string &context)
     auto contextName = context.empty()? basename(currentBinaryPath()): context;
     Logger::setContext(contextName);
     auto logFile = logPath(contextName);
-    AkLogInfo() << "Sending debug output to " << logFile << std::endl;
+    AkLogInfo("Sending debug output to %s", logFile.c_str());
     Logger::setLogFile(logFile);
 }
 
@@ -1423,7 +1420,7 @@ std::vector<CLSID> AkVCam::listAllCameras()
 
     RegCloseKey(key);
 
-    AkLogDebug() << "Found " << cameras.size() << " available cameras" << std::endl;
+    AkLogDebug("Found %ull available cameras", cameras.size());
 
     return cameras;
 }
@@ -1432,10 +1429,10 @@ std::vector<CLSID> AkVCam::listRegisteredCameras()
 {
     AkLogFunction();
     auto pluginPath = locatePluginPath();
-    AkLogDebug() << "Plugin path: " << pluginPath << std::endl;
+    AkLogDebug("Plugin path: %s", pluginPath.c_str());
 
     if (!fileExists(pluginPath)) {
-        AkLogError() << "Plugin binary not found: " << pluginPath << std::endl;
+        AkLogError("Plugin binary not found: %s", pluginPath.c_str());
 
         return {};
     }
@@ -1460,7 +1457,7 @@ std::vector<CLSID> AkVCam::listRegisteredCameras()
         }
     }
 
-    AkLogDebug() << "Found " << cameras.size() << " registered virtual cameras" << std::endl;
+    AkLogDebug("Found %ull registered virtual cameras", cameras.size());
 
     return cameras;
 }
@@ -1536,8 +1533,8 @@ bool AkVCam::isServiceRunning()
 {
     AkLogFunction();
     auto service = locateServicePath();
-    AkLogDebug() << "Service path: " << service << std::endl;
-    AkLogDebug() << "System processes:" << std::endl;
+    AkLogDebug("Service path: %s", service.c_str());
+    AkLogDebug("System processes:");
 
     for (auto &pid: systemProcesses()) {
         auto path = exePath(pid);
@@ -1545,7 +1542,7 @@ bool AkVCam::isServiceRunning()
         if (path.empty())
             continue;
 
-        AkLogDebug() << "    " << path << std::endl;
+        AkLogDebug("    %s", path.c_str());
 
         if (path == service)
             return true;
@@ -1592,8 +1589,8 @@ int AkVCam::exec(const std::vector<std::string> &parameters,
             params += "\"" + param_ + "\"";
     }
 
-    AkLogDebug() << "Command: " << command << std::endl;
-    AkLogDebug() << "Arguments: " << params << std::endl;
+    AkLogDebug("Command: %s", command.c_str());
+    AkLogDebug("Arguments: %s", params.c_str());
 
     SHELLEXECUTEINFOA execInfo;
     memset(&execInfo, 0, sizeof(SHELLEXECUTEINFO));
@@ -1609,7 +1606,7 @@ int AkVCam::exec(const std::vector<std::string> &parameters,
     ShellExecuteExA(&execInfo);
 
     if (!execInfo.hProcess) {
-        AkLogError() << "Failed executing command" << std::endl;
+        AkLogError("Failed executing command");
 
         return E_FAIL;
     }
@@ -1620,15 +1617,12 @@ int AkVCam::exec(const std::vector<std::string> &parameters,
     GetExitCodeProcess(execInfo.hProcess, &exitCode);
     CloseHandle(execInfo.hProcess);
 
-    if (FAILED(exitCode))
-        AkLogError() << "Command failed with code "
-                     << exitCode
-                     << " ("
-                     << stringFromError(exitCode)
-                     << ")"
-                     << std::endl;
-
-    AkLogError() << "Command exited with code " << exitCode << std::endl;
+    if (SUCCEEDED(exitCode))
+        AkLogDebug("Command exited with code %d", exitCode);
+    else
+        AkLogError("Command failed with code %d (%s)",
+                   exitCode,
+                   stringFromError(exitCode).c_str());
 
     return int(exitCode);
 }
@@ -1664,8 +1658,8 @@ bool AkVCam::execDetached(const std::vector<std::string> &parameters,
             params += "\"" + param_ + "\"";
     }
 
-    AkLogDebug() << "Command: " << command << std::endl;
-    AkLogDebug() << "Arguments: " << params << std::endl;
+    AkLogDebug("Command: %s", command.c_str());
+    AkLogDebug("Arguments: %s", params.c_str());
 
     STARTUPINFOA startupInfo;
     memset(&startupInfo, 0, sizeof(STARTUPINFOA));
@@ -1696,7 +1690,7 @@ bool AkVCam::execDetached(const std::vector<std::string> &parameters,
                                      reinterpret_cast<LPSTR>(&errorMessage),
                                      0,
                                      nullptr);
-        AkLogCritical() << "Failed to execute the command: " << errorMessage << std::endl;
+        AkLogError("Failed to execute the command: %s", errorMessage);
         LocalFree(errorMessage);
 
         return false;
@@ -1704,7 +1698,7 @@ bool AkVCam::execDetached(const std::vector<std::string> &parameters,
 
     CloseHandle(processInformation.hProcess);
     CloseHandle(processInformation.hThread);
-    AkLogDebug() << "Command executed" << std::endl;
+    AkLogDebug("Command executed");
 
     return true;
 }

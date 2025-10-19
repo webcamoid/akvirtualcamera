@@ -85,17 +85,17 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
     this->d = new MediaSourcePrivate(this);
     this->d->m_clsid = clsid;
 
-    AkLogDebug() << "CLSID: " << stringFromClsidMF(clsid) << std::endl;
+    AkLogDebug("CLSID: %s", stringFromClsidMF(clsid).c_str());
 
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);
-    AkLogDebug() << "Camera index: " << cameraIndex << std::endl;
+    AkLogDebug("Camera index: %d", cameraIndex);
     std::vector<IMFMediaType *> mediaTypes;
 
     if (cameraIndex >= 0) {
         this->d->m_directMode = Preferences::cameraDirectMode(cameraIndex);
 
-        AkLogDebug() << "Virtual camera formats:";
-        std::vector<AkVCam::VideoFormat> formats;
+        AkLogDebug("Virtual camera formats:");
+        std::vector<VideoFormat> formats;
 
         if (this->d->m_directMode) {
             auto fmts = Preferences::cameraFormats(size_t(cameraIndex));
@@ -110,7 +110,7 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
             auto mediaType = mfMediaTypeFromFormat(format);
 
             if (mediaType) {
-                AkLogDebug() << "    " << format;
+                AkLogDebug("    %s", format.toString().c_str());
                 mediaTypes.push_back(mediaType);
             }
         }
@@ -176,7 +176,7 @@ bool AkVCam::MediaSource::directMode() const
 HRESULT AkVCam::MediaSource::QueryInterface(REFIID riid, void **ppvObject)
 {
     AkLogFunction();
-    AkLogDebug() << "IID: " << stringFromClsidMF(riid) << std::endl;
+    AkLogDebug("IID: %s", stringFromClsidMF(riid).c_str());
 
     if (!ppvObject)
         return E_POINTER;
@@ -256,7 +256,7 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
     AkLogFunction();
 
     if (!pPresentationDescriptor) {
-        AkLogError() << "Invalid pointer" << std::endl;
+        AkLogError("Invalid pointer");
 
         return E_POINTER;
     }
@@ -265,13 +265,13 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
     std::lock_guard<std::mutex> lock(this->d->m_mutex);
 
     if (this->d->m_state != MediaSourceState_Stopped) {
-        AkLogError() << "Invalid state transition" << std::endl;
+        AkLogError("Invalid state transition");
 
         return MF_E_INVALID_STATE_TRANSITION;
     }
 
     if (pguidTimeFormat && *pguidTimeFormat != GUID_NULL) {
-        AkLogError() << "Unsuported time format" << std::endl;
+        AkLogError("Unsuported time format");
 
         return MF_E_UNSUPPORTED_TIME_FORMAT;
     }
@@ -281,7 +281,7 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
     hr = pPresentationDescriptor->GetStreamDescriptorCount(&streamCount);
 
     if (FAILED(hr) || streamCount < 1) {
-        AkLogError() << "Invalid request: " << hr << std::endl;
+        AkLogError("Invalid request: 0x%x", hr);
 
         return MF_E_INVALIDREQUEST;
     }
@@ -293,13 +293,13 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
                                                              &pStreamDesc);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed getting stream descriptor by index: " << hr << std::endl;
+        AkLogError("Failed getting stream descriptor by index: 0x%x", hr);
 
         return hr;
     }
 
     if (!selected) {
-        AkLogError() << "Stream not selected" << std::endl;
+        AkLogError("Stream not selected");
         pStreamDesc->Release();
 
         return MF_E_INVALIDREQUEST;
@@ -310,7 +310,7 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
     pStreamDesc->Release();
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed to get the media type handler: " << hr << std::endl;
+        AkLogError("Failed to get the media type handler: 0x%x", hr);
 
         return hr;
     }
@@ -320,7 +320,7 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
     mediaTypeHandler->Release();
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed to get the current media type: " << hr << std::endl;
+        AkLogError("Failed to get the current media type: 0x%x", hr);
 
         return hr;
     }
@@ -336,7 +336,7 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
     mediaType->Release();
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed to start the stream: " << hr << std::endl;
+        AkLogError("Failed to start the stream: 0x%x", hr);
         this->d->m_state = MediaSourceState_Stopped;
 
         return hr;
@@ -352,14 +352,14 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
                                                    &time);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed to queue MESourceStarted: " << hr << std::endl;
+        AkLogError("Failed to queue MESourceStarted: 0x%x", hr);
         this->d->m_state = MediaSourceState_Stopped;
         this->d->m_pStream->stop();
 
         return hr;
     }
 
-    AkLogDebug() << "MediaSource started" << std::endl;
+    AkLogDebug("MediaSource started");
 
     return S_OK;
 }

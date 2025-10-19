@@ -192,7 +192,7 @@ void AkVCam::AdviseCookiePrivate::adviseTime(REFERENCE_TIME baseTime,
                                  baseTime,
                                  streamTime,
                                  hEvent);
-    AkLogInfo() << "Launching thread " << this->m_thread.get_id() << std::endl;
+    AkLogInfo("Launching thread %ull", this->m_thread.get_id());
 }
 
 void AkVCam::AdviseCookiePrivate::adviseTimeTh(REFERENCE_TIME baseTime,
@@ -220,10 +220,7 @@ void AkVCam::AdviseCookiePrivate::adviseTimeTh(REFERENCE_TIME baseTime,
         SetEvent(HANDLE(hEvent));
 
     this->m_run = false;
-    AkLogInfo() << "Thread "
-                << std::this_thread::get_id()
-                << " finnished"
-                << std::endl;
+    AkLogInfo("Thread %ull finnished", std::this_thread::get_id());
 }
 
 void AkVCam::AdviseCookiePrivate::advisePeriodic(REFERENCE_TIME startTime,
@@ -238,7 +235,7 @@ void AkVCam::AdviseCookiePrivate::advisePeriodic(REFERENCE_TIME startTime,
                                  startTime,
                                  periodTime,
                                  hSemaphore);
-    AkLogInfo() << "Launching thread " << this->m_thread.get_id() << std::endl;
+    AkLogInfo("Launching thread %ull", this->m_thread.get_id());
 }
 
 void AkVCam::AdviseCookiePrivate::advisePeriodicTh(REFERENCE_TIME startTime,
@@ -272,10 +269,7 @@ void AkVCam::AdviseCookiePrivate::advisePeriodicTh(REFERENCE_TIME startTime,
         this->m_mutex.unlock();
     }
 
-    AkLogInfo() << "Thread "
-                << std::this_thread::get_id()
-                << " finnished"
-                << std::endl;
+    AkLogInfo("Thread %ull finnished", std::this_thread::get_id());
 }
 
 void AkVCam::AdviseCookiePrivate::unadvise()

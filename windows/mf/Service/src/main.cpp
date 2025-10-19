@@ -60,7 +60,7 @@ int main(int argc, char **argv)
         return 0;
 
     AkVCam::logSetup();
-    std::cout << "Starting the virtual camera service." << std::endl;
+    AkPrintOut("Starting the virtual camera service.");
     auto hr = MFStartup(MF_VERSION);
 
     if (FAILED(hr))
@@ -69,7 +69,7 @@ int main(int argc, char **argv)
     mfsensorgroupHnd = LoadLibrary(TEXT("mfsensorgroup.dll"));
 
     if (!mfsensorgroupHnd) {
-        std::cerr << "mfsensorgroup.dll is missing. This virtual camera only works in Windows 11+." << std::endl;
+        AkPrintErr("mfsensorgroup.dll is missing. This virtual camera only works in Windows 11+.");
         MFShutdown();
 
         return -1;
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
                                                                    "MFCreateVirtualCamera"));
 
     if (!mfCreateVirtualCamera) {
-        std::cerr << "'MFCreateVirtualCamera' funtion not found." << std::endl;
+        AkPrintErr("'MFCreateVirtualCamera' funtion not found.");
         FreeLibrary(mfsensorgroupHnd);
         MFShutdown();
 
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 
     // Run the virtual camera.
 
-    std::cout << "Virtual camera service started. Press Enter to stop it..." << std::endl;
+    AkPrintOut("Virtual camera service started. Press Enter to stop it...");
     getchar();
 
     ipcBridge.disconnectDevicesChanged(nullptr, updateCameras);
@@ -162,16 +162,19 @@ void updateCameras(void *, const std::vector<std::string> &)
         // For creating the virtual camera, the MediaSource must be registered
 
         auto deviceId = AkVCam::Preferences::cameraId(cameraIndex);
-        std::cout << "Registering device '" << description << "' (" << deviceId << ", " << clsidStr << ")" << std::endl;
+        AkPrintOut("Registering device '%s' (%s, %s)",
+                   description.c_str(),
+                   deviceId.c_str(),
+                   clsidStr.c_str());
 
         if (!AkVCam::isDeviceIdMFTaken(deviceId)) {
-            std::cerr << "WARNING: The device is not registered" << std::endl;
+            AkPrintErr("WARNING: The device is not registered");
             CoTaskMemFree(clsidWStr);
 
             continue;
         }
 
-        std::cout << "Creating '" << description << "'" << std::endl;
+        AkPrintOut("Creating '%s'", description.c_str());
 
         IMFVCam *vcam = nullptr;
         auto hr = mfCreateVirtualCamera(MFVCamType_SoftwareCameraSource,
@@ -184,28 +187,28 @@ void updateCameras(void *, const std::vector<std::string> &)
                                         &vcam);
 
         if (FAILED(hr) || !vcam) {
-            std::cerr << "Error creating the virtual camera: " << hr << std::endl;
+            AkPrintErr("Error creating the virtual camera: 0x%x", hr);
             CoTaskMemFree(clsidWStr);
             CoTaskMemFree(descriptionWStr);
 
             continue;
         }
 
-        std::cout << "Starting '" << description << "'" << std::endl;
+        AkPrintOut("Starting '%s'", description.c_str());
 
         CoTaskMemFree(clsidWStr);
         CoTaskMemFree(descriptionWStr);
         hr = vcam->Start(nullptr);
 
         if (FAILED(hr)) {
-            std::cerr << "Error starting the virtual camera: " << hr << std::endl;
+            AkPrintErr("Error starting the virtual camera: 0x%x", hr);
             vcam->Shutdown();
             vcam->Release();
 
             continue;
         }
 
-        std::cout << "Appending '" << description << "' to the virtual cameras list" << std::endl;
+        AkPrintOut("Appending '%s' to the virtual cameras list", description);
 
         camerasPtr->push_back(std::shared_ptr<IMFVCam>(vcam, [] (IMFVCam *vcam) {
             vcam->Remove();

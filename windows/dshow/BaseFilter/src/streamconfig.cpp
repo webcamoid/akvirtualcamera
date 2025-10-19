@@ -124,7 +124,7 @@ HRESULT AkVCam::StreamConfig::GetFormat(AM_MEDIA_TYPE **pmt)
         mediaTypes->Release();
     }
 
-    AkLogInfo() << "MediaType: " << stringFromMediaType(*pmt) << std::endl;
+    AkLogInfo("MediaType: %s", stringFromMediaType(*pmt).c_str());
 
     return *pmt? S_OK: E_FAIL;
 }
@@ -179,7 +179,7 @@ HRESULT AkVCam::StreamConfig::GetStreamCaps(int iIndex,
         return E_INVALIDARG;
 
     if (!this->d->m_pin) {
-        AkLogError() << "Pin is null" << std::endl;
+        AkLogError("Pin is null");
 
         return E_FAIL;
     }
@@ -188,7 +188,7 @@ HRESULT AkVCam::StreamConfig::GetStreamCaps(int iIndex,
     auto hr = this->d->m_pin->EnumMediaTypes(&mediaTypes);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed to enumerate media types: " << std::hex << hr << std::endl;
+        AkLogError("Failed to enumerate media types: 0x%x", hr);
 
         return hr;
     }
@@ -205,7 +205,7 @@ HRESULT AkVCam::StreamConfig::GetStreamCaps(int iIndex,
             if (pCopiedMt) {
                 *pmt = pCopiedMt;
             } else {
-                AkLogError() << "Failed to copy media type: " << std::endl;
+                AkLogError("Failed to copy media type");
                 deleteMediaType(&mediaType);
                 mediaTypes->Release();
 
@@ -279,12 +279,12 @@ HRESULT AkVCam::StreamConfig::GetStreamCaps(int iIndex,
     mediaTypes->Release();
 
     if (!*pmt) {
-        AkLogWarning() << "No media type found for index " << iIndex << std::endl;
+        AkLogWarning("No media type found for index %d", iIndex);
 
         return S_FALSE;
      }
 
-    AkLogInfo() << "Media Type: " << stringFromMediaType(*pmt) << std::endl;
+    AkLogInfo("Media Type: %s", stringFromMediaType(*pmt).c_str());
 
     return S_OK;
 }

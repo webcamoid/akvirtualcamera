@@ -18,11 +18,11 @@
  */
 
 #include <chrono>
+#include <cstdio>
+#include <cstdarg>
 #include <ctime>
-#include <fstream>
 #include <memory>
 #include <mutex>
-#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -65,50 +65,17 @@ namespace AkVCam
 
             return akvcamLoggerStrTable;
         }
-    };
 
-    class TeeStreambuf: public std::streambuf
-    {
-        public:
-            TeeStreambuf(const std::vector<std::streambuf *> &buffers={}):
-                m_buffers(buffers)
-            {
-            }
+        static const LogLevelStr *byLevel(int logLevel)
+        {
+            auto level = table();
 
-            TeeStreambuf(const TeeStreambuf &other):
-                m_buffers(other.m_buffers)
-            {
+            for (; level->logLevel != AKVCAM_LOGLEVEL_DEBUG; ++level)
+                if (level->logLevel == logLevel)
+                    return level;
 
-            }
-
-            TeeStreambuf &operator =(const TeeStreambuf &other)
-            {
-                if (this != &other)
-                    this->m_buffers = other.m_buffers;
-
-                return *this;
-            }
-
-        protected:
-            int overflow(int c) override
-            {
-                if (c != EOF)
-                    for (auto &buffer: this->m_buffers)
-                        buffer->sputc(c);
-
-                return c;
-            }
-
-            int sync() override
-            {
-                for (auto &buffer: this->m_buffers)
-                    buffer->pubsync();
-
-                return 0;
-            }
-
-        private:
-            std::vector<std::streambuf *> m_buffers;
+            return level;
+        }
     };
 
     class LoggerPrivate
@@ -118,20 +85,26 @@ namespace AkVCam
             std::string logFile;
             std::string fileName;
             int logLevel {AKVCAM_LOGLEVEL_DEFAULT};
-            std::fstream stream;
-            TeeStreambuf teeOutBuf;
-            TeeStreambuf teeErrBuf;
-            std::shared_ptr<std::ostream> teeOut;
-            std::shared_ptr<std::ostream> teeErr;
+            char *logBuffer {nullptr};
+            size_t bufferSize {4096};
+            FILE *fileStream {nullptr};
+            std::mutex logMutex;
 
             LoggerPrivate()
             {
+                this->logBuffer = new char [this->bufferSize];
             }
 
             ~LoggerPrivate()
             {
+                if (this->fileStream)
+                    fclose(this->fileStream);
+
+                if (this->logBuffer)
+                    delete [] this->logBuffer;
             }
 
+            static std::string header(int logLevel, const char *file, int line);
             static std::string timeStamp();
 
             inline static uint64_t threadID()
@@ -177,15 +150,24 @@ void AkVCam::Logger::setLogFile(const std::string &fileName)
     loggerPrivate()->logFile = fileName;
     auto index = fileName.rfind('.');
 
-    if (loggerPrivate()->stream.is_open())
-        loggerPrivate()->stream.close();
+    if (loggerPrivate()->fileStream) {
+        fclose(loggerPrivate()->fileStream);
+        loggerPrivate()->fileStream = nullptr;
+    }
 
     if (index == fileName.npos) {
         loggerPrivate()->fileName = fileName + "-" + LoggerPrivate::timeStamp();
     } else {
-        std::string fname = fileName.substr(0, index);
-        std::string extension = fileName.substr(index + 1);
+        auto fname = fileName.substr(0, index);
+        auto extension = fileName.substr(index + 1);
         loggerPrivate()->fileName = fname + "-" + LoggerPrivate::timeStamp() + "." + extension;
+    }
+
+    if (!loggerPrivate()->fileStream) {
+        loggerPrivate()->fileStream = fopen(loggerPrivate()->fileName.c_str(), "a");
+
+        if (loggerPrivate()->fileStream)
+            setvbuf(loggerPrivate()->fileStream, NULL, _IONBF, 0);
     }
 }
 
@@ -199,90 +181,75 @@ void AkVCam::Logger::setLogLevel(int logLevel)
     loggerPrivate()->logLevel = logLevel;
 }
 
-std::string AkVCam::Logger::header(int logLevel,
-                                   const std::string &file,
-                                   int line)
+size_t AkVCam::Logger::bufferSize()
 {
-    static std::mutex mutex;
-    auto now = std::chrono::system_clock::now();
-    auto nowMSecs =
-            std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
-    auto time = std::chrono::system_clock::to_time_t(now);
-
-    char timestamp[32];
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-#ifdef _WIN32
-        struct tm timeInfo;
-        localtime_s(&timeInfo, &time);
-#else
-        auto timeInfo = *std::localtime(&time);
-#endif
-        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &timeInfo);
-    }
-
-    thread_local char buffer[256];
-
-#ifdef _WIN32
-    _snprintf_s(buffer,
-                sizeof(buffer),
-                "[%s.%03lld, %llu, %s, %s (%d)] %s: ",
-                timestamp,
-                nowMSecs.count() % 1000,
-                LoggerPrivate::threadID(),
-                loggerPrivate()->context.c_str(),
-                file.c_str(),
-                line,
-                levelToString(logLevel).c_str());
-#else
-    snprintf(buffer,
-             sizeof(buffer),
-             "[%s.%03lld, %llu, %s, %s (%d)] %s: ",
-             timestamp,
-             nowMSecs.count() % 1000,
-             LoggerPrivate::threadID(),
-             loggerPrivate()->context.c_str(),
-             file.c_str(),
-             line,
-             levelToString(logLevel).c_str());
-#endif
-
-    return {buffer};
+    return loggerPrivate()->bufferSize;
 }
 
-std::ostream &AkVCam::Logger::log(int logLevel)
+void AkVCam::Logger::setBufferSize(size_t bufferSize)
 {
-    static std::ostream dummy(nullptr);
+    loggerPrivate()->bufferSize = bufferSize;
 
-    if (logLevel > loggerPrivate()->logLevel)
-        return dummy;
-
-    if (loggerPrivate()->fileName.empty())
-        return logLevel == AKVCAM_LOGLEVEL_INFO? std::cout: std::cerr;
-
-    if (!loggerPrivate()->stream.is_open()) {
-        loggerPrivate()->stream.open(loggerPrivate()->fileName,
-                                     std::ios_base::out | std::ios_base::app);
-
-        loggerPrivate()->teeOutBuf = {{loggerPrivate()->stream.rdbuf(), std::cout.rdbuf()}};
-        loggerPrivate()->teeErrBuf = {{loggerPrivate()->stream.rdbuf(), std::cerr.rdbuf()}};
-
-        loggerPrivate()->teeOut = std::make_shared<std::ostream>(&loggerPrivate()->teeOutBuf);
-        loggerPrivate()->teeErr = std::make_shared<std::ostream>(&loggerPrivate()->teeErrBuf);
+    if (loggerPrivate()->logBuffer) {
+        delete [] loggerPrivate()->logBuffer;
+        loggerPrivate()->logBuffer = nullptr;
     }
 
-    if (!loggerPrivate()->stream.is_open())
-        return logLevel == AKVCAM_LOGLEVEL_INFO? std::cout: std::cerr;
+    if (loggerPrivate()->bufferSize > 0)
+        loggerPrivate()->logBuffer = new char [loggerPrivate()->bufferSize];
+}
 
-    if (logLevel == AKVCAM_LOGLEVEL_INFO) {
-        loggerPrivate()->teeOut->flush();
+void AkVCam::Logger::log(int logLevel,
+                         const char *file,
+                         int line,
+                         bool raw,
+                         const char *format,
+                         ...)
+{
+    if (!raw && logLevel > loggerPrivate()->logLevel)
+        return;
 
-        return *loggerPrivate()->teeOut;
+    std::lock_guard<std::mutex> lock(loggerPrivate()->logMutex);
+    auto logBuffer = loggerPrivate()->logBuffer;
+
+    if (!logBuffer)
+        return;
+
+    auto bufferSize = loggerPrivate()->bufferSize;
+
+    if (bufferSize < 1)
+        return;
+
+    std::string log;
+    auto header = LoggerPrivate::header(logLevel, file, line);
+
+    if (!raw)
+        log += header;
+
+    va_list args;
+    va_start(args, format);
+    vsnprintf(logBuffer, bufferSize, format, args);
+    va_end(args);
+
+    log += logBuffer;
+    log += '\n';
+
+    if (loggerPrivate()->fileStream) {
+        std::string line;
+
+        if (raw)
+            line = header;
+
+        fwrite(line.c_str(), 1, line.size(), loggerPrivate()->fileStream);
+        fflush(loggerPrivate()->fileStream);
     }
 
-    loggerPrivate()->teeErr->flush();
-
-    return *loggerPrivate()->teeErr;
+    auto out = logLevel == AKVCAM_LOGLEVEL_INFO? stdout: stderr;
+    fwrite(log.data(),
+           1,
+           log.size(),
+           out);
+    fflush(out);
 }
 
 int AkVCam::Logger::levelFromString(const std::string &level)
@@ -307,16 +274,67 @@ std::string AkVCam::Logger::levelToString(int level)
     return {lvl->str};
 }
 
+std::string AkVCam::LoggerPrivate::header(int logLevel,
+                                          const char *file,
+                                          int line)
+{
+    static std::mutex headerMutex;
+    auto now = std::chrono::system_clock::now();
+    auto nowMSecs =
+            std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+    auto time = std::chrono::system_clock::to_time_t(now);
+
+    char timestamp[32];
+    {
+        std::lock_guard<std::mutex> lock(headerMutex);
+#ifdef _WIN32
+        struct tm timeInfo;
+        localtime_s(&timeInfo, &time);
+#else
+        auto timeInfo = *std::localtime(&time);
+#endif
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &timeInfo);
+    }
+
+    thread_local char buffer[256];
+
+#ifdef _WIN32
+    _snprintf_s(buffer,
+                sizeof(buffer),
+                "[%s.%03lld, %llu, %s, %s (%d)] %s: ",
+                timestamp,
+                nowMSecs.count() % 1000,
+                LoggerPrivate::threadID(),
+                loggerPrivate()->context.c_str(),
+                file,
+                line,
+                LogLevelStr::byLevel(logLevel)->str);
+#else
+    snprintf(buffer,
+             sizeof(buffer),
+             "[%s.%03lld, %llu, %s, %s (%d)] %s: ",
+             timestamp,
+             nowMSecs.count() % 1000,
+             LoggerPrivate::threadID(),
+             loggerPrivate()->context.c_str(),
+             file,
+             line,
+             LogLevelStr::byLevel(logLevel)->str);
+#endif
+
+    return {buffer};
+}
+
 std::string AkVCam::LoggerPrivate::timeStamp()
 {
-    static std::mutex mutex;
+    static std::mutex tsMutex;
     auto now = std::chrono::system_clock::now();
     auto time = std::chrono::system_clock::to_time_t(now);
 
     char buffer[16];
 
     {
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(tsMutex);
 
 #ifdef _WIN32
         struct tm timeInfo;

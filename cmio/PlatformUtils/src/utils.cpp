@@ -223,7 +223,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     VideoFrame frame;
 
     if (frame.load(fileName)) {
-        AkLogInfo() << "Picture loaded as BMP" << std::endl;
+        AkLogInfo("Picture loaded as BMP");
 
         return frame;
     }
@@ -232,10 +232,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     auto fileDataProvider = CGDataProviderCreateWithFilename(fileName.c_str());
 
     if (!fileDataProvider) {
-        AkLogError() << "Can't create a data provider for '"
-                     << fileName
-                     << "'"
-                     << std::endl;
+        AkLogError("Can't create a data provider for '%s'", fileName.c_str());
 
         return {};
     }
@@ -248,10 +245,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
 
     // If the file is not a PNG, try opening as JPEG.
     if (!cgImage) {
-        AkLogWarning() << "Can't read '"
-                       << fileName
-                       << "' as a PNG image."
-                       << std::endl;
+        AkLogWarning("Can't read '%s' as a PNG image.", fileName.c_str());
         cgImage = CGImageCreateWithJPEGDataProvider(fileDataProvider,
                                                     nullptr,
                                                     true,
@@ -262,10 +256,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
 
     // The file format is not supported, fail.
     if (!cgImage) {
-        AkLogError() << "Can't read '"
-                     << fileName
-                     << "' as a JPEG image."
-                     << std::endl;
+        AkLogError("Can't read '%s' as a JPEG image.", fileName.c_str());
 
         return {};
     }
@@ -284,16 +275,11 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     auto height = CGImageGetHeight(cgImage);
 
     if (format == 0 || width < 1 || height < 1) {
-        AkLogError() << "Invalid picture format: "
-                     << "BPC="
-                     << CGImageGetBitsPerComponent(cgImage)
-                     << "BPP="
-                     << CGImageGetBitsPerPixel(cgImage)
-                     << " "
-                     << width
-                     << "x"
-                     << height
-                     << std::endl;
+        AkLogError("Invalid picture format: BPC=%d BPP=%d %dx%d",
+                   CGImageGetBitsPerComponent(cgImage),
+                   CGImageGetBitsPerPixel(cgImage),
+                   width,
+                   height);
         CGImageRelease(cgImage);
 
         return {};
@@ -305,7 +291,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     auto imageDataProvider = CGImageGetDataProvider(cgImage);
 
     if (!imageDataProvider) {
-        AkLogError() << "Can't get data provider for picture." << std::endl;
+        AkLogError("Can't get data provider for picture.");
         CGImageRelease(cgImage);
 
         return {};
@@ -314,7 +300,7 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     auto data = CGDataProviderCopyData(imageDataProvider);
 
     if (!data) {
-        AkLogError() << "Can't copy data from image provider." << std::endl;
+        AkLogError("Can't copy data from image provider.");
         CGImageRelease(cgImage);
 
         return {};
@@ -362,13 +348,10 @@ AkVCam::VideoFrame AkVCam::loadPicture(const std::string &fileName)
     CFRelease(data);
     CGImageRelease(cgImage);
 
-    AkLogDebug() << "Picture loaded as: "
-                 << VideoFormat::pixelFormatToString(frame.format().format())
-                 << " "
-                 << frame.format().width()
-                 << "x"
-                 << frame.format().height()
-                 << std::endl;
+    AkLogDebug("Picture loaded as: %s %dx%d",
+               VideoFormat::pixelFormatToString(frame.format().format()).c_str(),
+               frame.format().width(),
+               frame.format().height());
 
     return frame;
 #else
@@ -437,7 +420,7 @@ void AkVCam::logSetup(const std::string &context)
     auto contextName = context.empty()? basename(currentBinaryPath()): context;
     Logger::setContext(contextName);
     auto logFile = logPath(contextName);
-    AkLogInfo() << "Sending debug output to " << logFile << std::endl;
+    AkLogInfo("Sending debug output to %s", logFile.c_str());
     Logger::setLogFile(logFile);
 }
 
@@ -531,8 +514,8 @@ bool AkVCam::isServiceRunning()
 {
     AkLogFunction();
     auto service = locateServicePath();
-    AkLogDebug() << "Service path: " << service << std::endl;
-    AkLogDebug() << "System processes:" << std::endl;
+    AkLogDebug("Service path: %s", service.c_str());
+    AkLogDebug("System processes:");
 
     for (auto &pid: systemProcesses()) {
         auto path = exePath(pid);
@@ -540,7 +523,7 @@ bool AkVCam::isServiceRunning()
         if (path.empty())
             continue;
 
-        AkLogDebug() << "    " << path << std::endl;
+        AkLogDebug("    %s", path.c_str());
 
         if (path == service)
             return true;

@@ -48,7 +48,7 @@ AkVCam::Attributes::~Attributes()
 HRESULT AkVCam::Attributes::GetItem(const GUID &guidKey, PROPVARIANT *pValue)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->GetItem(guidKey, pValue);
 }
@@ -57,9 +57,9 @@ HRESULT AkVCam::Attributes::GetItemType(const GUID &guidKey,
                                         MF_ATTRIBUTE_TYPE *pType)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
     auto hr = this->d->m_pAttributes->GetItemType(guidKey, pType);
-    AkLogDebug() << "Type: " << *pType << std::endl;
+    AkLogDebug("Type: %d", *pType);
 
     return hr;
 }
@@ -69,7 +69,7 @@ HRESULT AkVCam::Attributes::CompareItem(const GUID &guidKey,
                                         BOOL *pbResult)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->CompareItem(guidKey, Value, pbResult);
 }
@@ -86,9 +86,9 @@ HRESULT AkVCam::Attributes::Compare(IMFAttributes *pTheirs,
 HRESULT AkVCam::Attributes::GetUINT32(const GUID &guidKey, UINT32 *punValue)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
     auto hr = this->d->m_pAttributes->GetUINT32(guidKey, punValue);
-    AkLogDebug() << "Value: " << *punValue << std::endl;
+    AkLogDebug("Value: %u", *punValue);
 
     return hr;
 }
@@ -96,9 +96,9 @@ HRESULT AkVCam::Attributes::GetUINT32(const GUID &guidKey, UINT32 *punValue)
 HRESULT AkVCam::Attributes::GetUINT64(const GUID &guidKey, UINT64 *punValue)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
     auto hr = this->d->m_pAttributes->GetUINT64(guidKey, punValue);
-    AkLogDebug() << "Value: " << *punValue << std::endl;
+    AkLogDebug("Value: %ull", *punValue);
 
     return hr;
 }
@@ -106,9 +106,9 @@ HRESULT AkVCam::Attributes::GetUINT64(const GUID &guidKey, UINT64 *punValue)
 HRESULT AkVCam::Attributes::GetDouble(const GUID &guidKey, double *pfValue)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
     auto hr = this->d->m_pAttributes->GetDouble(guidKey, pfValue);
-    AkLogDebug() << "Value: " << *pfValue << std::endl;
+    AkLogDebug("Value: %f", *pfValue);
 
     return hr;
 }
@@ -116,9 +116,9 @@ HRESULT AkVCam::Attributes::GetDouble(const GUID &guidKey, double *pfValue)
 HRESULT AkVCam::Attributes::GetGUID(const GUID &guidKey, GUID *pguidValue)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
     auto hr = this->d->m_pAttributes->GetGUID(guidKey, pguidValue);
-    AkLogDebug() << "Value: " << stringFromClsidMF(*pguidValue) << std::endl;
+    AkLogDebug("Value: %s", stringFromClsidMF(*pguidValue).c_str());
 
     return hr;
 }
@@ -127,9 +127,9 @@ HRESULT AkVCam::Attributes::GetStringLength(const GUID &guidKey,
                                             UINT32 *pcchLength)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
     auto hr = this->d->m_pAttributes->GetStringLength(guidKey, pcchLength);
-    AkLogDebug() << "Value: " << *pcchLength << std::endl;
+    AkLogDebug("Value: %u", *pcchLength);
 
     return hr;
 }
@@ -140,12 +140,12 @@ HRESULT AkVCam::Attributes::GetString(const GUID &guidKey,
                                       UINT32 *pcchLength)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
     auto hr = this->d->m_pAttributes->GetString(guidKey,
                                                 pwszValue,
                                                 cchBufSize,
                                                 pcchLength);
-    AkLogDebug() << "Value: " << stringFromWSTR(pwszValue) << std::endl;
+    AkLogDebug("Value: %s", stringFromWSTR(pwszValue).c_str());
 
     return hr;
 }
@@ -155,7 +155,7 @@ HRESULT AkVCam::Attributes::GetAllocatedString(const GUID &guidKey,
                                                UINT32 *pcchLength)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->GetAllocatedString(guidKey,
                                                       ppwszValue,
@@ -166,7 +166,7 @@ HRESULT AkVCam::Attributes::GetBlobSize(const GUID &guidKey,
                                         UINT32 *pcbBlobSize)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->GetBlobSize(guidKey, pcbBlobSize);
 }
@@ -177,7 +177,7 @@ HRESULT AkVCam::Attributes::GetBlob(const GUID &guidKey,
                                     UINT32 *pcbBlobSize)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->GetBlob(guidKey,
                                            pBuf,
@@ -190,7 +190,7 @@ HRESULT AkVCam::Attributes::GetAllocatedBlob(const GUID &guidKey,
                                              UINT32 *pcbSize)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->GetAllocatedBlob(guidKey, ppBuf, pcbSize);
 }
@@ -200,7 +200,7 @@ HRESULT AkVCam::Attributes::GetUnknown(const GUID &guidKey,
                                        LPVOID *ppv)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->GetUnknown(guidKey, riid, ppv);
 }
@@ -209,7 +209,7 @@ HRESULT AkVCam::Attributes::SetItem(const GUID &guidKey,
                                     const PROPVARIANT &Value)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->SetItem(guidKey, Value);
 }
@@ -217,7 +217,7 @@ HRESULT AkVCam::Attributes::SetItem(const GUID &guidKey,
 HRESULT AkVCam::Attributes::DeleteItem(const GUID &guidKey)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->DeleteItem(guidKey);
 }
@@ -232,8 +232,8 @@ HRESULT AkVCam::Attributes::DeleteAllItems()
 HRESULT AkVCam::Attributes::SetUINT32(const GUID &guidKey, UINT32 unValue)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
-    AkLogDebug() << "Value: " << unValue << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
+    AkLogDebug("Value: %u", unValue);
 
     return this->d->m_pAttributes->SetUINT32(guidKey, unValue);
 }
@@ -241,8 +241,8 @@ HRESULT AkVCam::Attributes::SetUINT32(const GUID &guidKey, UINT32 unValue)
 HRESULT AkVCam::Attributes::SetUINT64(const GUID &guidKey, UINT64 unValue)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
-    AkLogDebug() << "Value: " << unValue << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
+    AkLogDebug("Value: %ull", unValue);
 
     return this->d->m_pAttributes->SetUINT64(guidKey, unValue);
 }
@@ -250,8 +250,8 @@ HRESULT AkVCam::Attributes::SetUINT64(const GUID &guidKey, UINT64 unValue)
 HRESULT AkVCam::Attributes::SetDouble(const GUID &guidKey, double fValue)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
-    AkLogDebug() << "Value: " << fValue << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
+    AkLogDebug("Value: %f", fValue);
 
     return this->d->m_pAttributes->SetDouble(guidKey, fValue);
 }
@@ -259,8 +259,8 @@ HRESULT AkVCam::Attributes::SetDouble(const GUID &guidKey, double fValue)
 HRESULT AkVCam::Attributes::SetGUID(const GUID &guidKey, const GUID &guidValue)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
-    AkLogDebug() << "Value: " << stringFromClsidMF(guidValue) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
+    AkLogDebug("Value: %s", stringFromClsidMF(guidValue).c_str());
 
     return this->d->m_pAttributes->SetGUID(guidKey, guidValue);
 }
@@ -268,8 +268,8 @@ HRESULT AkVCam::Attributes::SetGUID(const GUID &guidKey, const GUID &guidValue)
 HRESULT AkVCam::Attributes::SetString(const GUID &guidKey, LPCWSTR wszValue)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
-    AkLogDebug() << "String: " << stringFromWSTR(wszValue) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
+    AkLogDebug("Value: %s", stringFromWSTR(wszValue).c_str());
 
     return this->d->m_pAttributes->SetString(guidKey, wszValue);
 }
@@ -279,7 +279,7 @@ HRESULT AkVCam::Attributes::SetBlob(const GUID &guidKey,
                                     UINT32 cbBufSize)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->SetBlob(guidKey, pBuf, cbBufSize);
 }
@@ -287,7 +287,7 @@ HRESULT AkVCam::Attributes::SetBlob(const GUID &guidKey,
 HRESULT AkVCam::Attributes::SetUnknown(const GUID &guidKey, IUnknown *pUnknown)
 {
     AkLogFunction();
-    AkLogDebug() << "GUID: " << stringFromClsidMF(guidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
 
     return this->d->m_pAttributes->SetUnknown(guidKey, pUnknown);
 }
@@ -318,9 +318,9 @@ HRESULT AkVCam::Attributes::GetItemByIndex(UINT32 unIndex,
                                            PROPVARIANT *pValue)
 {
     AkLogFunction();
-    AkLogDebug() << "Index: " << unIndex << std::endl;
+    AkLogDebug("Index: %u", unIndex);
     auto hr = this->d->m_pAttributes->GetItemByIndex(unIndex, pguidKey, pValue);
-    AkLogDebug() << "GUID: " << stringFromClsidMF(*pguidKey) << std::endl;
+    AkLogDebug("GUID: %s", stringFromClsidMF(*pguidKey).c_str());
 
     return hr;
 }

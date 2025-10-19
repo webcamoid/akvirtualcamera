@@ -131,7 +131,7 @@ OSStatus AkVCam::Stream::createObject()
     if (status == kCMIOHardwareNoError) {
         this->m_isCreated = true;
         this->m_objectID = streamID;
-        AkLogInfo() << "Created stream: " << this->m_objectID << std::endl;
+        AkLogInfo("Created stream: %d", this->m_objectID);
     }
 
     return status;
@@ -194,7 +194,7 @@ void AkVCam::Stream::setDevice(Device *device)
 void AkVCam::Stream::setPicture(const std::string &picture)
 {
     AkLogFunction();
-    AkLogDebug() << "Picture: " << picture;
+    AkLogDebug("Picture: %s", picture.c_str());
 
     this->d->m_testFrame = loadPicture(picture);
     this->d->m_mutex.unlock();
@@ -208,7 +208,7 @@ void AkVCam::Stream::setControls(const std::map<std::string, int> &controls)
         return;
 
     for (auto &control: controls) {
-        AkLogDebug() << control.first << ": " << control.second << std::endl;
+        AkLogDebug("%s: %d", control.first.c_str(), control.second);
 
         if (control.first == "hflip")
             this->d->m_videoAdjusts.setHorizontalMirror(control.second > 0);
@@ -236,13 +236,10 @@ void AkVCam::Stream::setFormats(const std::vector<VideoFormat> &formats)
         return;
 
     for (auto &format: formats)
-        AkLogInfo() << "Format: "
-                    << enumToString(format.format())
-                    << " "
-                    << format.width()
-                    << "x"
-                    << format.height()
-                    << std::endl;
+        AkLogInfo("Format: %s %dx%d",
+                  enumToString(format.format()).c_str(),
+                  format.width(),
+                  format.height());
 
     this->m_properties.setProperty(kCMIOStreamPropertyFormatDescriptions,
                                    formats);
@@ -312,7 +309,7 @@ bool AkVCam::Stream::start()
     this->d->m_running = this->d->startTimer();
     this->d->m_frameReady = false;
     this->d->m_currentFrame = {this->d->m_format};
-    AkLogInfo() << "Running: " << this->d->m_running << std::endl;
+    AkLogInfo("Running: %d", this->d->m_running);
     this->d->m_videoConverter.setOutputFormat(this->d->m_format);
 
     if (this->d->m_running && this->d->m_bridge)
@@ -345,12 +342,12 @@ bool AkVCam::Stream::running()
 void AkVCam::Stream::frameReady(const VideoFrame &frame, bool isActive)
 {
     AkLogFunction();
-    AkLogInfo() << "Running: " << this->d->m_running << std::endl;
+    AkLogInfo("Running: %d", this->d->m_running);
 
     if (!this->d->m_running)
         return;
 
-    AkLogInfo() << "Active: " << isActive << std::endl;
+    AkLogInfo("Active: %d", isActive);
 
     this->d->m_mutex.lock();
 
@@ -401,7 +398,7 @@ OSStatus AkVCam::Stream::copyBufferQueue(CMIODeviceStreamQueueAlteredProc queueA
 OSStatus AkVCam::Stream::deckPlay()
 {
     AkLogFunction();
-    AkLogDebug() << "STUB" << std::endl;
+    AkLogDebug("STUB");
 
     return kCMIOHardwareUnspecifiedError;
 }
@@ -409,7 +406,7 @@ OSStatus AkVCam::Stream::deckPlay()
 OSStatus AkVCam::Stream::deckStop()
 {
     AkLogFunction();
-    AkLogDebug() << "STUB" << std::endl;
+    AkLogDebug("STUB");
 
     return kCMIOHardwareUnspecifiedError;
 }
@@ -418,7 +415,7 @@ OSStatus AkVCam::Stream::deckJog(SInt32 speed)
 {
     UNUSED(speed);
     AkLogFunction();
-    AkLogDebug() << "STUB" << std::endl;
+    AkLogDebug("STUB");
 
     return kCMIOHardwareUnspecifiedError;
 }
@@ -428,7 +425,7 @@ OSStatus AkVCam::Stream::deckCueTo(Float64 frameNumber, Boolean playOnCue)
     UNUSED(frameNumber);
     UNUSED(playOnCue);
     AkLogFunction();
-    AkLogDebug() << "STUB" << std::endl;
+    AkLogDebug("STUB");
 
     return kCMIOHardwareUnspecifiedError;
 }
@@ -461,7 +458,7 @@ void AkVCam::StreamPrivate::streamLoop(void *userData)
     AkLogFunction();
 
     auto self = reinterpret_cast<StreamPrivate *>(userData);
-    AkLogInfo() << "Running: " << self->m_running << std::endl;
+    AkLogDebug("Running: %d", self->m_running);
 
     if (!self->m_running)
         return;
@@ -487,13 +484,10 @@ void AkVCam::StreamPrivate::sendFrame(const VideoFrame &frame)
     int width = frame.format().width();
     int height = frame.format().height();
 
-    AkLogInfo() << "Sending Frame: "
-                << enumToString(fourcc)
-                << " "
-                << width
-                << "x"
-                << height
-                << std::endl;
+    AkLogInfo("Sending Frame: %s %dx%d",
+              enumToString(fourcc).c_str(),
+              width,
+              height);
 
     bool resync = false;
     UInt64 hostTime =

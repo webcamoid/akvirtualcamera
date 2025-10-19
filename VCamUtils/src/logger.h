@@ -32,23 +32,27 @@
 #define AKVCAM_LOGLEVEL_INFO        6
 #define AKVCAM_LOGLEVEL_DEBUG       7
 
-#define AkLog(level)     AkVCam::Logger::log(level) << AkVCam::Logger::header(level, __FILE__, __LINE__)
-#define AkLogEmergency() AkLog(AKVCAM_LOGLEVEL_EMERGENCY)
-#define AkLogFatal()     AkLog(AKVCAM_LOGLEVEL_FATAL)
-#define AkLogCritical()  AkLog(AKVCAM_LOGLEVEL_CRITICAL)
-#define AkLogError()     AkLog(AKVCAM_LOGLEVEL_ERROR)
-#define AkLogWarning()   AkLog(AKVCAM_LOGLEVEL_WARNING)
-#define AkLogNotice()    AkLog(AKVCAM_LOGLEVEL_NOTICE)
-#define AkLogInfo()      AkLog(AKVCAM_LOGLEVEL_INFO)
-#define AkLogDebug()     AkLog(AKVCAM_LOGLEVEL_DEBUG)
+#define AkLog(level, format, ...)    AkVCam::Logger::log(level, __FILE__, __LINE__, false, format, ##__VA_ARGS__)
+#define AkLogEmergency(format, ...)  AkLog(AKVCAM_LOGLEVEL_EMERGENCY, format, ##__VA_ARGS__)
+#define AkLogFatal(format, ...)      AkLog(AKVCAM_LOGLEVEL_FATAL, format, ##__VA_ARGS__)
+#define AkLogCritical(format, ...)   AkLog(AKVCAM_LOGLEVEL_CRITICAL, format, ##__VA_ARGS__)
+#define AkLogError(format, ...)      AkLog(AKVCAM_LOGLEVEL_ERROR, format, ##__VA_ARGS__)
+#define AkLogWarning(format, ...)    AkLog(AKVCAM_LOGLEVEL_WARNING, format, ##__VA_ARGS__)
+#define AkLogNotice(format, ...)     AkLog(AKVCAM_LOGLEVEL_NOTICE, format, ##__VA_ARGS__)
+#define AkLogInfo(format, ...)       AkLog(AKVCAM_LOGLEVEL_INFO, format, ##__VA_ARGS__)
+#define AkLogDebug(format, ...)      AkLog(AKVCAM_LOGLEVEL_DEBUG, format, ##__VA_ARGS__)
 
 #if defined(__GNUC__) || defined(__clang__)
-#   define AkLogFunction()  AkLogDebug() << __PRETTY_FUNCTION__ << std::endl
+#   define AkLogFunction()  AkLogDebug("%s", __PRETTY_FUNCTION__)
 #elif defined(_MSC_VER)
-#   define AkLogFunction()  AkLogDebug() << __FUNCSIG__ << std::endl
+#   define AkLogFunction()  AkLogDebug("%s", __FUNCSIG__)
 #else
-#   define AkLogFunction()  AkLogDebug() << __FUNCTION__ << "()" << std::endl
+#   define AkLogFunction()  AkLogDebug("%s", __FUNCTION__)
 #endif
+
+#define AkPrint(level, format, ...)  AkVCam::Logger::log(level, __FILE__, __LINE__, true, format, ##__VA_ARGS__)
+#define AkPrintOut(format, ...)      AkPrint(AKVCAM_LOGLEVEL_INFO, format, ##__VA_ARGS__)
+#define AkPrintErr(format, ...)      AkPrint(AKVCAM_LOGLEVEL_ERROR, format, ##__VA_ARGS__)
 
 namespace AkVCam
 {
@@ -60,8 +64,14 @@ namespace AkVCam
         void setLogFile(const std::string &fileName);
         int logLevel();
         void setLogLevel(int logLevel);
-        std::string header(int logLevel, const std::string &file, int line);
-        std::ostream &log(int logLevel);
+        size_t bufferSize();
+        void setBufferSize(size_t bufferSize);
+        void log(int logLevel,
+                 const char *file,
+                 int line,
+                 bool raw,
+                 const char *format,
+                 ...);
         int levelFromString(const std::string &level);
         std::string levelToString(int level);
     }

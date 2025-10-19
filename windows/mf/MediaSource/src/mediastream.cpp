@@ -194,12 +194,12 @@ void AkVCam::MediaStream::setBridge(IpcBridgePtr bridge)
 void AkVCam::MediaStream::frameReady(const VideoFrame &frame, bool isActive)
 {
     AkLogFunction();
-    AkLogInfo() << "Running: " << this->d->m_running << std::endl;
+    AkLogDebug("Running: %d", static_cast<bool>(this->d->m_running));
 
     if (!this->d->m_running)
         return;
 
-    AkLogInfo() << "Active: " << isActive << std::endl;
+    AkLogDebug("Active: %d", isActive);
 
     this->d->m_mutex.lock();
 
@@ -234,7 +234,7 @@ void AkVCam::MediaStream::frameReady(const VideoFrame &frame, bool isActive)
 void AkVCam::MediaStream::setPicture(const std::string &picture)
 {
     AkLogFunction();
-    AkLogDebug() << "Picture: " << picture << std::endl;
+    AkLogDebug("Picture: %s", picture.c_str());
     this->d->m_mutex.lock();
     this->d->m_testFrame = loadPicture(picture);
     this->d->m_mutex.unlock();
@@ -248,7 +248,7 @@ void AkVCam::MediaStream::setControls(const std::map<std::string, int> &controls
         return;
 
     for (auto &control: controls) {
-        AkLogDebug() << control.first << ": " << control.second << std::endl;
+        AkLogDebug("%s: %d", control.first, control.second);
 
         if (control.first == "hflip")
             this->d->m_videoAdjusts.setHorizontalMirror(control.second > 0);
@@ -370,7 +370,7 @@ HRESULT AkVCam::MediaStream::pause()
 HRESULT AkVCam::MediaStream::QueryInterface(const IID &riid, void **ppvObject)
 {
     AkLogFunction();
-    AkLogInfo() << "IID: " << stringFromClsidMF(riid) << std::endl;
+    AkLogDebug("IID: %s", stringFromClsidMF(riid).c_str());
 
     if (!ppvObject)
         return E_POINTER;
@@ -433,12 +433,12 @@ HRESULT AkVCam::MediaStream::RequestSample(IUnknown *pToken)
     auto hr = this->d->queueSample();
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed to queue sample: " << hr << std::endl;
+        AkLogError("Failed to queue sample: 0x%x", hr);
 
         return hr;
     }
 
-    AkLogDebug() << "Saving token" << hr << std::endl;
+    AkLogDebug("Saving token");
 
     // Save the token if available
     if (pToken) {
@@ -452,7 +452,7 @@ HRESULT AkVCam::MediaStream::RequestSample(IUnknown *pToken)
         this->d->m_sampleTokens.push_back(token);
     }
 
-    AkLogDebug() << "Sending MEStreamSinkRequestSample event" << std::endl;
+    AkLogDebug("Sending MEStreamSinkRequestSample event");
 
     return this->eventQueue()->QueueEventParamVar(MEStreamSinkRequestSample,
                                                   GUID_NULL,
@@ -474,7 +474,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     auto hr = MFCreateSample(&pSample);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed creating sample: " << hr << std::endl;
+        AkLogError("Failed creating sample: 0x%x", hr);
 
         return hr;
     }
@@ -485,7 +485,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     hr = MFCreateMemoryBuffer(sampleSize, &pBuffer);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed create the buffer: " << hr << std::endl;
+        AkLogError("Failed create the buffer: 0x%x", hr);
         pSample->Release();
 
         return hr;
@@ -494,7 +494,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     hr = pSample->AddBuffer(pBuffer);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed adding the buffer to the sample: " << hr << std::endl;
+        AkLogError("Failed adding the buffer to the sample: 0x%x", hr);
         pBuffer->Release();
         pSample->Release();
 
@@ -507,7 +507,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     hr = pBuffer->Lock(&pData, &maxLen, &curLen);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed to lock the buffer: " << hr << std::endl;
+        AkLogError("Failed to lock the buffer: 0x%x", hr);
         pBuffer->Release();
         pSample->Release();
 
@@ -557,7 +557,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     hr = pBuffer->SetCurrentLength(sampleSize);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed setting the current buffer length: " << hr << std::endl;
+        AkLogError("Failed setting the current buffer length: 0x%x", hr);
         pBuffer->Release();
         pSample->Release();
 
@@ -585,7 +585,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     hr = pSample->SetSampleTime(this->m_pts);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed setting the sample time: " << hr << std::endl;
+        AkLogError("Failed setting the sample time: 0x%x", hr);
         pSample->Release();
 
         return hr;
@@ -594,7 +594,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
     hr = pSample->SetSampleDuration(duration);
 
     if (FAILED(hr)) {
-        AkLogError() << "Failed setting the sample duration: " << hr << std::endl;
+        AkLogError("Failed setting the sample duration: 0x%x", hr);
         pSample->Release();
 
         return hr;
@@ -611,7 +611,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
             hr = pSample->SetUnknown(MFSampleExtension_Token, token.get());
 
             if (FAILED(hr)) {
-                AkLogError() << "Failed setting the sample token: " << hr << std::endl;
+                AkLogError("Failed setting the sample token: 0x%x", hr);
                 pSample->Release();
 
                 return hr;
@@ -626,9 +626,9 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
                                                 pSample);
 
     if (SUCCEEDED(hr))
-        AkLogDebug() << "Sample queued" << std::endl;
+        AkLogDebug("Sample queued");
     else
-        AkLogError() << "Sample event queue failed: " << hr << std::endl;
+        AkLogError("Sample event queue failed: 0x%x", hr);
 
     pSample->Release();
     pBuffer->Release();

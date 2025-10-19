@@ -198,7 +198,7 @@ AkVCam::IpcBridge::IpcBridge()
 AkVCam::IpcBridge::~IpcBridge()
 {
     AkLogFunction();
-    AkLogDebug() << "Stopping the devices:" << std::endl;
+    AkLogDebug("Stopping the devices:");
 
     for (auto &device: this->devices())
         this->deviceStop(device);
@@ -442,10 +442,10 @@ void AkVCam::IpcBridge::updateDevices()
     std::string pluginPath = supportsMediaFoundationVCam()?
                                  locateMFPluginPath():
                                  locatePluginPath();
-    AkLogDebug() << "Plugin binary: " << pluginPath << std::endl;
+    AkLogDebug("Plugin binary: %s", pluginPath.c_str());
 
     if (!fileExists(pluginPath)) {
-        AkLogError() << "Plugin binary not found: " << pluginPath << std::endl;
+        AkLogError("Plugin binary not found: %s", pluginPath.c_str());
 
         return;
     }
@@ -455,9 +455,9 @@ void AkVCam::IpcBridge::updateDevices()
                 RegisterServerFunc(GetProcAddress(hmodule, "DllRegisterServer"));
 
         if (registerServer) {
-            AkLogDebug() << "Registering server" << std::endl;
+            AkLogDebug("Registering server");
             auto result = (*registerServer)();
-            AkLogDebug() << "Server registered with code " << result << std::endl;
+            AkLogDebug("Server registered with code %d", result);
             auto lockFileName = tempPath() + "\\akvcam_update.lck";
 
             if (!fileExists(lockFileName)) {
@@ -473,12 +473,12 @@ void AkVCam::IpcBridge::updateDevices()
                 remove(lockFileName.c_str());
             }
         } else {
-            AkLogError() << "Can't locate DllRegisterServer function." << std::endl;
+            AkLogError("Can't locate DllRegisterServer function.");
         }
 
         FreeLibrary(hmodule);
     } else {
-        AkLogError() << "Error loading plugin binary: " << pluginPath << std::endl;
+        AkLogError("Error loading plugin binary: %s", pluginPath.c_str());
     }
 }
 
@@ -486,17 +486,15 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
                                     const std::string &deviceId)
 {
     AkLogFunction();
-    AkLogDebug() << "Starting device: "
-                 << deviceId
-                 << " with type: "
-                 << (type == StreamType_Input? "Input": "Output")
-                 << std::endl;
+    AkLogDebug("Starting device: %s with type: %s",
+               deviceId.c_str(),
+               type == StreamType_Input? "Input": "Output");
 
     this->d->m_broadcastsMutex.lock();
 
     if (this->d->m_broadcasts.count(deviceId) > 0) {
         this->d->m_broadcastsMutex.unlock();
-        AkLogError() << '\'' << deviceId << "' is busy." << std::endl;
+        AkLogError("'%s' is busy.", deviceId.c_str());
 
         return false;
     }
@@ -517,13 +515,13 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
                                           std::bind(&IpcBridgePrivate::frameReady,
                                                     this->d,
                                                     std::placeholders::_1));
-        AkLogDebug() << "Started input stream for device: " << deviceId << std::endl;
+        AkLogDebug("Started input stream for device: %s", deviceId.c_str());
     } else {
         slot.messageFuture =
             this->d->m_messageClient.send([this, deviceId] (Message &message) -> bool {
             return this->d->frameRequired(deviceId, message);
         });
-        AkLogDebug() << "Started output stream for device: " << deviceId << std::endl;
+        AkLogDebug("Started output stream for device: %s", deviceId.c_str());
     }
 
     if (this->d->m_dataMode == DataMode_SharedMemory) {
@@ -542,7 +540,7 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
 void AkVCam::IpcBridge::deviceStop(const std::string &deviceId)
 {
     AkLogFunction();
-    AkLogDebug() << "Stopping device: " << deviceId << std::endl;
+    AkLogDebug("Stopping device: %s", deviceId.c_str());
 
     std::future<bool> messageFuture;
 
@@ -550,7 +548,7 @@ void AkVCam::IpcBridge::deviceStop(const std::string &deviceId)
         std::lock_guard<std::mutex> lock(this->d->m_broadcastsMutex);
 
         if (this->d->m_broadcasts.count(deviceId) < 1) {
-            AkLogDebug() << "Device " << deviceId << " not found in broadcasts" << std::endl;
+            AkLogDebug("Device %s not found in broadcasts %s", deviceId.c_str());
 
             return;
         }
@@ -559,27 +557,27 @@ void AkVCam::IpcBridge::deviceStop(const std::string &deviceId)
         slot.sharedMemory.close();
         slot.run = false;
         messageFuture = std::move(slot.messageFuture); // Move the future
-        AkLogDebug() << "Set run = false for device: " << deviceId << std::endl;
+        AkLogDebug("Set run = false for device: %s", deviceId.c_str());
     } // m_broadcastsMutex is released here
 
     // Wait for the connection loop to end
     if (messageFuture.valid()) {
-        AkLogDebug() << "Waiting for messageFuture for device: " << deviceId << std::endl;
+        AkLogDebug("Waiting for messageFuture for device: %s", deviceId.c_str());
         auto status = messageFuture.wait_for(std::chrono::seconds(5));
 
         if (status == std::future_status::timeout)
-            AkLogWarning() << "Timeout waiting for messageFuture in deviceStop for deviceId: " << deviceId << std::endl;
+            AkLogWarning("Timeout waiting for messageFuture in deviceStop for deviceId: %s", deviceId.c_str());
         else
-            AkLogDebug() << "messageFuture completed for device: " << deviceId << std::endl;
+            AkLogDebug("messageFuture completed for device: %s", deviceId.c_str());
     } else {
-        AkLogWarning() << "Invalid messageFuture for device: " << deviceId << std::endl;
+        AkLogWarning("Invalid messageFuture for device: %s", deviceId.c_str());
     }
 
     // Remove the device after the future is complete
     {
         std::lock_guard<std::mutex> lock(this->d->m_broadcastsMutex);
         this->d->m_broadcasts.erase(deviceId);
-        AkLogDebug() << "Device " << deviceId << " removed from broadcasts" << std::endl;
+        AkLogDebug("Device %s removed from broadcasts", deviceId.c_str());
     }
 }
 
@@ -748,7 +746,7 @@ AkVCam::IpcBridgePrivate::IpcBridgePrivate(IpcBridge *self):
     this->updateDevices();
 
     if (!this->launchService())
-        AkLogWarning() << "There was not possible to communicate with the server consider increasing the timeout." << std::endl;
+        AkLogWarning("There was not possible to communicate with the server consider increasing the timeout.");
 
     this->m_messageClient.setPort(Preferences::servicePort());
     this->m_messagesTimer.connectTimeout(this, &IpcBridgePrivate::checkStatus);
@@ -761,7 +759,7 @@ AkVCam::IpcBridgePrivate::~IpcBridgePrivate()
     AkLogFunction();
 
     this->m_messagesTimer.stop();
-    AkLogDebug() << "Bridge Destroyed" << std::endl;
+    AkLogDebug("Bridge Destroyed");
 }
 
 void AkVCam::IpcBridgePrivate::updateDevices()
@@ -770,12 +768,12 @@ void AkVCam::IpcBridgePrivate::updateDevices()
 
     this->m_devices.clear();
     auto nCameras = Preferences::camerasCount();
-    AkLogInfo() << "Devices:" << std::endl;
+    AkLogInfo("Devices:");
 
     for (size_t i = 0; i < nCameras; i++) {
         auto deviceId = Preferences::cameraId(i);
         this->m_devices.push_back(deviceId);
-        AkLogInfo() << "    " << deviceId << std::endl;
+        AkLogInfo("    %s", deviceId.c_str());
     }
 }
 
@@ -796,7 +794,7 @@ bool AkVCam::IpcBridgePrivate::isServiceRunning()
         serviceLock.close();
     }
 
-    AkLogDebug() << "Result: " << result << std::endl;
+    AkLogDebug("Result: %d", result);
 
     return result;
 }
@@ -818,7 +816,7 @@ bool AkVCam::IpcBridgePrivate::isMFServiceRunning()
         serviceLock.close();
     }
 
-    AkLogDebug() << "Result: " << result << std::endl;
+    AkLogDebug("Result: %d", result);
 
     return result;
 }
@@ -828,28 +826,28 @@ bool AkVCam::IpcBridgePrivate::launchService()
     AkLogFunction();
 
     if (!isServiceRunning()) {
-        AkLogDebug() << "Launching the service" << std::endl;
+        AkLogDebug("Launching the service");
         auto servicePath = locateServicePath();
 
         if (!servicePath.empty())
             execDetached({servicePath});
         else
-            AkLogDebug() << "Service path not found" << std::endl;
+            AkLogDebug("Service path not found");
     }
 
     if (supportsMediaFoundationVCam() && !isMFServiceRunning()) {
-        AkLogDebug() << "Launching the Media Foundation service" << std::endl;
+        AkLogDebug("Launching the Media Foundation service");
         auto mfServicePath = locateMFServicePath();
 
         if (!mfServicePath.empty())
             execDetached({mfServicePath});
         else
-            AkLogDebug() << "Media Foundation Service path not found" << std::endl;
+            AkLogDebug("Media Foundation Service path not found");
     }
 
     bool ok = false;
     auto timeout = Preferences::serviceTimeout();
-    AkLogDebug() << "Service check Timeout:" << timeout << std::endl;
+    AkLogDebug("Service check Timeout: %d", timeout);
 
     for (int i = 0; i < timeout; ++i) {
         if (isServicePortUp()) {

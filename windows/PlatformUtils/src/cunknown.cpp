@@ -25,24 +25,18 @@
 
 #define AkCUnknownLogMethod() \
     AkLogFunction(); \
-    AkLogDebug() << "Object: " \
-                 << (this->d->m_parent? \
-                         stringFromClsid(this->d->m_parentCLSID): \
-                         std::string("CUnknown")) \
-                 << "(" \
-                 << (this->d->m_parent? this->d->m_parent: this) \
-                 << ")" \
-                 << std::endl
+    AkLogDebug("Object: %s (0x%x)", \
+               this->d->m_parent? \
+                    stringFromClsid(this->d->m_parentCLSID).c_str(): \
+                    "CUnknown", \
+               this->d->m_parent? this->d->m_parent: this)
 
 #define AkCUnknownLogThis() \
-    AkLogDebug() << "Returning " \
-                 << (this->d->m_parent? \
-                         stringFromClsid(this->d->m_parentCLSID): \
-                         std::string("CUnknown")) \
-                 << "(" \
-                 << (this->d->m_parent? this->d->m_parent: this) \
-                 << ")" \
-                 << std::endl
+    AkLogDebug("Returning %s (0x%x)", \
+               this->d->m_parent? \
+                    stringFromClsid(this->d->m_parentCLSID).c_str(): \
+                    "CUnknown", \
+               this->d->m_parent? this->d->m_parent: this)
 
 namespace AkVCam
 {
@@ -82,7 +76,7 @@ ULONG AkVCam::CUnknown::ref() const
 HRESULT AkVCam::CUnknown::QueryInterface(const IID &riid, void **ppvObject)
 {
     AkCUnknownLogMethod();
-    AkLogInfo() << "IID: " << AkVCam::stringFromClsid(riid) << std::endl;
+    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
 
     if (!ppvObject)
         return E_POINTER;
@@ -97,7 +91,7 @@ HRESULT AkVCam::CUnknown::QueryInterface(const IID &riid, void **ppvObject)
 
         return S_OK;
     } else {
-        AkLogWarning() << "Unknown interface" << std::endl;
+        AkLogWarning("Unknown interface");
     }
 
     return E_NOINTERFACE;
@@ -107,7 +101,7 @@ ULONG AkVCam::CUnknown::AddRef()
 {
     AkCUnknownLogMethod();
     this->d->m_ref++;
-    AkLogInfo() << "REF: " << this->d->m_ref << std::endl;
+    AkLogDebug("REF: %ull", static_cast<ULONG>(this->d->m_ref));
 
     return this->d->m_ref;
 }
@@ -115,7 +109,7 @@ ULONG AkVCam::CUnknown::AddRef()
 ULONG AkVCam::CUnknown::Release()
 {
     AkCUnknownLogMethod();
-    AkLogInfo() << "REF: " << this->d->m_ref << std::endl;
+    AkLogDebug("REF: %ull", static_cast<ULONG>(this->d->m_ref));
 
     if (this->d->m_ref)
         this->d->m_ref--;

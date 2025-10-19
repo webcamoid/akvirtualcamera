@@ -134,7 +134,7 @@
 
 #define AKVCAM_EMIT(owner, CallbackName, ...) \
 { \
-    AkLogDebug() << "Emiting: " << #CallbackName << std::endl; \
+    AkLogDebug("Emiting: %s", #CallbackName); \
     \
     for (auto &callback: owner->m_##CallbackName##Callback) \
         if (callback.second) \
@@ -143,7 +143,7 @@
 
 #define AKVCAM_EMIT_NOARGS(owner, CallbackName) \
 { \
-    AkLogDebug() << "Emiting: " << #CallbackName << std::endl; \
+    AkLogDebug("Emiting: %s", #CallbackName); \
     \
     for (auto &callback: owner->m_##CallbackName##Callback) \
         if (callback.second) \

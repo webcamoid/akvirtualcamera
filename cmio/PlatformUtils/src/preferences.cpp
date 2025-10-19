@@ -74,11 +74,11 @@ std::vector<std::string> AkVCam::Preferences::keys()
         CFRelease(cfKeys);
     }
 
-    AkLogInfo() << "Keys: " << keys.size() << std::endl;
+    AkLogInfo("Keys: %ull", keys.size());
     std::sort(keys.begin(), keys.end());
 
     for (auto &key: keys)
-        AkLogInfo() << "    " << key << std::endl;
+        AkLogInfo("    %s", key.c_str());
 
     return keys;
 }
@@ -87,7 +87,7 @@ void AkVCam::Preferences::write(const std::string &key,
                                 const std::string &value)
 {
     AkLogFunction();
-    AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
+    AkLogInfo("Writing: %s = %s", key.c_str(), value.c_str());
     auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
                                            key.c_str(),
                                            kCFStringEncodingUTF8);
@@ -106,7 +106,7 @@ void AkVCam::Preferences::write(const std::string &key,
 void AkVCam::Preferences::write(const std::string &key, int value)
 {
     AkLogFunction();
-    AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
+    AkLogInfo("Writing: %s = %d", key.c_str(), value);
     auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
                                            key.c_str(),
                                            kCFStringEncodingUTF8);
@@ -125,7 +125,7 @@ void AkVCam::Preferences::write(const std::string &key, int value)
 void AkVCam::Preferences::write(const std::string &key, int64_t value)
 {
     AkLogFunction();
-    AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
+    AkLogInfo("Writing: %s = %lld", key.c_str(), value);
     auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
                                            key.c_str(),
                                            kCFStringEncodingUTF8);
@@ -144,7 +144,7 @@ void AkVCam::Preferences::write(const std::string &key, int64_t value)
 void AkVCam::Preferences::write(const std::string &key, double value)
 {
     AkLogFunction();
-    AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
+    AkLogInfo("Writing: %s = %f", key.c_str());
     auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
                                            key.c_str(),
                                            kCFStringEncodingUTF8);
@@ -295,7 +295,7 @@ std::vector<std::string> AkVCam::Preferences::readStringList(const std::string &
 void AkVCam::Preferences::deleteKey(const std::string &key)
 {
     AkLogFunction();
-    AkLogInfo() << "Deleting " << key << std::endl;
+    AkLogInfo("Deleting %s", key.c_str());
     auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
                                            key.c_str(),
                                            kCFStringEncodingUTF8);
@@ -310,7 +310,7 @@ void AkVCam::Preferences::deleteKey(const std::string &key)
 void AkVCam::Preferences::deleteAllKeys(const std::string &key)
 {
     AkLogFunction();
-    AkLogInfo() << "Key: " << key << std::endl;
+    AkLogInfo("Key: %s", key.c_str());
 
     for (auto &key_: keys())
         if (key_.size() >= key.size() && key_.substr(0, key.size()) == key)
@@ -321,8 +321,8 @@ void AkVCam::Preferences::move(const std::string &keyFrom,
                                const std::string &keyTo)
 {
     AkLogFunction();
-    AkLogInfo() << "From: " << keyFrom << std::endl;
-    AkLogInfo() << "To: " << keyTo << std::endl;
+    AkLogInfo("From: %s", keyFrom.c_str());
+    AkLogInfo("To: %s", keyTo.c_str());
     auto cfKeyFrom = CFStringCreateWithCString(kCFAllocatorDefault,
                                                keyFrom.c_str(),
                                                kCFStringEncodingUTF8);
@@ -352,8 +352,8 @@ void AkVCam::Preferences::moveAll(const std::string &keyFrom,
                                   const std::string &keyTo)
 {
     AkLogFunction();
-    AkLogInfo() << "From: " << keyFrom << std::endl;
-    AkLogInfo() << "To: " << keyTo << std::endl;
+    AkLogInfo("From: %s", keyFrom.c_str());
+    AkLogInfo("To: %s", keyTo.c_str());
 
     for (auto &key: keys())
         if (key.size() >= keyFrom.size()
@@ -456,7 +456,7 @@ std::string AkVCam::Preferences::addCamera(const std::string &deviceId,
 bool AkVCam::Preferences::removeCamera(const std::string &deviceId)
 {
     AkLogFunction();
-    AkLogInfo() << "Device: " << deviceId << std::endl;
+    AkLogInfo("Device: %s", deviceId.c_str());
     int cameraIndex = cameraFromId(deviceId);
 
     if (cameraIndex < 0)
@@ -485,7 +485,7 @@ size_t AkVCam::Preferences::camerasCount()
 {
     AkLogFunction();
     int nCameras = readInt("cameras");
-    AkLogInfo() << "Cameras: " << nCameras << std::endl;
+    AkLogInfo("Cameras: %d", nCameras);
 
     return size_t(nCameras);
 }

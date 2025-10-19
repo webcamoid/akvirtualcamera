@@ -58,7 +58,7 @@ OSStatus AkVCam::Device::createObject()
     if (status == kCMIOHardwareNoError) {
         this->m_isCreated = true;
         this->m_objectID = deviceID;
-        AkLogInfo() << "Created device: " << this->m_objectID << std::endl;
+        AkLogInfo("Created device: %d", this->m_objectID);
     }
 
     return status;
@@ -67,7 +67,7 @@ OSStatus AkVCam::Device::createObject()
 OSStatus AkVCam::Device::registerObject(bool regist)
 {
     AkLogFunction();
-    AkLogDebug() << "Register: " << regist << std::endl;
+    AkLogDebug("Register: %d", regist);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!this->m_isCreated
@@ -92,9 +92,9 @@ OSStatus AkVCam::Device::registerObject(bool regist)
     }
 
     if (status == kCMIOHardwareNoError)
-        AkLogDebug() << "Ok";
+        AkLogDebug("Ok");
     else
-        AkLogDebug() << "Error registering device" << std::endl;
+        AkLogError("Error registering device");
 
     return status;
 }
@@ -140,7 +140,7 @@ std::list<AkVCam::StreamPtr> AkVCam::Device::addStreams(int n)
 OSStatus AkVCam::Device::registerStreams(bool regist)
 {
     AkLogFunction();
-    AkLogDebug() << "Register: " << regist << std::endl;
+    AkLogDebug("Register: %d", regist);
     OSStatus status = kCMIOHardwareUnspecifiedError;
 
     if (!this->m_isCreated
@@ -171,9 +171,9 @@ OSStatus AkVCam::Device::registerStreams(bool regist)
     }
 
     if (status == kCMIOHardwareNoError)
-        AkLogDebug() << "Ok";
+        AkLogDebug("Ok");
     else
-        AkLogDebug() << "Error registering streams" << std::endl;
+        AkLogError("Error registering streams");
 
     return status;
 }
@@ -225,7 +225,7 @@ void AkVCam::Device::setControls(const std::map<std::string, int> &controls)
 OSStatus AkVCam::Device::suspend()
 {
     AkLogFunction();
-    AkLogDebug() << "STUB" << std::endl;
+    AkLogDebug("STUB");
 
     return kCMIOHardwareUnspecifiedError;
 }
@@ -233,7 +233,7 @@ OSStatus AkVCam::Device::suspend()
 OSStatus AkVCam::Device::resume()
 {
     AkLogFunction();
-    AkLogDebug() << "STUB" << std::endl;
+    AkLogDebug("STUB");
 
     return kCMIOHardwareUnspecifiedError;
 }
@@ -308,7 +308,7 @@ OSStatus AkVCam::Device::processAVCCommand(CMIODeviceAVCCommand *ioAVCCommand)
 {
     UNUSED(ioAVCCommand);
     AkLogFunction();
-    AkLogDebug() << "STUB" << std::endl;
+    AkLogDebug("STUB");
 
     return kCMIOHardwareUnspecifiedError;
 }
@@ -317,7 +317,7 @@ OSStatus AkVCam::Device::processRS422Command(CMIODeviceRS422Command *ioRS422Comm
 {
     UNUSED(ioRS422Command);
     AkLogFunction();
-    AkLogDebug() << "STUB" << std::endl;
+    AkLogDebug("STUB");
 
     return kCMIOHardwareUnspecifiedError;
 }

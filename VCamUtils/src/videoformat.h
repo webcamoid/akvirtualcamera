@@ -66,6 +66,7 @@ namespace AkVCam
             bool isSameFormat(const VideoFormat &other) const;
             size_t dataSize() const;
             bool isValid() const;
+            std::string toString() const;
 
             static int bitsPerPixel(PixelFormat pixelFormat);
             static std::string pixelFormatToString(PixelFormat pixelFormat);

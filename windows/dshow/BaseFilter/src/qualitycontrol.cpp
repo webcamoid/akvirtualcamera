@@ -40,10 +40,10 @@ HRESULT AkVCam::QualityControl::Notify(IBaseFilter *pSelf, Quality q)
     if (!pSelf)
         return E_POINTER;
 
-    AkLogInfo() << "Type: " << (q.Type == Famine? "Famine": "Flood") << std::endl;
-    AkLogInfo() << "Proportion: " << q.Proportion << std::endl;
-    AkLogInfo() << "Late: " << q.Late << std::endl;
-    AkLogInfo() << "TimeStamp:" << q.TimeStamp << std::endl;
+    AkLogInfo("Type: %s", q.Type == Famine? "Famine": "Flood");
+    AkLogInfo("Proportion: %ll", q.Proportion);
+    AkLogInfo("Late: %ull", q.Late);
+    AkLogInfo("TimeStamp: %ull", q.TimeStamp);
 
     return S_OK;
 }

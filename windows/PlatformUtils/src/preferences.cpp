@@ -60,7 +60,7 @@ bool AkVCam::Preferences::write(const std::string &key,
                                 bool global)
 {
     AkLogFunction();
-    AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
+    AkLogDebug("Writing: %s = %s", key.c_str(), value.c_str());
 
     return setValue(key, REG_SZ, value.c_str(), DWORD(value.size()), global);
 }
@@ -68,7 +68,7 @@ bool AkVCam::Preferences::write(const std::string &key,
 bool AkVCam::Preferences::write(const std::string &key, int value, bool global)
 {
     AkLogFunction();
-    AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
+    AkLogDebug("Writing: %s = %d", key.c_str(), value);
 
     return setValue(key,
                     REG_DWORD,
@@ -82,7 +82,7 @@ bool AkVCam::Preferences::write(const std::string &key,
                                 bool global)
 {
     AkLogFunction();
-    AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
+    AkLogDebug("Writing: %s = %lld", key.c_str(), value);
 
     return setValue(key,
                     REG_QWORD,
@@ -96,7 +96,7 @@ bool AkVCam::Preferences::write(const std::string &key,
                                 bool global)
 {
     AkLogFunction();
-    AkLogInfo() << "Writing: " << key << " = " << value << std::endl;
+    AkLogDebug("Writing: %s = %f", key.c_str(), value);
     auto val = std::to_string(value);
 
     return setValue(key,
@@ -175,7 +175,7 @@ double AkVCam::Preferences::readDouble(const std::string &key,
 bool AkVCam::Preferences::deleteKey(const std::string &key, bool global)
 {
     AkLogFunction();
-    AkLogInfo() << "Deleting " << key << std::endl;
+    AkLogDebug("Deleting %s", key.c_str());
     HKEY rootKey = global? HKEY_LOCAL_MACHINE: HKEY_CURRENT_USER;
     std::string subKey;
     std::string val;
@@ -208,8 +208,8 @@ bool AkVCam::Preferences::move(const std::string &keyFrom,
                                bool global)
 {
     AkLogFunction();
-    AkLogInfo() << "From: " << keyFrom << std::endl;
-    AkLogInfo() << "To: " << keyTo << std::endl;
+    AkLogDebug("From: %s", keyFrom.c_str());
+    AkLogDebug("To: %s", keyTo.c_str());
     HKEY rootKey = global? HKEY_LOCAL_MACHINE: HKEY_CURRENT_USER;
     bool ok = false;
     std::string subKeyFrom = REG_PREFIX "\\" + keyFrom;
@@ -333,7 +333,7 @@ std::string AkVCam::Preferences::addCamera(const std::string &deviceId,
 bool AkVCam::Preferences::removeCamera(const std::string &deviceId)
 {
     AkLogFunction();
-    AkLogInfo() << "Device: " << deviceId << std::endl;
+    AkLogDebug("Device: %s", deviceId.c_str());
     int cameraIndex = cameraFromId(deviceId);
 
     if (cameraIndex < 0)
@@ -362,7 +362,7 @@ size_t AkVCam::Preferences::camerasCount()
 {
     AkLogFunction();
     int nCameras = readInt("Cameras\\size", 0, true);
-    AkLogInfo() << "Cameras: " << nCameras << std::endl;
+    AkLogDebug("Cameras: %d", nCameras);
 
     return size_t(nCameras);
 }
@@ -370,7 +370,7 @@ size_t AkVCam::Preferences::camerasCount()
 int AkVCam::Preferences::cameraFromCLSID(const CLSID &clsid)
 {
     AkLogFunction();
-    AkLogDebug() << "CLSID: " << stringFromIid(clsid) << std::endl;
+    AkLogDebug("CLSID: %s", stringFromIid(clsid).c_str());
 
     for (size_t i = 0; i < camerasCount(); i++) {
         auto cameraClsid = createClsidFromStr(cameraId(i));
@@ -719,8 +719,8 @@ bool AkVCam::Preferences::readValue(const std::string &key,
     std::string subKey;
     std::string val;
     splitSubKey(key, subKey, val);
-    AkLogDebug() << "SubKey: " << subKey << std::endl;
-    AkLogDebug() << "Value: " << val << std::endl;
+    AkLogDebug("SubKey: %s", subKey.c_str());
+    AkLogDebug("Value: %s", val.c_str());
     HKEY hkey = nullptr;
     auto result = RegOpenKeyExA(rootKey,
                                 subKey.c_str(),
@@ -754,8 +754,8 @@ bool AkVCam::Preferences::setValue(const std::string &key,
     std::string subKey;
     std::string val;
     splitSubKey(key, subKey, val);
-    AkLogDebug() << "SubKey: " << subKey << std::endl;
-    AkLogDebug() << "Value: " << val << std::endl;
+    AkLogDebug("SubKey: %s", subKey.c_str());
+    AkLogDebug("Value: %s", val.c_str());
     HKEY hkey = nullptr;
     LONG result = RegCreateKeyExA(rootKey,
                                   subKey.c_str(),

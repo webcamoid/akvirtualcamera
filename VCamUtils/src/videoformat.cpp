@@ -552,6 +552,19 @@ bool AkVCam::VideoFormat::isValid() const
     return true;
 }
 
+std::string AkVCam::VideoFormat::toString() const
+{
+    return std::string("VideoFormat(")
+            + pixelFormatToString(this->d->m_format)
+            + ' '
+            + std::to_string(this->d->m_width)
+            + 'x'
+            + std::to_string(this->d->m_height)
+            + ' '
+            + this->d->m_fps.toString()
+            + ')';
+}
+
 int AkVCam::VideoFormat::bitsPerPixel(PixelFormat pixelFormat)
 {
     return VideoFmt::formatSpecs(pixelFormat).bpp();

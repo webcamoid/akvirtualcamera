@@ -120,9 +120,9 @@ bool AkVCam::PluginInterfacePrivate::registerMediaSource(const std::string &devi
     auto fileName = moduleFileName(this->m_pluginHinstance);
     std::string threadingModel = "Both";
 
-    AkLogInfo() << "CLSID: " << clsid << std::endl;
-    AkLogInfo() << "Description: " << description << std::endl;
-    AkLogInfo() << "Filename: " << fileName << std::endl;
+    AkLogInfo("CLSID: %s", clsid.c_str());
+    AkLogInfo("Description: %s", description.c_str());
+    AkLogInfo("Filename: %s", fileName.c_str());
 
     auto subkey = SUBKEY_PREFIX "\\" + clsid;
 
@@ -176,7 +176,7 @@ registerServer_failed:
     if (keyCLSID)
         RegCloseKey(keyCLSID);
 
-    AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
+    AkLogInfo("Result: %s", stringFromResult(result).c_str());
 
     return ok;
 }
@@ -193,7 +193,7 @@ void AkVCam::PluginInterfacePrivate::unregisterMediaSource(const CLSID &clsid) c
     AkLogFunction();
 
     auto clsidStr = stringFromIid(clsid);
-    AkLogInfo() << "CLSID: " << clsidStr << std::endl;
+    AkLogInfo("CLSID: %s", clsidStr.c_str());
     auto subkey = SUBKEY_PREFIX "\\" + clsidStr;
     deleteTree(ROOT_HKEY, subkey.c_str(), 0);
 }

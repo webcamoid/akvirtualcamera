@@ -113,7 +113,7 @@ bool AkVCam::isDeviceIdMFTaken(const std::string &deviceId)
     if (clsidStr.empty())
         return false;
 
-    AkLogDebug() << "Checking CLSID: " << clsidStr << std::endl;
+    AkLogDebug("Checking CLSID: %s", clsidStr.c_str());
     std::string subkey = std::string(SUBKEY_PREFIX) + "\\" + clsidStr;
     auto subkeyStr = tstrFromString(subkey);
 
@@ -133,10 +133,9 @@ bool AkVCam::isDeviceIdMFTaken(const std::string &deviceId)
     if (keyCLSID)
         RegCloseKey(keyCLSID);
 
-    AkLogDebug() << "CLSID "
-                 << clsidStr
-                 << (taken? " is taken": " is not taken")
-                 << std::endl;
+    AkLogDebug("CLSID %s %s",
+               clsidStr.c_str(),
+               taken? " is taken": " is not taken");
 
     return taken;
 }
@@ -166,10 +165,10 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
 {
     AkLogFunction();
     auto pluginPath = locateMFPluginPath();
-    AkLogDebug() << "Plugin binary: " << pluginPath << std::endl;
+    AkLogDebug("Plugin binary: %s", pluginPath.c_str());
 
     if (!fileExists(pluginPath)) {
-        AkLogError() << "Plugin binary not found: " << pluginPath << std::endl;
+        AkLogError("Plugin binary not found: %s", pluginPath.c_str());
 
         return {};
     }
@@ -186,7 +185,7 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
                                &keyCLSID);
 
     if (result != ERROR_SUCCESS) {
-        AkLogError() << "Failed to open CLSID registry key: " << result << std::endl;
+        AkLogError("Failed to open CLSID registry key: %d", result);
 
         return cameras;
     }
@@ -207,7 +206,7 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
                              nullptr);
 
     if (result != ERROR_SUCCESS) {
-        AkLogError() << "Failed to query CLSID key info: " << result << std::endl;
+        AkLogError("Failed to query CLSID key info: %d", result);
         RegCloseKey(keyCLSID);
 
         return cameras;
@@ -277,14 +276,15 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
 
         // Compare the DLL path with pluginPath
         if (pluginPath == stringFromWSTR(dllPath)) {
-            AkLogDebug() << "Found matching camera CLSID: " << stringFromClsidMF(clsid) << std::endl;
+            AkLogDebug("Found matching camera CLSID: %s",
+                       stringFromClsidMF(clsid).c_str());
             cameras.push_back(clsid);
         }
     }
 
     RegCloseKey(keyCLSID);
 
-    AkLogDebug() << "Found " << cameras.size() << " registered cameras" << std::endl;
+    AkLogDebug("Found %ull registered cameras", cameras.size());
 
     return cameras;
 }

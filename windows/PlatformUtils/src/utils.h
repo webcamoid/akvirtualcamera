@@ -28,7 +28,7 @@
 #include "VCamUtils/src/logger.h"
 
 #define AkLogInterface(interface, instance) \
-    AkLogInfo() << "Returning " << #interface << "(" << instance << ")" << std::endl
+    AkLogDebug("Returning %s (%p)", #interface, instance)
 
 namespace AkVCam
 {

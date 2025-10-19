@@ -58,7 +58,7 @@ bool AkVCam::ClassFactory::locked()
 HRESULT AkVCam::ClassFactory::QueryInterface(const IID &riid, void **ppvObject)
 {
     AkLogFunction();
-    AkLogInfo() << "IID: " << stringFromClsidMF(riid) << std::endl;
+    AkLogInfo("IID: %s", stringFromClsidMF(riid).c_str());
 
     if (!ppvObject)
         return E_POINTER;
@@ -93,8 +93,8 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
                                              void **ppvObject)
 {
     AkLogFunction();
-    AkLogInfo() << "Outer: " << ULONG_PTR(pUnkOuter) << std::endl;
-    AkLogInfo() << "IID: " << stringFromClsidMF(riid) << std::endl;
+    AkLogDebug("Outer: %p", pUnkOuter);
+    AkLogDebug("IID: %s", stringFromClsidMF(riid).c_str());
 
     if (!ppvObject)
         return E_INVALIDARG;

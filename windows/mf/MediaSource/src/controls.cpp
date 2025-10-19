@@ -181,7 +181,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
         || propertyLength < sizeof(KSPROPERTY)
         || !propertyData
         || !bytesReturned) {
-        AkLogError() << "Invalid parameters";
+        AkLogError("Invalid parameters");
 
         return STATUS_INVALID_PARAMETER;
     }
@@ -189,7 +189,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
     *bytesReturned = 0;
 
     if (!IsEqualGUID(property->Set, IID_VIDEOPROCAMP)) {
-        AkLogWarning() << "Unsupported property set";
+        AkLogWarning("Unsupported property set");
 
         return STATUS_NOT_IMPLEMENTED;
     }
@@ -198,7 +198,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
             ProcAmpPrivate::byProperty(KSPROPERTY_VIDCAP_VIDEOPROCAMP(property->Id));
 
     if (!control) {
-        AkLogWarning() << "Unsupported property ID: " << property->Id;
+        AkLogWarning("Unsupported property ID: %ull", property->Id);
 
         return STATUS_NOT_FOUND;
     }
@@ -207,7 +207,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
 
     if (property->Flags & KSPROPERTY_TYPE_BASICSUPPORT) {
         if (dataLength < sizeof(KSPROPERTY_DESCRIPTION)) {
-            AkLogError() << "Insufficient data length for BASICSUPPORT: " << dataLength;
+            AkLogError("Insufficient data length for BASICSUPPORT: %ull", dataLength);
 
             return STATUS_BUFFER_TOO_SMALL;
         }
@@ -236,10 +236,11 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
             stepping->Reserved = 0;
 
             *bytesReturned = description->DescriptionSize;
-            AkLogInfo() << "BASICSUPPORT for property " << control->name
-                        << ": Min=" << control->min
-                        << ", Max=" << control->max
-                        << ", Step=" << control->step;
+            AkLogInfo("BASICSUPPORT for property %s: Min=%d, Max=%d, Step=%d",
+                      control->name,
+                      control->min,
+                      control->max,
+                      control->step);
         } else {
             *bytesReturned = description->DescriptionSize;
 
@@ -255,7 +256,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
 
     if (property->Flags & KSPROPERTY_TYPE_DEFAULTVALUES) {
         if (dataLength < sizeof(KSPROPERTY_VIDEOPROCAMP_S)) {
-            AkLogError() << "Insufficient data length for DEFAULTVALUES: " << dataLength;
+            AkLogError("Insufficient data length for DEFAULTVALUES: %ull", dataLength);
 
             return STATUS_BUFFER_TOO_SMALL;
         }
@@ -265,9 +266,9 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
         procAmp->Flags = control->flags;
         procAmp->Capabilities = control->flags;
         *bytesReturned = sizeof(KSPROPERTY_VIDEOPROCAMP_S);
-        AkLogInfo() << "DEFAULTVALUES for property "
-                    << control->name
-                    << ": DefaultValue=" << procAmp->Value;
+        AkLogInfo("DEFAULTVALUES for property %s: DefaultValue=%d",
+                  control->name,
+                  procAmp->Value);
 
         return STATUS_SUCCESS;
     }
@@ -280,7 +281,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
 
     if (property->Flags & KSPROPERTY_TYPE_GET) {
         if (dataLength < sizeof(KSPROPERTY_VIDEOPROCAMP_S)) {
-            AkLogError() << "Insufficient data length for GET: " << dataLength;
+            AkLogError("Insufficient data length for GET: %ull", dataLength);
 
             return STATUS_BUFFER_TOO_SMALL;
         }
@@ -290,10 +291,10 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
         procAmp->Flags = control->flags;
         procAmp->Capabilities = control->flags;
         *bytesReturned = sizeof(KSPROPERTY_VIDEOPROCAMP_S);
-        AkLogInfo() << "Get property "
-                    << control->name
-                    << ": Value=" << procAmp->Value
-                    << ", Flags=" << std::hex << procAmp->Flags;
+        AkLogInfo("Get property %s: Value=%d, Flags=0x%x",
+                  control->name,
+                  procAmp->Value,
+                  procAmp->Flags);
 
         return STATUS_SUCCESS;
     }
@@ -302,7 +303,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
 
     if (property->Flags & KSPROPERTY_TYPE_SET) {
         if (dataLength < sizeof(KSPROPERTY_VIDEOPROCAMP_S)) {
-            AkLogError() << "Insufficient data length for SET: " << dataLength;
+            AkLogError("Insufficient data length for SET: %ull", dataLength);
 
             return STATUS_BUFFER_TOO_SMALL;
         }
@@ -312,39 +313,35 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
         LONG newFlags = procAmp->Flags;
 
         if (newFlags & ~control->flags) {
-            AkLogError() << "Unsupported flags for property "
-                         << control->name
-                         << ": " << std::hex << newFlags;
+            AkLogError("Unsupported flags for property %s: 0x%x",
+                       control->name,
+                       newFlags);
 
             return STATUS_INVALID_PARAMETER;
         }
 
         if (newValue < control->min || newValue > control->max) {
-            AkLogError() << "Value out of range for property "
-                         << control->name
-                         << ": " << newValue
-                         << " (min=" << control->min
-                         << ", max=" << control->max
-                         << ")";
+            AkLogError("Value out of range for property %s: %d (min=%d, max=%d)",
+                       control->name,
+                       newValue,
+                       control->min,
+                       control->max);
 
             return STATUS_INVALID_PARAMETER;
         }
 
         if ((newValue - control->min) % control->step != 0) {
-            AkLogError() << "Invalid step for property "
-                         << control->name
-                         << ": " << newValue
-                         << " (step=" << control->step
-                         << ")";
+            AkLogError("Invalid step for property %s: %d (step=%d)",
+                       control->name,
+                       newValue,
+                       control->step);
 
             return STATUS_INVALID_PARAMETER;
         }
 
         if (currentValue != newValue) {
             this->d->m_control[control->name] = newValue;
-            AkLogInfo() << "Set property "
-                        << control->name
-                        << ": Value=" << newValue;
+            AkLogInfo("Set property %s: Value=%d", control->name, newValue);
             AKVCAM_EMIT(this, PropertyChanged,
                         control->property,
                         newValue,
@@ -356,9 +353,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
         return STATUS_SUCCESS;
     }
 
-    AkLogWarning() << "Unsupported property flags: "
-                   << std::hex
-                   << property->Flags;
+    AkLogWarning("Unsupported property flags: 0x%x", property->Flags);
 
     return STATUS_NOT_IMPLEMENTED;
 }

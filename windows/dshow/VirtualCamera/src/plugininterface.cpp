@@ -141,9 +141,9 @@ bool AkVCam::PluginInterfacePrivate::registerServer(const std::string &deviceId,
     auto fileName = moduleFileName(this->m_pluginHinstance);
     std::string threadingModel = "Both";
 
-    AkLogInfo() << "CLSID: " << clsid << std::endl;
-    AkLogInfo() << "Description: " << description << std::endl;
-    AkLogInfo() << "Filename: " << fileName << std::endl;
+    AkLogInfo("CLSID: %s", clsid.c_str());
+    AkLogInfo("Description: %s", description.c_str());
+    AkLogInfo("Filename: %s", fileName.c_str());
 
     auto subkey = SUBKEY_PREFIX "\\" + clsid;
 
@@ -197,7 +197,7 @@ registerServer_failed:
     if (keyCLSID)
         RegCloseKey(keyCLSID);
 
-    AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
+    AkLogInfo("Result: %s", stringFromResult(result).c_str());
 
     return ok;
 }
@@ -214,7 +214,7 @@ void AkVCam::PluginInterfacePrivate::unregisterServer(const CLSID &clsid) const
     AkLogFunction();
 
     auto clsidStr = stringFromIid(clsid);
-    AkLogInfo() << "CLSID: " << clsidStr << std::endl;
+    AkLogInfo("CLSID: %s", clsidStr.c_str());
     auto subkey = SUBKEY_PREFIX "\\" + clsidStr;
     deleteTree(ROOT_HKEY, subkey.c_str(), 0);
 }
@@ -245,7 +245,7 @@ bool AkVCam::PluginInterfacePrivate::registerFilter(const std::string &deviceId,
     REGFILTER2 regFilter;
     regFilter.dwVersion = 2;
     regFilter.dwMerit = MERIT_DO_NOT_USE;
-    regFilter.cPins2 = ULONG(pins.size());
+    regFilter.cPins2 = static_cast<ULONG>(pins.size());
     regFilter.rgPins2 = pins.data();
 
     auto result = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -253,7 +253,7 @@ bool AkVCam::PluginInterfacePrivate::registerFilter(const std::string &deviceId,
     LPWSTR wdescription = nullptr;
 
     if (FAILED(result)) {
-        AkLogError() << "Failed to initialize the COM library." << std::endl;
+        AkLogError("Failed to initialize the COM library.");
 
         goto registerFilter_failed;
     }
@@ -265,7 +265,7 @@ bool AkVCam::PluginInterfacePrivate::registerFilter(const std::string &deviceId,
                               reinterpret_cast<void **>(&filterMapper));
 
     if (FAILED(result)) {
-        AkLogError() << "Can't create instance for IFilterMapper2." << std::endl;
+        AkLogError("Can't create instance for IFilterMapper2.");
 
         goto registerFilter_failed;
     }
@@ -287,7 +287,7 @@ registerFilter_failed:
 
     CoUninitialize();
 
-    AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
+    AkLogInfo("Result: %s", stringFromResult(result).c_str());
 
     return ok;
 }
@@ -327,7 +327,7 @@ unregisterFilter_failed:
         filterMapper->Release();
 
     CoUninitialize();
-    AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
+    AkLogInfo("Result: %s", stringFromResult(result).c_str());
 }
 
 bool AkVCam::PluginInterfacePrivate::setDeviceId(const std::string &deviceId) const
@@ -339,7 +339,7 @@ bool AkVCam::PluginInterfacePrivate::setDeviceId(const std::string &deviceId) co
             + stringFromIid(CLSID_VideoInputDeviceCategory)
             + "\\Instance\\"
             + createClsidStrFromStr(deviceId);
-    AkLogInfo() << "SubKey: " << subKey << std::endl;
+    AkLogInfo("SubKey: %s", subKey.c_str());
 
     HKEY hKey = nullptr;
     auto result = RegOpenKeyExA(ROOT_HKEY,
@@ -368,7 +368,7 @@ setDeviceId_failed:
     if (hKey)
         RegCloseKey(hKey);
 
-    AkLogInfo() << "Result: " << stringFromResult(result) << std::endl;
+    AkLogInfo("Result: %s", stringFromResult(result).c_str());
 
     return ok;
 }
