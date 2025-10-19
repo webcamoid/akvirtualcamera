@@ -208,7 +208,7 @@ void updateCameras(void *, const std::vector<std::string> &)
             continue;
         }
 
-        AkPrintOut("Appending '%s' to the virtual cameras list", description);
+        AkPrintOut("Appending '%s' to the virtual cameras list", description.c_str());
 
         camerasPtr->push_back(std::shared_ptr<IMFVCam>(vcam, [] (IMFVCam *vcam) {
             vcam->Remove();

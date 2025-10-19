@@ -448,8 +448,8 @@ bool AkVCam::IpcBridge::deviceStart(StreamType type,
                                     const std::string &deviceId)
 {
     AkLogFunction();
-    AkLogDebug("Starting device: %d with type: %d",
-               deviceId,
+    AkLogDebug("Starting device: %s with type: %s",
+               deviceId.c_str(),
                type == StreamType_Input? "Input": "Output");
 
     this->d->m_broadcastsMutex.lock();
