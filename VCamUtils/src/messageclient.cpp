@@ -264,8 +264,8 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
         AkLogDebug("Send message:");
         AkLogDebug("    Connection ID: %lld", connectionId);
         AkLogDebug("    Message ID: %s", stringFromMessageId(inMessage.id()).c_str());
-        AkLogDebug("    Query ID: %ull", inMessage.queryId());
-        AkLogDebug("    Data size: %ull", inMessage.data().size());
+        AkLogDebug("    Query ID: %" PRIu64, inMessage.queryId());
+        AkLogDebug("    Data size: %zu", inMessage.data().size());
         this->m_logsMutex.unlock();
 
         if (!Sockets::send(clientSocket, inMessage.id())) {
@@ -314,8 +314,8 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
         AkLogDebug("Received message:");
         AkLogDebug("    Connection ID: %lld", connectionId);
         AkLogDebug("    Message ID: %s", stringFromMessageId(messageId).c_str());
-        AkLogDebug("    Query ID: %ull", queryId);
-        AkLogDebug("    Data size: %ull", outData.size());
+        AkLogDebug("    Query ID: %" PRIu64, queryId);
+        AkLogDebug("    Data size: %zu", outData.size());
         this->m_logsMutex.unlock();
 
         more &= writeData({messageId, queryId, outData});

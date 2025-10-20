@@ -548,7 +548,7 @@ void AkVCam::IpcBridge::deviceStop(const std::string &deviceId)
         std::lock_guard<std::mutex> lock(this->d->m_broadcastsMutex);
 
         if (this->d->m_broadcasts.count(deviceId) < 1) {
-            AkLogDebug("Device %s not found in broadcasts %s", deviceId.c_str());
+            AkLogDebug("Device %s not found in broadcasts", deviceId.c_str());
 
             return;
         }

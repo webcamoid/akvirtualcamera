@@ -101,7 +101,7 @@ ULONG AkVCam::CUnknown::AddRef()
 {
     AkCUnknownLogMethod();
     this->d->m_ref++;
-    AkLogDebug("REF: %ull", static_cast<ULONG>(this->d->m_ref));
+    AkLogDebug("REF: %" PRIu64, static_cast<ULONG>(this->d->m_ref));
 
     return this->d->m_ref;
 }
@@ -109,7 +109,7 @@ ULONG AkVCam::CUnknown::AddRef()
 ULONG AkVCam::CUnknown::Release()
 {
     AkCUnknownLogMethod();
-    AkLogDebug("REF: %ull", static_cast<ULONG>(this->d->m_ref));
+    AkLogDebug("REF: %" PRIu64, static_cast<ULONG>(this->d->m_ref));
 
     if (this->d->m_ref)
         this->d->m_ref--;

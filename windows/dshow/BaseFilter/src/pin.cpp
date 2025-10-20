@@ -851,7 +851,7 @@ void AkVCam::PinPrivate::sendFrameLoop()
         }
     }
 
-    AkLogDebug("Thread %ull finnished", std::this_thread::get_id());
+    AkLogDebug("Thread %" PRIu64 " finnished", std::this_thread::get_id());
 }
 
 HRESULT AkVCam::PinPrivate::sendFrame()

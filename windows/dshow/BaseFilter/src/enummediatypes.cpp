@@ -131,7 +131,7 @@ HRESULT AkVCam::EnumMediaTypes::Next(ULONG cMediaTypes,
 HRESULT AkVCam::EnumMediaTypes::Skip(ULONG cMediaTypes)
 {
     AkLogFunction();
-    AkLogDebug("Skip %ull media types", cMediaTypes);
+    AkLogDebug("Skip %" PRIu64 " media types", cMediaTypes);
 
     if (this->d->m_changed) {
         this->d->m_changed = false;

@@ -640,7 +640,7 @@ bool AkVCam::VideoFrame::load(const std::string &fileName)
     AkLogDebug("    width: %d", imageHeader.width);
     AkLogDebug("    height: %d", imageHeader.height);
     AkLogDebug("    Data size: %d", imageHeader.sizeImage);
-    AkLogDebug("    Allocated frame size: %ull", this->d->m_dataSize);
+    AkLogDebug("    Allocated frame size: %zu", this->d->m_dataSize);
 
     return true;
 }

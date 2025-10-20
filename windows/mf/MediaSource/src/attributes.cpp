@@ -98,7 +98,7 @@ HRESULT AkVCam::Attributes::GetUINT64(const GUID &guidKey, UINT64 *punValue)
     AkLogFunction();
     AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
     auto hr = this->d->m_pAttributes->GetUINT64(guidKey, punValue);
-    AkLogDebug("Value: %ull", *punValue);
+    AkLogDebug("Value: %" PRIu64, *punValue);
 
     return hr;
 }
@@ -242,7 +242,7 @@ HRESULT AkVCam::Attributes::SetUINT64(const GUID &guidKey, UINT64 unValue)
 {
     AkLogFunction();
     AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str());
-    AkLogDebug("Value: %ull", unValue);
+    AkLogDebug("Value: %" PRIu64, unValue);
 
     return this->d->m_pAttributes->SetUINT64(guidKey, unValue);
 }

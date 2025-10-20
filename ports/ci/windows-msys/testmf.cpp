@@ -32,7 +32,7 @@ int main()
     auto hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     if (FAILED(hr)) {
-        printf("Error initializing COM: 0x%08X\n", hr);
+        printf("Error initializing COM: 0x%08lX\n", static_cast<unsigned long>(hr));
 
         return -1;
     }
@@ -40,7 +40,7 @@ int main()
     hr = MFStartup(MF_VERSION, 0);
 
     if (FAILED(hr)) {
-        printf("Error initializing Media Foundation: 0x%08X\n", hr);
+        printf("Error initializing Media Foundation: 0x%08lX\n", static_cast<unsigned long>(hr));
         CoUninitialize();
 
         return -1;
@@ -50,7 +50,7 @@ int main()
     hr = MFCreateAttributes(&pAttributes, 1);
 
     if (FAILED(hr)) {
-        printf("Error creating attributtes: 0x%08X\n", hr);
+        printf("Error creating attributtes: 0x%08lX\n", static_cast<unsigned long>(hr));
         MFShutdown();
         CoUninitialize();
 
@@ -61,7 +61,7 @@ int main()
                               MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
 
     if (FAILED(hr)) {
-        printf("Error configuring attributtes: 0x%08X\n", hr);
+        printf("Error configuring attributtes: 0x%08lX\n", static_cast<unsigned long>(hr));
         pAttributes->Release();
         MFShutdown();
         CoUninitialize();
@@ -74,7 +74,7 @@ int main()
     hr = MFEnumDeviceSources(pAttributes, &ppDevices, &count);
 
     if (FAILED(hr)) {
-        printf("Error enumerating devices: 0x%08X\n", hr);
+        printf("Error enumerating devices: 0x%08lX\n", static_cast<unsigned long>(hr));
         pAttributes->Release();
         MFShutdown();
         CoUninitialize();

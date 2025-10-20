@@ -2017,7 +2017,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
 
     for (size_t i = 2; i < args.size(); i++) {
         if (args[i].find('=') == std::string::npos) {
-            AkPrintErr("Argumment %ull is not in the form KEY=VALUE.", i);
+            AkPrintErr("Argumment %" PRIu64 " is not in the form KEY=VALUE.", i);
 
             return -EINVAL;
         }
@@ -2025,7 +2025,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
         auto pair = splitOnce(args[i], "=");
 
         if (pair.first.empty()) {
-            AkPrintErr("Key for argumment %ull is emty.", i);
+            AkPrintErr("Key for argumment %" PRIu64 " is emty.", i);
 
             return -EINVAL;
         }
@@ -2042,7 +2042,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                         auto val = strtol(value.c_str(), &p, 10);
 
                         if (*p) {
-                            AkPrintErr("Value at argument %ull must be an integer.", i);
+                            AkPrintErr("Value at argument %" PRIu64 " must be an integer.", i);
 
                             return -EINVAL;
                         }
@@ -2066,7 +2066,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                         } else if (value == "1" || value == "true") {
                             controls[key] = 1;
                         } else {
-                            AkPrintErr("Value at argument %ull must be a boolean.", i);
+                            AkPrintErr("Value at argument %" PRIu64 " must be a boolean.", i);
 
                             return -EINVAL;
                         }
@@ -2084,7 +2084,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                                                 value);
 
                             if (it == control.menu.end()) {
-                                AkPrintErr("Value at argument %ull is not valid.", i);
+                                AkPrintErr("Value at argument %" PRIu64 " is not valid.", i);
 
                                 return -EINVAL;
                             }
@@ -2092,7 +2092,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                             controls[key] = int(it - control.menu.begin());
                         } else {
                             if (val >= control.menu.size()) {
-                                AkPrintErr("Value at argument %ull is out of range.", i);
+                                AkPrintErr("Value at argument %" PRIu64 " is out of range.", i);
 
                                 return -ERANGE;
                             }
@@ -2113,7 +2113,7 @@ int AkVCam::CmdParserPrivate::writeControls(const StringMap &flags,
                 }
 
         if (!found) {
-            AkPrintErr("No such '%s' control in argument %ull.", key.c_str(), i);
+            AkPrintErr("No such '%s' control in argument %" PRIu64 ".", key.c_str(), i);
 
             return -ENOSYS;
         }
@@ -2240,7 +2240,7 @@ int AkVCam::CmdParserPrivate::pageSize(const StringMap &flags,
     UNUSED(flags);
     UNUSED(args);
 
-    AkPrintOut("%ull", this->m_ipcBridge.pageSize());
+    AkPrintOut("%" PRIu64, this->m_ipcBridge.pageSize());
 
     return 0;
 }
@@ -2328,7 +2328,7 @@ int AkVCam::CmdParserPrivate::showClients(const StringMap &flags,
 
     if (this->m_parseable) {
         for (auto &pid: clients)
-            AkPrintOut("%ull %s",
+            AkPrintOut("%" PRIu64 " %s",
                        pid,
                        this->m_ipcBridge.clientExe(pid).c_str());
     } else {
@@ -2472,7 +2472,7 @@ int AkVCam::CmdParserPrivate::dumpInfo(const StringMap &flags,
 
     for (auto &pid: this->m_ipcBridge.clientsPids()) {
         AkPrintOut("%s<client>", (2 * indent).c_str());
-        AkPrintOut("%s<pid>%ull</pid>", (3 * indent).c_str(), pid);
+        AkPrintOut("%s<pid>%" PRIu64 "</pid>", (3 * indent).c_str(), pid);
         AkPrintOut("%s<exe>%s</exe>",
                    (3 * indent).c_str(),
                    this->m_ipcBridge.clientExe(pid).c_str());

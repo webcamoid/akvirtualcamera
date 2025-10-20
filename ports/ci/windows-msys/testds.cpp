@@ -30,7 +30,7 @@ int main()
     auto hr = CoInitialize(nullptr);
 
     if (FAILED(hr)) {
-        printf("Error initializing COM: 0x%08X\n", hr);
+        printf("Error initializing COM: 0x%08lX\n", static_cast<unsigned long>(hr));
 
         return -11;
     }
@@ -43,7 +43,7 @@ int main()
                           reinterpret_cast<void **>(&pDevEnum));
 
     if (FAILED(hr)) {
-        printf("Error creating the device enumerator: 0x%08X\n", hr);
+        printf("Error creating the device enumerator: 0x%08lX\n", static_cast<unsigned long>(hr));
         CoUninitialize();
 
         return -1;
@@ -61,7 +61,7 @@ int main()
 
         return 0;
     } else if (FAILED(hr)) {
-        printf("Error enumerating devices: 0x%08X\n", hr);
+        printf("Error enumerating devices: 0x%08lX\n", static_cast<unsigned long>(hr));
         pDevEnum->Release();
         CoUninitialize();
 

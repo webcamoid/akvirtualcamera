@@ -1420,7 +1420,7 @@ std::vector<CLSID> AkVCam::listAllCameras()
 
     RegCloseKey(key);
 
-    AkLogDebug("Found %ull available cameras", cameras.size());
+    AkLogDebug("Found %zu available cameras", cameras.size());
 
     return cameras;
 }
@@ -1457,7 +1457,7 @@ std::vector<CLSID> AkVCam::listRegisteredCameras()
         }
     }
 
-    AkLogDebug("Found %ull registered virtual cameras", cameras.size());
+    AkLogDebug("Found %zu registered virtual cameras", cameras.size());
 
     return cameras;
 }

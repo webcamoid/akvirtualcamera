@@ -147,7 +147,7 @@ HRESULT AkVCam::MemAllocator::Decommit()
             freeSamples++;
         }
 
-    AkLogInfo("Free samples: %ull/%ull", freeSamples, totalSamples);
+    AkLogInfo("Free samples: %" PRIu64 "/%" PRIu64, freeSamples, totalSamples);
 
     if (freeSamples >= totalSamples) {
         AkLogInfo("Decommiting");

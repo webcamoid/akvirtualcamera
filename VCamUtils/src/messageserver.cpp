@@ -222,7 +222,7 @@ void AkVCam::MessageServerPrivate::connection(SocketType clientSocket,
     auto clientId = AkVCam::id();
 
     this->m_logsMutex.lock();
-    AkLogDebug("Client connected: %ull", clientId);
+    AkLogDebug("Client connected: %" PRIu64, clientId);
     this->m_logsMutex.unlock();
 
     bool ok = true;
@@ -247,8 +247,8 @@ void AkVCam::MessageServerPrivate::connection(SocketType clientSocket,
         AkLogDebug("Received message:");
         AkLogDebug("    Client ID: %lld", clientId);
         AkLogDebug("    Message ID: %s", stringFromMessageId(messageId).c_str());
-        AkLogDebug("    Query ID: %ull", queryId);
-        AkLogDebug("    Data size: %ull", inData.size());
+        AkLogDebug("    Query ID: %" PRIu64, queryId);
+        AkLogDebug("    Data size: %zu", inData.size());
         this->m_logsMutex.unlock();
 
         Message outMessage;
@@ -266,10 +266,10 @@ void AkVCam::MessageServerPrivate::connection(SocketType clientSocket,
 
         this->m_logsMutex.lock();
         AkLogDebug("Send message:");
-        AkLogDebug("    Client ID: %ull", clientId);
+        AkLogDebug("    Client ID: %" PRIu64, clientId);
         AkLogDebug("    Message ID: %s", stringFromMessageId(outMessage.id()).c_str());
-        AkLogDebug("    Query ID: %ull", outMessage.queryId());
-        AkLogDebug("    Data size: %s", outMessage.data().size());
+        AkLogDebug("    Query ID: %" PRIu64, outMessage.queryId());
+        AkLogDebug("    Data size: %zu", outMessage.data().size());
         this->m_logsMutex.unlock();
 
         if (!Sockets::send(clientSocket, outMessage.id()))
@@ -284,7 +284,7 @@ void AkVCam::MessageServerPrivate::connection(SocketType clientSocket,
 
     Sockets::closeSocket(clientSocket);
     this->m_logsMutex.lock();
-    AkLogDebug("Client disconnected: %ull", clientId);
+    AkLogDebug("Client disconnected: %" PRIu64, clientId);
     this->m_logsMutex.unlock();
     AKVCAM_EMIT(self, ConnectionClosed, clientId)
 }

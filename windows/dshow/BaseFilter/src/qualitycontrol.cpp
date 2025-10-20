@@ -42,8 +42,8 @@ HRESULT AkVCam::QualityControl::Notify(IBaseFilter *pSelf, Quality q)
 
     AkLogInfo("Type: %s", q.Type == Famine? "Famine": "Flood");
     AkLogInfo("Proportion: %ll", q.Proportion);
-    AkLogInfo("Late: %ull", q.Late);
-    AkLogInfo("TimeStamp: %ull", q.TimeStamp);
+    AkLogInfo("Late: %" PRIu64, q.Late);
+    AkLogInfo("TimeStamp: %" PRIu64, q.TimeStamp);
 
     return S_OK;
 }

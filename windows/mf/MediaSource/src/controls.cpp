@@ -198,7 +198,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
             ProcAmpPrivate::byProperty(KSPROPERTY_VIDCAP_VIDEOPROCAMP(property->Id));
 
     if (!control) {
-        AkLogWarning("Unsupported property ID: %ull", property->Id);
+        AkLogWarning("Unsupported property ID: %" PRIu64, property->Id);
 
         return STATUS_NOT_FOUND;
     }
@@ -207,7 +207,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
 
     if (property->Flags & KSPROPERTY_TYPE_BASICSUPPORT) {
         if (dataLength < sizeof(KSPROPERTY_DESCRIPTION)) {
-            AkLogError("Insufficient data length for BASICSUPPORT: %ull", dataLength);
+            AkLogError("Insufficient data length for BASICSUPPORT: %" PRIu64, dataLength);
 
             return STATUS_BUFFER_TOO_SMALL;
         }
@@ -256,7 +256,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
 
     if (property->Flags & KSPROPERTY_TYPE_DEFAULTVALUES) {
         if (dataLength < sizeof(KSPROPERTY_VIDEOPROCAMP_S)) {
-            AkLogError("Insufficient data length for DEFAULTVALUES: %ull", dataLength);
+            AkLogError("Insufficient data length for DEFAULTVALUES: %" PRIu64, dataLength);
 
             return STATUS_BUFFER_TOO_SMALL;
         }
@@ -281,7 +281,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
 
     if (property->Flags & KSPROPERTY_TYPE_GET) {
         if (dataLength < sizeof(KSPROPERTY_VIDEOPROCAMP_S)) {
-            AkLogError("Insufficient data length for GET: %ull", dataLength);
+            AkLogError("Insufficient data length for GET: %" PRIu64, dataLength);
 
             return STATUS_BUFFER_TOO_SMALL;
         }
@@ -303,7 +303,7 @@ NTSTATUS AkVCam::Controls::KsProperty(PKSPROPERTY property,
 
     if (property->Flags & KSPROPERTY_TYPE_SET) {
         if (dataLength < sizeof(KSPROPERTY_VIDEOPROCAMP_S)) {
-            AkLogError("Insufficient data length for SET: %ull", dataLength);
+            AkLogError("Insufficient data length for SET: %" PRIu64, dataLength);
 
             return STATUS_BUFFER_TOO_SMALL;
         }

@@ -74,7 +74,7 @@ std::vector<std::string> AkVCam::Preferences::keys()
         CFRelease(cfKeys);
     }
 
-    AkLogInfo("Keys: %ull", keys.size());
+    AkLogInfo("Keys: %zu", keys.size());
     std::sort(keys.begin(), keys.end());
 
     for (auto &key: keys)

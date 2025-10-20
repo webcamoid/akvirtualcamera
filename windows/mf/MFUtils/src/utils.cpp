@@ -284,7 +284,7 @@ std::vector<CLSID> AkVCam::listRegisteredMFCameras()
 
     RegCloseKey(keyCLSID);
 
-    AkLogDebug("Found %ull registered cameras", cameras.size());
+    AkLogDebug("Found %zu registered cameras", cameras.size());
 
     return cameras;
 }

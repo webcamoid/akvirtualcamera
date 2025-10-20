@@ -132,7 +132,7 @@ void AkVCam::ServicePrivate::removeClientById(void *userData,
                                               uint64_t clientId)
 {
     AkLogFunction();
-    AkLogDebug("Removing client: %ull", clientId);
+    AkLogDebug("Removing client: %" PRIu64, clientId);
     auto self = reinterpret_cast<ServicePrivate *>(userData);
 
     self->m_peerMutex.lock();
@@ -224,8 +224,8 @@ bool AkVCam::ServicePrivate::broadcast(uint64_t clientId,
     if (isBroadcasting) {
         AkLogDebug("Adding device slot:");
         AkLogDebug("    Device ID: %s", msgBroadcast.device().c_str());
-        AkLogDebug("    Client ID: %ull", clientId);
-        AkLogDebug("    Client PID: %ull", msgBroadcast.pid());
+        AkLogDebug("    Client ID: %" PRIu64, clientId);
+        AkLogDebug("    Client PID: %" PRIu64, msgBroadcast.pid());
 
         this->m_broadcasts[msgBroadcast.device()] =
             {{clientId, msgBroadcast.pid()}, {}, {}};
