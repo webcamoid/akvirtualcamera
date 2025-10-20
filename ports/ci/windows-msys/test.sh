@@ -18,7 +18,8 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
-export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
+#export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
+export INSTALL_PREFIX="${PWD}/build-${COMPILER}-x64/build"
 
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
