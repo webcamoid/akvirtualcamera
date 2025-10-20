@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <cinttypes>
 #include <cstring>
 #include <CoreFoundation/CoreFoundation.h>
 
