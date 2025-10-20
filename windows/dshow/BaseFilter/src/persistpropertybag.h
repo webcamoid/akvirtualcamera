@@ -61,7 +61,7 @@ namespace AkVCam
 
 #define DECLARE_IPERSISTPROPERTYBAG_Q(interfaceIid) \
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, \
-                                             void **ppvObject) \
+                                             void **ppvObject) override \
     { \
         if (!ppvObject) \
             return E_POINTER; \
@@ -81,20 +81,20 @@ namespace AkVCam
 #define DECLARE_IPERSISTPROPERTYBAG_NQ \
     DECLARE_IPERSIST_NQ \
     \
-    HRESULT STDMETHODCALLTYPE InitNew() \
+    HRESULT STDMETHODCALLTYPE InitNew() override \
     { \
         return PersistPropertyBag::InitNew(); \
     } \
     \
     HRESULT STDMETHODCALLTYPE Load(IPropertyBag *pPropBag, \
-                                   IErrorLog *pErrorLog) \
+                                   IErrorLog *pErrorLog) override \
     { \
         return PersistPropertyBag::Load(pPropBag, pErrorLog); \
     } \
     \
     HRESULT STDMETHODCALLTYPE Save(IPropertyBag *pPropBag, \
                                    BOOL fClearDirty, \
-                                   BOOL fSaveAllProperties) \
+                                   BOOL fSaveAllProperties) override \
     { \
         return PersistPropertyBag::Save(pPropBag, \
                                         fClearDirty, \

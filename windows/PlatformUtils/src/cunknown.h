@@ -32,8 +32,8 @@ namespace AkVCam
             CUnknown(CUnknown *parent, REFIID parentCLSID);
             virtual ~CUnknown();
 
-            void setParent(CUnknown *parent, const IID *parentCLSID=nullptr);
-            ULONG ref() const;
+            virtual void setParent(CUnknown *parent, const IID *parentCLSID=nullptr);
+            virtual ULONG ref() const;
 
             // IUnknown
             HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
@@ -48,7 +48,7 @@ namespace AkVCam
 
 #define DECLARE_IUNKNOWN_Q(interfaceIid) \
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, \
-                                             void **ppvObject) \
+                                             void **ppvObject) override \
     { \
         if (!ppvObject) \
             return E_POINTER; \
@@ -66,7 +66,7 @@ namespace AkVCam
     }
 
 #define DECLARE_IUNKNOWN_R \
-    ULONG STDMETHODCALLTYPE Release() \
+    ULONG STDMETHODCALLTYPE Release() override \
     { \
         auto result = CUnknown::Release(); \
         \
@@ -77,17 +77,17 @@ namespace AkVCam
     }
 
 #define DECLARE_IUNKNOWN_NQR \
-    ULONG ref() const \
+    ULONG ref() const override \
     { \
         return CUnknown::ref(); \
     } \
     \
-    void setParent(CUnknown *parent, const IID *parentCLSID=nullptr) \
+    void setParent(CUnknown *parent, const IID *parentCLSID=nullptr) override \
     { \
         return CUnknown::setParent(parent, parentCLSID); \
     } \
     \
-    ULONG STDMETHODCALLTYPE AddRef() \
+    ULONG STDMETHODCALLTYPE AddRef() override \
     { \
         return CUnknown::AddRef(); \
     }

@@ -66,44 +66,44 @@ namespace AkVCam
     DECLARE_IPERSISTPROPERTYBAG_NQ \
     \
     void connectStateChanged(void *userData, \
-                             StateChangedCallbackT callback) \
+                             StateChangedCallbackT callback) override \
     { \
         MediaFilter::connectStateChanged(userData, callback); \
     } \
     \
     void disconnectStateChanged(void *userData, \
-                                StateChangedCallbackT callback) \
+                                StateChangedCallbackT callback) override \
     { \
         MediaFilter::disconnectStateChanged(userData, callback); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE Stop() \
+    HRESULT STDMETHODCALLTYPE Stop() override \
     { \
         return MediaFilter::Stop(); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE Pause() \
+    HRESULT STDMETHODCALLTYPE Pause() override \
     { \
         return MediaFilter::Pause(); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE Run(REFERENCE_TIME tStart) \
+    HRESULT STDMETHODCALLTYPE Run(REFERENCE_TIME tStart) override \
     { \
         return MediaFilter::Run(tStart); \
     } \
     \
     HRESULT STDMETHODCALLTYPE GetState(DWORD dwMilliSecsTimeout, \
-                                       FILTER_STATE *State) \
+                                       FILTER_STATE *State) override \
     { \
         return MediaFilter::GetState(dwMilliSecsTimeout, State); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE SetSyncSource(IReferenceClock *pClock) \
+    HRESULT STDMETHODCALLTYPE SetSyncSource(IReferenceClock *pClock) override \
     { \
         return MediaFilter::SetSyncSource(pClock); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE GetSyncSource(IReferenceClock **pClock) \
+    HRESULT STDMETHODCALLTYPE GetSyncSource(IReferenceClock **pClock) override \
     { \
         return MediaFilter::GetSyncSource(pClock); \
     }

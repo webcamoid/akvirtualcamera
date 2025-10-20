@@ -47,7 +47,7 @@ namespace AkVCam
 #define DECLARE_IPERSIST_NQ \
     DECLARE_IUNKNOWN_NQ \
     \
-    HRESULT STDMETHODCALLTYPE GetClassID(CLSID *pClassID) \
+    HRESULT STDMETHODCALLTYPE GetClassID(CLSID *pClassID) override \
     { \
         return Persist::GetClassID(pClassID); \
     }

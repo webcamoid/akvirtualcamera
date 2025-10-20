@@ -58,25 +58,25 @@ namespace AkVCam
 #define DECLARE_IAMSTREAMCONFIG_NQ \
     DECLARE_IUNKNOWN_NQ \
     \
-    HRESULT STDMETHODCALLTYPE SetFormat(AM_MEDIA_TYPE *pmt) \
+    HRESULT STDMETHODCALLTYPE SetFormat(AM_MEDIA_TYPE *pmt) override \
     { \
         return StreamConfig::SetFormat(pmt); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE GetFormat(AM_MEDIA_TYPE **pmt) \
+    HRESULT STDMETHODCALLTYPE GetFormat(AM_MEDIA_TYPE **pmt) override \
     { \
         return StreamConfig::GetFormat(pmt); \
     } \
     \
     HRESULT STDMETHODCALLTYPE GetNumberOfCapabilities(int *piCount, \
-                                                      int *piSize) \
+                                                      int *piSize) override \
     { \
         return StreamConfig::GetNumberOfCapabilities(piCount, piSize); \
     } \
     \
     HRESULT STDMETHODCALLTYPE GetStreamCaps(int iIndex, \
                                             AM_MEDIA_TYPE **pmt, \
-                                            BYTE *pSCC) \
+                                            BYTE *pSCC) override \
     { \
         return StreamConfig::GetStreamCaps(iIndex, pmt, pSCC); \
     }

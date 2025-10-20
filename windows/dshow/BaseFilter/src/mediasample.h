@@ -72,91 +72,91 @@ namespace AkVCam
 #define DECLARE_IMEDIASAMPLE(interfaceIid) \
     DECLARE_IUNKNOWN_NR(interfaceIid) \
     \
-    ULONG STDMETHODCALLTYPE Release() \
+    ULONG STDMETHODCALLTYPE Release() override \
     { \
         return MediaSample::Release(); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE GetPointer(BYTE **ppBuffer) \
+    HRESULT STDMETHODCALLTYPE GetPointer(BYTE **ppBuffer) override \
     { \
         return MediaSample::GetPointer(ppBuffer); \
     } \
     \
-    LONG STDMETHODCALLTYPE GetSize() \
+    LONG STDMETHODCALLTYPE GetSize() override \
     { \
         return MediaSample::GetSize(); \
     } \
     \
     HRESULT STDMETHODCALLTYPE GetTime(REFERENCE_TIME *pTimeStart, \
-                                      REFERENCE_TIME *pTimeEnd) \
+                                      REFERENCE_TIME *pTimeEnd) override \
     { \
         return MediaSample::GetTime(pTimeStart, pTimeEnd); \
     } \
     \
     HRESULT STDMETHODCALLTYPE SetTime(REFERENCE_TIME *pTimeStart, \
-                                      REFERENCE_TIME *pTimeEnd) \
+                                      REFERENCE_TIME *pTimeEnd) override \
     { \
         return MediaSample::SetTime(pTimeStart, pTimeEnd); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE IsSyncPoint() \
+    HRESULT STDMETHODCALLTYPE IsSyncPoint() override \
     { \
         return MediaSample::IsSyncPoint(); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE SetSyncPoint(BOOL bIsSyncPoint) \
+    HRESULT STDMETHODCALLTYPE SetSyncPoint(BOOL bIsSyncPoint) override \
     { \
         return MediaSample::SetSyncPoint(bIsSyncPoint); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE IsPreroll() \
+    HRESULT STDMETHODCALLTYPE IsPreroll() override \
     { \
         return MediaSample::IsPreroll(); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE SetPreroll(BOOL bIsPreroll) \
+    HRESULT STDMETHODCALLTYPE SetPreroll(BOOL bIsPreroll) override \
     { \
         return MediaSample::SetPreroll(bIsPreroll); \
     } \
     \
-    LONG STDMETHODCALLTYPE GetActualDataLength() \
+    LONG STDMETHODCALLTYPE GetActualDataLength() override \
     { \
         return MediaSample::GetActualDataLength(); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE SetActualDataLength(LONG lLen) \
+    HRESULT STDMETHODCALLTYPE SetActualDataLength(LONG lLen) override \
     { \
         return MediaSample::SetActualDataLength(lLen); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE GetMediaType(AM_MEDIA_TYPE **ppMediaType) \
+    HRESULT STDMETHODCALLTYPE GetMediaType(AM_MEDIA_TYPE **ppMediaType) override \
     { \
         return MediaSample::GetMediaType(ppMediaType); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE SetMediaType(AM_MEDIA_TYPE *pMediaType) \
+    HRESULT STDMETHODCALLTYPE SetMediaType(AM_MEDIA_TYPE *pMediaType) override \
     { \
         return MediaSample::SetMediaType(pMediaType); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE IsDiscontinuity() \
+    HRESULT STDMETHODCALLTYPE IsDiscontinuity() override \
     { \
         return MediaSample::IsDiscontinuity(); \
     } \
     \
-    HRESULT STDMETHODCALLTYPE SetDiscontinuity(BOOL bDiscontinuity) \
+    HRESULT STDMETHODCALLTYPE SetDiscontinuity(BOOL bDiscontinuity) override \
     { \
         return MediaSample::SetDiscontinuity(bDiscontinuity); \
     } \
     \
     HRESULT STDMETHODCALLTYPE GetMediaTime(LONGLONG *pTimeStart, \
-                                           LONGLONG *pTimeEnd) \
+                                           LONGLONG *pTimeEnd) override \
     { \
         return MediaSample::GetMediaTime(pTimeStart, pTimeEnd); \
     } \
     \
     HRESULT STDMETHODCALLTYPE SetMediaTime(LONGLONG *pTimeStart, \
-                                           LONGLONG *pTimeEnd) \
+                                           LONGLONG *pTimeEnd) override \
     { \
         return MediaSample::SetMediaTime(pTimeStart, pTimeEnd); \
     }
