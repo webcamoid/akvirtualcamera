@@ -38,10 +38,10 @@ namespace AkVCam
             MediaFilter(REFIID classCLSID, IBaseFilter *baseFilter);
             virtual ~MediaFilter();
 
-            void connectStateChanged(void *userData,
-                                     StateChangedCallbackT callback);
-            void disconnectStateChanged(void *userData,
-                                        StateChangedCallbackT callback);
+            virtual void connectStateChanged(void *userData,
+                                             StateChangedCallbackT callback);
+            virtual void disconnectStateChanged(void *userData,
+                                                StateChangedCallbackT callback);
 
             DECLARE_IPERSISTPROPERTYBAG(IID_IMediaFilter)
 
