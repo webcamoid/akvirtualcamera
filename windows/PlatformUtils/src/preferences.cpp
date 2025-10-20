@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <cinttypes>
 #include <codecvt>
 #include <locale>
 #include <sstream>
