@@ -468,6 +468,10 @@ void AkVCam::MediaSourcePrivate::frameReady(void *userData,
 {
     AkLogFunction();
     auto self = reinterpret_cast<MediaSourcePrivate *>(userData);
+
+    if (deviceId != self->m_deviceId)
+        return;
+
     self->m_pStream->frameReady(frame, isActive);
 }
 
@@ -500,8 +504,10 @@ void AkVCam::MediaSourcePrivate::setControls(void *userData,
     AkLogFunction();
     auto self = reinterpret_cast<MediaSourcePrivate *>(userData);
 
-    if (!self->m_directMode)
-        self->m_pStream->setControls(controls);
+    if (deviceId != self->m_deviceId || self->m_directMode)
+        return;
+
+    self->m_pStream->setControls(controls);
 }
 
 BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData)
