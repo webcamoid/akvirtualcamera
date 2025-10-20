@@ -95,16 +95,19 @@ namespace AkVCam
 AkVCam::Controls::Controls():
     CUnknown(this, IID_VCamControl)
 {
+    AkLogFunction();
     this->d = new ControlsPrivate;
 }
 
 AkVCam::Controls::~Controls()
 {
+    AkLogFunction();
     delete this->d;
 }
 
 LONG AkVCam::Controls::value(const std::string &property) const
 {
+    AkLogFunction();
 
     auto control = ProcAmpPrivate::byName(property);
 
@@ -120,6 +123,8 @@ LONG AkVCam::Controls::value(const std::string &property) const
 HRESULT STDMETHODCALLTYPE AkVCam::Controls::QueryInterface(REFIID riid,
                                                            void **ppvObject)
 {
+    AkLogFunction();
+
     if (!ppvObject)
         return E_POINTER;
 

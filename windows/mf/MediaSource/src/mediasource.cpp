@@ -133,6 +133,7 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
         }
     }
 
+    this->d->m_ipcBridge = std::make_shared<IpcBridge>();
     this->d->m_pStream = new MediaStream(this, this->d->m_pStreamDesc);
     this->d->m_pStream->setBridge(this->d->m_ipcBridge);
 
@@ -154,7 +155,6 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
         }
     }
 
-    this->d->m_ipcBridge = std::make_shared<IpcBridge>();
     this->d->m_ipcBridge->connectDevicesChanged(this->d,
                                                 &MediaSourcePrivate::devicesChanged);
     this->d->m_ipcBridge->connectFrameReady(this->d,
