@@ -87,6 +87,9 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
 
     AkLogDebug("CLSID: %s", stringFromClsidMF(clsid).c_str());
 
+    this->d->m_controls = new Controls;
+    this->d->m_controls->AddRef();
+
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);
     AkLogDebug("Camera index: %d", cameraIndex);
     std::vector<IMFMediaType *> mediaTypes;
@@ -150,6 +153,16 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
             this->d->m_deviceId = deviceId;
         }
     }
+
+    this->d->m_ipcBridge = std::make_shared<IpcBridge>();
+    this->d->m_ipcBridge->connectDevicesChanged(this->d,
+                                                &MediaSourcePrivate::devicesChanged);
+    this->d->m_ipcBridge->connectFrameReady(this->d,
+                                            &MediaSourcePrivate::frameReady);
+    this->d->m_ipcBridge->connectPictureChanged(this->d,
+                                                &MediaSourcePrivate::pictureChanged);
+    this->d->m_ipcBridge->connectControlsChanged(this->d,
+                                                 &MediaSourcePrivate::setControls);
 }
 
 AkVCam::MediaSource::~MediaSource()
@@ -446,20 +459,8 @@ HRESULT AkVCam::MediaSource::GetService(REFGUID service,
 }
 
 AkVCam::MediaSourcePrivate::MediaSourcePrivate(MediaSource *self):
-    self(self),
-    m_controls(new Controls)
+    self(self)
 {
-    this->m_controls->AddRef();
-
-    this->m_ipcBridge = std::make_shared<IpcBridge>();
-    this->m_ipcBridge->connectDevicesChanged(this,
-                                             &MediaSourcePrivate::devicesChanged);
-    this->m_ipcBridge->connectFrameReady(this,
-                                         &MediaSourcePrivate::frameReady);
-    this->m_ipcBridge->connectPictureChanged(this,
-                                             &MediaSourcePrivate::pictureChanged);
-    this->m_ipcBridge->connectControlsChanged(this,
-                                              &MediaSourcePrivate::setControls);
 }
 
 AkVCam::MediaSourcePrivate::~MediaSourcePrivate()
