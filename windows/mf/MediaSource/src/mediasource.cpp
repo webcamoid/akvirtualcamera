@@ -154,8 +154,16 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid):
 
 AkVCam::MediaSource::~MediaSource()
 {
+    AkLogFunction();
     this->Shutdown();
-    this->d->m_pStream->Release();
+
+    this->d->m_ipcBridge->stopNotifications();
+
+    if (this->d->m_controls)
+        this->d->m_controls->Release();
+
+    if (this->d->m_pStream)
+        this->d->m_pStream->Release();
 
     if (this->d->m_pStreamDesc)
         this->d->m_pStreamDesc->Release();
@@ -456,9 +464,6 @@ AkVCam::MediaSourcePrivate::MediaSourcePrivate(MediaSource *self):
 
 AkVCam::MediaSourcePrivate::~MediaSourcePrivate()
 {
-    AkLogFunction();
-    this->m_ipcBridge->stopNotifications();
-    this->m_controls->Release();
 }
 
 void AkVCam::MediaSourcePrivate::frameReady(void *userData,
