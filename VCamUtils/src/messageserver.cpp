@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <cinttypes>
 #include <future>
 #include <map>
 #include <mutex>

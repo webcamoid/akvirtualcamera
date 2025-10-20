@@ -17,6 +17,7 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <cinttypes>
 #include <mfapi.h>
 
 #include "attributes.h"

@@ -17,6 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <cinttypes>
+
 #include "qualitycontrol.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"

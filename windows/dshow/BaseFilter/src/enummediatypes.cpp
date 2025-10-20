@@ -17,6 +17,7 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <cinttypes>
 #include <dshow.h>
 
 #include "enummediatypes.h"

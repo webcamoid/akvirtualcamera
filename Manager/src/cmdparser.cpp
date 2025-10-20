@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
+#include <cinttypes>
 #include <cmath>
 #include <codecvt>
 #include <csignal>

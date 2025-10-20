@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cinttypes>
 #include <condition_variable>
 #include <limits>
 #include <mutex>

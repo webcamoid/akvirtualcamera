@@ -18,6 +18,7 @@
  */
 
 #include <atomic>
+#include <cinttypes>
 
 #include "cunknown.h"
 #include "utils.h"

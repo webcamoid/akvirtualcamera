@@ -17,6 +17,7 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <cinttypes>
 #include <condition_variable>
 #include <mutex>
 #include <vector>

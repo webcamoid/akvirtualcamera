@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cinttypes>
 #include <functional>
 #include <limits>
 #include <mutex>
