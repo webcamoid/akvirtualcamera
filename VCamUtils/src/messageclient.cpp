@@ -249,7 +249,7 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
     auto connectionId = AkVCam::id();
 
     this->m_logsMutex.lock();
-    AkLogDebug("Connection ready: %lld", connectionId);
+    AkLogDebug("Connection ready: %" PRId64, connectionId);
     this->m_logsMutex.unlock();
 
     bool ok = true;
@@ -263,7 +263,7 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
 
         this->m_logsMutex.lock();
         AkLogDebug("Send message:");
-        AkLogDebug("    Connection ID: %lld", connectionId);
+        AkLogDebug("    Connection ID: %" PRId64, connectionId);
         AkLogDebug("    Message ID: %s", stringFromMessageId(inMessage.id()).c_str());
         AkLogDebug("    Query ID: %" PRIu64, inMessage.queryId());
         AkLogDebug("    Data size: %zu", inMessage.data().size());
@@ -313,7 +313,7 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
 
         this->m_logsMutex.lock();
         AkLogDebug("Received message:");
-        AkLogDebug("    Connection ID: %lld", connectionId);
+        AkLogDebug("    Connection ID: %" PRId64, connectionId);
         AkLogDebug("    Message ID: %s", stringFromMessageId(messageId).c_str());
         AkLogDebug("    Query ID: %" PRIu64, queryId);
         AkLogDebug("    Data size: %zu", outData.size());
@@ -326,7 +326,7 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
     }
 
     this->m_logsMutex.lock();
-    AkLogDebug("Connection closed: %lld", connectionId);
+    AkLogDebug("Connection closed: %" PRId64, connectionId);
     this->m_logsMutex.unlock();
 
     Sockets::closeSocket(clientSocket);

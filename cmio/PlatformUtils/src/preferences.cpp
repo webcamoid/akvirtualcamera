@@ -125,7 +125,7 @@ void AkVCam::Preferences::write(const std::string &key, int value)
 void AkVCam::Preferences::write(const std::string &key, int64_t value)
 {
     AkLogFunction();
-    AkLogInfo("Writing: %s = %lld", key.c_str(), value);
+    AkLogInfo("Writing: %s = %" PRId64, key.c_str(), value);
     auto cfKey = CFStringCreateWithCString(kCFAllocatorDefault,
                                            key.c_str(),
                                            kCFStringEncodingUTF8);

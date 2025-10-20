@@ -82,7 +82,7 @@ bool AkVCam::Preferences::write(const std::string &key,
                                 bool global)
 {
     AkLogFunction();
-    AkLogDebug("Writing: %s = %lld", key.c_str(), value);
+    AkLogDebug("Writing: %s = %" PRId64, key.c_str(), value);
 
     return setValue(key,
                     REG_QWORD,

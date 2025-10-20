@@ -1177,7 +1177,7 @@ int AkVCam::CmdParserPrivate::showFormats(const StringMap &flags,
 
     if (this->m_parseable) {
         for  (auto &format: this->m_ipcBridge.formats(args[1]))
-            AkPrintOut("%s %d %d %lld %lld",
+            AkPrintOut("%s %d %d %" PRId64 " %" PRId64,
                        pixelFormatToCommonString(format.format()).c_str(),
                        format.width(),
                        format.height(),

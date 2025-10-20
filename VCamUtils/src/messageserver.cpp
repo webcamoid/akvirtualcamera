@@ -246,7 +246,7 @@ void AkVCam::MessageServerPrivate::connection(SocketType clientSocket,
 
         this->m_logsMutex.lock();
         AkLogDebug("Received message:");
-        AkLogDebug("    Client ID: %lld", clientId);
+        AkLogDebug("    Client ID: %" PRId64, clientId);
         AkLogDebug("    Message ID: %s", stringFromMessageId(messageId).c_str());
         AkLogDebug("    Query ID: %" PRIu64, queryId);
         AkLogDebug("    Data size: %zu", inData.size());
