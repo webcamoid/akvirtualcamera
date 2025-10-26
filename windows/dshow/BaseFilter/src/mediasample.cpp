@@ -42,6 +42,10 @@ namespace AkVCam
             BOOL m_preroll {S_FALSE};
             BOOL m_discontinuity {S_FALSE};
             BOOL m_mediaTypeChanged {S_FALSE};
+            DWORD m_data {0};
+            DWORD m_typeSpecificFlags {0};
+            DWORD m_sampleFlags {0};
+            DWORD m_streamId {0};
     };
 }
 
@@ -49,7 +53,7 @@ AkVCam::MediaSample::MediaSample(IMemAllocator *memAllocator,
                                  LONG bufferSize,
                                  LONG align,
                                  LONG prefix):
-    CUnknown(this, IID_IMediaSample)
+    CUnknown()
 {
     this->d = new MediaSamplePrivate;
     this->d->m_memAllocator = memAllocator;
@@ -65,18 +69,27 @@ AkVCam::MediaSample::~MediaSample()
 {
     delete [] this->d->m_buffer;
     deleteMediaType(&this->d->m_mediaType);
+
     delete this->d;
+}
+
+void AkVCam::MediaSample::setMemAllocator(IMemAllocator *memAllocator)
+{
+    this->d->m_memAllocator = memAllocator;
 }
 
 ULONG AkVCam::MediaSample::Release()
 {
-    auto result = CUnknown::Release();
-    this->d->m_memAllocator->ReleaseBuffer(this);
+    AkLogFunction();
+    ULONG ref = --this->m_refCount;
 
-    if (!result)
+    if (this->d->m_memAllocator && ref == 1)
+        this->d->m_memAllocator->ReleaseBuffer(this);
+
+    if (ref == 0)
         delete this;
 
-    return result;
+    return ref;
 }
 
 HRESULT AkVCam::MediaSample::GetPointer(BYTE **ppBuffer)
@@ -159,6 +172,11 @@ HRESULT AkVCam::MediaSample::SetPreroll(BOOL bIsPreroll)
     AkLogFunction();
     this->d->m_preroll = bIsPreroll;
 
+    if (bIsPreroll)
+        this->d->m_sampleFlags |= AM_SAMPLE_PREROLL;
+    else
+        this->d->m_sampleFlags &= ~AM_SAMPLE_PREROLL;
+
     return S_OK;
 }
 
@@ -233,6 +251,11 @@ HRESULT AkVCam::MediaSample::SetDiscontinuity(BOOL bDiscontinuity)
     AkLogFunction();
     this->d->m_discontinuity = bDiscontinuity;
 
+    if (bDiscontinuity)
+        this->d->m_sampleFlags |= AM_SAMPLE_DATADISCONTINUITY;
+    else
+        this->d->m_sampleFlags &= ~AM_SAMPLE_DATADISCONTINUITY;
+
     return S_OK;
 }
 
@@ -260,6 +283,80 @@ HRESULT AkVCam::MediaSample::SetMediaTime(LONGLONG *pTimeStart,
 
     this->d->m_mediaTimeStart = pTimeStart? *pTimeStart: -1;
     this->d->m_mediaTimeEnd = pTimeEnd? *pTimeEnd: -1;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::MediaSample::SetProperties(DWORD cbProperties,
+                                           const BYTE *pbProperties)
+{
+    AkLogFunction();
+
+    if (cbProperties < sizeof(AM_SAMPLE2_PROPERTIES))
+        return E_INVALIDARG;
+
+    if (!pbProperties)
+        return E_POINTER;
+
+    auto properties =
+            reinterpret_cast<const AM_SAMPLE2_PROPERTIES *>(pbProperties);
+
+    if (properties->pbBuffer || properties->cbBuffer)
+        return E_INVALIDARG;
+
+    this->d->m_data = properties->cbData;
+    this->d->m_typeSpecificFlags = properties->dwTypeSpecificFlags;
+    this->d->m_sampleFlags = properties->dwSampleFlags;
+    this->SetDiscontinuity(this->d->m_sampleFlags & AM_SAMPLE_DATADISCONTINUITY);
+    this->SetSyncPoint(this->d->m_sampleFlags & AM_SAMPLE_SPLICEPOINT);
+    this->SetPreroll(this->d->m_sampleFlags & AM_SAMPLE_PREROLL);
+    this->SetActualDataLength(properties->lActual);
+    auto start = properties->tStart;
+    auto stop = properties->tStop;
+    this->SetTime(&start, &stop);
+    this->SetMediaTime(&start, &stop);
+    this->d->m_streamId = properties->dwStreamId;
+    deleteMediaType(&this->d->m_mediaType);
+    this->d->m_mediaType = createMediaType(properties->pMediaType);
+    this->SetMediaType(properties->pMediaType);
+    this->d->m_mediaTypeChanged = S_OK;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::MediaSample::GetProperties(DWORD cbProperties,
+                                           BYTE *pbProperties)
+{
+    AkLogFunction();
+
+    if (cbProperties < sizeof(AM_SAMPLE2_PROPERTIES))
+        return E_INVALIDARG;
+
+    if (!pbProperties)
+        return E_POINTER;
+
+    auto properties =
+            reinterpret_cast<AM_SAMPLE2_PROPERTIES *>(pbProperties);
+
+    properties->cbData = this->d->m_data;
+    properties->dwTypeSpecificFlags = this->d->m_typeSpecificFlags;
+    properties->dwSampleFlags = 0;
+
+    if (this->d->m_discontinuity)
+        properties->dwSampleFlags |= AM_SAMPLE_DATADISCONTINUITY;
+
+    if (this->d->m_syncPoint)
+        properties->dwSampleFlags |= AM_SAMPLE_SPLICEPOINT;
+
+    if (this->d->m_preroll)
+        properties->dwSampleFlags |= AM_SAMPLE_PREROLL;
+
+    properties->lActual = this->GetActualDataLength();
+    this->GetTime(&properties->tStart, &properties->tStop);
+    properties->dwStreamId = this->d->m_streamId;
+    properties->pMediaType = createMediaType(this->d->m_mediaType);
+    this->GetPointer(&properties->pbBuffer);
+    properties->cbBuffer = this->GetSize();
 
     return S_OK;
 }

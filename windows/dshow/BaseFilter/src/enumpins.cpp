@@ -22,6 +22,7 @@
 #include <dshow.h>
 
 #include "enumpins.h"
+#include "basefilter.h"
 #include "pin.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
@@ -31,28 +32,28 @@ namespace AkVCam
     class EnumPinsPrivate
     {
         public:
-            std::vector<IPin *> m_pins;
+            BaseFilter *m_baseFilter {nullptr};
+            std::vector<Pin *> m_pins;
             size_t m_position {0};
-            bool m_changed {false};
     };
 }
 
-AkVCam::EnumPins::EnumPins():
-    CUnknown(this, IID_IEnumPins)
+AkVCam::EnumPins::EnumPins(BaseFilter *baseFilter):
+    CUnknown()
 {
     this->d = new EnumPinsPrivate;
+    this->d->m_baseFilter = baseFilter;
 }
 
 AkVCam::EnumPins::EnumPins(const EnumPins &other):
-    CUnknown(this, IID_IEnumPins)
+    CUnknown()
 {
     this->d = new EnumPinsPrivate;
     this->d->m_position = other.d->m_position;
-    this->d->m_changed = other.d->m_changed;
 
     for (auto &pin: other.d->m_pins) {
         this->d->m_pins.push_back(pin);
-        this->d->m_pins.back()->AddRef();
+        pin->AddRef();
     }
 }
 
@@ -64,36 +65,77 @@ AkVCam::EnumPins::~EnumPins()
     delete this->d;
 }
 
-size_t AkVCam::EnumPins::count() const
+void AkVCam::EnumPins::addPin(const std::vector<VideoFormat> &formats,
+                              const std::string &pinName)
+{
+    this->d->m_pins.push_back(new Pin(this->d->m_baseFilter, formats, pinName));
+}
+
+size_t AkVCam::EnumPins::size() const
 {
     return this->d->m_pins.size();
 }
 
-void AkVCam::EnumPins::addPin(IPin *pin, bool changed)
+bool AkVCam::EnumPins::pin(size_t index, IPin **pPin) const
 {
-    this->d->m_pins.push_back(pin);
-    this->d->m_pins.back()->AddRef();
-    this->d->m_changed = changed;
+    if (index >= this->d->m_pins.size())
+        return false;
+
+    *pPin = this->d->m_pins[index];
+    (*pPin)->AddRef();
+
+    return true;
 }
 
-void AkVCam::EnumPins::removePin(IPin *pin, bool changed)
+bool AkVCam::EnumPins::contains(IPin *pin) const
 {
-    for (auto it = this->d->m_pins.begin(); it != this->d->m_pins.end(); it++)
-        if (*it == pin) {
-            this->d->m_pins.erase(it);
-            pin->Release();
-            this->d->m_changed = changed;
+    for (auto p: this->d->m_pins)
+        if (p == pin)
+            return true;
 
-            break;
-        }
+    return false;
 }
 
-void AkVCam::EnumPins::setBaseFilter(BaseFilter *baseFilter)
+HRESULT AkVCam::EnumPins::stop()
 {
+    HRESULT result = S_OK;
+
     for (auto &pin: this->d->m_pins) {
-        auto akPin = static_cast<Pin *>(pin);
-        akPin->setBaseFilter(baseFilter);
+        result = pin->stop();
+
+        if (FAILED(result))
+            return result;
     }
+
+    return result;
+}
+
+HRESULT AkVCam::EnumPins::pause()
+{
+    HRESULT result = S_OK;
+
+    for (auto &pin: this->d->m_pins) {
+        result = pin->pause();
+
+        if (FAILED(result))
+            return result;
+    }
+
+    return result;
+}
+
+HRESULT AkVCam::EnumPins::run(REFERENCE_TIME tStart)
+{
+    HRESULT result = S_OK;
+
+    for (auto &pin: this->d->m_pins) {
+        result = pin->run(tStart);
+
+        if (FAILED(result))
+            return result;
+    }
+
+    return result;
 }
 
 HRESULT AkVCam::EnumPins::Next(ULONG cPins, IPin **ppPins, ULONG *pcFetched)
@@ -110,12 +152,6 @@ HRESULT AkVCam::EnumPins::Next(ULONG cPins, IPin **ppPins, ULONG *pcFetched)
         return E_POINTER;
 
     memset(ppPins, 0, cPins * sizeof(IPin *));
-
-    if (this->d->m_changed) {
-        this->d->m_changed = false;
-
-        return VFW_E_ENUM_OUT_OF_SYNC;
-    }
 
     if (this->d->m_pins.empty())
         return S_FALSE;
@@ -146,12 +182,6 @@ HRESULT AkVCam::EnumPins::Skip(ULONG cPins)
     AkLogFunction();
     AkLogDebug("Skip %" PRIu64 " pins", cPins);
 
-    if (this->d->m_changed) {
-        this->d->m_changed = false;
-
-        return VFW_E_ENUM_OUT_OF_SYNC;
-    }
-
     auto position = this->d->m_position + cPins;
 
     if (position > this->d->m_pins.size())
@@ -177,14 +207,7 @@ HRESULT AkVCam::EnumPins::Clone(IEnumPins **ppEnum)
     if (!ppEnum)
         return E_POINTER;
 
-    if (this->d->m_changed) {
-        this->d->m_changed = false;
-
-        return VFW_E_ENUM_OUT_OF_SYNC;
-    }
-
     *ppEnum = new EnumPins(*this);
-    (*ppEnum)->AddRef();
 
     return S_OK;
 }

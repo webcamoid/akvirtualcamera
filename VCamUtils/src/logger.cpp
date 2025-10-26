@@ -235,11 +235,7 @@ void AkVCam::Logger::log(int logLevel,
     log += '\n';
 
     if (loggerPrivate()->fileStream) {
-        std::string line;
-
-        if (raw)
-            line = header;
-
+        auto line = header + logBuffer + std::string("\n");
         fwrite(line.c_str(), 1, line.size(), loggerPrivate()->fileStream);
         fflush(loggerPrivate()->fileStream);
     }

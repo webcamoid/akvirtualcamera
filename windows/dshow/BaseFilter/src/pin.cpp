@@ -27,16 +27,14 @@
 #include <sstream>
 #include <thread>
 #include <dshow.h>
+#include <amvideo.h>
+#include <dvdmedia.h>
+#include <uuids.h>
 
 #include "pin.h"
 #include "basefilter.h"
 #include "enummediatypes.h"
 #include "memallocator.h"
-#include "propertyset.h"
-#include "pushsource.h"
-#include "qualitycontrol.h"
-#include "referenceclock.h"
-#include "videoprocamp.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/fraction.h"
@@ -45,6 +43,9 @@
 #include "VCamUtils/src/videoframe.h"
 #include "VCamUtils/src/videoformatspec.h"
 #include "VCamUtils/src/utils.h"
+#include "VCamUtils/src/timer.h"
+
+#define TIME_BASE 1.0e7
 
 namespace AkVCam
 {
@@ -54,23 +55,22 @@ namespace AkVCam
             Pin *self;
             IpcBridgePtr m_bridge;
             BaseFilter *m_baseFilter {nullptr};
-            VideoProcAmp *m_videoProcAmp {nullptr};
             std::string m_pinName;
-            std::string m_pinId;
+            std::string m_deviceId;
+            AM_MEDIA_TYPE *m_mediaType {nullptr};
             EnumMediaTypes *m_mediaTypes {nullptr};
-            IPin *m_connectedTo {nullptr};
+            IPin *m_connectedPin {nullptr};
             IMemInputPin *m_memInputPin {nullptr};
             IMemAllocator *m_memAllocator {nullptr};
             REFERENCE_TIME m_pts {-1};
-            REFERENCE_TIME m_ptsDrift {0};
             REFERENCE_TIME m_start {0};
             REFERENCE_TIME m_stop {MAXLONGLONG};
             double m_rate {1.0};
-            FILTER_STATE m_prevState = State_Stopped;
-            DWORD_PTR m_adviseCookie {0};
-            HANDLE m_sendFrameEvent {nullptr};
-            std::thread m_sendFrameThread;
-            std::atomic<bool> m_running {false};
+            FILTER_STATE m_currentState {State_Stopped};
+            ULONG m_pushFlags {0};
+            REFERENCE_TIME m_streamOffset {0};
+            REFERENCE_TIME m_maxStreamOffset {0};
+            Timer m_timer;
             std::mutex m_mutex;
             VideoFrame m_currentFrame;
             VideoFrame m_testFrame;
@@ -85,11 +85,11 @@ namespace AkVCam
             LONG m_hue {0};
             LONG m_colorEnable {1};
             bool m_isRgb {false};
+            bool m_firstFrame {false};
             bool m_frameReady {false};
+            bool m_directMode {false};
 
-            void sendFrameOneShot();
-            void sendFrameLoop();
-            HRESULT sendFrame();
+            static void sendFrame(void *userData);
             VideoFrame applyAdjusts(const VideoFrame &frame);
             static void propertyChanged(void *userData,
                                         LONG property,
@@ -101,23 +101,24 @@ namespace AkVCam
 
 AkVCam::Pin::Pin(BaseFilter *baseFilter,
                  const std::vector<VideoFormat> &formats,
-                 const std::string &pinName):
-    StreamConfig(this)
+                 const std::string &pinName)
 {
     AkLogFunction();
-    this->setParent(this, &IID_IPin);
 
     this->d = new PinPrivate;
     this->d->self = this;
     this->d->m_baseFilter = baseFilter;
+    this->d->m_bridge = baseFilter->ipcBridge();
     this->d->m_pinName = pinName;
-    std::stringstream ss;
-    ss << "pin(" << this << ")";
-    this->d->m_pinId = ss.str();
     this->d->m_mediaTypes = new AkVCam::EnumMediaTypes(formats);
-    this->d->m_mediaTypes->AddRef();
+    this->d->m_deviceId = baseFilter->deviceId();
+    this->d->m_directMode = baseFilter->directMode();
+    this->d->m_timer.connectTimeout(this->d, &PinPrivate::sendFrame);
 
-    auto cameraIndex = Preferences::cameraFromId(baseFilter->deviceId());
+    if (!formats.empty())
+        this->d->m_mediaType = mediaTypeFromFormat(formats.front());
+
+    auto cameraIndex = Preferences::cameraFromId(this->d->m_deviceId);
 
     auto horizontalMirror = Preferences::cameraControlValue(cameraIndex, "hflip") > 0;
     auto verticalMirror = Preferences::cameraControlValue(cameraIndex, "vflip") > 0;
@@ -145,51 +146,46 @@ AkVCam::Pin::Pin(BaseFilter *baseFilter,
         this->d->m_mutex.unlock();
     }
 
-    baseFilter->QueryInterface(IID_IAMVideoProcAmp,
-                               reinterpret_cast<void **>(&this->d->m_videoProcAmp));
+    LONG flags = 0;
+    this->d->m_baseFilter->Get(VideoProcAmp_Brightness,
+                               &this->d->m_brightness,
+                               &flags);
+    this->d->m_baseFilter->Get(VideoProcAmp_Contrast,
+                               &this->d->m_contrast,
+                               &flags);
+    this->d->m_baseFilter->Get(VideoProcAmp_Saturation,
+                               &this->d->m_saturation,
+                               &flags);
+    this->d->m_baseFilter->Get(VideoProcAmp_Gamma,
+                               &this->d->m_gamma,
+                               &flags);
+    this->d->m_baseFilter->Get(VideoProcAmp_Hue,
+                               &this->d->m_hue,
+                               &flags);
+    this->d->m_baseFilter->Get(VideoProcAmp_ColorEnable,
+                               &this->d->m_colorEnable,
+                               &flags);
 
-    if (this->d->m_videoProcAmp) {
-        LONG flags = 0;
-        this->d->m_videoProcAmp->Get(VideoProcAmp_Brightness,
-                                     &this->d->m_brightness,
-                                     &flags);
-        this->d->m_videoProcAmp->Get(VideoProcAmp_Contrast,
-                                     &this->d->m_contrast,
-                                     &flags);
-        this->d->m_videoProcAmp->Get(VideoProcAmp_Saturation,
-                                     &this->d->m_saturation,
-                                     &flags);
-        this->d->m_videoProcAmp->Get(VideoProcAmp_Gamma,
-                                     &this->d->m_gamma,
-                                     &flags);
-        this->d->m_videoProcAmp->Get(VideoProcAmp_Hue,
-                                     &this->d->m_hue,
-                                     &flags);
-        this->d->m_videoProcAmp->Get(VideoProcAmp_ColorEnable,
-                                     &this->d->m_colorEnable,
-                                     &flags);
-
-        this->d->m_videoProcAmp->connectPropertyChanged(this->d,
-                                                        &PinPrivate::propertyChanged);
-    }
+    this->d->m_baseFilter->connectPropertyChanged(this->d,
+                                                  &PinPrivate::propertyChanged);
 }
 
 AkVCam::Pin::~Pin()
 {
     AkLogFunction();
-    this->d->m_mediaTypes->Release();
+    deleteMediaType(&this->d->m_mediaType);
 
-    if (this->d->m_connectedTo)
-        this->d->m_connectedTo->Release();
+    if (this->d->m_mediaTypes)
+        this->d->m_mediaTypes->Release();
+
+    if (this->d->m_connectedPin)
+        this->d->m_connectedPin->Release();
 
     if (this->d->m_memInputPin)
         this->d->m_memInputPin->Release();
 
     if (this->d->m_memAllocator)
         this->d->m_memAllocator->Release();
-
-    if (this->d->m_videoProcAmp)
-        this->d->m_videoProcAmp->Release();
 
     delete this->d;
 }
@@ -201,86 +197,112 @@ AkVCam::BaseFilter *AkVCam::Pin::baseFilter() const
     return this->d->m_baseFilter;
 }
 
-void AkVCam::Pin::setBaseFilter(BaseFilter *baseFilter)
+HRESULT AkVCam::Pin::stop()
 {
     AkLogFunction();
-    this->d->m_baseFilter = baseFilter;
-}
 
-void AkVCam::Pin::setBridge(IpcBridgePtr bridge)
-{
-    this->d->m_bridge = bridge;
-}
-
-HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
-{
-    auto self = reinterpret_cast<Pin *>(userData);
-    AkLogFunction();
-    AkLogDebug("Old state: %d", self->d->m_prevState);
-    AkLogDebug("New state: %d", state);
-
-    if (state == self->d->m_prevState)
+    if (this->d->m_currentState == State_Stopped)
         return S_OK;
 
-    if (self->d->m_prevState == State_Stopped) {
-        if (FAILED(self->d->m_memAllocator->Commit()))
-            return VFW_E_NOT_COMMITTED;
+    this->d->m_currentState = State_Stopped;
 
-        self->d->m_pts = -1;
-        self->d->m_ptsDrift = 0;
+    if (this->d->m_bridge)
+        this->d->m_bridge->deviceStop(this->d->m_deviceId);
 
-        self->d->m_sendFrameEvent =
-                CreateSemaphore(nullptr, 1, 1, TEXT("SendFrame"));
+    this->d->m_timer.stop();
+    this->d->m_memAllocator->Decommit();
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+    this->d->m_currentFrame = {};
 
-        self->d->m_running = true;
-        self->d->m_sendFrameThread =
-                std::thread(&PinPrivate::sendFrameLoop, self->d);
-        AkLogInfo("Launching thread 0x%x", self->d->m_sendFrameThread.get_id());
+    AkLogInfo("Stream stopped");
 
-        auto clock = self->d->m_baseFilter->referenceClock();
-        REFERENCE_TIME now = 0;
-        clock->GetTime(&now);
+    return S_OK;
+}
 
-        AM_MEDIA_TYPE *mediaType = nullptr;
-        self->GetFormat(&mediaType);
-        auto videoFormat = formatFromMediaType(mediaType);
-        deleteMediaType(&mediaType);
-        auto fps = videoFormat.fps();
-        auto period = REFERENCE_TIME(TIME_BASE / fps.value());
+HRESULT AkVCam::Pin::pause()
+{
+    AkLogFunction();
 
-        clock->AdvisePeriodic(now,
-                              period,
-                              HSEMAPHORE(self->d->m_sendFrameEvent),
-                              &self->d->m_adviseCookie);
-        self->d->m_frameReady = false;
-        self->d->m_currentFrame = {videoFormat};
-        self->d->m_videoConverter.setOutputFormat(videoFormat);
+    if (this->d->m_currentState == State_Paused)
+        return S_OK;
 
-        auto specs = VideoFormat::formatSpecs(videoFormat.format());
-        self->d->m_isRgb = specs.type() == VideoFormatSpec::VFT_RGB;
+    auto prevState = this->d->m_currentState;
+    this->d->m_currentState = State_Paused;
 
-        if (self->d->m_bridge)
-            self->d->m_bridge->deviceStart(IpcBridge::StreamType_Input,
-                                           self->d->m_baseFilter->deviceId());
-    } else if (state == State_Stopped) {
-        if (self->d->m_bridge)
-            self->d->m_bridge->deviceStop(self->d->m_baseFilter->deviceId());
+    if (prevState == State_Stopped) {
+        auto hr = this->d->m_memAllocator->Commit();
 
-        self->d->m_running = false;
-        self->d->m_sendFrameThread.join();
-        auto clock = self->d->m_baseFilter->referenceClock();
-        clock->Unadvise(self->d->m_adviseCookie);
-        self->d->m_adviseCookie = 0;
-        CloseHandle(self->d->m_sendFrameEvent);
-        self->d->m_sendFrameEvent = nullptr;
-        self->d->m_memAllocator->Decommit();
-        self->d->m_mutex.lock();
-        self->d->m_currentFrame = {};
-        self->d->m_mutex.unlock();
-        self->d->m_currentFrame = {};
+        if (FAILED(hr)) {
+            this->d->m_currentState = prevState;
+
+            return hr;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(this->d->m_mutex);
+
+            this->d->m_pts = 0;
+            this->d->m_firstFrame = true;
+            auto videoFormat = formatFromMediaType(this->d->m_mediaType);
+            this->d->m_currentFrame = {videoFormat};
+            this->d->m_videoConverter.setOutputFormat(videoFormat);
+            auto specs = VideoFormat::formatSpecs(videoFormat.format());
+            this->d->m_isRgb = specs.type() == VideoFormatSpec::VFT_RGB;
+        }
     }
 
-    self->d->m_prevState = state;
+    if (this->d->m_bridge)
+        this->d->m_bridge->deviceStop(this->d->m_deviceId);
+
+    if (prevState == State_Stopped) {
+        this->d->m_timer.setInterval(0);
+        this->d->m_timer.singleShot();
+    }
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::run(REFERENCE_TIME tStart)
+{
+    AkLogFunction();
+    AkLogDebug("Start time: %zu", tStart);
+
+    if (this->d->m_currentState == State_Running)
+        return S_OK;
+
+    auto prevState = this->d->m_currentState;
+    this->d->m_currentState = State_Running;
+    auto videoFormat = formatFromMediaType(this->d->m_mediaType);
+
+    if (prevState == State_Stopped) {
+        auto hr = this->d->m_memAllocator->Commit();
+
+        if (FAILED(hr)) {
+            this->d->m_currentState = prevState;
+
+            return hr;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(this->d->m_mutex);
+
+            this->d->m_pts = 0;
+            this->d->m_firstFrame = true;
+            this->d->m_currentFrame = {videoFormat};
+            this->d->m_videoConverter.setOutputFormat(videoFormat);
+            auto specs = VideoFormat::formatSpecs(videoFormat.format());
+            this->d->m_isRgb = specs.type() == VideoFormatSpec::VFT_RGB;
+        }
+    }
+
+    auto fps = videoFormat.fps();
+    this->d->m_timer.setInterval(static_cast<int>(1000 / fps.value()));
+    this->d->m_timer.start();
+
+    if (this->d->m_bridge)
+        this->d->m_bridge->deviceStart(IpcBridge::StreamType_Input, this->d->m_deviceId);
+
+    AkLogDebug("Stream running");
 
     return S_OK;
 }
@@ -288,21 +310,18 @@ HRESULT AkVCam::Pin::stateChanged(void *userData, FILTER_STATE state)
 void AkVCam::Pin::frameReady(const VideoFrame &frame, bool isActive)
 {
     AkLogFunction();
-    AkLogDebug("Running: %d", static_cast<bool>(this->d->m_running));
+    AkLogDebug("Running: %d", this->d->m_currentState == State_Running);
 
-    if (!this->d->m_running)
+    if (this->d->m_currentState != State_Running)
         return;
-
-    AM_MEDIA_TYPE *mediaType = nullptr;
-    this->GetFormat(&mediaType);
-    auto format = formatFromMediaType(mediaType);
-    deleteMediaType(&mediaType);
 
     AkLogDebug("Active: %d", isActive);
 
     this->d->m_mutex.lock();
 
-    if (this->d->m_baseFilter->directMode()) {
+    auto format = formatFromMediaType(this->d->m_mediaType);
+
+    if (this->d->m_directMode) {
         if (isActive && frame && format.isSameFormat(frame.format())) {
             memcpy(this->d->m_currentFrame.data(),
                    frame.constData(),
@@ -343,7 +362,7 @@ void AkVCam::Pin::setControls(const std::map<std::string, int> &controls)
 {
     AkLogFunction();
 
-    if (this->d->m_baseFilter->directMode())
+    if (this->d->m_directMode)
         return;
 
     for (auto &control: controls) {
@@ -384,54 +403,247 @@ void AkVCam::Pin::setVerticalFlip(bool flip)
     this->d->m_videoAdjusts.setVerticalMirror(flip);
 }
 
-HRESULT AkVCam::Pin::QueryInterface(const IID &riid, void **ppvObject)
+HRESULT AkVCam::Pin::GetLatency(REFERENCE_TIME *prtLatency)
 {
     AkLogFunction();
-    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
 
-    if (!ppvObject)
+    if (!prtLatency)
         return E_POINTER;
 
-    *ppvObject = nullptr;
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+    *prtLatency = 0;
 
-    if (IsEqualIID(riid, IID_IUnknown)
-        || IsEqualIID(riid, IID_IPin)) {
-        AkLogInterface(IPin, this);
-        this->AddRef();
-        *ppvObject = this;
+    auto mediaType = this->d->m_mediaType;
 
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_IAMStreamConfig)) {
-        auto streamConfig = static_cast<IAMStreamConfig *>(this);
-        AkLogInterface(IAMStreamConfig, streamConfig);
-        streamConfig->AddRef();
-        *ppvObject = streamConfig;
-
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_IAMPushSource)) {
-        auto pushSource = new PushSource(this);
-        AkLogInterface(IAMPushSource, pushSource);
-        pushSource->AddRef();
-        *ppvObject = pushSource;
-
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_IKsPropertySet)) {
-        auto propertySet = new PropertySet();
-        AkLogInterface(IKsPropertySet, propertySet);
-        propertySet->AddRef();
-        *ppvObject = propertySet;
-
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_IQualityControl)) {
-        auto qualityControl = new QualityControl();
-        AkLogInterface(IQualityControl, qualityControl);
-        qualityControl->AddRef();
-        *ppvObject = qualityControl;
-
-        return S_OK;
+    if (IsEqualGUID(mediaType->formattype, FORMAT_VideoInfo)) {
+        auto format = reinterpret_cast<VIDEOINFOHEADER *>(mediaType->pbFormat);
+        *prtLatency = format->AvgTimePerFrame;
+    } else if (IsEqualGUID(mediaType->formattype, FORMAT_VideoInfo2)) {
+        auto format = reinterpret_cast<VIDEOINFOHEADER2 *>(mediaType->pbFormat);
+        *prtLatency = format->AvgTimePerFrame;
     }
 
-    return CUnknown::QueryInterface(riid, ppvObject);
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::GetPushSourceFlags(ULONG *pFlags)
+{
+    AkLogFunction();
+
+    if (!pFlags)
+        return E_POINTER;
+
+    *pFlags = this->d->m_pushFlags;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::SetPushSourceFlags(ULONG Flags)
+{
+    AkLogFunction();
+
+    this->d->m_pushFlags = Flags;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::SetStreamOffset(REFERENCE_TIME rtOffset)
+{
+    AkLogFunction();
+
+    this->d->m_streamOffset = rtOffset;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::GetStreamOffset(REFERENCE_TIME *prtOffset)
+{
+    AkLogFunction();
+
+    if (!prtOffset)
+        return E_POINTER;
+
+    *prtOffset = this->d->m_streamOffset;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::GetMaxStreamOffset(REFERENCE_TIME *prtMaxOffset)
+{
+    AkLogFunction();
+
+    if (!prtMaxOffset)
+        return E_POINTER;
+
+    *prtMaxOffset = this->d->m_maxStreamOffset;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::SetMaxStreamOffset(REFERENCE_TIME rtMaxOffset)
+{
+    AkLogFunction();
+
+    this->d->m_maxStreamOffset = rtMaxOffset;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::SetFormat(AM_MEDIA_TYPE *pmt)
+{
+    AkLogFunction();
+    AkLogDebug("Media type: %s", stringFromMediaType(pmt).c_str());
+
+    if (!pmt)
+        return E_POINTER;
+
+    if (this->d->m_currentState != State_Stopped) {
+        AkLogError("The filter graph must be stopped");
+
+        return VFW_E_NOT_STOPPED;
+    }
+
+    if (!this->d->m_mediaTypes->contains(pmt)) {
+        AkLogError("Media type not supported");
+
+        return VFW_E_INVALIDMEDIATYPE;
+    }
+
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+    deleteMediaType(&this->d->m_mediaType);
+    this->d->m_mediaType = createMediaType(pmt);
+
+    if (this->d->m_connectedPin) {
+        this->d->m_connectedPin->Disconnect();
+        this->Disconnect();
+        auto hr = this->d->m_connectedPin->ReceiveConnection(this, this->d->m_mediaType);
+
+        if (FAILED(hr)) {
+            AkLogError("The connected pin did not accepted the media type: 0x%x", hr);
+
+            return hr;
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::GetFormat(AM_MEDIA_TYPE **pmt)
+{
+    AkLogFunction();
+
+    if (!pmt)
+        return E_POINTER;
+
+    *pmt = nullptr;
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+
+    if (!this->d->m_mediaType) {
+        AkLogError("Failed reading the media type");
+
+        return E_FAIL;
+    }
+
+    *pmt = createMediaType(this->d->m_mediaType);
+    AkLogDebug("MediaType: %s", stringFromMediaType(*pmt).c_str());
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::GetNumberOfCapabilities(int *piCount, int *piSize)
+{
+    AkLogFunction();
+
+    if (!piCount || !piSize)
+        return E_POINTER;
+
+    *piCount = static_cast<int>(this->d->m_mediaTypes->size());
+    *piSize = static_cast<int>(sizeof(VIDEO_STREAM_CONFIG_CAPS));
+
+    return S_OK;
+}
+
+HRESULT AkVCam::Pin::GetStreamCaps(int iIndex, AM_MEDIA_TYPE **pmt, BYTE *pSCC)
+{
+    AkLogFunction();
+
+    if (!pmt || !pSCC)
+        return E_POINTER;
+
+    *pmt = nullptr;
+    auto configCaps = reinterpret_cast<VIDEO_STREAM_CONFIG_CAPS *>(pSCC);
+    memset(configCaps, 0, sizeof(VIDEO_STREAM_CONFIG_CAPS));
+
+    if (iIndex < 0)
+        return E_INVALIDARG;
+
+    if (!this->d->m_mediaTypes->mediaType(iIndex, pmt)) {
+        AkLogWarning("No media type found for index %d", iIndex);
+
+        return S_FALSE;
+    }
+
+    if (IsEqualGUID((*pmt)->formattype, FORMAT_VideoInfo)) {
+        auto format = reinterpret_cast<VIDEOINFOHEADER *>((*pmt)->pbFormat);
+        configCaps->guid = (*pmt)->formattype;
+        configCaps->VideoStandard = AnalogVideo_None;
+        configCaps->InputSize.cx = format->bmiHeader.biWidth;
+        configCaps->InputSize.cy = format->bmiHeader.biHeight;
+        configCaps->MinCroppingSize.cx = format->bmiHeader.biWidth;
+        configCaps->MinCroppingSize.cy = format->bmiHeader.biHeight;
+        configCaps->MaxCroppingSize.cx = format->bmiHeader.biWidth;
+        configCaps->MaxCroppingSize.cy = format->bmiHeader.biHeight;
+        configCaps->CropGranularityX = 1;
+        configCaps->CropGranularityY = 1;
+        configCaps->CropAlignX = 0;
+        configCaps->CropAlignY = 0;
+        configCaps->MinOutputSize.cx = format->bmiHeader.biWidth;
+        configCaps->MinOutputSize.cy = format->bmiHeader.biHeight;
+        configCaps->MaxOutputSize.cx = format->bmiHeader.biWidth;
+        configCaps->MaxOutputSize.cy = format->bmiHeader.biHeight;
+        configCaps->OutputGranularityX = 1;
+        configCaps->OutputGranularityY = 1;
+        configCaps->StretchTapsX = 1;
+        configCaps->StretchTapsY = 1;
+        configCaps->ShrinkTapsX = 1;
+        configCaps->ShrinkTapsY = 1;
+        configCaps->MinFrameInterval = format->AvgTimePerFrame;
+        configCaps->MaxFrameInterval = format->AvgTimePerFrame;
+        configCaps->MinBitsPerSecond = LONG(format->dwBitRate);
+        configCaps->MaxBitsPerSecond = LONG(format->dwBitRate);
+    } else if (IsEqualGUID((*pmt)->formattype, FORMAT_VideoInfo2)) {
+        auto format = reinterpret_cast<VIDEOINFOHEADER2 *>((*pmt)->pbFormat);
+        configCaps->guid = (*pmt)->formattype;
+        configCaps->VideoStandard = AnalogVideo_None;
+        configCaps->InputSize.cx = format->bmiHeader.biWidth;
+        configCaps->InputSize.cy = format->bmiHeader.biHeight;
+        configCaps->MinCroppingSize.cx = format->bmiHeader.biWidth;
+        configCaps->MinCroppingSize.cy = format->bmiHeader.biHeight;
+        configCaps->MaxCroppingSize.cx = format->bmiHeader.biWidth;
+        configCaps->MaxCroppingSize.cy = format->bmiHeader.biHeight;
+        configCaps->CropGranularityX = 1;
+        configCaps->CropGranularityY = 1;
+        configCaps->CropAlignX = 0;
+        configCaps->CropAlignY = 0;
+        configCaps->MinOutputSize.cx = format->bmiHeader.biWidth;
+        configCaps->MinOutputSize.cy = format->bmiHeader.biHeight;
+        configCaps->MaxOutputSize.cx = format->bmiHeader.biWidth;
+        configCaps->MaxOutputSize.cy = format->bmiHeader.biHeight;
+        configCaps->OutputGranularityX = 1;
+        configCaps->OutputGranularityY = 1;
+        configCaps->StretchTapsX = 1;
+        configCaps->StretchTapsY = 1;
+        configCaps->ShrinkTapsX = 1;
+        configCaps->ShrinkTapsY = 1;
+        configCaps->MinFrameInterval = format->AvgTimePerFrame;
+        configCaps->MaxFrameInterval = format->AvgTimePerFrame;
+        configCaps->MinBitsPerSecond = LONG(format->dwBitRate);
+        configCaps->MaxBitsPerSecond = LONG(format->dwBitRate);
+    }
+
+    AkLogInfo("Media Type: %s", stringFromMediaType(*pmt).c_str());
+
+    return S_OK;
 }
 
 HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
@@ -440,26 +652,35 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
     AkLogDebug("Receive pin: %p", pReceivePin);
     AkLogDebug("Media type: %s", stringFromMediaType(pmt).c_str());
 
-    if (!pReceivePin)
+    if (!pReceivePin) {
+        AkLogError("Invalid pin pointer");
+
         return E_POINTER;
+    }
 
-    if (this->d->m_connectedTo)
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+
+    if (this->d->m_connectedPin) {
+        AkLogError("The pin is aready connected");
+
         return VFW_E_ALREADY_CONNECTED;
+    }
 
-    if (this->d->m_baseFilter) {
-        FILTER_STATE state;
+    if (this->d->m_currentState != State_Stopped) {
+        AkLogError("The filter graph is not stopped");
 
-        if (SUCCEEDED(this->d->m_baseFilter->GetState(0, &state))
-            && state != State_Stopped)
-            return VFW_E_NOT_STOPPED;
+        return VFW_E_NOT_STOPPED;
     }
 
     PIN_DIRECTION direction = PINDIR_OUTPUT;
 
     // Only connect to an input pin.
     if (FAILED(pReceivePin->QueryDirection(&direction))
-        || direction != PINDIR_INPUT)
+        || direction != PINDIR_INPUT) {
+        AkLogError("The pin is not an input pin");
+
         return VFW_E_NO_TRANSPORT;
+    }
 
     /* When the Filter Graph Manager calls Connect, the output pin must request
      * a IMemInputPin and get a IMemAllocator interface to the input pin.
@@ -468,29 +689,34 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
 
     if (FAILED(pReceivePin->QueryInterface(IID_IMemInputPin,
                                            reinterpret_cast<void **>(&memInputPin)))) {
+        AkLogError("Can't get IMemInputPin interface");
+
         return VFW_E_NO_TRANSPORT;
     }
 
     AM_MEDIA_TYPE *mediaType = nullptr;
 
     if (pmt) {
+        AkLogDebug("Testing requested media type: %s", stringFromMediaType(pmt).c_str());
+
         // Try setting requested media type.
-        if (!containsMediaType(pmt, this->d->m_mediaTypes))
+        if (!this->d->m_mediaTypes->contains(pmt)) {
+            AkLogError("Media type not supported: %s", stringFromMediaType(pmt).c_str());
+
             return VFW_E_TYPE_NOT_ACCEPTED;
+        }
 
         mediaType = createMediaType(pmt);
     } else {
-        // Test currently set media type.
-        AM_MEDIA_TYPE *mt = nullptr;
+        AkLogDebug("Testing media type: %s", stringFromMediaType(this->d->m_mediaType).c_str());
 
-        if (SUCCEEDED(this->GetFormat(&mt)) && mt) {
-            if (pReceivePin->QueryAccept(mt) == S_OK)
-                mediaType = mt;
-            else
-                deleteMediaType(&mt);
-        }
+        // Test currently set media type.
+        if (pReceivePin->QueryAccept(this->d->m_mediaType) == S_OK)
+            mediaType = createMediaType(this->d->m_mediaType);
 
         if (!mediaType) {
+            AkLogDebug("Currently set media type was not accepted. Trying with the mediatypes supported by receiver.");
+
             // Test media types supported by the input pin.
             AM_MEDIA_TYPE *mt = nullptr;
             IEnumMediaTypes *mediaTypes = nullptr;
@@ -499,12 +725,11 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
                 mediaTypes->Reset();
 
                 while (mediaTypes->Next(1, &mt, nullptr) == S_OK) {
-                    AkLogInfo("Testing media type: %s",
-                              stringFromMediaType(mt).c_str());
+                    AkLogDebug("Testing media type: %s", stringFromMediaType(mt));
 
                     // If the mediatype match our suported mediatypes...
                     if (this->QueryAccept(mt) == S_OK) {
-                        // set it.
+                        AkLogDebug("Receiver media type accepted: %s", stringFromMediaType(mt));
                         mediaType = mt;
 
                         break;
@@ -518,14 +743,17 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
         }
 
         if (!mediaType) {
+            AkLogDebug("Receiver pin media types not supported by us. Ask if the receiver supports one of us.");
+
             /* If none of the input media types was suitable for us, ask to
              * input pin if it at least supports one of us.
              */
-            AM_MEDIA_TYPE *mt = nullptr;
-            this->d->m_mediaTypes->Reset();
+            for (size_t i = 0; i < this->d->m_mediaTypes->size(); ++i) {
+                AM_MEDIA_TYPE *mt = nullptr;
+                this->d->m_mediaTypes->mediaType(i, &mt);
 
-            while (this->d->m_mediaTypes->Next(1, &mt, nullptr) == S_OK) {
                 if (pReceivePin->QueryAccept(mt) == S_OK) {
+                    AkLogDebug("Receiver accepted our media type: %s", stringFromMediaType(mt));
                     mediaType = mt;
 
                     break;
@@ -536,13 +764,17 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
         }
     }
 
-    if (!mediaType)
-        return VFW_E_NO_ACCEPTABLE_TYPES;
+    if (!mediaType) {
+        AkLogError("No acceptable media type was found");
 
-    AkLogInfo("Setting Media Type: %s", stringFromMediaType(mediaType).c_str());
+        return VFW_E_NO_ACCEPTABLE_TYPES;
+    }
+
+    AkLogInfo("Setting media type: %s", stringFromMediaType(mediaType).c_str());
     auto result = pReceivePin->ReceiveConnection(this, mediaType);
 
     if (FAILED(result)) {
+        AkLogError("Failed setting the media type: 0x%x", result);
         deleteMediaType(&mediaType);
 
         return result;
@@ -568,16 +800,15 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
     IMemAllocator *memAllocator = nullptr;
 
     // if it fail use our own.
-    if (FAILED(memInputPin->GetAllocator(&memAllocator))) {
+    if (FAILED(memInputPin->GetAllocator(&memAllocator)))
         memAllocator = new MemAllocator;
-        memAllocator->AddRef();
-    }
 
     ALLOCATOR_PROPERTIES actualRequirements;
     memset(&actualRequirements, 0, sizeof(ALLOCATOR_PROPERTIES));
 
     if (FAILED(memAllocator->SetProperties(&allocatorRequirements,
                                            &actualRequirements))) {
+        AkLogError("Failed setting the allocator properties");
         memAllocator->Release();
         memInputPin->Release();
         deleteMediaType(&mediaType);
@@ -586,6 +817,7 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
     }
 
     if (FAILED(memInputPin->NotifyAllocator(memAllocator, S_OK))) {
+        AkLogError("Failed to notify the allocator");
         memAllocator->Release();
         memInputPin->Release();
         deleteMediaType(&mediaType);
@@ -602,14 +834,19 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
         this->d->m_memAllocator->Release();
 
     this->d->m_memAllocator = memAllocator;
-    this->SetFormat(mediaType);
+    deleteMediaType(&this->d->m_mediaType);
+    this->d->m_mediaType = mediaType;
 
-    if (this->d->m_connectedTo)
-        this->d->m_connectedTo->Release();
+    if (this->d->m_connectedPin) {
+        this->d->m_connectedPin->Release();
+        this->d->m_connectedPin = nullptr;
+    }
 
-    this->d->m_connectedTo = pReceivePin;
-    this->d->m_connectedTo->AddRef();
-    this->d->m_baseFilter->connectStateChanged(this, &Pin::stateChanged);
+    if (pReceivePin) {
+        this->d->m_connectedPin = pReceivePin;
+        this->d->m_connectedPin->AddRef();
+    }
+
     AkLogInfo("Connected to %p", pReceivePin);
 
     return S_OK;
@@ -628,19 +865,15 @@ HRESULT AkVCam::Pin::ReceiveConnection(IPin *pConnector,
 HRESULT AkVCam::Pin::Disconnect()
 {
     AkLogFunction();
-    this->d->m_baseFilter->disconnectStateChanged(this, &Pin::stateChanged);
 
-    if (this->d->m_baseFilter) {
-        FILTER_STATE state;
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
 
-        if (SUCCEEDED(this->d->m_baseFilter->GetState(0, &state))
-            && state != State_Stopped)
-            return VFW_E_NOT_STOPPED;
-    }
+    if (this->d->m_currentState != State_Stopped)
+        return VFW_E_NOT_STOPPED;
 
-    if (this->d->m_connectedTo) {
-        this->d->m_connectedTo->Release();
-        this->d->m_connectedTo = nullptr;
+    if (this->d->m_connectedPin) {
+        this->d->m_connectedPin->Release();
+        this->d->m_connectedPin = nullptr;
     }
 
     if (this->d->m_memInputPin) {
@@ -663,12 +896,12 @@ HRESULT AkVCam::Pin::ConnectedTo(IPin **pPin)
     if (!pPin)
         return E_POINTER;
 
-    *pPin = nullptr;
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
 
-    if (!this->d->m_connectedTo)
+    if (!this->d->m_connectedPin)
         return VFW_E_NOT_CONNECTED;
 
-    *pPin = this->d->m_connectedTo;
+    *pPin = this->d->m_connectedPin;
     (*pPin)->AddRef();
 
     return S_OK;
@@ -682,14 +915,13 @@ HRESULT AkVCam::Pin::ConnectionMediaType(AM_MEDIA_TYPE *pmt)
         return E_POINTER;
 
     memset(pmt, 0, sizeof(AM_MEDIA_TYPE));
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
 
-    if (!this->d->m_connectedTo)
+    if (!this->d->m_connectedPin)
         return VFW_E_NOT_CONNECTED;
 
-    AM_MEDIA_TYPE *mediaType = nullptr;
-    this->GetFormat(&mediaType);
-    copyMediaType(pmt, mediaType);
-    AkLogInfo("Media Type: %s", stringFromMediaType(mediaType).c_str());
+    copyMediaType(pmt, this->d->m_mediaType);
+    AkLogInfo("Media Type: %s", stringFromMediaType(this->d->m_mediaType).c_str());
 
     return S_OK;
 }
@@ -741,7 +973,7 @@ HRESULT AkVCam::Pin::QueryId(LPWSTR *Id)
     if (!Id)
         return E_POINTER;
 
-    *Id = wstrFromString(this->d->m_pinId);
+    *Id = wstrFromString(this->d->m_pinName);
 
     if (!*Id)
         return E_OUTOFMEMORY;
@@ -758,7 +990,7 @@ HRESULT AkVCam::Pin::QueryAccept(const AM_MEDIA_TYPE *pmt)
 
     AkLogDebug("Accept? %s", stringFromMediaType(pmt).c_str());
 
-    if (!containsMediaType(pmt, this->d->m_mediaTypes)) {
+    if (!this->d->m_mediaTypes->contains(pmt)) {
         AkLogInfo("NO");
 
         return S_FALSE;
@@ -776,8 +1008,7 @@ HRESULT AkVCam::Pin::EnumMediaTypes(IEnumMediaTypes **ppEnum)
     if (!ppEnum)
         return E_POINTER;
 
-    *ppEnum = new AkVCam::EnumMediaTypes(this->d->m_mediaTypes->formats());
-    (*ppEnum)->AddRef();
+    *ppEnum = new AkVCam::EnumMediaTypes(*this->d->m_mediaTypes);
 
     return S_OK;
 }
@@ -785,31 +1016,43 @@ HRESULT AkVCam::Pin::EnumMediaTypes(IEnumMediaTypes **ppEnum)
 HRESULT AkVCam::Pin::QueryInternalConnections(IPin **apPin, ULONG *nPin)
 {
     AkLogFunction();
-    UNUSED(apPin);
-    UNUSED(nPin);
 
-    return E_NOTIMPL;
+    if (!apPin || !nPin)
+        return E_POINTER;
+
+    *apPin = nullptr;
+    *nPin = 0;
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+
+    if (!this->d->m_connectedPin)
+        return S_OK;
+
+    apPin[0] = this->d->m_connectedPin;
+    this->d->m_connectedPin->AddRef();
+    *nPin = 1;
+
+    return S_OK;
 }
 
 HRESULT AkVCam::Pin::EndOfStream()
 {
     AkLogFunction();
 
-    return E_UNEXPECTED;
+    return S_OK;
 }
 
 HRESULT AkVCam::Pin::BeginFlush()
 {
     AkLogFunction();
 
-    return E_UNEXPECTED;
+    return S_OK;
 }
 
 HRESULT AkVCam::Pin::EndFlush()
 {
     AkLogFunction();
 
-    return E_UNEXPECTED;
+    return S_OK;
 }
 
 HRESULT AkVCam::Pin::NewSegment(REFERENCE_TIME tStart,
@@ -824,141 +1067,102 @@ HRESULT AkVCam::Pin::NewSegment(REFERENCE_TIME tStart,
     return S_OK;
 }
 
-void AkVCam::PinPrivate::sendFrameOneShot()
+void AkVCam::PinPrivate::sendFrame(void *userData)
 {
     AkLogFunction();
+    auto self = reinterpret_cast<PinPrivate *>(userData);
 
-    WaitForSingleObject(this->m_sendFrameEvent, INFINITE);
-    this->sendFrame();
-    AkLogDebug("Thread 0x%x finnished", std::this_thread::get_id());
-    this->m_running = false;
-}
+    if (self->m_currentState == State_Stopped)
+        return;
 
-void AkVCam::PinPrivate::sendFrameLoop()
-{
-    AkLogFunction();
+    if (!self->m_memAllocator || !self->m_memInputPin)
+        return;
 
-    while (this->m_running) {
-        WaitForSingleObject(this->m_sendFrameEvent, INFINITE);
-        auto result = this->sendFrame();
-
-        if (FAILED(result)) {
-            AkLogError("Error sending frame: 0x%x: %s",
-                       result,
-                       stringFromResult(result).c_str());
-            this->m_running = false;
-
-            break;
-        }
-    }
-
-    AkLogDebug("Thread %" PRIu64 " finnished", std::this_thread::get_id());
-}
-
-HRESULT AkVCam::PinPrivate::sendFrame()
-{
-    AkLogFunction();
     IMediaSample *sample = nullptr;
 
-    if (FAILED(this->m_memAllocator->GetBuffer(&sample,
+    if (FAILED(self->m_memAllocator->GetBuffer(&sample,
                                                nullptr,
                                                nullptr,
                                                0))
-        || !sample)
-        return E_FAIL;
+        || !sample) {
+        AkLogError("Failed getting a sample");
+
+        return;
+    }
 
     BYTE *pData = nullptr;
     LONG size = sample->GetSize();
 
     if (size < 1 || FAILED(sample->GetPointer(&pData)) || !pData) {
+        AkLogError("Failed getting the sample data pointer");
         sample->Release();
 
-        return E_FAIL;
+        return;
     }
 
-    this->m_mutex.lock();
+    {
+        std::lock_guard<std::mutex> lock(self->m_mutex);
 
-    if (this->m_frameReady && this->m_currentFrame.size() > 0) {
-        if (this->m_isRgb) {
-            auto line = pData;
-            auto lineSize = this->m_currentFrame.lineSize(0);
-            auto height = this->m_currentFrame.format().height();
+        if (self->m_frameReady && self->m_currentFrame.size() > 0) {
+            if (self->m_isRgb) {
+                auto line = pData;
+                auto lineSize = self->m_currentFrame.lineSize(0);
+                auto height = self->m_currentFrame.format().height();
 
-            for (int y = 0; y < height; ++y) {
-                memcpy(line, this->m_currentFrame.constLine(0, height - y - 1), lineSize);
-                line += lineSize;
+                for (int y = 0; y < height; ++y) {
+                    memcpy(line, self->m_currentFrame.constLine(0, height - y - 1), lineSize);
+                    line += lineSize;
+                }
+            } else {
+                auto copyBytes = std::min(size_t(size), self->m_currentFrame.size());
+
+                if (copyBytes > 0)
+                    memcpy(pData, self->m_currentFrame.constData(), copyBytes);
             }
         } else {
-            auto copyBytes = std::min(size_t(size), this->m_currentFrame.size());
+            auto frame = self->randomFrame();
+            auto copyBytes = std::min(size_t(size), frame.size());
 
             if (copyBytes > 0)
-                memcpy(pData, this->m_currentFrame.constData(), copyBytes);
+                memcpy(pData, frame.constData(), copyBytes);
         }
-    } else {
-        auto frame = this->randomFrame();
-        auto copyBytes = std::min(size_t(size), frame.size());
-
-        if (copyBytes > 0)
-            memcpy(pData, frame.constData(), copyBytes);
     }
 
-    this->m_mutex.unlock();
-
-    REFERENCE_TIME clock = 0;
-    this->m_baseFilter->referenceClock()->GetTime(&clock);
-
-    AM_MEDIA_TYPE *mediaType = nullptr;
-    self->GetFormat(&mediaType);
-    auto format = formatFromMediaType(mediaType);
-    deleteMediaType(&mediaType);
+    auto format = formatFromMediaType(self->m_mediaType);
     auto fps = format.fps();
     auto duration = REFERENCE_TIME(TIME_BASE / fps.value());
 
-    if (this->m_pts < 0) {
-        this->m_pts = 0;
-        this->m_ptsDrift = this->m_pts - clock;
-    } else {
-        auto diff = clock - this->m_pts + this->m_ptsDrift;
+    auto timeStart = self->m_pts;
+    auto timeEnd = timeStart + duration;
 
-        if (diff <= 2 * duration) {
-            this->m_pts = clock + this->m_ptsDrift;
-        } else {
-            this->m_pts += duration;
-            this->m_ptsDrift = this->m_pts - clock;
-        }
-    }
-
-    auto startTime = this->m_pts;
-    auto endTime = startTime + duration;
-
-    sample->SetTime(&startTime, &endTime);
-    sample->SetMediaTime(&startTime, &endTime);
+    sample->SetMediaType(self->m_mediaType);
+    sample->SetTime(&timeStart, &timeEnd);
+    sample->SetMediaTime(&timeStart, &timeEnd);
     sample->SetActualDataLength(size);
-    sample->SetDiscontinuity(false);
+    sample->SetDiscontinuity(self->m_firstFrame);
     sample->SetSyncPoint(true);
     sample->SetPreroll(false);
-    AkLogDebug("Sending %s", stringFromMediaSample(sample).c_str());
-    auto result = this->m_memInputPin->Receive(sample);
-    AkLogDebug("Frame sent");
-    sample->Release();
+    self->m_firstFrame = false;
+    self->m_pts = timeEnd;
 
-    return result;
+    AkLogDebug("Sending %s", stringFromMediaSample(sample).c_str());
+    auto result = self->m_memInputPin->Receive(sample);
+
+    if (result == S_FALSE)
+         result = S_OK;
+
+    sample->Release();
+    AkLogDebug("Frame sent");
 }
 
 AkVCam::VideoFrame AkVCam::PinPrivate::applyAdjusts(const VideoFrame &frame)
 {
-    AM_MEDIA_TYPE *mediaType = nullptr;
-
-    if (FAILED(this->self->GetFormat(&mediaType)))
-        return {};
-
-    auto format = formatFromMediaType(mediaType);
-    deleteMediaType(&mediaType);
+    auto format = formatFromMediaType(this->m_mediaType);
     VideoFrame newFrame;
 
     this->m_videoConverter.begin();
 
-    if (this->m_baseFilter->directMode()) {
+    if (this->m_directMode) {
         newFrame = this->m_videoConverter.convert(frame);
     } else {
         int width = format.width();
@@ -1031,13 +1235,7 @@ void AkVCam::PinPrivate::propertyChanged(void *userData,
 
 AkVCam::VideoFrame AkVCam::PinPrivate::randomFrame()
 {
-    AM_MEDIA_TYPE *mediaType = nullptr;
-
-    if (FAILED(this->self->GetFormat(&mediaType)))
-        return {};
-
-    auto format = formatFromMediaType(mediaType);
-    deleteMediaType(&mediaType);
+    auto format = formatFromMediaType(this->m_mediaType);
 
     VideoFrame frame(format);
     static std::uniform_int_distribution<int> distribution(0, 255);

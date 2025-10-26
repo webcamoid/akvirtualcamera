@@ -19,7 +19,6 @@
 
 #include "classfactory.h"
 #include "BaseFilter/src/basefilter.h"
-#include "BaseFilter/src/persistpropertybag.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
@@ -29,14 +28,14 @@ namespace AkVCam
     {
         public:
             CLSID m_clsid;
-            static int m_locked;
+            static std::atomic<uint64_t> m_locked;
     };
 
-    int ClassFactoryPrivate::m_locked = 0;
+    std::atomic<uint64_t> ClassFactoryPrivate::m_locked = 0;
 }
 
 AkVCam::ClassFactory::ClassFactory(const CLSID &clsid):
-    CUnknown(this, IID_IClassFactory)
+    CUnknown()
 {
     this->d = new ClassFactoryPrivate;
     this->d->m_clsid = clsid;
@@ -52,46 +51,6 @@ bool AkVCam::ClassFactory::locked()
     return ClassFactoryPrivate::m_locked > 0;
 }
 
-HRESULT AkVCam::ClassFactory::QueryInterface(const IID &riid, void **ppvObject)
-{
-    AkLogFunction();
-    AkLogDebug("IID: %s", AkVCam::stringFromClsid(riid).c_str());
-
-    if (!ppvObject)
-        return E_POINTER;
-
-    *ppvObject = nullptr;
-
-    if (IsEqualIID(riid, IID_IUnknown)
-        || IsEqualIID(riid, IID_IClassFactory)) {
-        AkLogInterface(IClassFactory, this);
-        this->AddRef();
-        *ppvObject = this;
-
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_IPersistPropertyBag)) {
-        auto persistPropertyBag = new PersistPropertyBag(this->d->m_clsid);
-        AkLogInterface(IPersistPropertyBag, persistPropertyBag);
-        persistPropertyBag->AddRef();
-        *ppvObject = persistPropertyBag;
-
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_IBaseFilter)) {
-        auto baseFilter = BaseFilter::create(this->d->m_clsid);
-        AkLogInterface(IBaseFilter, baseFilter);
-
-        if (!baseFilter)
-            return E_FAIL;
-
-        baseFilter->AddRef();
-        *ppvObject = baseFilter;
-
-        return S_OK;
-    }
-
-    return CUnknown::QueryInterface(riid, ppvObject);
-}
-
 HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
                                              const IID &riid,
                                              void **ppvObject)
@@ -100,24 +59,24 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
     AkLogDebug("Outer: %p", pUnkOuter);
     AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
 
-    if (!ppvObject)
-        return E_INVALIDARG;
+    if (pUnkOuter)
+        return CLASS_E_NOAGGREGATION;
 
-    *ppvObject = nullptr;
+    auto filter = new BaseFilter(this->d->m_clsid);
+    auto hr = filter->QueryInterface(riid, ppvObject);
+    filter->Release();
 
-    if (pUnkOuter && !IsEqualIID(riid, IID_IUnknown))
-        return E_NOINTERFACE;
-
-    this->AddRef();
-    *ppvObject = this;
-
-    return S_OK;
+    return hr;
 }
 
 HRESULT AkVCam::ClassFactory::LockServer(BOOL fLock)
 {
     AkLogFunction();
-    this->d->m_locked += fLock? 1: -1;
+
+    if (fLock)
+        this->d->m_locked++;
+    else
+        this->d->m_locked--;
 
     return S_OK;
 }

@@ -22,20 +22,28 @@
 #include <cstdint>
 #include <iostream>
 #include <dshow.h>
+#include <amvideo.h>
+#include <dvdmedia.h>
 
 #include "basefilter.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/logger.h"
 
+#define VIDEO_WIDTH  800
+#define VIDEO_HEIGHT 600
+
 LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 IPin *getPin(IBaseFilter *pFilter, PIN_DIRECTION dir);
+HRESULT setFormat(IPin *pPin, int width, int height);
 
 int WINAPI WinMain(HINSTANCE hInstance,
                    HINSTANCE hPrevInstance,
                    LPSTR lpCmdLine,
                    int nCmdShow)
 {
+    UNUSED(hPrevInstance);
+    UNUSED(lpCmdLine);
     AkVCam::logSetup();
 
     // Initialize COM for DirectShow
@@ -75,8 +83,8 @@ int WINAPI WinMain(HINSTANCE hInstance,
                              WS_OVERLAPPEDWINDOW,
                              CW_USEDEFAULT,
                              CW_USEDEFAULT,
-                             800,
-                             600,
+                             VIDEO_WIDTH,
+                             VIDEO_HEIGHT,
                              nullptr,
                              nullptr,
                              hInstance,
@@ -189,6 +197,19 @@ int WINAPI WinMain(HINSTANCE hInstance,
         return -1;
     }
 
+    if (FAILED(setFormat(sourcePin, VIDEO_WIDTH, VIDEO_HEIGHT))) {
+        MessageBox(nullptr,
+                   TEXT("Only RGB32 and RGB24 are supported."),
+                   TEXT("Error"),
+                   MB_OK | MB_ICONERROR);
+        pRenderer->Release();
+        pSourceFilter->Release();
+        pGraph->Release();
+        CoUninitialize();
+
+        return -1;
+    }
+
     hr = pGraph->Render(sourcePin);
     sourcePin->Release();
 
@@ -226,7 +247,6 @@ int WINAPI WinMain(HINSTANCE hInstance,
 
     if (SUCCEEDED(hr)) {
         hr = pControl->Run();
-        pControl->Release();
 
         if (FAILED(hr)) {
             MessageBox(nullptr,
@@ -260,11 +280,8 @@ int WINAPI WinMain(HINSTANCE hInstance,
         }
 
     // Cleanup
-    if (pControl) {
-        pControl->Stop();
-        pControl->Release();
-    }
-
+    pControl->Stop();
+    pControl->Release();
     pRenderer->Release();
     pSourceFilter->Release();
     pGraph->Release();
@@ -339,4 +356,140 @@ IPin *getPin(IBaseFilter *pFilter, PIN_DIRECTION dir)
 
 
     return nullptr;
+}
+
+HRESULT setFormat(IPin *pPin, int width, int height)
+{
+    if (!pPin)
+        return E_POINTER;
+
+    // Get IAMStreamConfig from the output pin
+    IAMStreamConfig *pConfig = nullptr;
+    auto hr = pPin->QueryInterface(IID_IAMStreamConfig,
+                                   reinterpret_cast<void **>(&pConfig));
+
+    if (FAILED(hr) || !pConfig)
+        return hr;
+
+    IPin *connectedPin = nullptr;
+
+    if (FAILED(pPin->ConnectedTo(&connectedPin)))
+        connectedPin = nullptr;
+
+    // Select the best media type nearest to width x height
+    int iCount = 0;
+    int iSize = 0;
+    hr = pConfig->GetNumberOfCapabilities(&iCount, &iSize);
+
+    if (FAILED(hr)) {
+        pConfig->Release();
+
+        if (connectedPin)
+            connectedPin->Release();
+
+        return hr;
+    }
+
+    std::vector<BYTE> pSCC(iSize);
+    long targetPixels = (long)width * height;
+    long minDiff = LONG_MAX;
+    ULONG bestIndex = ULONG_MAX;
+
+    for (ULONG i = 0; i < iCount; ++i) {
+        AM_MEDIA_TYPE *pmt = nullptr;
+        hr = pConfig->GetStreamCaps(i, &pmt, pSCC.data());
+
+        if (FAILED(hr) || !pmt)
+            continue;
+
+        if (pmt->majortype != MEDIATYPE_Video) {
+            AkVCam::deleteMediaType(&pmt);
+
+            continue;
+        }
+
+        if (connectedPin && connectedPin->QueryAccept(pmt) != S_OK) {
+            AkVCam::deleteMediaType(&pmt);
+
+            continue;
+        }
+
+        bool isRGB = false;
+        int thisWidth = 0;
+        int thisHeight = 0;
+
+        if (pmt->formattype == FORMAT_VideoInfo) {
+            auto pvi = reinterpret_cast<VIDEOINFOHEADER *>(pmt->pbFormat);
+
+            if (pvi->bmiHeader.biCompression == BI_RGB) {
+                int bpp = pvi->bmiHeader.biBitCount;
+                GUID subtype = pmt->subtype;
+
+                if ((bpp == 32 && subtype == MEDIASUBTYPE_RGB32)
+                    || (bpp == 24 && subtype == MEDIASUBTYPE_RGB24)) {
+                    isRGB = true;
+                    thisWidth = pvi->bmiHeader.biWidth;
+                    thisHeight = std::abs(pvi->bmiHeader.biHeight);
+                }
+            }
+        } else if (pmt->formattype == FORMAT_VideoInfo2) {
+            auto pvi2 = reinterpret_cast<VIDEOINFOHEADER2 *>(pmt->pbFormat);
+
+            if (pvi2->bmiHeader.biCompression == BI_RGB) {
+                int bpp = pvi2->bmiHeader.biBitCount;
+                GUID subtype = pmt->subtype;
+
+                if ((bpp == 32 && subtype == MEDIASUBTYPE_RGB32)
+                    || (bpp == 24 && subtype == MEDIASUBTYPE_RGB24)) {
+                    isRGB = true;
+                    thisWidth = pvi2->bmiHeader.biWidth;
+                    thisHeight = std::abs(pvi2->bmiHeader.biHeight);
+                }
+            }
+        }
+
+        if (isRGB && thisWidth > 0 && thisHeight > 0) {
+            long thisPixels = (long) thisWidth * thisHeight;
+            long diff = std::labs(thisPixels - targetPixels);
+
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestIndex = i;
+            }
+        }
+
+        AkVCam::deleteMediaType(&pmt);
+    }
+
+    if (bestIndex == ULONG_MAX) {
+        pConfig->Release();
+
+        if (connectedPin)
+            connectedPin->Release();
+
+        return E_FAIL;
+    }
+
+    // Get the best media type
+    AM_MEDIA_TYPE *bestType = nullptr;
+    hr = pConfig->GetStreamCaps(bestIndex, &bestType, pSCC.data());
+
+    if (FAILED(hr) || !bestType) {
+        pConfig->Release();
+
+        if (connectedPin)
+            connectedPin->Release();
+
+        return hr;
+    }
+
+    // Set the format
+    hr = pConfig->SetFormat(bestType);
+    AkVCam::deleteMediaType(&bestType);
+    pConfig->Release();
+
+    if (connectedPin)
+        connectedPin->Release();
+
+    return hr;
 }

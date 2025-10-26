@@ -32,24 +32,22 @@ namespace AkVCam
         public:
             std::vector<VideoFormat> m_formats;
             size_t m_position {0};
-            bool m_changed {false};
     };
 }
 
 AkVCam::EnumMediaTypes::EnumMediaTypes(const std::vector<VideoFormat> &formats):
-    CUnknown(this, IID_IEnumMediaTypes)
+    CUnknown()
 {
     this->d = new EnumMediaTypesPrivate;
     this->d->m_formats = formats;
 }
 
-AkVCam::EnumMediaTypes::EnumMediaTypes(const AkVCam::EnumMediaTypes &other):
-    CUnknown(this, IID_IEnumMediaTypes)
+AkVCam::EnumMediaTypes::EnumMediaTypes(const EnumMediaTypes &other):
+    CUnknown()
 {
     this->d = new EnumMediaTypesPrivate;
     this->d->m_formats = other.d->m_formats;
     this->d->m_position = other.d->m_position;
-    this->d->m_changed = other.d->m_changed;
 }
 
 AkVCam::EnumMediaTypes &AkVCam::EnumMediaTypes::operator =(const EnumMediaTypes &other)
@@ -57,7 +55,6 @@ AkVCam::EnumMediaTypes &AkVCam::EnumMediaTypes::operator =(const EnumMediaTypes 
     if (this != &other) {
         this->d->m_formats = other.d->m_formats;
         this->d->m_position = other.d->m_position;
-        this->d->m_changed = other.d->m_changed;
     }
 
     return *this;
@@ -68,24 +65,37 @@ AkVCam::EnumMediaTypes::~EnumMediaTypes()
     delete this->d;
 }
 
-std::vector<AkVCam::VideoFormat> &AkVCam::EnumMediaTypes::formats()
+size_t AkVCam::EnumMediaTypes::size() const
 {
-    return this->d->m_formats;
+    return this->d->m_formats.size();
 }
 
-std::vector<AkVCam::VideoFormat> AkVCam::EnumMediaTypes::formats() const
+bool AkVCam::EnumMediaTypes::mediaType(size_t index,
+                                       AM_MEDIA_TYPE **ppMediaType) const
 {
-    return this->d->m_formats;
+    if (index >= this->d->m_formats.size())
+        return false;
+
+    *ppMediaType = mediaTypeFromFormat(this->d->m_formats[index]);
+
+    return true;
 }
 
-void AkVCam::EnumMediaTypes::setFormats(const std::vector<AkVCam::VideoFormat> &formats,
-                                        bool changed)
+bool AkVCam::EnumMediaTypes::contains(const AM_MEDIA_TYPE *pMediaType) const
 {
-    if (this->d->m_formats == formats)
-        return;
+    for (auto &format: this->d->m_formats) {
+        auto pmt = mediaTypeFromFormat(format);
 
-    this->d->m_formats = formats;
-    this->d->m_changed = changed;
+        if (isEqualMediaType(pmt, pMediaType)) {
+            deleteMediaType(&pmt);
+
+            return true;
+        }
+
+        deleteMediaType(&pmt);
+    }
+
+    return false;
 }
 
 HRESULT AkVCam::EnumMediaTypes::Next(ULONG cMediaTypes,
@@ -104,13 +114,6 @@ HRESULT AkVCam::EnumMediaTypes::Next(ULONG cMediaTypes,
         return E_POINTER;
 
     memset(ppMediaTypes, 0, cMediaTypes * sizeof(AM_MEDIA_TYPE *));
-
-    if (this->d->m_changed) {
-        this->d->m_changed = false;
-
-        return VFW_E_ENUM_OUT_OF_SYNC;
-    }
-
     ULONG fetched = 0;
 
     for (;
@@ -133,12 +136,6 @@ HRESULT AkVCam::EnumMediaTypes::Skip(ULONG cMediaTypes)
 {
     AkLogFunction();
     AkLogDebug("Skip %" PRIu64 " media types", cMediaTypes);
-
-    if (this->d->m_changed) {
-        this->d->m_changed = false;
-
-        return VFW_E_ENUM_OUT_OF_SYNC;
-    }
 
     auto position = this->d->m_position + cMediaTypes;
 
@@ -165,14 +162,7 @@ HRESULT AkVCam::EnumMediaTypes::Clone(IEnumMediaTypes **ppEnum)
     if (!ppEnum)
         return E_POINTER;
 
-    if (this->d->m_changed) {
-        this->d->m_changed = false;
-
-        return VFW_E_ENUM_OUT_OF_SYNC;
-    }
-
     *ppEnum = new EnumMediaTypes(*this);
-    (*ppEnum)->AddRef();
 
     return S_OK;
 }

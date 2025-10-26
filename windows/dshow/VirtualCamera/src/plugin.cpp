@@ -65,24 +65,17 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 {
     AkLogFunction();
-    AkLogInfo("CLSID: %s", AkVCam::stringFromClsid(rclsid).c_str());
-    AkLogInfo("IID: %s", AkVCam::stringFromClsid(rclsid).c_str());
+    AkLogDebug("CLSID: %s", AkVCam::stringFromClsid(rclsid).c_str());
+    AkLogDebug("IID: %s", AkVCam::stringFromClsid(riid).c_str());
 
-    if (!ppv)
-        return E_INVALIDARG;
-
-    *ppv = nullptr;
-
-    if (!IsEqualIID(riid, IID_IUnknown)
-        && !IsEqualIID(riid, IID_IClassFactory)
-        && AkVCam::Preferences::cameraFromCLSID(riid) < 0)
-            return CLASS_E_CLASSNOTAVAILABLE;
+    if (AkVCam::Preferences::cameraFromCLSID(rclsid) < 0)
+        return CLASS_E_CLASSNOTAVAILABLE;
 
     auto classFactory = new AkVCam::ClassFactory(rclsid);
-    classFactory->AddRef();
-    *ppv = classFactory;
+    auto hr = classFactory->QueryInterface(riid, ppv);
+    classFactory->Release();
 
-    return S_OK;
+    return hr;
 }
 
 STDAPI DllCanUnloadNow()

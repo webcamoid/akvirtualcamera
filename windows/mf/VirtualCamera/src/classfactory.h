@@ -26,9 +26,7 @@ namespace AkVCam
 {
     class ClassFactoryPrivate;
 
-    class ClassFactory:
-            public IClassFactory,
-            public CUnknown
+    class ClassFactory: public CUnknown<IClassFactory>
     {
         public:
             ClassFactory(const CLSID &clsid);
@@ -36,11 +34,9 @@ namespace AkVCam
 
             static bool locked();
 
-            DECLARE_IUNKNOWN_NQ
-
-            // IUnknown
-            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
-                                                     void **ppvObject) override;
+            BEGIN_COM_MAP(ClassFactory)
+                COM_INTERFACE_ENTRY(IClassFactory)
+            END_COM_MAP(ClassFactory)
 
             // IClassFactory
             HRESULT STDMETHODCALLTYPE CreateInstance(IUnknown *pUnkOuter,

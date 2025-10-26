@@ -28,7 +28,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
     src/cunknown.h
-    src/cunknown.cpp
     src/preferences.cpp
     src/preferences.h
     src/utils.cpp

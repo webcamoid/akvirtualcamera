@@ -17,8 +17,6 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
-#include <memory>
-
 #include "classfactory.h"
 #include "activate.h"
 #include "mediasource.h"
@@ -32,14 +30,14 @@ namespace AkVCam
     {
         public:
             CLSID m_clsid;
-            static int m_locked;
+            static std::atomic<uint64_t> m_locked;
     };
 
-    int ClassFactoryPrivate::m_locked = 0;
+    std::atomic<uint64_t> ClassFactoryPrivate::m_locked = 0;
 }
 
 AkVCam::ClassFactory::ClassFactory(const CLSID &clsid):
-    CUnknown(this, IID_IClassFactory)
+    CUnknown()
 {
     this->d = new ClassFactoryPrivate;
     this->d->m_clsid = clsid;
@@ -55,39 +53,6 @@ bool AkVCam::ClassFactory::locked()
     return ClassFactoryPrivate::m_locked > 0;
 }
 
-HRESULT AkVCam::ClassFactory::QueryInterface(const IID &riid, void **ppvObject)
-{
-    AkLogFunction();
-    AkLogInfo("IID: %s", stringFromClsidMF(riid).c_str());
-
-    if (!ppvObject)
-        return E_POINTER;
-
-    *ppvObject = nullptr;
-
-    if (IsEqualIID(riid, IID_IUnknown)
-        || IsEqualIID(riid, IID_IClassFactory)) {
-        AkLogInterface(IClassFactory, this);
-        this->AddRef();
-        *ppvObject = this;
-
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_IMFMediaSource)) {
-        auto mediaSource = new MediaSource(this->d->m_clsid);
-        AkLogInterface(IMFMediaSource, mediaSource);
-
-        if (!mediaSource)
-            return E_FAIL;
-
-        mediaSource->AddRef();
-        *ppvObject = mediaSource;
-
-        return S_OK;
-    }
-
-    return CUnknown::QueryInterface(riid, ppvObject);
-}
-
 HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
                                              const IID &riid,
                                              void **ppvObject)
@@ -101,22 +66,32 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
 
     *ppvObject = nullptr;
 
-    if (pUnkOuter && !IsEqualIID(riid, IID_IUnknown))
-        return E_NOINTERFACE;
+    if (pUnkOuter)
+        return CLASS_E_NOAGGREGATION;
 
-    auto activate = std::shared_ptr<Activate>(new Activate(this->d->m_clsid),
-                                              [] (Activate *activate) {
+    if (riid == IID_IMFActivate) {
+        auto activate = new Activate(this->d->m_clsid);
+        auto hr = activate->QueryInterface(riid, ppvObject);
         activate->Release();
-    });
-    activate->AddRef();
 
-    return activate->QueryInterface(riid, ppvObject);
+        return hr;
+    }
+
+    auto activate = new MediaSource(this->d->m_clsid);
+    auto hr = activate->QueryInterface(riid, ppvObject);
+    activate->Release();
+
+    return hr;
 }
 
 HRESULT AkVCam::ClassFactory::LockServer(BOOL fLock)
 {
     AkLogFunction();
-    this->d->m_locked += fLock? 1: -1;
+
+    if (fLock)
+        this->d->m_locked++;
+    else
+        this->d->m_locked--;
 
     return S_OK;
 }

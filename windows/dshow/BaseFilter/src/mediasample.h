@@ -28,21 +28,28 @@ namespace AkVCam
 {
     class MediaSamplePrivate;
 
-    class MediaSample:
-            public IMediaSample,
-            public CUnknown
+    class MediaSample: public CUnknown<IMediaSample2>
     {
         public:
             MediaSample(IMemAllocator *memAllocator,
-                        LONG bufferSize, LONG align, LONG prefix);
+                         LONG bufferSize,
+                         LONG align,
+                         LONG prefix);
             virtual ~MediaSample();
 
-            DECLARE_IUNKNOWN_NR(IID_IMediaSample)
+            void setMemAllocator(IMemAllocator *memAllocator);
+
+            BEGIN_COM_MAP_NR(MediaSample)
+                COM_INTERFACE_ENTRY(IMediaSample)
+                COM_INTERFACE_ENTRY(IMediaSample2)
+            END_COM_MAP(MediaSample)
 
             // IUnknown
+
             ULONG STDMETHODCALLTYPE Release() override;
 
             // IMediaSample
+
             HRESULT STDMETHODCALLTYPE GetPointer(BYTE **ppBuffer) override;
             LONG STDMETHODCALLTYPE GetSize() override;
             HRESULT STDMETHODCALLTYPE GetTime(REFERENCE_TIME *pTimeStart,
@@ -64,101 +71,16 @@ namespace AkVCam
             HRESULT STDMETHODCALLTYPE SetMediaTime(LONGLONG *pTimeStart,
                                                    LONGLONG *pTimeEnd) override;
 
+            // IMediaSample2
+
+            HRESULT STDMETHODCALLTYPE GetProperties(DWORD cbProperties,
+                                                    BYTE *pbProperties) override;
+            HRESULT STDMETHODCALLTYPE SetProperties(DWORD cbProperties,
+                                                    const BYTE *pbProperties) override;
+
         private:
             MediaSamplePrivate *d;
     };
 }
-
-#define DECLARE_IMEDIASAMPLE(interfaceIid) \
-    DECLARE_IUNKNOWN_NR(interfaceIid) \
-    \
-    ULONG STDMETHODCALLTYPE Release() override \
-    { \
-        return MediaSample::Release(); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetPointer(BYTE **ppBuffer) override \
-    { \
-        return MediaSample::GetPointer(ppBuffer); \
-    } \
-    \
-    LONG STDMETHODCALLTYPE GetSize() override \
-    { \
-        return MediaSample::GetSize(); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetTime(REFERENCE_TIME *pTimeStart, \
-                                      REFERENCE_TIME *pTimeEnd) override \
-    { \
-        return MediaSample::GetTime(pTimeStart, pTimeEnd); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetTime(REFERENCE_TIME *pTimeStart, \
-                                      REFERENCE_TIME *pTimeEnd) override \
-    { \
-        return MediaSample::SetTime(pTimeStart, pTimeEnd); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE IsSyncPoint() override \
-    { \
-        return MediaSample::IsSyncPoint(); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetSyncPoint(BOOL bIsSyncPoint) override \
-    { \
-        return MediaSample::SetSyncPoint(bIsSyncPoint); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE IsPreroll() override \
-    { \
-        return MediaSample::IsPreroll(); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetPreroll(BOOL bIsPreroll) override \
-    { \
-        return MediaSample::SetPreroll(bIsPreroll); \
-    } \
-    \
-    LONG STDMETHODCALLTYPE GetActualDataLength() override \
-    { \
-        return MediaSample::GetActualDataLength(); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetActualDataLength(LONG lLen) override \
-    { \
-        return MediaSample::SetActualDataLength(lLen); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetMediaType(AM_MEDIA_TYPE **ppMediaType) override \
-    { \
-        return MediaSample::GetMediaType(ppMediaType); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetMediaType(AM_MEDIA_TYPE *pMediaType) override \
-    { \
-        return MediaSample::SetMediaType(pMediaType); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE IsDiscontinuity() override \
-    { \
-        return MediaSample::IsDiscontinuity(); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetDiscontinuity(BOOL bDiscontinuity) override \
-    { \
-        return MediaSample::SetDiscontinuity(bDiscontinuity); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetMediaTime(LONGLONG *pTimeStart, \
-                                           LONGLONG *pTimeEnd) override \
-    { \
-        return MediaSample::GetMediaTime(pTimeStart, pTimeEnd); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetMediaTime(LONGLONG *pTimeStart, \
-                                           LONGLONG *pTimeEnd) override \
-    { \
-        return MediaSample::SetMediaTime(pTimeStart, pTimeEnd); \
-    }
 
 #endif // MEDIASAMPLE_H

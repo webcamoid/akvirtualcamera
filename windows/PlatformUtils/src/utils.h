@@ -76,8 +76,6 @@ namespace AkVCam
                        const AM_MEDIA_TYPE *srcMediaType);
     AM_MEDIA_TYPE *createMediaType(const AM_MEDIA_TYPE *mediaType);
     void deleteMediaType(AM_MEDIA_TYPE **mediaType);
-    bool containsMediaType(const AM_MEDIA_TYPE *mediaType,
-                           IEnumMediaTypes *mediaTypes);
     std::string stringFromMajorType(const GUID &majorType);
     std::string stringFromSubType(const GUID &subType);
     std::string stringFromFormatType(const GUID &formatType);

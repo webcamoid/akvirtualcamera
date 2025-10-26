@@ -35,9 +35,7 @@ namespace AkVCam
     };
 }
 
-AkVCam::Activate::Activate(const CLSID &clsid):
-    CUnknown(this, IID_IMFActivate),
-    Attributes()
+AkVCam::Activate::Activate(const CLSID &clsid)
 {
     this->d = new ActivatePrivate;
     this->d->m_clsid = clsid;
@@ -53,28 +51,6 @@ AkVCam::Activate::~Activate()
         this->d->m_mediaSource->Release();
 
     delete this->d;
-}
-
-HRESULT AkVCam::Activate::QueryInterface(REFIID riid, void **ppvObject)
-{
-    AkLogFunction();
-    AkLogDebug("IID: %s", stringFromClsidMF(riid).c_str());
-
-    if (!ppvObject)
-        return E_POINTER;
-
-    *ppvObject = nullptr;
-
-    if (IsEqualGUID(riid, IID_IUnknown)
-        || IsEqualGUID(riid, IID_IMFActivate)
-        || IsEqualGUID(riid, IID_IMFAttributes)) {
-        *ppvObject = this;
-        this->AddRef();
-
-        return S_OK;
-    }
-
-    return CUnknown::QueryInterface(riid, ppvObject);
 }
 
 HRESULT AkVCam::Activate::ActivateObject(REFIID riid, void **ppv)

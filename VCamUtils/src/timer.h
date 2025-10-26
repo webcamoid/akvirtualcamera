@@ -36,7 +36,6 @@ namespace AkVCam
             ~Timer();
 
             int interval() const;
-            int &interval();
             void setInterval(int msec);
             void start();
             void stop();

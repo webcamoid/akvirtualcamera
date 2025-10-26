@@ -20,76 +20,70 @@
 #ifndef MEDIAEVENTGENERATOR_H
 #define MEDIAEVENTGENERATOR_H
 
-#include <mfidl.h>
+#include <cinttypes>
+#include <memory>
+#include <mfapi.h>
 
-#include "PlatformUtils/src/cunknown.h"
+#include "PlatformUtils/src/utils.h"
+#include "MFUtils/src/utils.h"
 
-namespace AkVCam
-{
-    class MediaEventGeneratorPrivate;
-
-    class MediaEventGenerator:
-        public IMFMediaEventGenerator,
-        public CUnknown
-    {
-        public:
-            MediaEventGenerator();
-            ~MediaEventGenerator();
-
-            IMFMediaEventQueue *eventQueue() const;
-
-            DECLARE_IUNKNOWN(IID_IMFMediaEventGenerator)
-
-            // IMFMediaEventGenerator
-            HRESULT STDMETHODCALLTYPE GetEvent(DWORD dwFlags,
-                                               IMFMediaEvent **ppEvent) override;
-            HRESULT STDMETHODCALLTYPE BeginGetEvent(IMFAsyncCallback *pCallback,
-                                                    IUnknown *punkState) override;
-            HRESULT STDMETHODCALLTYPE EndGetEvent(IMFAsyncResult *pResult,
-                                                  IMFMediaEvent **ppEvent) override;
-            HRESULT STDMETHODCALLTYPE QueueEvent(MediaEventType mediaEventType,
-                                                 REFGUID guidExtendedType,
-                                                 HRESULT hrStatus,
-                                                 const PROPVARIANT *pvValue) override;
-
-        private:
-            MediaEventGeneratorPrivate *d;
-    };
-}
-
-#define DECLARE_IMFMEDIAEVENTGENERATOR_NQ \
-    DECLARE_IUNKNOWN_NQ \
+#define DECLARE_EVENT_GENERATOR \
+    private: \
+        std::shared_ptr<IMFMediaEventQueue> m_eventQueue; \
+        \
+        std::shared_ptr<IMFMediaEventQueue> eventQueue() \
+        { \
+            if (!this->m_eventQueue) {\
+                IMFMediaEventQueue *eventQueue = nullptr; \
+                MFCreateEventQueue(&eventQueue); \
+                \
+                this->m_eventQueue = \
+                    std::shared_ptr<IMFMediaEventQueue>(eventQueue, \
+                                                        [] (IMFMediaEventQueue *eventQueue) { \
+                        eventQueue->Shutdown(); \
+                        eventQueue->Release(); \
+                    }); \
+            } \
+            \
+            return this->m_eventQueue; \
+        } \
     \
-    HRESULT STDMETHODCALLTYPE GetEvent(DWORD dwFlags, IMFMediaEvent **ppEvent) \
-    { \
-        return MediaEventGenerator::GetEvent(dwFlags, ppEvent); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE BeginGetEvent(IMFAsyncCallback *pCallback, \
-                                            IUnknown *punkState) \
-    { \
-        return MediaEventGenerator::BeginGetEvent(pCallback, punkState); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE EndGetEvent(IMFAsyncResult *pResult, \
-                                          IMFMediaEvent **ppEvent) \
-    { \
-        return MediaEventGenerator::EndGetEvent(pResult, ppEvent); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE QueueEvent(MediaEventType mediaEventType, \
-                                         REFGUID guidExtendedType, \
-                                         HRESULT hrStatus, \
-                                         const PROPVARIANT *pvValue) \
-    { \
-        return MediaEventGenerator::QueueEvent(mediaEventType, \
-                                               guidExtendedType, \
-                                               hrStatus, \
-                                               pvValue); \
-    }
-
-#define DECLARE_IMFMEDIAEVENTGENERATOR(interfaceIid) \
-    DECLARE_IUNKNOWN_Q(interfaceIid) \
-    DECLARE_IMFMEDIAEVENTGENERATOR_NQ
+    public: \
+        HRESULT STDMETHODCALLTYPE GetEvent(DWORD dwFlags, \
+                                           IMFMediaEvent **ppEvent) \
+        { \
+            AkLogFunction(); \
+            \
+            return eventQueue()->GetEvent(dwFlags, ppEvent); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE BeginGetEvent(IMFAsyncCallback *pCallback, \
+                                                IUnknown *punkState) \
+        { \
+            AkLogFunction(); \
+            \
+            return eventQueue()->BeginGetEvent(pCallback, punkState); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE EndGetEvent(IMFAsyncResult *pResult, \
+                                              IMFMediaEvent **ppEvent) \
+        { \
+            AkLogFunction(); \
+            \
+            return eventQueue()->EndGetEvent(pResult, ppEvent); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE QueueEvent(MediaEventType mediaEventType, \
+                                             REFGUID guidExtendedType, \
+                                             HRESULT hrStatus, \
+                                             const PROPVARIANT *pvValue) \
+        { \
+            AkLogFunction(); \
+            \
+            return eventQueue()->QueueEventParamVar(mediaEventType, \
+                                                    guidExtendedType, \
+                                                    hrStatus, \
+                                                    pvValue); \
+        }
 
 #endif // MEDIAEVENTGENERATOR_H

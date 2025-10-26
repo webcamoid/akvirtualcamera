@@ -28,15 +28,15 @@ namespace AkVCam
 {
     class MemAllocatorPrivate;
 
-    class MemAllocator:
-            public IMemAllocator,
-            public CUnknown
+    class MemAllocator: public CUnknown<IMemAllocator>
     {
         public:
             MemAllocator();
             virtual ~MemAllocator();
 
-            DECLARE_IUNKNOWN(IID_IMemAllocator)
+            BEGIN_COM_MAP(MemAllocator)
+                COM_INTERFACE_ENTRY(IMemAllocator)
+            END_COM_MAP(MemAllocator)
 
             // IMemAllocator
             HRESULT STDMETHODCALLTYPE SetProperties(ALLOCATOR_PROPERTIES *pRequest,

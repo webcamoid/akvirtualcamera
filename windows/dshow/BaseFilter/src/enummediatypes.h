@@ -30,9 +30,7 @@ namespace AkVCam
 {
     class EnumMediaTypesPrivate;
 
-    class EnumMediaTypes:
-            public IEnumMediaTypes,
-            public CUnknown
+    class EnumMediaTypes: public virtual CUnknown<IEnumMediaTypes>
     {
         public:
             EnumMediaTypes(const std::vector<VideoFormat> &formats={});
@@ -40,12 +38,13 @@ namespace AkVCam
             EnumMediaTypes &operator =(const EnumMediaTypes &other);
             virtual ~EnumMediaTypes();
 
-            std::vector<VideoFormat> &formats();
-            std::vector<VideoFormat> formats() const;
-            void setFormats(const std::vector<VideoFormat> &formats,
-                            bool changed=true);
+            size_t size() const;
+            bool mediaType(size_t index, AM_MEDIA_TYPE **ppMediaType) const;
+            bool contains(const AM_MEDIA_TYPE *pMediaType) const;
 
-            DECLARE_IUNKNOWN(IID_IEnumMediaTypes)
+            BEGIN_COM_MAP(EnumMediaTypes)
+                COM_INTERFACE_ENTRY(IEnumMediaTypes)
+            END_COM_MAP(EnumMediaTypes)
 
             // IEnumMediaTypes
             HRESULT STDMETHODCALLTYPE Next(ULONG cMediaTypes,

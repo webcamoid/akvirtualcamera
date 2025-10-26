@@ -17,10 +17,11 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <algorithm>
 #include <cinttypes>
 #include <condition_variable>
-#include <mutex>
 #include <vector>
+#include <mutex>
 #include <dshow.h>
 
 #include "memallocator.h"
@@ -28,6 +29,8 @@
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/utils.h"
+
+#define MINIMUM_BUFFERS 4
 
 namespace AkVCam
 {
@@ -38,13 +41,15 @@ namespace AkVCam
             ALLOCATOR_PROPERTIES m_properties;
             std::mutex m_mutex;
             std::condition_variable_any m_bufferReleased;
+            size_t m_position {0};
+            std::atomic<size_t> m_buffersTaken {0};
             bool m_commited {false};
             bool m_decommiting {false};
     };
 }
 
 AkVCam::MemAllocator::MemAllocator():
-    CUnknown(this, IID_IMemAllocator)
+    CUnknown()
 {
     this->d = new MemAllocatorPrivate;
     memset(&this->d->m_properties, 0, sizeof(ALLOCATOR_PROPERTIES));
@@ -52,8 +57,7 @@ AkVCam::MemAllocator::MemAllocator():
 
 AkVCam::MemAllocator::~MemAllocator()
 {
-    for (auto &sample: this->d->m_samples)
-        sample->Release();
+    this->Decommit();
 
     delete this->d;
 }
@@ -66,18 +70,20 @@ HRESULT AkVCam::MemAllocator::SetProperties(ALLOCATOR_PROPERTIES *pRequest,
     if (!pRequest || !pActual)
         return E_POINTER;
 
-    if (this->d->m_commited)
-        return VFW_E_ALREADY_COMMITTED;
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
 
-    if (pRequest->cbAlign < 1)
-        return VFW_E_BADALIGN;
+    this->d->m_properties = *pRequest;
 
-    for (auto &sample:this->d->m_samples)
-        if (sample->ref() > 1)
-            return VFW_E_BUFFERS_OUTSTANDING;
+    if (this->d->m_properties.cBuffers < MINIMUM_BUFFERS)
+        this->d->m_properties.cBuffers = MINIMUM_BUFFERS;
 
-    memcpy(&this->d->m_properties, pRequest, sizeof(ALLOCATOR_PROPERTIES));
-    memcpy(pActual, &this->d->m_properties, sizeof(ALLOCATOR_PROPERTIES));
+    if (this->d->m_properties.cbBuffer < 1)
+        this->d->m_properties.cbBuffer = 1;
+
+    if (this->d->m_properties.cbAlign == 0)
+        this->d->m_properties.cbAlign = 1;
+
+    *pActual = this->d->m_properties;
 
     return S_OK;
 }
@@ -99,6 +105,8 @@ HRESULT AkVCam::MemAllocator::Commit()
 {
     AkLogFunction();
 
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+
     if (this->d->m_commited)
         return S_OK;
 
@@ -109,15 +117,26 @@ HRESULT AkVCam::MemAllocator::Commit()
         return VFW_E_SIZENOTSET;
     }
 
-    this->d->m_samples.clear();
+    AkLogDebug("Created buffers: %d", this->d->m_properties.cBuffers);
+    AkLogDebug("Buffer size: %d", this->d->m_properties.cbBuffer);
+    AkLogDebug("Buffer align: %d", this->d->m_properties.cbAlign);
+    AkLogDebug("Buffers prefix: %d", this->d->m_properties.cbPrefix);
 
-    for (LONG i = 0; i < this->d->m_properties.cBuffers; i++) {
+    for (auto &sample: this->d->m_samples) {
+        sample->setMemAllocator(this);
+        sample->Release();
+    }
+
+    this->d->m_samples.clear();
+    this->d->m_position = 0;
+    this->d->m_buffersTaken = 0;
+
+    for (LONG i = 0; i < this->d->m_properties.cBuffers; ++i) {
         auto sample =
                 new MediaSample(this,
-                                this->d->m_properties.cbBuffer,
-                                this->d->m_properties.cbAlign,
-                                this->d->m_properties.cbPrefix);
-        sample->AddRef();
+                                 this->d->m_properties.cbBuffer,
+                                 this->d->m_properties.cbAlign,
+                                 this->d->m_properties.cbPrefix);
         this->d->m_samples.push_back(sample);
     }
 
@@ -130,32 +149,24 @@ HRESULT AkVCam::MemAllocator::Decommit()
 {
     AkLogFunction();
 
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+
     if (!this->d->m_commited)
         return S_OK;
 
     this->d->m_decommiting = true;
-    auto totalSamples = this->d->m_samples.size();
-    size_t freeSamples = 0;
+    this->d->m_bufferReleased.notify_all();
 
-    for (size_t i = 0; i < totalSamples; i++)
-        if (this->d->m_samples[i]) {
-            if (this->d->m_samples[i]->ref() < 2) {
-                this->d->m_samples[i]->Release();
-                this->d->m_samples[i] = nullptr;
-                freeSamples++;
-            }
-        } else {
-            freeSamples++;
-        }
-
-    AkLogInfo("Free samples: %" PRIu64 "/%" PRIu64, freeSamples, totalSamples);
-
-    if (freeSamples >= totalSamples) {
-        AkLogInfo("Decommiting");
-        this->d->m_samples.clear();
-        this->d->m_commited = false;
-        this->d->m_decommiting = false;
+    for (auto sample: this->d->m_samples) {
+        sample->setMemAllocator(nullptr);
+        sample->Release();
     }
+
+    this->d->m_samples.clear();
+    this->d->m_commited = false;
+    this->d->m_decommiting = false;
+    this->d->m_position = 0;
+    this->d->m_buffersTaken = 0;
 
     return S_OK;
 }
@@ -178,49 +189,64 @@ HRESULT AkVCam::MemAllocator::GetBuffer(IMediaSample **ppBuffer,
     if (pEndTime)
         *pEndTime = 0;
 
-    if (!this->d->m_commited || this->d->m_decommiting) {
-        AkLogError("Allocator not commited.");
+    std::unique_lock<std::mutex> lock(this->d->m_mutex);
+
+    if (!this->d->m_commited
+        || this->d->m_decommiting
+        || this->d->m_samples.empty()) {
+        AkLogError("Allocator not committed.");
 
         return VFW_E_NOT_COMMITTED;
     }
 
-    HRESULT result = S_FALSE;
+    while (!this->d->m_decommiting
+           && this->d->m_buffersTaken >= this->d->m_samples.size()) {
+        if (dwFlags & AM_GBF_NOWAIT)
+            return VFW_E_TIMEOUT;
 
-    do {
-        for (auto &sample: this->d->m_samples) {
-            if (sample->ref() < 2) {
-                *ppBuffer = sample;
-                (*ppBuffer)->AddRef();
-                (*ppBuffer)->GetTime(pStartTime, pEndTime);
-                result = S_OK;
+        this->d->m_bufferReleased.wait(lock);
+    }
 
-                break;
-            }
+    if (this->d->m_decommiting)
+        return VFW_E_NOT_COMMITTED;
+
+    for (size_t i = 0; i < this->d->m_samples.size(); ++i) {
+        auto sample = this->d->m_samples[this->d->m_position];
+        this->d->m_position =
+                (this->d->m_position + 1)  % this->d->m_samples.size();
+
+        if (sample->ref() == 1) {
+            *ppBuffer = sample;
+            sample->AddRef();
+            sample->GetTime(pStartTime, pEndTime);
+            this->d->m_buffersTaken++;
+            AkLogDebug("Buffer passed");
+
+            return S_OK;
         }
+    }
 
-        this->d->m_mutex.lock();
-
-        if (result == S_FALSE) {
-            if (dwFlags & AM_GBF_NOWAIT)
-                result = VFW_E_TIMEOUT;
-            else
-                this->d->m_bufferReleased.wait(this->d->m_mutex);
-        }
-
-        this->d->m_mutex.unlock();
-    } while (result == S_FALSE);
-
-    return result;
+    return VFW_E_BUFFER_UNDERFLOW;
 }
 
 HRESULT AkVCam::MemAllocator::ReleaseBuffer(IMediaSample *pBuffer)
 {
-    UNUSED(pBuffer);
     AkLogFunction();
 
-    this->d->m_mutex.lock();
+    if (!pBuffer)
+        return E_POINTER;
+
+    auto it = std::find_if(this->d->m_samples.cbegin(),
+                           this->d->m_samples.cend(),
+                           [pBuffer] (IMediaSample *sample) {
+        return sample == pBuffer;
+    });
+
+    if (it == this->d->m_samples.cend())
+        return E_INVALIDARG;
+
+    this->d->m_buffersTaken--;
     this->d->m_bufferReleased.notify_one();
-    this->d->m_mutex.unlock();
 
     return S_OK;
 }

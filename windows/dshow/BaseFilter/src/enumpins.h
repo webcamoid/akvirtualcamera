@@ -28,22 +28,28 @@ namespace AkVCam
 {
     class EnumPinsPrivate;
     class BaseFilter;
+    class Pin;
 
-    class EnumPins:
-            public IEnumPins,
-            public CUnknown
+    class EnumPins: public CUnknown<IEnumPins>
+
     {
         public:
-            EnumPins();
+            EnumPins(BaseFilter *baseFilter=nullptr);
             EnumPins(const EnumPins &other);
             virtual ~EnumPins();
 
-            size_t count() const;
-            void addPin(IPin *pin, bool changed=true);
-            void removePin(IPin *pin, bool changed=true);
-            void setBaseFilter(AkVCam::BaseFilter *baseFilter);
+            void addPin(const std::vector<VideoFormat> &formats,
+                        const std::string &pinName);
+            size_t size() const;
+            bool pin(size_t index, IPin **pPin) const;
+            bool contains(IPin *pin) const;
+            HRESULT stop();
+            HRESULT pause();
+            HRESULT run(REFERENCE_TIME tStart);
 
-            DECLARE_IUNKNOWN(IID_IEnumPins)
+            BEGIN_COM_MAP(EnumPins)
+                COM_INTERFACE_ENTRY(IEnumPins)
+            END_COM_MAP(EnumPins)
 
             // IEnumPins
             HRESULT STDMETHODCALLTYPE Next(ULONG cPins,

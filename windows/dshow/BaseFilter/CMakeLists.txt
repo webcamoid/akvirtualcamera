@@ -33,40 +33,12 @@ set(SOURCES
     src/enummediatypes.h
     src/enumpins.cpp
     src/enumpins.h
-    src/filtermiscflags.cpp
-    src/filtermiscflags.h
-    src/latency.cpp
-    src/latency.h
-    src/mediafilter.cpp
-    src/mediafilter.h
     src/mediasample.cpp
     src/mediasample.h
-    src/mediasample2.cpp
-    src/mediasample2.h
     src/memallocator.cpp
     src/memallocator.h
-    src/persist.cpp
-    src/persist.h
-    src/persistpropertybag.cpp
-    src/persistpropertybag.h
     src/pin.cpp
-    src/pin.h
-    src/propertyset.cpp
-    src/propertyset.h
-    src/pushsource.cpp
-    src/pushsource.h
-    src/qualitycontrol.cpp
-    src/qualitycontrol.h
-    src/referenceclock.cpp
-    src/referenceclock.h
-    src/specifypropertypages.cpp
-    src/specifypropertypages.h
-    src/streamconfig.cpp
-    src/streamconfig.h
-    src/videocontrol.cpp
-    src/videocontrol.h
-    src/videoprocamp.h
-    src/videoprocamp.cpp)
+    src/pin.h)
 
 if (WIN32)
     add_library(VCamBaseFilter STATIC ${SOURCES})

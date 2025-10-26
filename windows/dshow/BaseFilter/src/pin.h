@@ -22,11 +22,12 @@
 
 #include <string>
 #include <vector>
+#include <strmif.h>
 
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/videoframetypes.h"
 #include "VCamUtils/src/ipcbridge.h"
-#include "streamconfig.h"
+#include "PlatformUtils/src/cunknown.h"
 
 namespace AkVCam
 {
@@ -35,8 +36,9 @@ namespace AkVCam
     class VideoFrame;
 
     class Pin:
-            public IPin,
-            public StreamConfig
+            public virtual IPin,
+            public virtual IAMStreamConfig,
+            public virtual IAMPushSource
     {
         public:
             Pin(BaseFilter *baseFilter=nullptr,
@@ -45,9 +47,9 @@ namespace AkVCam
             virtual ~Pin();
 
             BaseFilter *baseFilter() const;
-            void setBaseFilter(BaseFilter *baseFilter);
-            void setBridge(IpcBridgePtr bridge);
-            static HRESULT stateChanged(void *userData, FILTER_STATE state);
+            HRESULT stop();
+            HRESULT pause();
+            HRESULT run(REFERENCE_TIME tStart);
             void frameReady(const VideoFrame &frame, bool isActive);
             void setPicture(const std::string &picture);
             void setControls(const std::map<std::string, int> &controls);
@@ -56,13 +58,39 @@ namespace AkVCam
             bool verticalFlip() const;
             void setVerticalFlip(bool flip);
 
-            DECLARE_IAMSTREAMCONFIG_NQ
+            BEGIN_COM_MAP_NO(Pin)
+                COM_INTERFACE_ENTRY(IPin)
+                COM_INTERFACE_ENTRY(IAMStreamConfig)
+                COM_INTERFACE_ENTRY(IAMLatency)
+                COM_INTERFACE_ENTRY(IAMPushSource)
+                COM_INTERFACE_ENTRY2(IUnknown, IPin)
+            END_COM_MAP_NU(Pin)
 
-            // IUNknown
-            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
-                                                     void **ppvObject) override;
+            // IAMLatency
+
+            HRESULT WINAPI GetLatency(REFERENCE_TIME *prtLatency) override;
+
+            // IAMPushSource
+
+            HRESULT WINAPI GetPushSourceFlags(ULONG *pFlags) override;
+            HRESULT WINAPI SetPushSourceFlags(ULONG Flags) override;
+            HRESULT WINAPI SetStreamOffset(REFERENCE_TIME rtOffset) override;
+            HRESULT WINAPI GetStreamOffset(REFERENCE_TIME *prtOffset) override;
+            HRESULT WINAPI GetMaxStreamOffset(REFERENCE_TIME *prtMaxOffset) override;
+            HRESULT WINAPI SetMaxStreamOffset(REFERENCE_TIME rtMaxOffset) override;
+
+            // IAMStreamConfig
+
+            HRESULT STDMETHODCALLTYPE SetFormat(AM_MEDIA_TYPE *pmt) override;
+            HRESULT STDMETHODCALLTYPE GetFormat(AM_MEDIA_TYPE **pmt) override;
+            HRESULT STDMETHODCALLTYPE GetNumberOfCapabilities(int *piCount,
+                                                              int *piSize) override;
+            HRESULT STDMETHODCALLTYPE GetStreamCaps(int iIndex,
+                                                    AM_MEDIA_TYPE **pmt,
+                                                    BYTE *pSCC) override;
 
             // IPin
+
             HRESULT STDMETHODCALLTYPE Connect(IPin *pReceivePin,
                                               const AM_MEDIA_TYPE *pmt) override;
             HRESULT STDMETHODCALLTYPE ReceiveConnection(IPin *pConnector,
@@ -86,6 +114,8 @@ namespace AkVCam
 
         private:
             PinPrivate *d;
+
+        friend class PinPrivate;
     };
 }
 

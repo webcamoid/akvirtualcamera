@@ -29,22 +29,19 @@ namespace AkVCam
 {
     class ActivatePrivate;
 
-    class Activate:
-            public IMFActivate,
-            public Attributes,
-            public CUnknown
+    class Activate: public CUnknown<IMFActivate>
     {
         public:
             Activate(const CLSID &clsid);
             virtual ~Activate();
 
-            DECLARE_IUNKNOWN_NQ
-            DECLARE_IMFATTRIBUTES
+            BEGIN_COM_MAP(Activate)
+                COM_INTERFACE_ENTRY(IMFAttributes)
+                COM_INTERFACE_ENTRY(IMFActivate)
+                COM_INTERFACE_ENTRY2(IUnknown, IMFActivate)
+            END_COM_MAP_NU(Activate)
 
-            // IUnknown
-
-            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
-                                                     void **ppvObject) override;
+            DECLARE_ATTRIBUTES
 
             // IMFActivate
 

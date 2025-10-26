@@ -18,50 +18,75 @@
  */
 
 #include <algorithm>
+#include <cinttypes>
+#include <condition_variable>
+#include <thread>
 #include <dshow.h>
 #include <dbt.h>
+#include <amvideo.h>
+#include <dvdmedia.h>
+#include <uuids.h>
 
 #include "basefilter.h"
 #include "enumpins.h"
-#include "filtermiscflags.h"
 #include "pin.h"
-#include "referenceclock.h"
-#include "specifypropertypages.h"
-#include "videocontrol.h"
-#include "videoprocamp.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
-#include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/utils.h"
 
-#define AkVCamPinCall(pins, func, ...) \
-    pins->Reset(); \
-    Pin *pin = nullptr; \
-    \
-    while (pins->Next(1, reinterpret_cast<IPin **>(&pin), nullptr) == S_OK) { \
-        pin->func(__VA_ARGS__); \
-        pin->Release(); \
-    }
-
-#define AkVCamDevicePinCall(deviceId, where, func, ...) \
-    if (auto pins = where->pinsForDevice(deviceId)) { \
-        AkVCamPinCall(pins, func, __VA_ARGS__) \
-        pins->Release(); \
-    }
+#define TIME_BASE 1.0e7
 
 namespace AkVCam
 {
+    class ProcAmpPrivate
+    {
+        public:
+            LONG property;
+            LONG min;
+            LONG max;
+            LONG step;
+            LONG defaultValue;
+            LONG flags;
+
+            inline static const std::vector<ProcAmpPrivate> &controls()
+            {
+                static const std::vector<ProcAmpPrivate> controls {
+                    {VideoProcAmp_Brightness , -255, 255, 1, 0, VideoProcAmp_Flags_Manual},
+                    {VideoProcAmp_Contrast   , -255, 255, 1, 0, VideoProcAmp_Flags_Manual},
+                    {VideoProcAmp_Saturation , -255, 255, 1, 0, VideoProcAmp_Flags_Manual},
+                    {VideoProcAmp_Gamma      , -255, 255, 1, 0, VideoProcAmp_Flags_Manual},
+                    {VideoProcAmp_Hue        , -359, 359, 1, 0, VideoProcAmp_Flags_Manual},
+                    {VideoProcAmp_ColorEnable,    0,   1, 1, 1, VideoProcAmp_Flags_Manual}
+                };
+
+                return controls;
+            }
+
+            static inline const ProcAmpPrivate *byProperty(LONG property)
+            {
+                for (auto &control: controls())
+                    if (control.property == property)
+                        return &control;
+
+                return nullptr;
+            }
+    };
+
     class BaseFilterPrivate
     {
         public:
             BaseFilter *self;
+            CLSID m_clsid;
             EnumPins *m_pins {nullptr};
-            VideoProcAmp *m_videoProcAmp {nullptr};
-            ReferenceClock *m_referenceClock {nullptr};
             std::string m_vendor {DSHOW_PLUGIN_VENDOR};
             std::string m_filterName;
+            std::string m_deviceId;
             IFilterGraph *m_filterGraph {nullptr};
+            IReferenceClock *m_clock {nullptr};
+            FILTER_STATE m_state {State_Stopped};
+            REFERENCE_TIME m_start {0};
             IpcBridgePtr m_ipcBridge;
+            std::map<LONG, LONG> m_controls;
             bool m_directMode {false};
 
             BaseFilterPrivate(BaseFilter *self);
@@ -85,14 +110,14 @@ namespace AkVCam
 
 BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
 
-AkVCam::BaseFilter::BaseFilter(const GUID &clsid):
-    MediaFilter(clsid, this)
+AkVCam::BaseFilter::BaseFilter(const GUID &clsid)
 {
-    this->setParent(this, &IID_IBaseFilter);
     this->d = new BaseFilterPrivate(this);
+    this->d->m_clsid = clsid;
     auto camera = Preferences::cameraFromCLSID(clsid);
 
     if (camera >= 0) {
+        this->d->m_deviceId = Preferences::cameraId(size_t(camera));
         this->d->m_filterName = Preferences::cameraDescription(size_t(camera));
         this->d->m_directMode = Preferences::cameraDirectMode(camera);
         auto formats = Preferences::cameraFormats(size_t(camera));
@@ -103,9 +128,9 @@ AkVCam::BaseFilter::BaseFilter(const GUID &clsid):
             if (!formats.empty())
                 fmts.push_back(formats.front());
 
-            this->addPin(fmts, "Video", false);
+            this->d->m_pins->addPin(fmts, "Video");
         } else {
-            this->addPin(formats, "Video", false);
+            this->d->m_pins->addPin(formats, "Video");
         }
     }
 }
@@ -114,23 +139,15 @@ AkVCam::BaseFilter::~BaseFilter()
 {
     AkLogFunction();
 
+    if (this->d->m_clock)
+        this->d->m_clock->Release();
+
     delete this->d;
 }
 
-void AkVCam::BaseFilter::addPin(const std::vector<AkVCam::VideoFormat> &formats,
-                                const std::string &pinName,
-                                bool changed)
+AkVCam::IpcBridgePtr AkVCam::BaseFilter::ipcBridge() const
 {
-    AkLogFunction();
-    auto pin = new Pin(this, formats, pinName);
-    pin->setBridge(this->d->m_ipcBridge);
-    this->d->m_pins->addPin(pin, changed);
-}
-
-void AkVCam::BaseFilter::removePin(IPin *pin, bool changed)
-{
-    AkLogFunction();
-    this->d->m_pins->removePin(pin, changed);
+    return this->d->m_ipcBridge;
 }
 
 AkVCam::BaseFilter *AkVCam::BaseFilter::create(const GUID &clsid)
@@ -141,26 +158,14 @@ AkVCam::BaseFilter *AkVCam::BaseFilter::create(const GUID &clsid)
     return new BaseFilter(clsid);
 }
 
-IFilterGraph *AkVCam::BaseFilter::filterGraph() const
-{
-    return this->d->m_filterGraph;
-}
-
 IReferenceClock *AkVCam::BaseFilter::referenceClock() const
 {
-    return this->d->m_referenceClock;
+    return this->d->m_clock;
 }
 
 std::string AkVCam::BaseFilter::deviceId()
 {
-    CLSID clsid;
-    this->GetClassID(&clsid);
-    auto cameraIndex = Preferences::cameraFromCLSID(clsid);
-
-    if (cameraIndex < 0)
-        return {};
-
-    return Preferences::cameraId(size_t(cameraIndex));
+    return this->d->m_deviceId;
 }
 
 bool AkVCam::BaseFilter::directMode() const
@@ -168,82 +173,377 @@ bool AkVCam::BaseFilter::directMode() const
     return this->d->m_directMode;
 }
 
-HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppvObject)
+ULONG AkVCam::BaseFilter::GetMiscFlags()
 {
     AkLogFunction();
-    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
 
-    if (!ppvObject)
+    return AM_FILTER_MISC_FLAGS_IS_SOURCE;
+}
+
+HRESULT AkVCam::BaseFilter::GetCaps(IPin *pPin, LONG *pCapsFlags)
+{
+    AkLogFunction();
+
+    if (!pPin || !pCapsFlags)
         return E_POINTER;
 
-    *ppvObject = nullptr;
+    *pCapsFlags = 0;
 
-    if (IsEqualIID(riid, IID_IUnknown)
-        || IsEqualIID(riid, IID_IBaseFilter)
-        || IsEqualIID(riid, IID_IMediaFilter)) {
-        AkLogInterface(IBaseFilter, this);
-        this->AddRef();
-        *ppvObject = this;
+    if (!this->d->m_pins->contains(pPin))
+        return E_FAIL;
 
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_IAMFilterMiscFlags)) {
-        auto filterMiscFlags = new FilterMiscFlags;
-        AkLogInterface(IAMFilterMiscFlags, filterMiscFlags);
-        filterMiscFlags->AddRef();
-        *ppvObject = filterMiscFlags;
+    *pCapsFlags = VideoControlFlag_FlipHorizontal
+                | VideoControlFlag_FlipVertical;
 
-        return S_OK;
-    } else if (!this->d->m_directMode
-               && IsEqualIID(riid, IID_IAMVideoControl)) {
-        IEnumPins *pins = nullptr;
-        this->d->m_pins->Clone(&pins);
-        auto videoControl = new VideoControl(pins);
-        pins->Release();
-        AkLogInterface(IAMVideoControl, videoControl);
-        videoControl->AddRef();
-        *ppvObject = videoControl;
+    return S_OK;
+}
 
-        return S_OK;
-    } else if (!this->d->m_directMode
-               && IsEqualIID(riid, IID_IAMVideoProcAmp)) {
-        auto videoProcAmp = this->d->m_videoProcAmp;
-        AkLogInterface(IAMVideoProcAmp, videoProcAmp);
-        videoProcAmp->AddRef();
-        *ppvObject = videoProcAmp;
+HRESULT AkVCam::BaseFilter::SetMode(IPin *pPin, LONG Mode)
+{
+    AkLogFunction();
 
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_IReferenceClock)) {
-        auto referenceClock = this->d->m_referenceClock;
-        AkLogInterface(IReferenceClock, referenceClock);
-        referenceClock->AddRef();
-        *ppvObject = referenceClock;
+    if (!pPin)
+        return E_POINTER;
 
-        return S_OK;
-    } else if (IsEqualIID(riid, IID_ISpecifyPropertyPages)) {
-        this->d->m_pins->Reset();
-        IPin *pin = nullptr;
-        this->d->m_pins->Next(1, &pin, nullptr);
-        auto specifyPropertyPages = new SpecifyPropertyPages(pin);
-        pin->Release();
-        AkLogInterface(ISpecifyPropertyPages, specifyPropertyPages);
-        specifyPropertyPages->AddRef();
-        *ppvObject = specifyPropertyPages;
+    if (!this->d->m_pins->contains(pPin))
+        return E_FAIL;
 
-        return S_OK;
+    auto cpin = dynamic_cast<Pin *>(pPin);
+    cpin->setHorizontalFlip((Mode & VideoControlFlag_FlipHorizontal) != 0);
+    cpin->setVerticalFlip((Mode & VideoControlFlag_FlipVertical) != 0);
+
+    return S_OK;
+}
+
+HRESULT AkVCam::BaseFilter::GetMode(IPin *pPin, LONG *Mode)
+{
+    AkLogFunction();
+
+    if (!pPin || !Mode)
+        return E_POINTER;
+
+    *Mode = 0;
+
+    if (!this->d->m_pins->contains(pPin))
+        return E_FAIL;
+
+    auto cpin = dynamic_cast<Pin *>(pPin);
+
+    if (cpin->horizontalFlip())
+        *Mode |= VideoControlFlag_FlipHorizontal;
+
+    if (cpin->verticalFlip())
+        *Mode |= VideoControlFlag_FlipVertical;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::BaseFilter::GetCurrentActualFrameRate(IPin *pPin,
+                                                      LONGLONG *ActualFrameRate)
+{
+    AkLogFunction();
+
+    if (!pPin || !ActualFrameRate)
+        return E_POINTER;
+
+    *ActualFrameRate = 0;
+
+    if (!this->d->m_pins->contains(pPin))
+        return E_FAIL;
+
+    auto cpin = dynamic_cast<Pin *>(pPin);
+    AM_MEDIA_TYPE *mediaType = nullptr;
+    auto result = cpin->GetFormat(&mediaType);
+
+    if (FAILED(result))
+        return result;
+
+    if (IsEqualGUID(mediaType->formattype, FORMAT_VideoInfo)) {
+        auto format = reinterpret_cast<VIDEOINFOHEADER *>(mediaType->pbFormat);
+        *ActualFrameRate = format->AvgTimePerFrame;
+    } else if (IsEqualGUID(mediaType->formattype, FORMAT_VideoInfo2)) {
+        auto format = reinterpret_cast<VIDEOINFOHEADER2 *>(mediaType->pbFormat);
+        *ActualFrameRate = format->AvgTimePerFrame;
     } else {
-        this->d->m_pins->Reset();
-        IPin *pin = nullptr;
+        deleteMediaType(&mediaType);
 
-        if (this->d->m_pins->Next(1, &pin, nullptr) == S_OK && pin) {
-            auto result = pin->QueryInterface(riid, ppvObject);
-            pin->Release();
-
-            if (SUCCEEDED(result))
-                return result;
-        }
+        return E_FAIL;
     }
 
-    return MediaFilter::QueryInterface(riid, ppvObject);
+    deleteMediaType(&mediaType);
+
+    return S_OK;
+}
+
+HRESULT AkVCam::BaseFilter::GetMaxAvailableFrameRate(IPin *pPin,
+                                                     LONG iIndex,
+                                                     SIZE Dimensions,
+                                                     LONGLONG *MaxAvailableFrameRate)
+{
+    AkLogFunction();
+
+    if (!pPin || !MaxAvailableFrameRate)
+        return E_POINTER;
+
+    *MaxAvailableFrameRate = 0;
+
+    if (!this->d->m_pins->contains(pPin))
+        return E_FAIL;
+
+    auto cpin = dynamic_cast<Pin *>(pPin);
+    AM_MEDIA_TYPE *mediaType = nullptr;
+    VIDEO_STREAM_CONFIG_CAPS configCaps;
+    auto result = cpin->GetStreamCaps(iIndex,
+                                      &mediaType,
+                                      reinterpret_cast<BYTE *>(&configCaps));
+
+    if (SUCCEEDED(result)) {
+        if (configCaps.MaxOutputSize.cx == Dimensions.cx
+            && configCaps.MaxOutputSize.cy == Dimensions.cy) {
+            *MaxAvailableFrameRate = configCaps.MaxFrameInterval;
+        } else {
+            result = E_FAIL;
+        }
+
+        deleteMediaType(&mediaType);
+    }
+
+    return result;
+}
+
+HRESULT AkVCam::BaseFilter::GetFrameRateList(IPin *pPin,
+                                             LONG iIndex,
+                                             SIZE Dimensions,
+                                             LONG *ListSize,
+                                             LONGLONG **FrameRates)
+{
+    AkLogFunction();
+
+    if (!pPin || !ListSize || !FrameRates)
+        return E_POINTER;
+
+    *ListSize = 0;
+    *FrameRates = nullptr;
+
+    if (!this->d->m_pins->contains(pPin))
+        return E_FAIL;
+
+    auto cpin = dynamic_cast<Pin *>(pPin);
+    AM_MEDIA_TYPE *mediaType = nullptr;
+    VIDEO_STREAM_CONFIG_CAPS configCaps;
+    auto result = cpin->GetStreamCaps(iIndex,
+                                      &mediaType,
+                                      reinterpret_cast<BYTE *>(&configCaps));
+
+    if (SUCCEEDED(result)) {
+        if (configCaps.MaxOutputSize.cx == Dimensions.cx
+            && configCaps.MaxOutputSize.cy == Dimensions.cy) {
+            *ListSize = 1;
+            *FrameRates = reinterpret_cast<LONGLONG *>(CoTaskMemAlloc(sizeof(LONGLONG)));
+            **FrameRates = configCaps.MaxFrameInterval;
+        } else {
+            result = E_FAIL;
+        }
+
+        deleteMediaType(&mediaType);
+    }
+
+    return result;
+}
+
+HRESULT AkVCam::BaseFilter::GetRange(LONG property,
+                                     LONG *pMin,
+                                     LONG *pMax,
+                                     LONG *pSteppingDelta,
+                                     LONG *pDefault,
+                                     LONG *pCapsFlags)
+{
+    AkLogFunction();
+
+    if (!pMin || !pMax || !pSteppingDelta || !pDefault || !pCapsFlags)
+        return E_POINTER;
+
+    *pMin = 0;
+    *pMax = 0;
+    *pSteppingDelta = 0;
+    *pDefault = 0;
+    *pCapsFlags = 0;
+
+    auto control = ProcAmpPrivate::byProperty(property);
+
+    if (!control)
+        return E_INVALIDARG;
+
+    *pMin = control->min;
+    *pMax = control->max;
+    *pSteppingDelta = control->step;
+    *pDefault = control->defaultValue;
+    *pCapsFlags = control->flags;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::BaseFilter::Set(LONG property, LONG lValue, LONG flags)
+{
+    AkLogFunction();
+
+    auto control = ProcAmpPrivate::byProperty(property);
+
+    if (!control)
+        return E_INVALIDARG;
+
+    if (lValue < control->min
+        || lValue > control->max
+        || flags != control->flags) {
+        return E_INVALIDARG;
+    }
+
+    this->d->m_controls[property] = lValue;
+    AKVCAM_EMIT(this, PropertyChanged, property, lValue, flags)
+
+    return S_OK;
+}
+
+HRESULT AkVCam::BaseFilter::Get(LONG property, LONG *lValue, LONG *flags)
+{
+    AkLogFunction();
+
+    if (!lValue || !flags)
+        return E_POINTER;
+
+    *lValue = 0;
+    *flags = 0;
+
+    auto control = ProcAmpPrivate::byProperty(property);
+
+    if (!control)
+        return E_INVALIDARG;
+
+    if (this->d->m_controls.count(property))
+        *lValue = this->d->m_controls[property];
+    else
+        *lValue = control->defaultValue;
+
+    *flags = control->flags;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::BaseFilter::GetPages(CAUUID *pPages)
+{
+    AkLogFunction();
+
+    if (!pPages)
+        return E_POINTER;
+
+    std::vector<GUID> pages {
+        CLSID_VideoProcAmpPropertyPage,
+    };
+
+    IPin *connectedPin = nullptr;
+    IPin *pin = nullptr;
+    this->d->m_pins->pin(0, &pin);
+
+    if (SUCCEEDED(pin->ConnectedTo(&connectedPin))) {
+        if (this->d->m_state == State_Stopped)
+            pages.push_back(CLSID_VideoStreamConfigPropertyPage);
+
+        connectedPin->Release();
+    }
+
+    pPages->cElems = static_cast<ULONG>(pages.size());
+    pPages->pElems =
+            reinterpret_cast<GUID *>(CoTaskMemAlloc(sizeof(GUID) * pages.size()));
+    AkLogInfo("Returning property pages:");
+
+    for (size_t i = 0; i < pages.size(); i++) {
+        memcpy(&pPages->pElems[i], &pages[i], sizeof(GUID));
+        AkLogInfo("    %s", stringFromClsid(pages[i]).c_str());
+    }
+
+    return S_OK;
+}
+
+HRESULT AkVCam::BaseFilter::GetClassID(CLSID *pClassID)
+{
+    AkLogFunction();
+
+    if (!pClassID)
+        return E_POINTER;
+
+    *pClassID = this->d->m_clsid;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::BaseFilter::Stop()
+{
+    AkLogFunction();
+    this->d->m_state = State_Stopped;
+
+    return this->d->m_pins->stop();
+}
+
+HRESULT AkVCam::BaseFilter::Pause()
+{
+    AkLogFunction();
+    this->d->m_state = State_Paused;
+
+    return this->d->m_pins->pause();
+}
+
+HRESULT AkVCam::BaseFilter::Run(REFERENCE_TIME tStart)
+{
+    AkLogFunction();
+    this->d->m_start = tStart;
+    this->d->m_state = State_Running;
+
+    return this->d->m_pins->run(tStart);
+}
+
+HRESULT AkVCam::BaseFilter::GetState(DWORD dwMilliSecsTimeout,
+                                     FILTER_STATE *State)
+{
+    UNUSED(dwMilliSecsTimeout);
+    AkLogFunction();
+
+    if (!State)
+        return E_POINTER;
+
+    *State = this->d->m_state;
+    AkLogDebug("State: %d", *State);
+
+    return S_OK;
+}
+
+HRESULT AkVCam::BaseFilter::SetSyncSource(IReferenceClock *pClock)
+{
+    AkLogFunction();
+
+    if (this->d->m_clock)
+        this->d->m_clock->Release();
+
+    this->d->m_clock = pClock;
+
+    if (this->d->m_clock)
+        this->d->m_clock->AddRef();
+
+    return S_OK;
+}
+
+HRESULT AkVCam::BaseFilter::GetSyncSource(IReferenceClock **pClock)
+{
+    AkLogFunction();
+
+    if (!pClock)
+        return E_POINTER;
+
+    *pClock = this->d->m_clock;
+
+    if (*pClock)
+        (*pClock)->AddRef();
+
+    return S_OK;
 }
 
 HRESULT AkVCam::BaseFilter::EnumPins(IEnumPins **ppEnum)
@@ -330,7 +630,7 @@ HRESULT AkVCam::BaseFilter::JoinFilterGraph(IFilterGraph *pGraph, LPCWSTR pName)
     AkLogFunction();
 
     this->d->m_filterGraph = pGraph;
-    this->d->m_filterName = pName? stringFromWSTR(pName): "";
+    this->d->m_filterName = stringFromWSTR(pName);
 
     AkLogDebug("Filter graph: %p", this->d->m_filterGraph);
     AkLogDebug("Name: %s", this->d->m_filterName.c_str());
@@ -342,27 +642,32 @@ HRESULT AkVCam::BaseFilter::QueryVendorInfo(LPWSTR *pVendorInfo)
 {
     AkLogFunction();
 
-    if (this->d->m_vendor.size() < 1)
-        return E_NOTIMPL;
-
     if (!pVendorInfo)
         return E_POINTER;
+
+    if (this->d->m_vendor.size() < 1)
+        return E_NOTIMPL;
 
     *pVendorInfo = wstrFromString(this->d->m_vendor);
 
     return S_OK;
 }
 
-AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self):
-    self(self),
-    m_pins(new AkVCam::EnumPins),
-    m_videoProcAmp(new VideoProcAmp),
-    m_referenceClock(new ReferenceClock)
+bool AkVCam::BaseFilter::isInterfaceDisabled(REFIID riid) const
 {
-    this->m_pins->AddRef();
-    this->m_videoProcAmp->AddRef();
-    this->m_referenceClock->AddRef();
+    if (this->d->m_directMode
+        && (IsEqualIID(riid, IID_IAMVideoControl)
+            || IsEqualIID(riid, IID_IAMVideoProcAmp))) {
+        return true;
+    }
 
+    return false;
+}
+
+AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self):
+    self(self)
+{
+    this->m_pins = new EnumPins(self),
     this->m_ipcBridge = std::make_shared<IpcBridge>();
     this->m_ipcBridge->connectDevicesChanged(this,
                                              &BaseFilterPrivate::devicesChanged);
@@ -382,18 +687,13 @@ AkVCam::BaseFilterPrivate::~BaseFilterPrivate()
         this->m_ipcBridge->deviceStop(device);
 
     this->m_ipcBridge->stopNotifications();
-    this->m_pins->setBaseFilter(nullptr);
     this->m_pins->Release();
-    this->m_videoProcAmp->Release();
-    this->m_referenceClock->Release();
 }
 
 IEnumPins *AkVCam::BaseFilterPrivate::pinsForDevice(const std::string &deviceId)
 {
     AkLogFunction();
-    CLSID clsid;
-    self->GetClassID(&clsid);
-    auto cameraIndex = Preferences::cameraFromCLSID(clsid);
+    auto cameraIndex = Preferences::cameraFromCLSID(this->m_clsid);
 
     if (cameraIndex < 0)
         return nullptr;
@@ -412,22 +712,18 @@ IEnumPins *AkVCam::BaseFilterPrivate::pinsForDevice(const std::string &deviceId)
 void AkVCam::BaseFilterPrivate::updatePins()
 {
     AkLogFunction();
-    CLSID clsid;
-    this->self->GetClassID(&clsid);
-    auto cameraIndex = Preferences::cameraFromCLSID(clsid);
-
-    if (cameraIndex < 0)
-        return;
-
-    auto deviceId = Preferences::cameraId(size_t(cameraIndex));
-
-    auto controlsList = this->m_ipcBridge->controls(deviceId);
+    auto controlsList = this->m_ipcBridge->controls(this->m_deviceId);
     std::map<std::string, int> controls;
 
     for (auto &control: controlsList)
         controls[control.id] = control.value;
 
-    AkVCamDevicePinCall(deviceId, this, setControls, controls)
+    for (size_t i = 0; i < this->m_pins->size(); ++i) {
+        IPin *pin = nullptr;
+        this->m_pins->pin(i, &pin);
+        dynamic_cast<Pin *>(pin)->setControls(controls);
+        pin->Release();
+    }
 }
 
 void AkVCam::BaseFilterPrivate::frameReady(void *userData,
@@ -437,7 +733,16 @@ void AkVCam::BaseFilterPrivate::frameReady(void *userData,
 {
     AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-    AkVCamDevicePinCall(deviceId, self, frameReady, frame, isActive)
+
+    if (deviceId != self->m_deviceId)
+        return;
+
+    for (size_t i = 0; i < self->m_pins->size(); ++i) {
+        IPin *pin = nullptr;
+        self->m_pins->pin(i, &pin);
+        dynamic_cast<Pin *>(pin)->frameReady(frame, isActive);
+        pin->Release();
+    }
 }
 
 void AkVCam::BaseFilterPrivate::pictureChanged(void *userData,
@@ -445,7 +750,13 @@ void AkVCam::BaseFilterPrivate::pictureChanged(void *userData,
 {
     AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-    AkVCamDevicePinCall(self->self->deviceId(), self, setPicture, picture)
+
+    for (size_t i = 0; i < self->m_pins->size(); ++i) {
+        IPin *pin = nullptr;
+        self->m_pins->pin(i, &pin);
+        dynamic_cast<Pin *>(pin)->setPicture(picture);
+        pin->Release();
+    }
 }
 
 void AkVCam::BaseFilterPrivate::devicesChanged(void *userData,
@@ -467,7 +778,16 @@ void AkVCam::BaseFilterPrivate::setControls(void *userData,
 {
     AkLogFunction();
     auto self = reinterpret_cast<BaseFilterPrivate *>(userData);
-    AkVCamDevicePinCall(deviceId, self, setControls, controls)
+
+    if (deviceId != self->m_deviceId)
+        return;
+
+    for (size_t i = 0; i < self->m_pins->size(); ++i) {
+        IPin *pin = nullptr;
+        self->m_pins->pin(i, &pin);
+        dynamic_cast<Pin *>(pin)->setControls(controls);
+        pin->Release();
+    }
 }
 
 BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData)

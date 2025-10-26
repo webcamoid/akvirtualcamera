@@ -56,11 +56,6 @@ int AkVCam::Timer::interval() const
     return this->d->m_interval;
 }
 
-int &AkVCam::Timer::interval()
-{
-    return this->d->m_interval;
-}
-
 void AkVCam::Timer::setInterval(int msec)
 {
     this->d->m_interval = msec;
@@ -121,7 +116,7 @@ AkVCam::TimerPrivate::TimerPrivate(AkVCam::Timer *self):
 void AkVCam::TimerPrivate::timerLoop()
 {
     while (this->m_running) {
-        if (this->m_interval > 0)
+        if (this->m_interval > 0 && this->m_singleShot)
             std::this_thread::sleep_for(std::chrono::milliseconds(this->m_interval));
 
         AKVCAM_EMIT_NOARGS(this->self, Timeout)
@@ -130,6 +125,9 @@ void AkVCam::TimerPrivate::timerLoop()
             this->m_running = false;
 
             break;
+        } else {
+            if (this->m_interval > 0)
+                std::this_thread::sleep_for(std::chrono::milliseconds(this->m_interval));
         }
     }
 }

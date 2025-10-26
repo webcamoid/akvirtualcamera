@@ -207,7 +207,7 @@ bool AkVCam::MessageClientPrivate::connection(uint16_t port,
                                               MessageClient::OutMessageHandler writeData)
 {
     AkLogFunction();
-    AkLogDebug("Port: %s", port);
+    AkLogDebug("Port: %d", port);
     auto clientSocket = socket(AF_INET, SOCK_STREAM, 0);
 
     if (clientSocket < 0) {

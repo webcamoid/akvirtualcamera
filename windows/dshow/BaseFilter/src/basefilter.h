@@ -22,39 +22,103 @@
 
 #include <string>
 #include <vector>
+#include <strmif.h>
 
+#include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/videoformat.h"
-#include "mediafilter.h"
+#include "VCamUtils/src/utils.h"
+#include "PlatformUtils/src/cunknown.h"
 
 namespace AkVCam
 {
     class BaseFilterPrivate;
+    class Pin;
 
     class BaseFilter:
-            public IBaseFilter,
-            public MediaFilter
+            public virtual IBaseFilter,
+            public virtual IAMFilterMiscFlags,
+            public virtual IAMVideoControl,
+            public virtual IAMVideoProcAmp,
+            public virtual ISpecifyPropertyPages
     {
+        AKVCAM_SIGNAL(PropertyChanged, LONG Property, LONG lValue, LONG Flags)
+
         public:
             BaseFilter(const GUID &clsid);
             virtual ~BaseFilter();
 
-            void addPin(const std::vector<VideoFormat> &formats={},
-                        const std::string &pinName={},
-                        bool changed=true);
-            void removePin(IPin *pin, bool changed=true);
+            IpcBridgePtr ipcBridge() const;
             static BaseFilter *create(const GUID &clsid);
-            IFilterGraph *filterGraph() const;
             IReferenceClock *referenceClock() const;
             std::string deviceId();
             bool directMode() const;
 
-            DECLARE_IMEDIAFILTER_NQ
+            BEGIN_COM_MAP_NOD(BaseFilter)
+                COM_INTERFACE_ENTRY(IPersist)
+                COM_INTERFACE_ENTRY(IMediaFilter)
+                COM_INTERFACE_ENTRY(IBaseFilter)
+                COM_INTERFACE_ENTRY(IAMFilterMiscFlags)
+                COM_INTERFACE_ENTRY(IAMVideoControl)
+                COM_INTERFACE_ENTRY(IAMVideoProcAmp)
+                COM_INTERFACE_ENTRY(ISpecifyPropertyPages)
+                COM_INTERFACE_ENTRY2(IUnknown, IBaseFilter)
+            END_COM_MAP_NU(BaseFilter)
 
-            // IUnknown
-            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
-                                                     void **ppvObject) override;
+            // IAMFilterMiscFlags
+
+            ULONG STDMETHODCALLTYPE GetMiscFlags() override;
+
+            // IAMVideoControl
+
+            HRESULT STDMETHODCALLTYPE GetCaps(IPin *pPin, LONG *pCapsFlags) override;
+            HRESULT STDMETHODCALLTYPE SetMode(IPin *pPin, LONG Mode) override;
+            HRESULT STDMETHODCALLTYPE GetMode(IPin *pPin, LONG *Mode) override;
+            HRESULT STDMETHODCALLTYPE GetCurrentActualFrameRate(IPin *pPin,
+                                                                LONGLONG *ActualFrameRate) override;
+            HRESULT STDMETHODCALLTYPE GetMaxAvailableFrameRate(IPin *pPin,
+                                                               LONG iIndex,
+                                                               SIZE Dimensions,
+                                                               LONGLONG *MaxAvailableFrameRate) override;
+            HRESULT STDMETHODCALLTYPE GetFrameRateList(IPin *pPin,
+                                                       LONG iIndex,
+                                                       SIZE Dimensions,
+                                                       LONG *ListSize,
+                                                       LONGLONG **FrameRates) override;
+
+            // IAMVideoProcAmp
+
+            HRESULT STDMETHODCALLTYPE GetRange(LONG property,
+                                               LONG *pMin,
+                                               LONG *pMax,
+                                               LONG *pSteppingDelta,
+                                               LONG *pDefault,
+                                               LONG *pCapsFlags) override;
+            HRESULT STDMETHODCALLTYPE Set(LONG property,
+                                          LONG lValue,
+                                          LONG flags) override;
+            HRESULT STDMETHODCALLTYPE Get(LONG property,
+                                          LONG *lValue,
+                                          LONG *flags) override;
+
+            // ISpecifyPropertyPages
+            HRESULT STDMETHODCALLTYPE GetPages(CAUUID *pPages) override;
+
+            // IPersist
+
+            HRESULT STDMETHODCALLTYPE GetClassID(CLSID *pClassID) override;
+
+            // IMediaFilter
+
+            HRESULT STDMETHODCALLTYPE Stop() override;
+            HRESULT STDMETHODCALLTYPE Pause() override;
+            HRESULT STDMETHODCALLTYPE Run(REFERENCE_TIME tStart) override;
+            HRESULT STDMETHODCALLTYPE GetState(DWORD dwMilliSecsTimeout,
+                                               FILTER_STATE *State) override;
+            HRESULT STDMETHODCALLTYPE SetSyncSource(IReferenceClock *pClock) override;
+            HRESULT STDMETHODCALLTYPE GetSyncSource(IReferenceClock **pClock) override;
 
             // IBaseFilter
+
             HRESULT STDMETHODCALLTYPE EnumPins(IEnumPins **ppEnum) override;
             HRESULT STDMETHODCALLTYPE FindPin(LPCWSTR Id, IPin **ppPin) override;
             HRESULT STDMETHODCALLTYPE QueryFilterInfo(FILTER_INFO *pInfo) override;
@@ -64,6 +128,11 @@ namespace AkVCam
 
         private:
             BaseFilterPrivate *d;
+
+        protected:
+            bool isInterfaceDisabled(REFIID riid) const;
+
+        friend class BaseFilterPrivate;
     };
 }
 

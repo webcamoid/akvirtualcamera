@@ -386,6 +386,9 @@ std::string AkVCam::stringFromClsid(const CLSID &clsid)
 
 std::string AkVCam::stringFromWSTR(LPCWSTR wstr)
 {
+    if (!wstr)
+        return {};
+
     auto len = WideCharToMultiByte(CP_ACP,
                                    0,
                                    wstr,
@@ -800,24 +803,6 @@ void AkVCam::deleteMediaType(AM_MEDIA_TYPE **mediaType)
 
     CoTaskMemFree(*mediaType);
     *mediaType = nullptr;
-}
-
-bool AkVCam::containsMediaType(const AM_MEDIA_TYPE *mediaType,
-                               IEnumMediaTypes *mediaTypes)
-{
-    AM_MEDIA_TYPE *mt = nullptr;
-    mediaTypes->Reset();
-    auto isEqual = false;
-
-    while (mediaTypes->Next(1, &mt, nullptr) == S_OK) {
-        isEqual = isEqualMediaType(mt, mediaType);
-        deleteMediaType(&mt);
-
-        if (isEqual)
-            break;
-    }
-
-    return isEqual;
 }
 
 std::string AkVCam::stringFromMajorType(const GUID &majorType)

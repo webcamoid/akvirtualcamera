@@ -25,17 +25,20 @@
 
 #include "attributes.h"
 #include "mediaeventgenerator.h"
+#include "PlatformUtils/src/cunknown.h"
 
 namespace AkVCam
 {
     class MediaSourcePrivate;
 
     class MediaSource:
-            public IMFMediaSource,
-            public IMFGetService,
-            public Attributes,
-            public MediaEventGenerator
+            public virtual IMFMediaSource,
+            public virtual IMFAttributes,
+            public virtual IMFGetService,
+            public virtual IAMVideoProcAmp
     {
+        AKVCAM_SIGNAL(PropertyChanged, LONG Property, LONG lValue, LONG Flags)
+
         public:
             MediaSource(const GUID &clsid);
             ~MediaSource();
@@ -43,13 +46,41 @@ namespace AkVCam
             std::string deviceId() const;
             bool directMode() const;
 
-            DECLARE_IMFMEDIAEVENTGENERATOR_NQ
+            BEGIN_COM_MAP_NOD(MediaSource)
+                COM_INTERFACE_ENTRY(IMFMediaEventGenerator)
+                COM_INTERFACE_ENTRY(IMFMediaSource)
+                COM_INTERFACE_ENTRY(IMFAttributes)
+                COM_INTERFACE_ENTRY(IMFGetService)
+                COM_INTERFACE_ENTRY(IAMVideoProcAmp)
+                COM_INTERFACE_ENTRY2(IUnknown, IMFMediaSource)
+            END_COM_MAP_NU(MediaSource)
 
-            // IUnknown
-            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
-                                                     void **ppvObject) override;
+            DECLARE_ATTRIBUTES
+            DECLARE_EVENT_GENERATOR
+
+            // IMFGetService
+
+            HRESULT STDMETHODCALLTYPE GetService(REFGUID service,
+                                                 REFIID riid,
+                                                 LPVOID *ppvObject) override;
+
+            // IAMVideoProcAmp
+
+            HRESULT STDMETHODCALLTYPE GetRange(LONG property,
+                                               LONG *pMin,
+                                               LONG *pMax,
+                                               LONG *pSteppingDelta,
+                                               LONG *pDefault,
+                                               LONG *pCapsFlags) override;
+            HRESULT STDMETHODCALLTYPE Set(LONG property,
+                                          LONG lValue,
+                                          LONG flags) override;
+            HRESULT STDMETHODCALLTYPE Get(LONG property,
+                                          LONG *lValue,
+                                          LONG *flags) override;
 
             // IMFMediaSource
+
             HRESULT STDMETHODCALLTYPE GetCharacteristics(DWORD *pdwCharacteristics) override;
             HRESULT STDMETHODCALLTYPE CreatePresentationDescriptor(IMFPresentationDescriptor **presentationDescriptor) override;
             HRESULT STDMETHODCALLTYPE Start(IMFPresentationDescriptor *pPresentationDescriptor,
@@ -59,13 +90,11 @@ namespace AkVCam
             HRESULT STDMETHODCALLTYPE Pause() override;
             HRESULT STDMETHODCALLTYPE Shutdown() override;
 
-            // IMFGetService
-            HRESULT STDMETHODCALLTYPE GetService(REFGUID service,
-                                                 REFIID riid,
-                                                 LPVOID *ppvObject) override;
-
         private:
             MediaSourcePrivate *d;
+
+        protected:
+            bool isInterfaceDisabled(REFIID riid) const;
     };
 }
 

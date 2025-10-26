@@ -32,7 +32,6 @@
 #include "mediastream.h"
 #include "mediasource.h"
 #include "mfvcam.h"
-#include "controls.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/fraction.h"
@@ -63,8 +62,8 @@ namespace AkVCam
         public:
             MediaStream *self;
             IpcBridgePtr m_bridge;
+            std::string m_deviceId;
             MediaSource *m_mediaSource {nullptr};
-            Controls *m_ksControls {nullptr};
             IMFStreamDescriptor *m_streamDescriptor {nullptr};
             MediaStreamState m_state {MediaStreamState_Stopped};
             LONGLONG m_sampleCount {0};
@@ -89,12 +88,13 @@ namespace AkVCam
             LONG m_colorEnable {1};
             bool m_isRgb {false};
             bool m_frameReady {false};
+            bool m_directMode {false};
 
             explicit MediaStreamPrivate(MediaStream *self);
             HRESULT queueSample();
             VideoFrame applyAdjusts(const VideoFrame &frame);
             static void propertyChanged(void *userData,
-                                        KSPROPERTY_VIDCAP_VIDEOPROCAMP property,
+                                        LONG property,
                                         LONG value,
                                         LONG flags);
             VideoFrame randomFrame();
@@ -102,21 +102,15 @@ namespace AkVCam
 }
 
 AkVCam::MediaStream::MediaStream(MediaSource *mediaSource,
-                                 IMFStreamDescriptor *streamDescriptor):
-    Attributes(),
-    MediaEventGenerator()
+                                 IMFStreamDescriptor *streamDescriptor)
 {
     this->d = new MediaStreamPrivate(this);
 
-    if (mediaSource) {
-        mediaSource->AddRef();
-        this->d->m_mediaSource = mediaSource;
-    }
-
-    if (streamDescriptor) {
-        streamDescriptor->AddRef();
-        this->d->m_streamDescriptor = streamDescriptor;
-    }
+    this->d->m_mediaSource = mediaSource;
+    this->d->m_streamDescriptor = streamDescriptor;
+    this->d->m_streamDescriptor->AddRef();
+    this->d->m_deviceId = this->d->m_mediaSource->deviceId();
+    this->d->m_directMode = this->d->m_mediaSource->directMode();
 
     this->SetGUID(AKVCAM_MF_DEVICESTREAM_STREAM_CATEGORY, AKVCAM_PINNAME_VIDEO_CAPTURE);
     this->SetUINT32(AKVCAM_MF_DEVICESTREAM_STREAM_ID, 0);
@@ -124,7 +118,7 @@ AkVCam::MediaStream::MediaStream(MediaSource *mediaSource,
     this->SetUINT32(AKVCAM_MF_DEVICESTREAM_ATTRIBUTE_FRAMESOURCE_TYPES,
                     FrameSourceTypes_Color);
 
-    auto cameraIndex = Preferences::cameraFromId(mediaSource->deviceId());
+    auto cameraIndex = Preferences::cameraFromId(this->d->m_deviceId);
 
     auto horizontalMirror = Preferences::cameraControlValue(cameraIndex, "hflip") > 0;
     auto verticalMirror = Preferences::cameraControlValue(cameraIndex, "vflip") > 0;
@@ -152,33 +146,34 @@ AkVCam::MediaStream::MediaStream(MediaSource *mediaSource,
         this->d->m_mutex.unlock();
     }
 
-    if (mediaSource)
-        mediaSource->QueryInterface(IID_IAMVideoProcAmp,
-                                    reinterpret_cast<void **>(&this->d->m_ksControls));
+    LONG flags = 0;
+    this->d->m_mediaSource->Get(VideoProcAmp_Brightness,
+                               &this->d->m_brightness,
+                               &flags);
+    this->d->m_mediaSource->Get(VideoProcAmp_Contrast,
+                               &this->d->m_contrast,
+                               &flags);
+    this->d->m_mediaSource->Get(VideoProcAmp_Saturation,
+                               &this->d->m_saturation,
+                               &flags);
+    this->d->m_mediaSource->Get(VideoProcAmp_Gamma,
+                               &this->d->m_gamma,
+                               &flags);
+    this->d->m_mediaSource->Get(VideoProcAmp_Hue,
+                               &this->d->m_hue,
+                               &flags);
+    this->d->m_mediaSource->Get(VideoProcAmp_ColorEnable,
+                               &this->d->m_colorEnable,
+                               &flags);
 
-    if (this->d->m_ksControls) {
-        this->d->m_brightness = this->d->m_ksControls->value("Brightness");
-        this->d->m_contrast = this->d->m_ksControls->value("Contrast");
-        this->d->m_saturation = this->d->m_ksControls->value("Saturation");
-        this->d->m_gamma = this->d->m_ksControls->value("Gamma");
-        this->d->m_hue = this->d->m_ksControls->value("Hue");
-        this->d->m_colorEnable = this->d->m_ksControls->value("ColorEnable");
-
-        this->d->m_ksControls->connectPropertyChanged(this->d,
-                                                      &MediaStreamPrivate::propertyChanged);
-    }
+    this->d->m_mediaSource->connectPropertyChanged(this->d,
+                                                   &MediaStreamPrivate::propertyChanged);
 }
 
 AkVCam::MediaStream::~MediaStream()
 {
     if (this->d->m_streamDescriptor)
         this->d->m_streamDescriptor->Release();
-
-    if (this->d->m_mediaSource)
-        this->d->m_mediaSource->Release();
-
-    if (this->d->m_ksControls)
-        this->d->m_ksControls->Release();
 
     if (this->d->m_mediaType)
         this->d->m_mediaType->Release();
@@ -203,7 +198,7 @@ void AkVCam::MediaStream::frameReady(const VideoFrame &frame, bool isActive)
 
     this->d->m_mutex.lock();
 
-    if (this->d->m_mediaSource->directMode()) {
+    if (this->d->m_directMode) {
         if (isActive && frame & this->d->m_format.isSameFormat(frame.format())) {
             memcpy(this->d->m_currentFrame.data(),
                    frame.constData(),
@@ -244,7 +239,7 @@ void AkVCam::MediaStream::setControls(const std::map<std::string, int> &controls
 {
     AkLogFunction();
 
-    if (this->d->m_mediaSource->directMode())
+    if (this->d->m_directMode)
         return;
 
     for (auto &control: controls) {
@@ -313,7 +308,7 @@ HRESULT AkVCam::MediaStream::start(IMFMediaType *mediaType)
 
     if (this->d->m_bridge)
         this->d->m_bridge->deviceStart(IpcBridge::StreamType_Input,
-                                       this->d->m_mediaSource->deviceId());
+                                       this->d->m_deviceId);
 
     return S_OK;
 }
@@ -334,7 +329,7 @@ HRESULT AkVCam::MediaStream::stop()
         this->d->m_running = false;
 
         if (this->d->m_bridge)
-            this->d->m_bridge->deviceStop(this->d->m_mediaSource->deviceId());
+            this->d->m_bridge->deviceStop(this->d->m_deviceId);
 
         this->d->m_currentFrame = {};
 
@@ -365,30 +360,6 @@ HRESULT AkVCam::MediaStream::pause()
                                                   GUID_NULL,
                                                   S_OK,
                                                   nullptr);
-}
-
-HRESULT AkVCam::MediaStream::QueryInterface(const IID &riid, void **ppvObject)
-{
-    AkLogFunction();
-    AkLogDebug("IID: %s", stringFromClsidMF(riid).c_str());
-
-    if (!ppvObject)
-        return E_POINTER;
-
-    *ppvObject = nullptr;
-
-    if (IsEqualIID(riid, IID_IUnknown)
-        || IsEqualIID(riid, IID_IMFMediaStream)
-        || IsEqualIID(riid, IID_IMFAttributes)
-        || IsEqualIID(riid, IID_IMFMediaEventGenerator)) {
-        AkLogInterface(IMFMediaStream, this);
-        this->AddRef();
-        *ppvObject = this;
-
-        return S_OK;
-    }
-
-    return MediaEventGenerator::QueryInterface(riid, ppvObject);
 }
 
 HRESULT AkVCam::MediaStream::GetMediaSource(IMFMediaSource **ppMediaSource)
@@ -637,7 +608,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
 }
 
 void AkVCam::MediaStreamPrivate::propertyChanged(void *userData,
-                                                 KSPROPERTY_VIDCAP_VIDEOPROCAMP property,
+                                                 LONG property,
                                                  LONG value,
                                                  LONG flags)
 {
@@ -646,37 +617,37 @@ void AkVCam::MediaStreamPrivate::propertyChanged(void *userData,
     auto self = reinterpret_cast<MediaStreamPrivate *>(userData);
 
     switch (property) {
-    case KSPROPERTY_VIDEOPROCAMP_BRIGHTNESS:
+    case VideoProcAmp_Brightness:
         self->m_brightness = value;
         self->m_videoAdjusts.setLuminance(self->m_brightness);
 
         break;
 
-    case KSPROPERTY_VIDEOPROCAMP_CONTRAST:
+    case VideoProcAmp_Contrast:
         self->m_contrast = value;
         self->m_videoAdjusts.setContrast(self->m_contrast);
 
         break;
 
-    case KSPROPERTY_VIDEOPROCAMP_SATURATION:
+    case VideoProcAmp_Saturation:
         self->m_saturation = value;
         self->m_videoAdjusts.setSaturation(self->m_saturation);
 
         break;
 
-    case KSPROPERTY_VIDEOPROCAMP_GAMMA:
+    case VideoProcAmp_Gamma:
         self->m_gamma = value;
         self->m_videoAdjusts.setGamma(self->m_gamma);
 
         break;
 
-    case KSPROPERTY_VIDEOPROCAMP_HUE:
+    case VideoProcAmp_Hue:
         self->m_hue = value;
         self->m_videoAdjusts.setHue(self->m_hue);
 
         break;
 
-    case KSPROPERTY_VIDEOPROCAMP_COLORENABLE:
+    case VideoProcAmp_ColorEnable:
         self->m_colorEnable = value;
         self->m_videoAdjusts.setGrayScaled(!self->m_colorEnable);
 
@@ -698,7 +669,7 @@ AkVCam::VideoFrame AkVCam::MediaStreamPrivate::applyAdjusts(const VideoFrame &fr
 
     this->m_videoConverter.begin();
 
-    if (this->m_mediaSource->directMode()) {
+    if (this->m_directMode) {
         newFrame = this->m_videoConverter.convert(frame);
     } else {
         int width = this->m_format.width();

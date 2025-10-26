@@ -29,7 +29,6 @@
 #include "mediasource.h"
 #include "mediastream.h"
 #include "mfvcam.h"
-#include "controls.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/ipcbridge.h"
@@ -45,6 +44,40 @@ enum MediaSourceState
 
 namespace AkVCam
 {
+    class ProcAmpPrivate
+    {
+        public:
+            LONG property;
+            LONG min;
+            LONG max;
+            LONG step;
+            LONG defaultValue;
+            LONG flags;
+
+            inline static const std::vector<ProcAmpPrivate> &controls()
+            {
+                static const std::vector<ProcAmpPrivate> controls {
+                    {VideoProcAmp_Brightness , -255, 255, 1, 0, VideoProcAmp_Flags_Manual},
+                    {VideoProcAmp_Contrast   , -255, 255, 1, 0, VideoProcAmp_Flags_Manual},
+                    {VideoProcAmp_Saturation , -255, 255, 1, 0, VideoProcAmp_Flags_Manual},
+                    {VideoProcAmp_Gamma      , -255, 255, 1, 0, VideoProcAmp_Flags_Manual},
+                    {VideoProcAmp_Hue        , -359, 359, 1, 0, VideoProcAmp_Flags_Manual},
+                    {VideoProcAmp_ColorEnable,    0,   1, 1, 1, VideoProcAmp_Flags_Manual}
+                };
+
+                return controls;
+            }
+
+            static inline const ProcAmpPrivate *byProperty(LONG property)
+            {
+                for (auto &control: controls())
+                    if (control.property == property)
+                        return &control;
+
+                return nullptr;
+            }
+    };
+
     class MediaSourcePrivate
     {
         public:
@@ -52,7 +85,7 @@ namespace AkVCam
             MediaStream *m_pStream {nullptr};
             MediaSourceState m_state {MediaSourceState_Stopped};
             IMFStreamDescriptor *m_pStreamDesc {nullptr};
-            Controls *m_controls {nullptr};
+            std::map<LONG, LONG> m_controls;
             IpcBridgePtr m_ipcBridge;
             std::string m_deviceId;
             CLSID m_clsid;
@@ -77,18 +110,12 @@ namespace AkVCam
 
 BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
 
-AkVCam::MediaSource::MediaSource(const GUID &clsid):
-    Attributes(),
-    MediaEventGenerator()
+AkVCam::MediaSource::MediaSource(const GUID &clsid)
 {
     AkLogFunction();
     this->d = new MediaSourcePrivate(this);
     this->d->m_clsid = clsid;
-
     AkLogDebug("CLSID: %s", stringFromClsidMF(clsid).c_str());
-
-    this->d->m_controls = new Controls;
-    this->d->m_controls->AddRef();
 
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);
     AkLogDebug("Camera index: %d", cameraIndex);
@@ -172,9 +199,6 @@ AkVCam::MediaSource::~MediaSource()
 
     this->d->m_ipcBridge->stopNotifications();
 
-    if (this->d->m_controls)
-        this->d->m_controls->Release();
-
     if (this->d->m_pStream)
         this->d->m_pStream->Release();
 
@@ -194,38 +218,93 @@ bool AkVCam::MediaSource::directMode() const
     return this->d->m_directMode;
 }
 
-HRESULT AkVCam::MediaSource::QueryInterface(REFIID riid, void **ppvObject)
+HRESULT AkVCam::MediaSource::GetService(REFGUID service,
+                                        REFIID riid,
+                                        LPVOID *ppvObject)
+{
+    UNUSED(service);
+    UNUSED(riid);
+    UNUSED(ppvObject);
+
+    return MF_E_UNSUPPORTED_SERVICE;
+}
+
+HRESULT AkVCam::MediaSource::GetRange(LONG property,
+                                      LONG *pMin,
+                                      LONG *pMax,
+                                      LONG *pSteppingDelta,
+                                      LONG *pDefault,
+                                      LONG *pCapsFlags)
 {
     AkLogFunction();
-    AkLogDebug("IID: %s", stringFromClsidMF(riid).c_str());
 
-    if (!ppvObject)
+    if (!pMin || !pMax || !pSteppingDelta || !pDefault || !pCapsFlags)
         return E_POINTER;
 
-    *ppvObject = nullptr;
+    *pMin = 0;
+    *pMax = 0;
+    *pSteppingDelta = 0;
+    *pDefault = 0;
+    *pCapsFlags = 0;
 
-    if (IsEqualIID(riid, IID_IUnknown)
-        || IsEqualIID(riid, IID_IMFMediaSource)
-        || IsEqualIID(riid, IID_IMFAttributes)
-        || IsEqualIID(riid, IID_IMFGetService)
-        || IsEqualIID(riid, IID_IMFMediaEventGenerator)) {
-        AkLogInterface(IMFMediaSource, this);
-        this->AddRef();
-        *ppvObject = this;
+    auto control = ProcAmpPrivate::byProperty(property);
 
-        return S_OK;
-    } else if (!this->d->m_directMode
-               && (IsEqualIID(riid, IID_VCamControl)
-                   || IsEqualIID(riid, IID_IAMVideoProcAmp))) {
-        auto controls = this->d->m_controls;
-        AkLogInterface(IAMVideoProcAmp, controls);
-        controls->AddRef();
-        *ppvObject = controls;
+    if (!control)
+        return E_INVALIDARG;
 
-        return S_OK;
+    *pMin = control->min;
+    *pMax = control->max;
+    *pSteppingDelta = control->step;
+    *pDefault = control->defaultValue;
+    *pCapsFlags = control->flags;
+
+    return S_OK;
+}
+
+HRESULT AkVCam::MediaSource::Set(LONG property, LONG lValue, LONG flags)
+{
+    AkLogFunction();
+
+    auto control = ProcAmpPrivate::byProperty(property);
+
+    if (!control)
+        return E_INVALIDARG;
+
+    if (lValue < control->min
+        || lValue > control->max
+        || flags != control->flags) {
+        return E_INVALIDARG;
     }
 
-    return MediaEventGenerator::QueryInterface(riid, ppvObject);
+    this->d->m_controls[property] = lValue;
+    AKVCAM_EMIT(this, PropertyChanged, property, lValue, flags)
+
+    return S_OK;
+}
+
+HRESULT AkVCam::MediaSource::Get(LONG property, LONG *lValue, LONG *flags)
+{
+    AkLogFunction();
+
+    if (!lValue || !flags)
+        return E_POINTER;
+
+    *lValue = 0;
+    *flags = 0;
+
+    auto control = ProcAmpPrivate::byProperty(property);
+
+    if (!control)
+        return E_INVALIDARG;
+
+    if (this->d->m_controls.count(property))
+        *lValue = this->d->m_controls[property];
+    else
+        *lValue = control->defaultValue;
+
+    *flags = control->flags;
+
+    return S_OK;
 }
 
 HRESULT AkVCam::MediaSource::GetCharacteristics(DWORD *pdwCharacteristics)
@@ -262,8 +341,11 @@ HRESULT AkVCam::MediaSource::CreatePresentationDescriptor(IMFPresentationDescrip
 
     hr = pPresentationDesc->SelectStream(0);
 
-    if (FAILED(hr))
+    if (FAILED(hr)) {
+        pPresentationDesc->Release();
+
         return hr;
+    }
 
     *presentationDescriptor = pPresentationDesc;
 
@@ -447,15 +529,15 @@ HRESULT AkVCam::MediaSource::Shutdown()
     return this->eventQueue()->Shutdown();
 }
 
-HRESULT AkVCam::MediaSource::GetService(REFGUID service,
-                                        REFIID riid,
-                                        LPVOID *ppvObject)
+bool AkVCam::MediaSource::isInterfaceDisabled(const IID &riid) const
 {
-    UNUSED(service);
-    UNUSED(riid);
-    UNUSED(ppvObject);
+    if (this->d->m_directMode
+        && (IsEqualIID(riid, IID_IAMVideoControl)
+            || IsEqualIID(riid, IID_IAMVideoProcAmp))) {
+        return true;
+    }
 
-    return MF_E_UNSUPPORTED_SERVICE;
+    return false;
 }
 
 AkVCam::MediaSourcePrivate::MediaSourcePrivate(MediaSource *self):

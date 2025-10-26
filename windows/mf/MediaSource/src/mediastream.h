@@ -25,6 +25,7 @@
 #include "attributes.h"
 #include "mediaeventgenerator.h"
 #include "VCamUtils/src/ipcbridge.h"
+#include "PlatformUtils/src/cunknown.h"
 
 namespace AkVCam
 {
@@ -32,9 +33,8 @@ namespace AkVCam
     class MediaSource;
 
     class MediaStream:
-            public IMFMediaStream,
-            public Attributes,
-            public MediaEventGenerator
+            public virtual IMFMediaStream,
+            public virtual IMFAttributes
     {
         public:
             MediaStream(MediaSource *mediaSource,
@@ -53,19 +53,26 @@ namespace AkVCam
             HRESULT stop();
             HRESULT pause();
 
-            DECLARE_IMFMEDIAEVENTGENERATOR_NQ
+            BEGIN_COM_MAP_NO(MediaStream)
+                COM_INTERFACE_ENTRY(IMFMediaEventGenerator)
+                COM_INTERFACE_ENTRY(IMFMediaStream)
+                COM_INTERFACE_ENTRY(IMFAttributes)
+                COM_INTERFACE_ENTRY2(IUnknown, IMFMediaStream)
+            END_COM_MAP_NU(MediaStream)
 
-            // IUnknown
-            HRESULT STDMETHODCALLTYPE QueryInterface(const IID &riid,
-                                                     void **ppvObject) override;
+            DECLARE_ATTRIBUTES
+            DECLARE_EVENT_GENERATOR
 
             // IMFMediaStream
+
             HRESULT STDMETHODCALLTYPE GetMediaSource(IMFMediaSource **ppMediaSource) override;
             HRESULT STDMETHODCALLTYPE GetStreamDescriptor(IMFStreamDescriptor **ppStreamDescriptor) override;
             HRESULT STDMETHODCALLTYPE RequestSample(IUnknown *pToken) override;
 
         private:
             MediaStreamPrivate *d;
+
+        friend class MediaStreamPrivate;
     };
 }
 

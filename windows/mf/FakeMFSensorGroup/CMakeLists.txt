@@ -49,6 +49,7 @@ set_target_properties(FakeMFSensorGroup PROPERTIES
                       OUTPUT_NAME mfsensorgroup
                       RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BINDIR}
                       PREFIX "")
+add_dependencies(FakeMFSensorGroup PlatformUtils_windows VCamUtils)
 target_compile_definitions(FakeMFSensorGroup PRIVATE FAKEMFSENSORGROUP_LIBRARY)
 target_include_directories(FakeMFSensorGroup
                            PRIVATE
@@ -62,7 +63,9 @@ if (WIN32 AND FAKE_MFSENSORGROUP)
         ole32)
 endif ()
 
-target_link_libraries(VirtualCamera_mf
+target_link_libraries(FakeMFSensorGroup
+                      PlatformUtils_windows
+                      VCamUtils
                       ${EXTRA_LIBS})
 add_definitions(-DSTRSAFE_NO_DEPRECATE)
 

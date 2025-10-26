@@ -24,15 +24,18 @@
 
 DEFINE_GUID(IID_IMFVCam, 0x12345678, 0x1234, 0x5678, 0x90, 0xAB, 0xCD, 0xEF, 0x12, 0x34, 0x56, 0x78);
 
-class MFVCamImplPrivate
+namespace AkVCam
 {
-    public:
-        ULONG m_refCount {1};
-        std::wstring m_friendlyName;
-        std::wstring m_sourceId;
-};
+    class MFVCamImplPrivate
+    {
+        public:
+            std::wstring m_friendlyName;
+            std::wstring m_sourceId;
+    };
+}
 
-MFVCamImpl::MFVCamImpl(LPCWSTR friendlyName, LPCWSTR sourceId)
+AkVCam::MFVCamImpl::MFVCamImpl(LPCWSTR friendlyName, LPCWSTR sourceId):
+    CUnknown()
 {
     this->d = new MFVCamImplPrivate;
 
@@ -43,44 +46,12 @@ MFVCamImpl::MFVCamImpl(LPCWSTR friendlyName, LPCWSTR sourceId)
         this->d->m_sourceId = sourceId;
 }
 
-MFVCamImpl::~MFVCamImpl()
+AkVCam::MFVCamImpl::~MFVCamImpl()
 {
     delete this->d;
 }
 
-HRESULT MFVCamImpl::QueryInterface(const IID &riid, void **ppv)
-{
-    if (!ppv)
-        return E_POINTER;
-
-    if (riid == IID_IUnknown || riid == IID_IMFVCam) {
-        *ppv = static_cast<IMFVCam *>(this);
-        AddRef();
-
-        return S_OK;
-    }
-
-    *ppv = nullptr;
-
-    return E_NOINTERFACE;
-}
-
-ULONG MFVCamImpl::AddRef()
-{
-    return InterlockedIncrement(&this->d->m_refCount);
-}
-
-ULONG MFVCamImpl::Release()
-{
-    auto refCount = InterlockedDecrement(&this->d->m_refCount);
-
-    if (refCount == 0)
-        delete this;
-
-    return refCount;
-}
-
-HRESULT MFVCamImpl::GetItem(const GUID &guidKey, PROPVARIANT *pValue)
+HRESULT AkVCam::MFVCamImpl::GetItem(const GUID &guidKey, PROPVARIANT *pValue)
 {
     UNUSED(guidKey);
     UNUSED(pValue);
@@ -88,7 +59,7 @@ HRESULT MFVCamImpl::GetItem(const GUID &guidKey, PROPVARIANT *pValue)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetItemType(const GUID &guidKey, MF_ATTRIBUTE_TYPE *pType)
+HRESULT AkVCam::MFVCamImpl::GetItemType(const GUID &guidKey, MF_ATTRIBUTE_TYPE *pType)
 {
     UNUSED(guidKey);
     UNUSED(pType);
@@ -96,9 +67,9 @@ HRESULT MFVCamImpl::GetItemType(const GUID &guidKey, MF_ATTRIBUTE_TYPE *pType)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::CompareItem(const GUID &guidKey,
-                                const PROPVARIANT &Value,
-                                WINBOOL *pbResult)
+HRESULT AkVCam::MFVCamImpl::CompareItem(const GUID &guidKey,
+                                        const PROPVARIANT &Value,
+                                        WINBOOL *pbResult)
 {
     UNUSED(guidKey);
     UNUSED(Value);
@@ -107,9 +78,9 @@ HRESULT MFVCamImpl::CompareItem(const GUID &guidKey,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::Compare(IMFAttributes *pTheirs,
-                            MF_ATTRIBUTES_MATCH_TYPE MatchType,
-                            WINBOOL *pbResult)
+HRESULT AkVCam::MFVCamImpl::Compare(IMFAttributes *pTheirs,
+                                    MF_ATTRIBUTES_MATCH_TYPE MatchType,
+                                    WINBOOL *pbResult)
 {
     UNUSED(pTheirs);
     UNUSED(MatchType);
@@ -118,7 +89,7 @@ HRESULT MFVCamImpl::Compare(IMFAttributes *pTheirs,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetUINT32(const GUID &guidKey, UINT32 *punValue)
+HRESULT AkVCam::MFVCamImpl::GetUINT32(const GUID &guidKey, UINT32 *punValue)
 {
     UNUSED(guidKey);
     UNUSED(punValue);
@@ -126,7 +97,7 @@ HRESULT MFVCamImpl::GetUINT32(const GUID &guidKey, UINT32 *punValue)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetUINT64(const GUID &guidKey, UINT64 *punValue)
+HRESULT AkVCam::MFVCamImpl::GetUINT64(const GUID &guidKey, UINT64 *punValue)
 {
     UNUSED(guidKey);
     UNUSED(punValue);
@@ -134,7 +105,7 @@ HRESULT MFVCamImpl::GetUINT64(const GUID &guidKey, UINT64 *punValue)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetDouble(const GUID &guidKey, double *pfValue)
+HRESULT AkVCam::MFVCamImpl::GetDouble(const GUID &guidKey, double *pfValue)
 {
     UNUSED(guidKey);
     UNUSED(pfValue);
@@ -142,7 +113,7 @@ HRESULT MFVCamImpl::GetDouble(const GUID &guidKey, double *pfValue)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetGUID(const GUID &guidKey, GUID *pguidValue)
+HRESULT AkVCam::MFVCamImpl::GetGUID(const GUID &guidKey, GUID *pguidValue)
 {
     UNUSED(guidKey);
     UNUSED(pguidValue);
@@ -150,7 +121,7 @@ HRESULT MFVCamImpl::GetGUID(const GUID &guidKey, GUID *pguidValue)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetStringLength(const GUID &guidKey, UINT32 *pcchLength)
+HRESULT AkVCam::MFVCamImpl::GetStringLength(const GUID &guidKey, UINT32 *pcchLength)
 {
     UNUSED(guidKey);
     UNUSED(pcchLength);
@@ -158,10 +129,10 @@ HRESULT MFVCamImpl::GetStringLength(const GUID &guidKey, UINT32 *pcchLength)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetString(const GUID &guidKey,
-                              LPWSTR pwszValue,
-                              UINT32 cchBufSize,
-                              UINT32 *pcchLength)
+HRESULT AkVCam::MFVCamImpl::GetString(const GUID &guidKey,
+                                      LPWSTR pwszValue,
+                                      UINT32 cchBufSize,
+                                      UINT32 *pcchLength)
 {
     UNUSED(guidKey);
     UNUSED(pwszValue);
@@ -171,9 +142,9 @@ HRESULT MFVCamImpl::GetString(const GUID &guidKey,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetAllocatedString(const GUID &guidKey,
-                                       LPWSTR *ppwszValue,
-                                       UINT32 *pcchLength)
+HRESULT AkVCam::MFVCamImpl::GetAllocatedString(const GUID &guidKey,
+                                               LPWSTR *ppwszValue,
+                                               UINT32 *pcchLength)
 {
     UNUSED(guidKey);
     UNUSED(ppwszValue);
@@ -182,7 +153,8 @@ HRESULT MFVCamImpl::GetAllocatedString(const GUID &guidKey,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetBlobSize(const GUID &guidKey, UINT32 *pcbBlobSize)
+HRESULT AkVCam::MFVCamImpl::GetBlobSize(const GUID &guidKey,
+                                        UINT32 *pcbBlobSize)
 {
     UNUSED(guidKey);
     UNUSED(pcbBlobSize);
@@ -190,10 +162,10 @@ HRESULT MFVCamImpl::GetBlobSize(const GUID &guidKey, UINT32 *pcbBlobSize)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetBlob(const GUID &guidKey,
-                            UINT8 *pBuf,
-                            UINT32 cbBufSize,
-                            UINT32 *pcbBlobSize)
+HRESULT AkVCam::MFVCamImpl::GetBlob(const GUID &guidKey,
+                                    UINT8 *pBuf,
+                                    UINT32 cbBufSize,
+                                    UINT32 *pcbBlobSize)
 {
     UNUSED(guidKey);
     UNUSED(pBuf);
@@ -203,9 +175,9 @@ HRESULT MFVCamImpl::GetBlob(const GUID &guidKey,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetAllocatedBlob(const GUID &guidKey,
-                                     UINT8 **ppBuf,
-                                     UINT32 *pcbSize)
+HRESULT AkVCam::MFVCamImpl::GetAllocatedBlob(const GUID &guidKey,
+                                             UINT8 **ppBuf,
+                                             UINT32 *pcbSize)
 {
     UNUSED(guidKey);
     UNUSED(ppBuf);
@@ -214,9 +186,9 @@ HRESULT MFVCamImpl::GetAllocatedBlob(const GUID &guidKey,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetUnknown(const GUID &guidKey,
-                               const IID &riid,
-                               LPVOID *ppv)
+HRESULT AkVCam::MFVCamImpl::GetUnknown(const GUID &guidKey,
+                                       const IID &riid,
+                                       LPVOID *ppv)
 {
     UNUSED(guidKey);
     UNUSED(riid);
@@ -225,7 +197,8 @@ HRESULT MFVCamImpl::GetUnknown(const GUID &guidKey,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::SetItem(const GUID &guidKey, const PROPVARIANT &Value)
+HRESULT AkVCam::MFVCamImpl::SetItem(const GUID &guidKey,
+                                    const PROPVARIANT &Value)
 {
     UNUSED(guidKey);
     UNUSED(Value);
@@ -233,27 +206,19 @@ HRESULT MFVCamImpl::SetItem(const GUID &guidKey, const PROPVARIANT &Value)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::DeleteItem(const GUID &guidKey)
+HRESULT AkVCam::MFVCamImpl::DeleteItem(const GUID &guidKey)
 {
     UNUSED(guidKey);
 
     return S_OK;
 }
 
-HRESULT MFVCamImpl::DeleteAllItems()
+HRESULT AkVCam::MFVCamImpl::DeleteAllItems()
 {
     return S_OK;
 }
 
-HRESULT MFVCamImpl::SetUINT32(const GUID &guidKey, UINT32 unValue)
-{
-    UNUSED(guidKey);
-    UNUSED(unValue);
-
-    return S_OK;
-}
-
-HRESULT MFVCamImpl::SetUINT64(const GUID &guidKey, UINT64 unValue)
+HRESULT AkVCam::MFVCamImpl::SetUINT32(const GUID &guidKey, UINT32 unValue)
 {
     UNUSED(guidKey);
     UNUSED(unValue);
@@ -261,7 +226,15 @@ HRESULT MFVCamImpl::SetUINT64(const GUID &guidKey, UINT64 unValue)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::SetDouble(const GUID &guidKey, double fValue)
+HRESULT AkVCam::MFVCamImpl::SetUINT64(const GUID &guidKey, UINT64 unValue)
+{
+    UNUSED(guidKey);
+    UNUSED(unValue);
+
+    return S_OK;
+}
+
+HRESULT AkVCam::MFVCamImpl::SetDouble(const GUID &guidKey, double fValue)
 {
     UNUSED(guidKey);
     UNUSED(fValue);
@@ -269,7 +242,7 @@ HRESULT MFVCamImpl::SetDouble(const GUID &guidKey, double fValue)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::SetGUID(const GUID &guidKey, const GUID &guidValue)
+HRESULT AkVCam::MFVCamImpl::SetGUID(const GUID &guidKey, const GUID &guidValue)
 {
     UNUSED(guidKey);
     UNUSED(guidValue);
@@ -277,7 +250,7 @@ HRESULT MFVCamImpl::SetGUID(const GUID &guidKey, const GUID &guidValue)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::SetString(const GUID &guidKey, LPCWSTR wszValue)
+HRESULT AkVCam::MFVCamImpl::SetString(const GUID &guidKey, LPCWSTR wszValue)
 {
     UNUSED(guidKey);
     UNUSED(wszValue);
@@ -285,9 +258,9 @@ HRESULT MFVCamImpl::SetString(const GUID &guidKey, LPCWSTR wszValue)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::SetBlob(const GUID &guidKey,
-                            const UINT8 *pBuf,
-                            UINT32 cbBufSize)
+HRESULT AkVCam::MFVCamImpl::SetBlob(const GUID &guidKey,
+                                    const UINT8 *pBuf,
+                                    UINT32 cbBufSize)
 {
     UNUSED(guidKey);
     UNUSED(pBuf);
@@ -296,7 +269,7 @@ HRESULT MFVCamImpl::SetBlob(const GUID &guidKey,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::SetUnknown(const GUID &guidKey, IUnknown *pUnknown)
+HRESULT AkVCam::MFVCamImpl::SetUnknown(const GUID &guidKey, IUnknown *pUnknown)
 {
     UNUSED(guidKey);
     UNUSED(pUnknown);
@@ -304,26 +277,26 @@ HRESULT MFVCamImpl::SetUnknown(const GUID &guidKey, IUnknown *pUnknown)
     return S_OK;
 }
 
-HRESULT MFVCamImpl::LockStore()
+HRESULT AkVCam::MFVCamImpl::LockStore()
 {
     return S_OK;
 }
 
-HRESULT MFVCamImpl::UnlockStore()
+HRESULT AkVCam::MFVCamImpl::UnlockStore()
 {
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetCount(UINT32 *pcItems)
+HRESULT AkVCam::MFVCamImpl::GetCount(UINT32 *pcItems)
 {
     UNUSED(pcItems);
 
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetItemByIndex(UINT32 unIndex,
-                                   GUID *pguidKey,
-                                   PROPVARIANT *pValue)
+HRESULT AkVCam::MFVCamImpl::GetItemByIndex(UINT32 unIndex,
+                                           GUID *pguidKey,
+                                           PROPVARIANT *pValue)
 {
     UNUSED(unIndex);
     UNUSED(pguidKey);
@@ -332,24 +305,24 @@ HRESULT MFVCamImpl::GetItemByIndex(UINT32 unIndex,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::CopyAllItems(IMFAttributes *pDest)
+HRESULT AkVCam::MFVCamImpl::CopyAllItems(IMFAttributes *pDest)
 {
     UNUSED(pDest);
 
     return S_OK;
 }
 
-HRESULT MFVCamImpl::AddDeviceSourceInfo(LPCWSTR deviceSourceInfo)
+HRESULT AkVCam::MFVCamImpl::AddDeviceSourceInfo(LPCWSTR deviceSourceInfo)
 {
     UNUSED(deviceSourceInfo);
 
     return S_OK;
 }
 
-HRESULT MFVCamImpl::AddProperty(const DEVPROPKEY *pKey,
-                                DEVPROPTYPE type,
-                                const BYTE *pbData,
-                                ULONG cbData)
+HRESULT AkVCam::MFVCamImpl::AddProperty(const DEVPROPKEY *pKey,
+                                        DEVPROPTYPE type,
+                                        const BYTE *pbData,
+                                        ULONG cbData)
 {
     UNUSED(pKey);
     UNUSED(type);
@@ -359,11 +332,11 @@ HRESULT MFVCamImpl::AddProperty(const DEVPROPKEY *pKey,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::AddRegistryEntry(LPCWSTR entryName,
-                                     LPCWSTR subkeyPath,
-                                     DWORD dwRegType,
-                                     const BYTE *pbData,
-                                     ULONG cbData)
+HRESULT AkVCam::MFVCamImpl::AddRegistryEntry(LPCWSTR entryName,
+                                             LPCWSTR subkeyPath,
+                                             DWORD dwRegType,
+                                             const BYTE *pbData,
+                                             ULONG cbData)
 {
     UNUSED(entryName);
     UNUSED(subkeyPath);
@@ -374,38 +347,38 @@ HRESULT MFVCamImpl::AddRegistryEntry(LPCWSTR entryName,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::Start(IMFAsyncCallback *pCallback)
+HRESULT AkVCam::MFVCamImpl::Start(IMFAsyncCallback *pCallback)
 {
     UNUSED(pCallback);
 
     return S_OK;
 }
 
-HRESULT MFVCamImpl::Stop()
+HRESULT AkVCam::MFVCamImpl::Stop()
 {
     return S_OK;
 }
 
-HRESULT MFVCamImpl::Remove()
+HRESULT AkVCam::MFVCamImpl::Remove()
 {
     return S_OK;
 }
 
-HRESULT MFVCamImpl::GetMediaSource(IMFMediaSource **ppMediaSource)
+HRESULT AkVCam::MFVCamImpl::GetMediaSource(IMFMediaSource **ppMediaSource)
 {
     UNUSED(ppMediaSource);
 
     return S_OK;
 }
 
-HRESULT MFVCamImpl::SendCameraProperty(const GUID &propertySet,
-                                       ULONG propertyId,
-                                       ULONG propertyFlags,
-                                       void *propertyPayload,
-                                       ULONG propertyPayloadLength,
-                                       void *data,
-                                       ULONG dataLength,
-                                       ULONG *dataWritten)
+HRESULT AkVCam::MFVCamImpl::SendCameraProperty(const GUID &propertySet,
+                                               ULONG propertyId,
+                                               ULONG propertyFlags,
+                                               void *propertyPayload,
+                                               ULONG propertyPayloadLength,
+                                               void *data,
+                                               ULONG dataLength,
+                                               ULONG *dataWritten)
 {
     UNUSED(propertySet);
     UNUSED(propertyId);
@@ -419,11 +392,11 @@ HRESULT MFVCamImpl::SendCameraProperty(const GUID &propertySet,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::CreateSyncEvent(const GUID &kseventSet,
-                                    ULONG kseventId,
-                                    ULONG kseventFlags,
-                                    HANDLE eventHandle,
-                                    IMFCamSyncObject **cameraSyncObject)
+HRESULT AkVCam::MFVCamImpl::CreateSyncEvent(const GUID &kseventSet,
+                                            ULONG kseventId,
+                                            ULONG kseventFlags,
+                                            HANDLE eventHandle,
+                                            IMFCamSyncObject **cameraSyncObject)
 {
     UNUSED(kseventSet);
     UNUSED(kseventId);
@@ -434,12 +407,12 @@ HRESULT MFVCamImpl::CreateSyncEvent(const GUID &kseventSet,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::CreateSyncSemaphore(const GUID &kseventSet,
-                                        ULONG kseventId,
-                                        ULONG kseventFlags,
-                                        HANDLE semaphoreHandle,
-                                        LONG semaphoreAdjustment,
-                                        IMFCamSyncObject **cameraSyncObject)
+HRESULT AkVCam::MFVCamImpl::CreateSyncSemaphore(const GUID &kseventSet,
+                                                ULONG kseventId,
+                                                ULONG kseventFlags,
+                                                HANDLE semaphoreHandle,
+                                                LONG semaphoreAdjustment,
+                                                IMFCamSyncObject **cameraSyncObject)
 {
     UNUSED(kseventSet);
     UNUSED(kseventId);
@@ -451,7 +424,7 @@ HRESULT MFVCamImpl::CreateSyncSemaphore(const GUID &kseventSet,
     return S_OK;
 }
 
-HRESULT MFVCamImpl::Shutdown()
+HRESULT AkVCam::MFVCamImpl::Shutdown()
 {
     return S_OK;
 }

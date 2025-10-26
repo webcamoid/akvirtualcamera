@@ -40,13 +40,7 @@ extern "C" HRESULT WINAPI MFCreateVirtualCamera(MFVCamType type,
     if (!virtualCamera)
         return E_POINTER;
 
-    *virtualCamera = nullptr;
-    auto vcam = new MFVCamImpl(friendlyName, sourceId);
-
-    if (!vcam)
-        return E_OUTOFMEMORY;
-
-    *virtualCamera = vcam;
+    *virtualCamera = new AkVCam::MFVCamImpl(friendlyName, sourceId);
 
     return S_OK;
 }

@@ -20,287 +20,350 @@
 #ifndef ATTRIBUTES_H
 #define ATTRIBUTES_H
 
-#include <windows.h>
-#include <mfobjects.h>
+#include <cinttypes>
+#include <memory>
 #include <mfapi.h>
 
-namespace AkVCam
-{
-    class AttributesPrivate;
+#include "PlatformUtils/src/utils.h"
+#include "MFUtils/src/utils.h"
 
-    class Attributes: public IMFAttributes
-    {
-        public:
-            Attributes(UINT32 cInitialSize=0);
-            virtual ~Attributes();
-
-            // IMFAttributes methods
-
-            HRESULT STDMETHODCALLTYPE GetItem(REFGUID guidKey,
-                                              PROPVARIANT *pValue) override;
-            HRESULT STDMETHODCALLTYPE GetItemType(REFGUID guidKey,
-                                                  MF_ATTRIBUTE_TYPE *pType) override;
-            HRESULT STDMETHODCALLTYPE CompareItem(REFGUID guidKey,
-                                                  REFPROPVARIANT Value,
-                                                  BOOL *pbResult) override;
-            HRESULT STDMETHODCALLTYPE Compare(IMFAttributes *pTheirs,
-                                              MF_ATTRIBUTES_MATCH_TYPE MatchType,
-                                              BOOL *pbResult) override;
-            HRESULT STDMETHODCALLTYPE GetUINT32(REFGUID guidKey,
-                                                UINT32 *punValue) override;
-            HRESULT STDMETHODCALLTYPE GetUINT64(REFGUID guidKey,
-                                                UINT64 *punValue) override;
-            HRESULT STDMETHODCALLTYPE GetDouble(REFGUID guidKey,
-                                                double *pfValue) override;
-            HRESULT STDMETHODCALLTYPE GetGUID(REFGUID guidKey,
-                                              GUID *pguidValue) override;
-            HRESULT STDMETHODCALLTYPE GetStringLength(REFGUID guidKey,
-                                                      UINT32 *pcchLength) override;
-            HRESULT STDMETHODCALLTYPE GetString(REFGUID guidKey,
-                                                LPWSTR pwszValue,
-                                                UINT32 cchBufSize,
-                                                UINT32 *pcchLength) override;
-            HRESULT STDMETHODCALLTYPE GetAllocatedString(REFGUID guidKey,
-                                                         LPWSTR *ppwszValue,
-                                                         UINT32 *pcchLength) override;
-            HRESULT STDMETHODCALLTYPE GetBlobSize(REFGUID guidKey,
-                                                  UINT32 *pcbBlobSize) override;
-            HRESULT STDMETHODCALLTYPE GetBlob(REFGUID guidKey,
-                                              UINT8 *pBuf,
-                                              UINT32 cbBufSize,
-                                              UINT32 *pcbBlobSize) override;
-            HRESULT STDMETHODCALLTYPE GetAllocatedBlob(REFGUID guidKey,
-                                                       UINT8 **ppBuf,
-                                                       UINT32 *pcbSize) override;
-            HRESULT STDMETHODCALLTYPE GetUnknown(REFGUID guidKey,
-                                                 REFIID riid,
-                                                 LPVOID *ppv) override;
-            HRESULT STDMETHODCALLTYPE SetItem(REFGUID guidKey,
-                                              REFPROPVARIANT Value) override;
-            HRESULT STDMETHODCALLTYPE DeleteItem(REFGUID guidKey) override;
-            HRESULT STDMETHODCALLTYPE DeleteAllItems() override;
-            HRESULT STDMETHODCALLTYPE SetUINT32(REFGUID guidKey,
-                                                UINT32 unValue) override;
-            HRESULT STDMETHODCALLTYPE SetUINT64(REFGUID guidKey,
-                                                UINT64 unValue) override;
-            HRESULT STDMETHODCALLTYPE SetDouble(REFGUID guidKey,
-                                                double fValue) override;
-            HRESULT STDMETHODCALLTYPE SetGUID(REFGUID guidKey,
-                                              REFGUID guidValue) override;
-            HRESULT STDMETHODCALLTYPE SetString(REFGUID guidKey,
-                                                LPCWSTR wszValue) override;
-            HRESULT STDMETHODCALLTYPE SetBlob(REFGUID guidKey,
-                                              const UINT8 *pBuf,
-                                              UINT32 cbBufSize) override;
-            HRESULT STDMETHODCALLTYPE SetUnknown(REFGUID guidKey,
-                                                 IUnknown *pUnknown) override;
-            HRESULT STDMETHODCALLTYPE LockStore() override;
-            HRESULT STDMETHODCALLTYPE UnlockStore() override;
-            HRESULT STDMETHODCALLTYPE GetCount(UINT32 *pcItems) override;
-            HRESULT STDMETHODCALLTYPE GetItemByIndex(UINT32 unIndex,
-                                                     GUID *pguidKey,
-                                                     PROPVARIANT *pValue) override;
-            HRESULT STDMETHODCALLTYPE CopyAllItems(IMFAttributes *pDest) override;
-
-        private:
-            AttributesPrivate *d;
-
-        friend class AttributesPrivate;
-    };
-}
-
-#define DECLARE_IMFATTRIBUTES \
-    HRESULT STDMETHODCALLTYPE GetItem(REFGUID guidKey, \
-                                      PROPVARIANT *pValue) override \
-    { \
-        return Attributes::GetItem(guidKey, pValue); \
-    } \
+#define DECLARE_ATTRIBUTES \
+    private: \
+        std::shared_ptr<IMFAttributes> m_attributes; \
+        \
+        std::shared_ptr<IMFAttributes> attributes() \
+        { \
+            if (!this->m_attributes) {\
+                IMFAttributes *attributes = nullptr; \
+                MFCreateAttributes(&attributes, 0); \
+                \
+                this->m_attributes = \
+                    std::shared_ptr<IMFAttributes>(attributes, \
+                                                   [] (IMFAttributes *attributes) { \
+                        attributes->Release(); \
+                    }); \
+            } \
+            \
+            return this->m_attributes; \
+        } \
     \
-    HRESULT STDMETHODCALLTYPE GetItemType(REFGUID guidKey, \
-                                          MF_ATTRIBUTE_TYPE *pType) override \
-    { \
-        return Attributes::GetItemType(guidKey, pType); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE CompareItem(REFGUID guidKey, \
-                                          REFPROPVARIANT Value, \
+    public: \
+        HRESULT STDMETHODCALLTYPE GetItem(REFGUID guidKey, \
+                                          PROPVARIANT *pValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            \
+            return attributes()->GetItem(guidKey, pValue); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetItemType(REFGUID guidKey, \
+                                              MF_ATTRIBUTE_TYPE *pType) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetItemType(guidKey, pType); \
+            \
+            if (pType) \
+                AkLogDebug("Type: %d", *pType); \
+            \
+            return hr; \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE CompareItem(REFGUID guidKey, \
+                                              REFPROPVARIANT Value, \
+                                              BOOL *pbResult) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            \
+            return attributes()->CompareItem(guidKey, Value, pbResult); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE Compare(IMFAttributes *pTheirs, \
+                                          MF_ATTRIBUTES_MATCH_TYPE MatchType, \
                                           BOOL *pbResult) override \
-    { \
-        return Attributes::CompareItem(guidKey, Value, pbResult); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE Compare(IMFAttributes *pTheirs, \
-                                      MF_ATTRIBUTES_MATCH_TYPE MatchType, \
-                                      BOOL *pbResult) override \
-    { \
-        return Attributes::Compare(pTheirs, MatchType, pbResult); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetUINT32(REFGUID guidKey, \
-                                        UINT32 *punValue) override \
-    { \
-        return Attributes::GetUINT32(guidKey, punValue); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetUINT64(REFGUID guidKey, \
-                                        UINT64 *punValue) override \
-    { \
-        return Attributes::GetUINT64(guidKey, punValue); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetDouble(REFGUID guidKey, \
-                                        double *pfValue) override \
-    { \
-        return Attributes::GetDouble(guidKey, pfValue); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetGUID(REFGUID guidKey, \
-                                      GUID *pguidValue) override \
-    { \
-        return Attributes::GetGUID(guidKey, pguidValue); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetStringLength(REFGUID guidKey, \
-                                              UINT32 *pcchLength) override \
-    { \
-        return Attributes::GetStringLength(guidKey, pcchLength); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetString(REFGUID guidKey, \
-                                        LPWSTR pwszValue, \
-                                        UINT32 cchBufSize, \
-                                        UINT32 *pcchLength) override \
-    { \
-        return Attributes::GetString(guidKey, \
-                                     pwszValue, \
-                                     cchBufSize, \
-                                     pcchLength); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetAllocatedString(REFGUID guidKey, \
-                                                 LPWSTR *ppwszValue, \
-                                                 UINT32 *pcchLength) override \
-    { \
-        return Attributes::GetAllocatedString(guidKey, \
-                                              ppwszValue, \
+        { \
+            AkLogFunction(); \
+            \
+            return attributes()->Compare(pTheirs, MatchType, pbResult); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetUINT32(REFGUID guidKey, \
+                                            UINT32 *punValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetUINT32(guidKey, punValue); \
+            \
+            if (punValue) \
+                AkLogDebug("Value: %u", *punValue); \
+            \
+            return hr; \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetUINT64(REFGUID guidKey, \
+                                            UINT64 *punValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetUINT64(guidKey, punValue); \
+            \
+            if (punValue) \
+                AkLogDebug("Value: %" PRIu64, *punValue); \
+            \
+            return hr; \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetDouble(REFGUID guidKey, \
+                                            double *pfValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetDouble(guidKey, pfValue); \
+            \
+            if (pfValue) \
+                AkLogDebug("Value: %f", *pfValue); \
+            \
+            return hr; \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetGUID(REFGUID guidKey, \
+                                          GUID *pguidValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetGUID(guidKey, pguidValue); \
+            \
+            if (pguidValue) \
+                AkLogDebug("Value: %s", stringFromClsidMF(*pguidValue).c_str()); \
+            \
+            return hr; \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetStringLength(REFGUID guidKey, \
+                                                  UINT32 *pcchLength) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetStringLength(guidKey, pcchLength); \
+            \
+            if (pcchLength) \
+                AkLogDebug("Value: %u", *pcchLength); \
+            \
+            return hr; \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetString(REFGUID guidKey, \
+                                            LPWSTR pwszValue, \
+                                            UINT32 cchBufSize, \
+                                            UINT32 *pcchLength) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetString(guidKey, \
+                                              pwszValue, \
+                                              cchBufSize, \
                                               pcchLength); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetBlobSize(REFGUID guidKey, \
+            \
+            if (pwszValue) \
+                AkLogDebug("Value: %s", stringFromWSTR(pwszValue).c_str()); \
+            \
+            return hr; \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetAllocatedString(REFGUID guidKey, \
+                                                     LPWSTR *ppwszValue, \
+                                                     UINT32 *pcchLength) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            \
+            return attributes()->GetAllocatedString(guidKey, \
+                                                    ppwszValue, \
+                                                    pcchLength); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetBlobSize(REFGUID guidKey, \
+                                              UINT32 *pcbBlobSize) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetBlobSize(guidKey, pcbBlobSize); \
+            \
+            if (pcbBlobSize) \
+                AkLogDebug("Value: %d", *pcbBlobSize); \
+            \
+            return hr; \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetBlob(REFGUID guidKey, \
+                                          UINT8 *pBuf, \
+                                          UINT32 cbBufSize, \
                                           UINT32 *pcbBlobSize) override \
-    { \
-        return Attributes::GetBlobSize(guidKey, pcbBlobSize); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetBlob(REFGUID guidKey, \
-                                      UINT8 *pBuf, \
-                                      UINT32 cbBufSize, \
-                                      UINT32 *pcbBlobSize) override \
-    { \
-        return Attributes::GetBlob(guidKey, \
-                                   pBuf, \
-                                   cbBufSize, \
-                                   pcbBlobSize); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetAllocatedBlob(REFGUID guidKey, \
-                                               UINT8 **ppBuf, \
-                                               UINT32 *pcbSize) override \
-    { \
-        return Attributes::GetAllocatedBlob(guidKey, ppBuf, pcbSize); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetUnknown(REFGUID guidKey, \
-                                         REFIID riid, \
-                                         LPVOID *ppv) override \
-    { \
-        return Attributes::GetUnknown(guidKey, riid, ppv); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetItem(REFGUID guidKey, \
-                                      REFPROPVARIANT Value) override \
-    { \
-        return Attributes::SetItem(guidKey, Value); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE DeleteItem(REFGUID guidKey) override \
-    { \
-        return Attributes::DeleteItem(guidKey); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE DeleteAllItems() override \
-    { \
-        return Attributes::DeleteAllItems(); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetUINT32(REFGUID guidKey, \
-                                        UINT32 unValue) override \
-    { \
-        return Attributes::SetUINT32(guidKey, unValue); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetUINT64(REFGUID guidKey, \
-                                        UINT64 unValue) override \
-    { \
-        return Attributes::SetUINT64(guidKey, unValue); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetDouble(REFGUID guidKey, \
-                                        double fValue) override \
-    { \
-        return Attributes::SetDouble(guidKey, fValue); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetGUID(REFGUID guidKey, \
-                                      REFGUID guidValue) override \
-    { \
-        return Attributes::SetGUID(guidKey, guidValue); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetString(REFGUID guidKey, \
-                                        LPCWSTR wszValue) override \
-    { \
-        return Attributes::SetString(guidKey, wszValue); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetBlob(REFGUID guidKey, \
-                                      const UINT8 *pBuf, \
-                                      UINT32 cbBufSize) override \
-    { \
-        return Attributes::SetBlob(guidKey, pBuf, cbBufSize); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE SetUnknown(REFGUID guidKey, \
-                                         IUnknown *pUnknown) override \
-    { \
-        return Attributes::SetUnknown(guidKey, pUnknown); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE LockStore() override \
-    { \
-        return Attributes::LockStore(); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE UnlockStore() override \
-    { \
-        return Attributes::UnlockStore(); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetCount(UINT32 *pcItems) override \
-    { \
-        return Attributes::GetCount(pcItems); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE GetItemByIndex(UINT32 unIndex, \
-                                             GUID *pguidKey, \
-                                             PROPVARIANT *pValue) override \
-    { \
-        return Attributes::GetItemByIndex(unIndex, pguidKey, pValue); \
-    } \
-    \
-    HRESULT STDMETHODCALLTYPE CopyAllItems(IMFAttributes *pDest) override \
-    { \
-        return Attributes::CopyAllItems(pDest); \
-    }
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            \
+            return attributes()->GetBlob(guidKey, \
+                                         pBuf, \
+                                         cbBufSize, \
+                                         pcbBlobSize); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetAllocatedBlob(REFGUID guidKey, \
+                                                   UINT8 **ppBuf, \
+                                                   UINT32 *pcbSize) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            \
+            return attributes()->GetAllocatedBlob(guidKey, ppBuf, pcbSize); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetUnknown(REFGUID guidKey, \
+                                             REFIID riid, \
+                                             LPVOID *ppv) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            \
+            return attributes()->GetUnknown(guidKey, riid, ppv); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE SetItem(REFGUID guidKey, \
+                                          REFPROPVARIANT Value) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            \
+            return attributes()->SetItem(guidKey, Value); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE DeleteItem(REFGUID guidKey) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            \
+            return attributes()->DeleteItem(guidKey); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE DeleteAllItems() override \
+        { \
+            AkLogFunction(); \
+            \
+            return attributes()->DeleteAllItems(); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE SetUINT32(REFGUID guidKey, \
+                                            UINT32 unValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            AkLogDebug("Value: %u", unValue); \
+            \
+            return attributes()->SetUINT32(guidKey, unValue); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE SetUINT64(REFGUID guidKey, \
+                                            UINT64 unValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            AkLogDebug("Value: %" PRIu64, unValue); \
+            \
+            return attributes()->SetUINT64(guidKey, unValue); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE SetDouble(REFGUID guidKey, \
+                                            double fValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            AkLogDebug("Value: %f", fValue); \
+            \
+            return attributes()->SetDouble(guidKey, fValue); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE SetGUID(REFGUID guidKey, \
+                                          REFGUID guidValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            AkLogDebug("Value: %s", stringFromClsidMF(guidValue).c_str()); \
+            \
+            return attributes()->SetGUID(guidKey, guidValue); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE SetString(REFGUID guidKey, \
+                                            LPCWSTR wszValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            AkLogDebug("Value: %s", stringFromWSTR(wszValue).c_str()); \
+            \
+            return attributes()->SetString(guidKey, wszValue); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE SetBlob(REFGUID guidKey, \
+                                          const UINT8 *pBuf, \
+                                          UINT32 cbBufSize) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            \
+            return attributes()->SetBlob(guidKey, pBuf, cbBufSize); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE SetUnknown(REFGUID guidKey, \
+                                             IUnknown *pUnknown) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            \
+            return attributes()->SetUnknown(guidKey, pUnknown); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE LockStore() override \
+        { \
+            AkLogFunction(); \
+            \
+            return attributes()->LockStore(); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE UnlockStore() override \
+        { \
+            AkLogFunction(); \
+            \
+            return attributes()->UnlockStore(); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetCount(UINT32 *pcItems) override \
+        { \
+            AkLogFunction(); \
+            \
+            return attributes()->GetCount(pcItems); \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE GetItemByIndex(UINT32 unIndex, \
+                                                 GUID *pguidKey, \
+                                                 PROPVARIANT *pValue) override \
+        { \
+            AkLogFunction(); \
+            AkLogDebug("Index: %u", unIndex); \
+            auto hr = attributes()->GetItemByIndex(unIndex, pguidKey, pValue); \
+            \
+            if (pguidKey) \
+                AkLogDebug("GUID: %s", stringFromClsidMF(*pguidKey).c_str()); \
+            \
+            return hr; \
+        } \
+        \
+        HRESULT STDMETHODCALLTYPE CopyAllItems(IMFAttributes *pDest) override \
+        { \
+            AkLogFunction(); \
+            \
+            return attributes()->CopyAllItems(pDest); \
+        }
 
 #endif // ATTRIBUTES_H

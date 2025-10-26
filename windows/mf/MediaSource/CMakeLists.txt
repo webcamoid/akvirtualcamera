@@ -30,11 +30,7 @@ set(SOURCES
     src/mfvcam.h
     src/activate.cpp
     src/activate.h
-    src/attributes.cpp
     src/attributes.h
-    src/controls.cpp
-    src/controls.h
-    src/mediaeventgenerator.cpp
     src/mediaeventgenerator.h
     src/mediasource.cpp
     src/mediasource.h
