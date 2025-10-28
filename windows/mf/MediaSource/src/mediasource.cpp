@@ -494,7 +494,7 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
     this->eventQueue()->QueueEventParamUnk(MENewStream,
                                            GUID_NULL,
                                            S_OK,
-                                           reinterpret_cast<IUnknown *>(this->d->m_pStream));
+                                           static_cast<IUnknown *>(this->d->m_pStream));
 
     hr = this->d->m_pStream->start(mediaType);
     mediaType->Release();
