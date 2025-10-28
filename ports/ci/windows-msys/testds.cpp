@@ -85,15 +85,15 @@ int main()
             hr = pPropBag->Read(L"FriendlyName", &var, 0);
 
             if (SUCCEEDED(hr)) {
-                printf("\tDevice %u: %S\n", count, var.bstrVal);
+                printf("\tDevice %lu: %S\n", count, var.bstrVal);
                 VariantClear(&var);
             } else {
-                printf("Error reading the device name %u: 0x%08X\n", count, hr);
+                printf("Error reading the device name %lu: 0x%08lX\n", count, hr);
             }
 
             pPropBag->Release();
         } else {
-            printf("Error reading the device properties %u: 0x%08X\n", count, hr);
+            printf("Error reading the device properties %lu: 0x%08lX\n", count, hr);
         }
 
         pMoniker->Release();

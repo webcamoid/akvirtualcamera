@@ -109,7 +109,7 @@ namespace AkVCam
     };
 }
 
-BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
+BOOL CALLBACK AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
 
 AkVCam::BaseFilter::BaseFilter(const GUID &clsid)
 {
@@ -819,7 +819,7 @@ void AkVCam::BaseFilterPrivate::devicesChanged(void *userData,
     UNUSED(userData);
     UNUSED(devices);
     std::vector<HWND> handlers;
-    EnumWindows(WNDENUMPROC(AkVCamEnumWindowsProc), LPARAM(&handlers));
+    EnumWindows(AkVCamEnumWindowsProc, LPARAM(&handlers));
 
     for (auto &handler: handlers)
         SendNotifyMessage(handler, WM_DEVICECHANGE, DBT_DEVNODES_CHANGED, 0);
@@ -843,7 +843,7 @@ void AkVCam::BaseFilterPrivate::setControls(void *userData,
     }
 }
 
-BOOL AkVCamEnumWindowsProc(HWND handler, LPARAM userData)
+BOOL CALLBACK AkVCamEnumWindowsProc(HWND handler, LPARAM userData)
 {
     auto handlers = reinterpret_cast<std::vector<HWND> *>(userData);
     handlers->push_back(handler);

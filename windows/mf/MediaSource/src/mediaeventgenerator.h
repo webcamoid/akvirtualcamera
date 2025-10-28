@@ -50,7 +50,7 @@
     \
     public: \
         HRESULT STDMETHODCALLTYPE GetEvent(DWORD dwFlags, \
-                                           IMFMediaEvent **ppEvent) \
+                                           IMFMediaEvent **ppEvent) override \
         { \
             AkLogFunction(); \
             \
@@ -58,7 +58,7 @@
         } \
         \
         HRESULT STDMETHODCALLTYPE BeginGetEvent(IMFAsyncCallback *pCallback, \
-                                                IUnknown *punkState) \
+                                                IUnknown *punkState) override \
         { \
             AkLogFunction(); \
             \
@@ -66,7 +66,7 @@
         } \
         \
         HRESULT STDMETHODCALLTYPE EndGetEvent(IMFAsyncResult *pResult, \
-                                              IMFMediaEvent **ppEvent) \
+                                              IMFMediaEvent **ppEvent) override \
         { \
             AkLogFunction(); \
             \
@@ -76,7 +76,7 @@
         HRESULT STDMETHODCALLTYPE QueueEvent(MediaEventType mediaEventType, \
                                              REFGUID guidExtendedType, \
                                              HRESULT hrStatus, \
-                                             const PROPVARIANT *pvValue) \
+                                             const PROPVARIANT *pvValue) override \
         { \
             AkLogFunction(); \
             \

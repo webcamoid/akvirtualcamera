@@ -94,7 +94,7 @@ int main()
             printf("\tDevice %u: %S\n", i, pName);
             CoTaskMemFree(pName);
         } else {
-            printf("Error reading the device name %u: 0x%08X\n", i, hr);
+            printf("Error reading the device name %u: 0x%08lX\n", i, hr);
         }
 
         ppDevices[i]->Release();
