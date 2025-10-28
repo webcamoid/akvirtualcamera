@@ -1824,6 +1824,8 @@ int AkVCam::sudo(const std::vector<std::string> &parameters)
             commandLine += parameters[i];
     }
 
+    auto cmdParams = commandLine.substr(parameters[0].length() + 1);
+
     // Set up ShellExecuteEx for elevated execution
     SHELLEXECUTEINFOA execInfo;
     memset(&execInfo, 0, sizeof(SHELLEXECUTEINFOA));
@@ -1831,8 +1833,7 @@ int AkVCam::sudo(const std::vector<std::string> &parameters)
     execInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
     execInfo.lpVerb = "runas"; // Request elevation
     execInfo.lpFile = parameters[0].c_str();
-    execInfo.lpParameters =
-            commandLine.substr(parameters[0].length() + 1).c_str();
+    execInfo.lpParameters = cmdParams.c_str();
     execInfo.nShow = SW_HIDE;
 
     // Execute command with elevation

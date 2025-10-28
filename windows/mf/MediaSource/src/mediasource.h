@@ -25,7 +25,7 @@
 
 #include "attributes.h"
 #include "mediaeventgenerator.h"
-#include "PlatformUtils/src/cunknown.h"
+#include "VCamUtils/src/utils.h"
 
 namespace AkVCam
 {
@@ -46,17 +46,15 @@ namespace AkVCam
             std::string deviceId() const;
             bool directMode() const;
 
-            BEGIN_COM_MAP_NOD(MediaSource)
-                COM_INTERFACE_ENTRY(IMFMediaEventGenerator)
-                COM_INTERFACE_ENTRY(IMFMediaSource)
-                COM_INTERFACE_ENTRY(IMFAttributes)
-                COM_INTERFACE_ENTRY(IMFGetService)
-                COM_INTERFACE_ENTRY(IAMVideoProcAmp)
-                COM_INTERFACE_ENTRY2(IUnknown, IMFMediaSource)
-            END_COM_MAP_NU(MediaSource)
-
             DECLARE_ATTRIBUTES
             DECLARE_EVENT_GENERATOR
+
+            // IUnknown
+
+            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                                     void **ppv) override;
+            ULONG STDMETHODCALLTYPE AddRef() override;
+            ULONG STDMETHODCALLTYPE Release() override;
 
             // IMFGetService
 
@@ -92,10 +90,7 @@ namespace AkVCam
 
         private:
             MediaSourcePrivate *d;
-
-        protected:
-            bool isInterfaceDisabled(REFIID riid) const;
-    };
+   };
 }
 
 #endif // MEDIASOURCE_H

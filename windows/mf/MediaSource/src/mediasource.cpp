@@ -17,6 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <atomic>
+#include <mutex>
 #include <mfapi.h>
 #include <mferror.h>
 #include <mfidl.h>
@@ -24,11 +26,11 @@
 #include <mfreadwrite.h>
 #include <propvarutil.h>
 #include <dbt.h>
-#include <mutex>
 
 #include "mediasource.h"
 #include "mediastream.h"
 #include "mfvcam.h"
+#include "PlatformUtils/src/cunknown.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/ipcbridge.h"
@@ -82,6 +84,7 @@ namespace AkVCam
     {
         public:
             MediaSource *self;
+            std::atomic<uint64_t> m_refCount {1};
             MediaStream *m_pStream {nullptr};
             MediaSourceState m_state {MediaSourceState_Stopped};
             IMFStreamDescriptor *m_pStreamDesc {nullptr};
@@ -216,6 +219,64 @@ std::string AkVCam::MediaSource::deviceId() const
 bool AkVCam::MediaSource::directMode() const
 {
     return this->d->m_directMode;
+}
+
+HRESULT AkVCam::MediaSource::QueryInterface(const IID &riid, void **ppv)
+{
+    AkLogFunction();
+    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
+
+    if (!ppv)
+        return E_POINTER;
+
+    static const struct
+    {
+        const IID *iid;
+        void *ptr;
+    } comInterfaceEntryMediaSample[] = {
+        COM_INTERFACE(IMFMediaEventGenerator)
+        COM_INTERFACE(IMFMediaSource)
+        COM_INTERFACE(IMFAttributes)
+        COM_INTERFACE(IMFGetService)
+        COM_INTERFACE(IAMVideoProcAmp)
+        COM_INTERFACE2(IUnknown, IMFMediaSource)
+        COM_INTERFACE_NULL
+    };
+
+    for (auto map = comInterfaceEntryMediaSample; map->ptr; ++map) {
+        if (this->d->m_directMode && *map->iid == IID_IAMVideoProcAmp)
+            continue;
+
+        if (*map->iid == riid) {
+            *ppv = map->ptr;
+            this->AddRef();
+
+            return S_OK;
+        }
+    }
+
+    *ppv = nullptr;
+    AkLogDebug("Interface not found");
+
+    return E_NOINTERFACE;
+}
+
+ULONG AkVCam::MediaSource::AddRef()
+{
+    AkLogFunction();
+
+    return ++this->d->m_refCount;
+}
+
+ULONG AkVCam::MediaSource::Release()
+{
+    AkLogFunction();
+    ULONG ref = --this->d->m_refCount;
+
+    if (ref == 0)
+        delete this;
+
+    return ref;
 }
 
 HRESULT AkVCam::MediaSource::GetService(REFGUID service,
@@ -527,17 +588,6 @@ HRESULT AkVCam::MediaSource::Shutdown()
     }
 
     return this->eventQueue()->Shutdown();
-}
-
-bool AkVCam::MediaSource::isInterfaceDisabled(const IID &riid) const
-{
-    if (this->d->m_directMode
-        && (IsEqualIID(riid, IID_IAMVideoControl)
-            || IsEqualIID(riid, IID_IAMVideoProcAmp))) {
-        return true;
-    }
-
-    return false;
 }
 
 AkVCam::MediaSourcePrivate::MediaSourcePrivate(MediaSource *self):

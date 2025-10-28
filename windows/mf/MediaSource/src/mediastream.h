@@ -25,7 +25,7 @@
 #include "attributes.h"
 #include "mediaeventgenerator.h"
 #include "VCamUtils/src/ipcbridge.h"
-#include "PlatformUtils/src/cunknown.h"
+#include "VCamUtils/src/utils.h"
 
 namespace AkVCam
 {
@@ -53,15 +53,15 @@ namespace AkVCam
             HRESULT stop();
             HRESULT pause();
 
-            BEGIN_COM_MAP_NO(MediaStream)
-                COM_INTERFACE_ENTRY(IMFMediaEventGenerator)
-                COM_INTERFACE_ENTRY(IMFMediaStream)
-                COM_INTERFACE_ENTRY(IMFAttributes)
-                COM_INTERFACE_ENTRY2(IUnknown, IMFMediaStream)
-            END_COM_MAP_NU(MediaStream)
-
             DECLARE_ATTRIBUTES
             DECLARE_EVENT_GENERATOR
+
+            // IUnknown
+
+            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                                     void **ppv) override;
+            ULONG STDMETHODCALLTYPE AddRef() override;
+            ULONG STDMETHODCALLTYPE Release() override;
 
             // IMFMediaStream
 

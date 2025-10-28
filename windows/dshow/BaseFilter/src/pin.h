@@ -27,7 +27,7 @@
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/videoframetypes.h"
 #include "VCamUtils/src/ipcbridge.h"
-#include "PlatformUtils/src/cunknown.h"
+#include "VCamUtils/src/utils.h"
 
 namespace AkVCam
 {
@@ -58,13 +58,12 @@ namespace AkVCam
             bool verticalFlip() const;
             void setVerticalFlip(bool flip);
 
-            BEGIN_COM_MAP_NO(Pin)
-                COM_INTERFACE_ENTRY(IPin)
-                COM_INTERFACE_ENTRY(IAMStreamConfig)
-                COM_INTERFACE_ENTRY(IAMLatency)
-                COM_INTERFACE_ENTRY(IAMPushSource)
-                COM_INTERFACE_ENTRY2(IUnknown, IPin)
-            END_COM_MAP_NU(Pin)
+            // IUnknown
+
+            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                                     void **ppv) override;
+            ULONG STDMETHODCALLTYPE AddRef() override;
+            ULONG STDMETHODCALLTYPE Release() override;
 
             // IAMLatency
 

@@ -48,7 +48,7 @@ namespace AkVCam
             HRESULT run(REFERENCE_TIME tStart);
 
             BEGIN_COM_MAP(EnumPins)
-                COM_INTERFACE_ENTRY(IEnumPins)
+                COM_INTERFACE(IEnumPins)
             END_COM_MAP(EnumPins)
 
             // IEnumPins

@@ -32,6 +32,7 @@
 #include "mediastream.h"
 #include "mediasource.h"
 #include "mfvcam.h"
+#include "PlatformUtils/src/cunknown.h"
 #include "PlatformUtils/src/utils.h"
 #include "PlatformUtils/src/preferences.h"
 #include "VCamUtils/src/fraction.h"
@@ -61,6 +62,7 @@ namespace AkVCam
     {
         public:
             MediaStream *self;
+            std::atomic<uint64_t> m_refCount {1};
             IpcBridgePtr m_bridge;
             std::string m_deviceId;
             MediaSource *m_mediaSource {nullptr};
@@ -360,6 +362,58 @@ HRESULT AkVCam::MediaStream::pause()
                                                   GUID_NULL,
                                                   S_OK,
                                                   nullptr);
+}
+
+HRESULT AkVCam::MediaStream::QueryInterface(const IID &riid, void **ppv)
+{
+    AkLogFunction();
+    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
+
+    if (!ppv)
+        return E_POINTER;
+
+    static const struct
+    {
+        const IID *iid;
+        void *ptr;
+    } comInterfaceEntryMediaSample[] = {
+        COM_INTERFACE(IMFMediaEventGenerator)
+        COM_INTERFACE(IMFMediaStream)
+        COM_INTERFACE(IMFAttributes)
+        COM_INTERFACE2(IUnknown, IMFMediaStream)
+        COM_INTERFACE_NULL
+    };
+
+    for (auto map = comInterfaceEntryMediaSample; map->ptr; ++map)
+        if (*map->iid == riid) {
+            *ppv = map->ptr;
+            this->AddRef();
+
+            return S_OK;
+        }
+
+    *ppv = nullptr;
+    AkLogDebug("Interface not found");
+
+    return E_NOINTERFACE;
+}
+
+ULONG AkVCam::MediaStream::AddRef()
+{
+    AkLogFunction();
+
+    return ++this->d->m_refCount;
+}
+
+ULONG AkVCam::MediaStream::Release()
+{
+    AkLogFunction();
+    ULONG ref = --this->d->m_refCount;
+
+    if (ref == 0)
+        delete this;
+
+    return ref;
 }
 
 HRESULT AkVCam::MediaStream::GetMediaSource(IMFMediaSource **ppMediaSource)

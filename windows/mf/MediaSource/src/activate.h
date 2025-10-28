@@ -24,24 +24,26 @@
 
 #include "attributes.h"
 #include "PlatformUtils/src/cunknown.h"
+#include "VCamUtils/src/utils.h"
 
 namespace AkVCam
 {
     class ActivatePrivate;
 
-    class Activate: public CUnknown<IMFActivate>
+    class Activate: IMFActivate
     {
         public:
             Activate(const CLSID &clsid);
             virtual ~Activate();
 
-            BEGIN_COM_MAP(Activate)
-                COM_INTERFACE_ENTRY(IMFAttributes)
-                COM_INTERFACE_ENTRY(IMFActivate)
-                COM_INTERFACE_ENTRY2(IUnknown, IMFActivate)
-            END_COM_MAP_NU(Activate)
-
             DECLARE_ATTRIBUTES
+
+            // IUnknown
+
+            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                                     void **ppv) override;
+            ULONG STDMETHODCALLTYPE AddRef() override;
+            ULONG STDMETHODCALLTYPE Release() override;
 
             // IMFActivate
 

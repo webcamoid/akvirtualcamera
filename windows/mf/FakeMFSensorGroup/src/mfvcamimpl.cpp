@@ -17,9 +17,13 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <atomic>
+#include <objbase.h>
 #include <initguid.h>
 
 #include "mfvcamimpl.h"
+#include "PlatformUtils/src/cunknown.h"
+#include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
 DEFINE_GUID(IID_IMFVCam, 0x12345678, 0x1234, 0x5678, 0x90, 0xAB, 0xCD, 0xEF, 0x12, 0x34, 0x56, 0x78);
@@ -29,13 +33,13 @@ namespace AkVCam
     class MFVCamImplPrivate
     {
         public:
+            std::atomic<uint64_t> m_refCount {1};
             std::wstring m_friendlyName;
             std::wstring m_sourceId;
     };
 }
 
-AkVCam::MFVCamImpl::MFVCamImpl(LPCWSTR friendlyName, LPCWSTR sourceId):
-    CUnknown()
+AkVCam::MFVCamImpl::MFVCamImpl(LPCWSTR friendlyName, LPCWSTR sourceId)
 {
     this->d = new MFVCamImplPrivate;
 
@@ -49,6 +53,57 @@ AkVCam::MFVCamImpl::MFVCamImpl(LPCWSTR friendlyName, LPCWSTR sourceId):
 AkVCam::MFVCamImpl::~MFVCamImpl()
 {
     delete this->d;
+}
+
+HRESULT AkVCam::MFVCamImpl::QueryInterface(const IID &riid, void **ppv)
+{
+    AkLogFunction();
+    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
+
+    if (!ppv)
+        return E_POINTER;
+
+    static const struct
+    {
+        const IID *iid;
+        void *ptr;
+    } comInterfaceEntryMediaSample[] = {
+        COM_INTERFACE(IMFVCam)
+        COM_INTERFACE(IMFAttributes)
+        COM_INTERFACE(IUnknown)
+        COM_INTERFACE_NULL
+    };
+
+    for (auto map = comInterfaceEntryMediaSample; map->ptr; ++map)
+        if (*map->iid == riid) {
+            *ppv = map->ptr;
+            this->AddRef();
+
+            return S_OK;
+        }
+
+    *ppv = nullptr;
+    AkLogDebug("Interface not found");
+
+    return E_NOINTERFACE;
+}
+
+ULONG AkVCam::MFVCamImpl::AddRef()
+{
+    AkLogFunction();
+
+    return ++this->d->m_refCount;
+}
+
+ULONG AkVCam::MFVCamImpl::Release()
+{
+    AkLogFunction();
+    ULONG ref = --this->d->m_refCount;
+
+    if (ref == 0)
+        delete this;
+
+    return ref;
 }
 
 HRESULT AkVCam::MFVCamImpl::GetItem(const GUID &guidKey, PROPVARIANT *pValue)

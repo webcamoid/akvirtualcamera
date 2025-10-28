@@ -53,6 +53,7 @@ namespace AkVCam
     {
         public:
             Pin *self;
+            std::atomic<uint64_t> m_refCount {1};
             IpcBridgePtr m_bridge;
             BaseFilter *m_baseFilter {nullptr};
             std::string m_pinName;
@@ -403,6 +404,59 @@ void AkVCam::Pin::setVerticalFlip(bool flip)
     this->d->m_videoAdjusts.setVerticalMirror(flip);
 }
 
+HRESULT AkVCam::Pin::QueryInterface(const IID &riid, void **ppv)
+{
+    AkLogFunction();
+    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
+
+    if (!ppv)
+        return E_POINTER;
+
+    static const struct
+    {
+        const IID *iid;
+        void *ptr;
+    } comInterfaceEntryMediaSample[] = {
+        COM_INTERFACE(IPin)
+        COM_INTERFACE(IAMStreamConfig)
+        COM_INTERFACE(IAMLatency)
+        COM_INTERFACE(IAMPushSource)
+        COM_INTERFACE2(IUnknown, IPin)
+        COM_INTERFACE_NULL
+    };
+
+    for (auto map = comInterfaceEntryMediaSample; map->ptr; ++map)
+        if (*map->iid == riid) {
+            *ppv = map->ptr;
+            this->AddRef();
+
+            return S_OK;
+        }
+
+    *ppv = nullptr;
+    AkLogDebug("Interface not found");
+
+    return E_NOINTERFACE;
+}
+
+ULONG AkVCam::Pin::AddRef()
+{
+    AkLogFunction();
+
+    return ++this->d->m_refCount;
+}
+
+ULONG AkVCam::Pin::Release()
+{
+    AkLogFunction();
+    ULONG ref = --this->d->m_refCount;
+
+    if (ref == 0)
+        delete this;
+
+    return ref;
+}
+
 HRESULT AkVCam::Pin::GetLatency(REFERENCE_TIME *prtLatency)
 {
     AkLogFunction();
@@ -725,11 +779,11 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
                 mediaTypes->Reset();
 
                 while (mediaTypes->Next(1, &mt, nullptr) == S_OK) {
-                    AkLogDebug("Testing media type: %s", stringFromMediaType(mt));
+                    AkLogDebug("Testing media type: %s", stringFromMediaType(mt).c_str());
 
                     // If the mediatype match our suported mediatypes...
                     if (this->QueryAccept(mt) == S_OK) {
-                        AkLogDebug("Receiver media type accepted: %s", stringFromMediaType(mt));
+                        AkLogDebug("Receiver media type accepted: %s", stringFromMediaType(mt).c_str());
                         mediaType = mt;
 
                         break;
@@ -753,7 +807,7 @@ HRESULT AkVCam::Pin::Connect(IPin *pReceivePin, const AM_MEDIA_TYPE *pmt)
                 this->d->m_mediaTypes->mediaType(i, &mt);
 
                 if (pReceivePin->QueryAccept(mt) == S_OK) {
-                    AkLogDebug("Receiver accepted our media type: %s", stringFromMediaType(mt));
+                    AkLogDebug("Receiver accepted our media type: %s", stringFromMediaType(mt).c_str());
                     mediaType = mt;
 
                     break;

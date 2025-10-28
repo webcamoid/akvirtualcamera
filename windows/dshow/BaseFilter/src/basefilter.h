@@ -27,7 +27,6 @@
 #include "VCamUtils/src/ipcbridge.h"
 #include "VCamUtils/src/videoformat.h"
 #include "VCamUtils/src/utils.h"
-#include "PlatformUtils/src/cunknown.h"
 
 namespace AkVCam
 {
@@ -53,16 +52,12 @@ namespace AkVCam
             std::string deviceId();
             bool directMode() const;
 
-            BEGIN_COM_MAP_NOD(BaseFilter)
-                COM_INTERFACE_ENTRY(IPersist)
-                COM_INTERFACE_ENTRY(IMediaFilter)
-                COM_INTERFACE_ENTRY(IBaseFilter)
-                COM_INTERFACE_ENTRY(IAMFilterMiscFlags)
-                COM_INTERFACE_ENTRY(IAMVideoControl)
-                COM_INTERFACE_ENTRY(IAMVideoProcAmp)
-                COM_INTERFACE_ENTRY(ISpecifyPropertyPages)
-                COM_INTERFACE_ENTRY2(IUnknown, IBaseFilter)
-            END_COM_MAP_NU(BaseFilter)
+            // IUnknown
+
+            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                                     void **ppv) override;
+            ULONG STDMETHODCALLTYPE AddRef() override;
+            ULONG STDMETHODCALLTYPE Release() override;
 
             // IAMFilterMiscFlags
 
@@ -128,9 +123,6 @@ namespace AkVCam
 
         private:
             BaseFilterPrivate *d;
-
-        protected:
-            bool isInterfaceDisabled(REFIID riid) const;
 
         friend class BaseFilterPrivate;
     };

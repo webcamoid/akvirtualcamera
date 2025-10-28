@@ -30,6 +30,7 @@ namespace AkVCam
     class ActivatePrivate
     {
         public:
+            std::atomic<uint64_t> m_refCount {1};
             CLSID m_clsid;
             MediaSource *m_mediaSource {nullptr};
     };
@@ -51,6 +52,57 @@ AkVCam::Activate::~Activate()
         this->d->m_mediaSource->Release();
 
     delete this->d;
+}
+
+HRESULT AkVCam::Activate::QueryInterface(const IID &riid, void **ppv)
+{
+    AkLogFunction();
+    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
+
+    if (!ppv)
+        return E_POINTER;
+
+    static const struct
+    {
+        const IID *iid;
+        void *ptr;
+    } comInterfaceEntryMediaSample[] = {
+        COM_INTERFACE(IMFAttributes)
+        COM_INTERFACE(IMFActivate)
+        COM_INTERFACE2(IUnknown, IMFActivate)
+        COM_INTERFACE_NULL
+    };
+
+    for (auto map = comInterfaceEntryMediaSample; map->ptr; ++map)
+        if (*map->iid == riid) {
+            *ppv = map->ptr;
+            this->AddRef();
+
+            return S_OK;
+        }
+
+    *ppv = nullptr;
+    AkLogDebug("Interface not found");
+
+    return E_NOINTERFACE;
+}
+
+ULONG AkVCam::Activate::AddRef()
+{
+    AkLogFunction();
+
+    return ++this->d->m_refCount;
+}
+
+ULONG AkVCam::Activate::Release()
+{
+    AkLogFunction();
+    ULONG ref = --this->d->m_refCount;
+
+    if (ref == 0)
+        delete this;
+
+    return ref;
 }
 
 HRESULT AkVCam::Activate::ActivateObject(REFIID riid, void **ppv)

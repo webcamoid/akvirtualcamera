@@ -76,6 +76,7 @@ namespace AkVCam
     {
         public:
             BaseFilter *self;
+            std::atomic<uint64_t> m_refCount {1};
             CLSID m_clsid;
             EnumPins *m_pins {nullptr};
             std::string m_vendor {DSHOW_PLUGIN_VENDOR};
@@ -171,6 +172,69 @@ std::string AkVCam::BaseFilter::deviceId()
 bool AkVCam::BaseFilter::directMode() const
 {
     return this->d->m_directMode;
+}
+
+HRESULT AkVCam::BaseFilter::QueryInterface(const IID &riid, void **ppv)
+{
+    AkLogFunction();
+    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
+
+    if (!ppv)
+        return E_POINTER;
+
+    static const struct
+    {
+        const IID *iid;
+        void *ptr;
+    } comInterfaceEntryMediaSample[] = {
+        COM_INTERFACE(IPersist)
+        COM_INTERFACE(IMediaFilter)
+        COM_INTERFACE(IBaseFilter)
+        COM_INTERFACE(IAMFilterMiscFlags)
+        COM_INTERFACE(IAMVideoControl)
+        COM_INTERFACE(IAMVideoProcAmp)
+        COM_INTERFACE(ISpecifyPropertyPages)
+        COM_INTERFACE2(IUnknown, IBaseFilter)
+        COM_INTERFACE_NULL
+    };
+
+    for (auto map = comInterfaceEntryMediaSample; map->ptr; ++map) {
+        if (this->d->m_directMode
+            && (*map->iid == IID_IAMVideoControl
+                || *map->iid == IID_IAMVideoProcAmp)) {
+            continue;
+        }
+
+        if (*map->iid == riid) {
+            *ppv = map->ptr;
+            this->AddRef();
+
+            return S_OK;
+        }
+    }
+
+    *ppv = nullptr;
+    AkLogDebug("Interface not found");
+
+    return E_NOINTERFACE;
+}
+
+ULONG AkVCam::BaseFilter::AddRef()
+{
+    AkLogFunction();
+
+    return ++this->d->m_refCount;
+}
+
+ULONG AkVCam::BaseFilter::Release()
+{
+    AkLogFunction();
+    ULONG ref = --this->d->m_refCount;
+
+    if (ref == 0)
+        delete this;
+
+    return ref;
 }
 
 ULONG AkVCam::BaseFilter::GetMiscFlags()
@@ -651,17 +715,6 @@ HRESULT AkVCam::BaseFilter::QueryVendorInfo(LPWSTR *pVendorInfo)
     *pVendorInfo = wstrFromString(this->d->m_vendor);
 
     return S_OK;
-}
-
-bool AkVCam::BaseFilter::isInterfaceDisabled(REFIID riid) const
-{
-    if (this->d->m_directMode
-        && (IsEqualIID(riid, IID_IAMVideoControl)
-            || IsEqualIID(riid, IID_IAMVideoProcAmp))) {
-        return true;
-    }
-
-    return false;
 }
 
 AkVCam::BaseFilterPrivate::BaseFilterPrivate(AkVCam::BaseFilter *self):

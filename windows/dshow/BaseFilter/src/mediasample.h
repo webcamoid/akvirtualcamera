@@ -20,15 +20,15 @@
 #ifndef MEDIASAMPLE_H
 #define MEDIASAMPLE_H
 
+#include <cstdint>
+#include <unknwn.h>
 #include <strmif.h>
-
-#include "PlatformUtils/src/cunknown.h"
 
 namespace AkVCam
 {
     class MediaSamplePrivate;
 
-    class MediaSample: public CUnknown<IMediaSample2>
+    class MediaSample: public IMediaSample2
     {
         public:
             MediaSample(IMemAllocator *memAllocator,
@@ -37,15 +37,14 @@ namespace AkVCam
                          LONG prefix);
             virtual ~MediaSample();
 
+            uint64_t ref() const;
             void setMemAllocator(IMemAllocator *memAllocator);
-
-            BEGIN_COM_MAP_NR(MediaSample)
-                COM_INTERFACE_ENTRY(IMediaSample)
-                COM_INTERFACE_ENTRY(IMediaSample2)
-            END_COM_MAP(MediaSample)
 
             // IUnknown
 
+            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                                     void **ppv) override;
+            ULONG STDMETHODCALLTYPE AddRef() override;
             ULONG STDMETHODCALLTYPE Release() override;
 
             // IMediaSample

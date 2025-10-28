@@ -26,21 +26,23 @@
 #include <string>
 
 #include "mfvcam.h"
-#include "PlatformUtils/src/cunknown.h"
 
 namespace AkVCam
 {
     class MFVCamImplPrivate;
 
-    class MFVCamImpl: public CUnknown<IMFVCam>
+    class MFVCamImpl: public IMFVCam
     {
         public:
             MFVCamImpl(LPCWSTR friendlyName, LPCWSTR sourceId);
             ~MFVCamImpl();
 
-            BEGIN_COM_MAP(MFVCamImpl)
-                COM_INTERFACE_ENTRY(IMFVCam)
-            END_COM_MAP(MFVCamImpl)
+            // IUnknown
+
+            HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                                     void **ppv) override;
+            ULONG STDMETHODCALLTYPE AddRef() override;
+            ULONG STDMETHODCALLTYPE Release() override;
 
             // IMFAttributes
 

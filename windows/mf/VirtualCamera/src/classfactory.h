@@ -35,7 +35,7 @@ namespace AkVCam
             static bool locked();
 
             BEGIN_COM_MAP(ClassFactory)
-                COM_INTERFACE_ENTRY(IClassFactory)
+                COM_INTERFACE(IClassFactory)
             END_COM_MAP(ClassFactory)
 
             // IClassFactory

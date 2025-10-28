@@ -43,7 +43,7 @@ namespace AkVCam
             bool contains(const AM_MEDIA_TYPE *pMediaType) const;
 
             BEGIN_COM_MAP(EnumMediaTypes)
-                COM_INTERFACE_ENTRY(IEnumMediaTypes)
+                COM_INTERFACE(IEnumMediaTypes)
             END_COM_MAP(EnumMediaTypes)
 
             // IEnumMediaTypes

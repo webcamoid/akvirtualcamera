@@ -35,7 +35,7 @@ namespace AkVCam
             virtual ~MemAllocator();
 
             BEGIN_COM_MAP(MemAllocator)
-                COM_INTERFACE_ENTRY(IMemAllocator)
+                COM_INTERFACE(IMemAllocator)
             END_COM_MAP(MemAllocator)
 
             // IMemAllocator

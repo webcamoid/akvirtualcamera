@@ -17,9 +17,11 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <atomic>
 #include <dshow.h>
 
 #include "mediasample.h"
+#include "PlatformUtils/src/cunknown.h"
 #include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/utils.h"
 
@@ -28,6 +30,7 @@ namespace AkVCam
     class MediaSamplePrivate
     {
         public:
+            std::atomic<uint64_t> m_refCount {1};
             IMemAllocator *m_memAllocator {nullptr};
             BYTE *m_buffer {nullptr};
             LONG m_bufferSize {0};
@@ -52,8 +55,7 @@ namespace AkVCam
 AkVCam::MediaSample::MediaSample(IMemAllocator *memAllocator,
                                  LONG bufferSize,
                                  LONG align,
-                                 LONG prefix):
-    CUnknown()
+                                 LONG prefix)
 {
     this->d = new MediaSamplePrivate;
     this->d->m_memAllocator = memAllocator;
@@ -73,15 +75,60 @@ AkVCam::MediaSample::~MediaSample()
     delete this->d;
 }
 
+uint64_t AkVCam::MediaSample::ref() const
+{
+    return static_cast<uint64_t>(this->d->m_refCount);
+}
+
 void AkVCam::MediaSample::setMemAllocator(IMemAllocator *memAllocator)
 {
     this->d->m_memAllocator = memAllocator;
 }
 
+HRESULT AkVCam::MediaSample::QueryInterface(REFIID riid, void **ppv)
+{
+    AkLogFunction();
+    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
+
+    if (!ppv)
+        return E_POINTER;
+
+    static const struct
+    {
+        const IID *iid;
+        void *ptr;
+    } comInterfaceEntryMediaSample[] = {
+        COM_INTERFACE(IMediaSample)
+        COM_INTERFACE(IMediaSample2)
+        COM_INTERFACE(IUnknown)
+        COM_INTERFACE_NULL
+    };
+\
+    for (auto map = comInterfaceEntryMediaSample; map->ptr; ++map)
+        if (*map->iid == riid) {
+            *ppv = map->ptr;
+            this->AddRef();
+
+            return S_OK;
+        }
+
+    *ppv = nullptr;
+    AkLogDebug("Interface not found");
+
+    return E_NOINTERFACE;
+}
+
+ULONG AkVCam::MediaSample::AddRef()
+{
+    AkLogFunction();
+
+    return ++this->d->m_refCount;
+}
+
 ULONG AkVCam::MediaSample::Release()
 {
     AkLogFunction();
-    ULONG ref = --this->m_refCount;
+    ULONG ref = --this->d->m_refCount;
 
     if (this->d->m_memAllocator && ref == 1)
         this->d->m_memAllocator->ReleaseBuffer(this);
