@@ -23,6 +23,7 @@
 #include <initguid.h>
 #include <devpropdef.h>
 #include <mfobjects.h>
+#include <mfidl.h>
 
 DEFINE_GUID(MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 0xf0273718, 0x4a4d, 0x4ac5, 0xa1, 0x5d, 0x30, 0x5e, 0xb5, 0xe9, 0x06, 0x67);
 DEFINE_GUID(AKVCAM_PINNAME_VIDEO_CAPTURE, 0xfb6c4281, 0x353, 0x11d1, 0x90, 0x5f, 0x0, 0x0, 0xc0, 0xcc, 0x16, 0xba);
@@ -30,7 +31,7 @@ DEFINE_GUID(AKVCAM_MF_DEVICESTREAM_STREAM_CATEGORY, 0x2939e7b8, 0xa62e, 0x4579, 
 DEFINE_GUID(AKVCAM_MF_DEVICESTREAM_STREAM_ID, 0x11bd5120, 0xd124, 0x446b, 0x88, 0xe6, 0x17, 0x6, 0x2, 0x57, 0xff, 0xf9);
 DEFINE_GUID(AKVCAM_MF_DEVICESTREAM_FRAMESERVER_SHARED, 0x1cb378e9, 0xb279, 0x41d4, 0xaf, 0x97, 0x34, 0xa2, 0x43, 0xe6, 0x83, 0x20);
 DEFINE_GUID(AKVCAM_MF_DEVICESTREAM_ATTRIBUTE_FRAMESOURCE_TYPES, 0x17145fd1, 0x1b2b, 0x423c, 0x80, 0x1, 0x2b, 0x68, 0x33, 0xed, 0x35, 0x88);
-DEFINE_GUID(AKVCAM_IID_IMFMediaSourceEx, 0x3c9b2eb9, 0x86d5, 0x4514, 0xa3, 0x94, 0xf5, 0x66, 0x64, 0xf9, 0xf0, 0xd8);
+DEFINE_GUID(IID_IMFMediaSrcEx, 0x3c9b2eb9, 0x86d5, 0x4514, 0xa3, 0x94, 0xf5, 0x66, 0x64, 0xf9, 0xf0, 0xd8);
 
 enum MFVCamType
 {
@@ -54,6 +55,15 @@ class IMFCamSyncObject: public IUnknown
     public:
         virtual HRESULT WaitOnSignal(DWORD timeOutInMs) = 0;
         virtual void Shutdown() = 0;
+};
+
+class IMFMediaSrcEx: public IMFMediaSource
+{
+    public:
+        virtual HRESULT STDMETHODCALLTYPE GetSourceAttributes(IMFAttributes **ppAttributes) = 0;
+        virtual HRESULT STDMETHODCALLTYPE GetStreamAttributes(DWORD dwStreamIdentifier,
+                                                              IMFAttributes **ppAttributes) = 0;
+        virtual HRESULT STDMETHODCALLTYPE SetD3DManager(IUnknown *pManager) = 0;
 };
 
 class IMFVCam: public IMFAttributes

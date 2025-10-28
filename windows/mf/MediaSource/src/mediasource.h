@@ -24,6 +24,7 @@
 #include <mfidl.h>
 
 #include "attributes.h"
+#include "mfvcam.h"
 #include "mediaeventgenerator.h"
 #include "VCamUtils/src/utils.h"
 
@@ -32,7 +33,7 @@ namespace AkVCam
     class MediaSourcePrivate;
 
     class MediaSource:
-            public virtual IMFMediaSource,
+            public virtual IMFMediaSrcEx,
             public virtual IMFAttributes,
             public virtual IMFGetService,
             public virtual IAMVideoProcAmp
@@ -87,6 +88,13 @@ namespace AkVCam
             HRESULT STDMETHODCALLTYPE Stop() override;
             HRESULT STDMETHODCALLTYPE Pause() override;
             HRESULT STDMETHODCALLTYPE Shutdown() override;
+
+            // IMFMediaSourceEx
+
+            HRESULT STDMETHODCALLTYPE GetSourceAttributes(IMFAttributes **ppAttributes) override;
+            HRESULT STDMETHODCALLTYPE GetStreamAttributes(DWORD dwStreamIdentifier,
+                                                          IMFAttributes **ppAttributes) override;
+            HRESULT STDMETHODCALLTYPE SetD3DManager(IUnknown *pManager) override;
 
         private:
             MediaSourcePrivate *d;

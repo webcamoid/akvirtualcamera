@@ -224,7 +224,7 @@ bool AkVCam::MediaSource::directMode() const
 HRESULT AkVCam::MediaSource::QueryInterface(const IID &riid, void **ppv)
 {
     AkLogFunction();
-    AkLogDebug("IID: %s", stringFromClsid(riid).c_str());
+    AkLogDebug("IID: %s", stringFromClsidMF(riid).c_str());
 
     if (!ppv)
         return E_POINTER;
@@ -239,6 +239,8 @@ HRESULT AkVCam::MediaSource::QueryInterface(const IID &riid, void **ppv)
         COM_INTERFACE(IMFAttributes)
         COM_INTERFACE(IMFGetService)
         COM_INTERFACE(IAMVideoProcAmp)
+        COM_INTERFACE(IMFMediaSource)
+        COM_INTERFACE(IMFMediaSourceEx)
         COM_INTERFACE2(IUnknown, IMFMediaSource)
         COM_INTERFACE_NULL
     };
@@ -588,6 +590,66 @@ HRESULT AkVCam::MediaSource::Shutdown()
     }
 
     return this->eventQueue()->Shutdown();
+}
+
+HRESULT AkVCam::MediaSource::GetSourceAttributes(IMFAttributes **ppAttributes)
+{
+    AkLogFunction();
+
+    return this->QueryInterface(IID_IMFAttributes, reinterpret_cast<void **>(ppAttributes));
+}
+
+HRESULT AkVCam::MediaSource::GetStreamAttributes(DWORD dwStreamIdentifier,
+                                                 IMFAttributes **ppAttributes)
+{
+    AkLogFunction();
+    AkLogDebug("Stream %d", dwStreamIdentifier);
+
+    if (!ppAttributes) {
+        AkLogError("Invalid pointer");
+
+        return E_POINTER;
+    }
+
+    *ppAttributes = nullptr;
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+
+    if (dwStreamIdentifier >= 1) {
+        AkLogError("Invalid stream %d", dwStreamIdentifier);
+
+        return E_FAIL;
+    }
+
+    auto hr = MFCreateAttributes(ppAttributes, 0);
+
+    if (FAILED(hr))
+        return hr;
+
+    hr = this->d->m_pStream->CopyAllItems(*ppAttributes);
+
+    if (FAILED(hr)) {
+        (*ppAttributes)->Release();
+        *ppAttributes = nullptr;
+
+        return hr;
+    }
+
+    return hr;
+}
+
+HRESULT AkVCam::MediaSource::SetD3DManager(IUnknown *pManager)
+{
+    AkLogFunction();
+
+    if (!pManager) {
+        AkLogError("Invalid pointer");
+
+        return E_POINTER;
+    }
+
+    // Not implemented, may not be required.
+
+    return S_OK;
 }
 
 AkVCam::MediaSourcePrivate::MediaSourcePrivate(MediaSource *self):
