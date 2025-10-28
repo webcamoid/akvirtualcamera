@@ -240,7 +240,7 @@ HRESULT AkVCam::MediaSource::QueryInterface(const IID &riid, void **ppv)
         COM_INTERFACE(IMFGetService)
         COM_INTERFACE(IAMVideoProcAmp)
         COM_INTERFACE(IMFMediaSource)
-        COM_INTERFACE(IMFMediaSourceEx)
+        COM_INTERFACE(IMFMediaSrcEx)
         COM_INTERFACE2(IUnknown, IMFMediaSource)
         COM_INTERFACE_NULL
     };
