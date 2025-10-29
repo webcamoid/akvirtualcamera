@@ -308,7 +308,11 @@ HRESULT AkVCam::MediaSource::GetService(REFGUID service,
 {
     UNUSED(service);
     UNUSED(riid);
-    UNUSED(ppvObject);
+
+    if (!ppvObject)
+        return E_INVALIDARG;
+
+    *ppvObject = nullptr;
 
     return MF_E_UNSUPPORTED_SERVICE;
 }
@@ -669,7 +673,29 @@ HRESULT AkVCam::MediaSource::GetSourceAttributes(IMFAttributes **ppAttributes)
 {
     AkLogFunction();
 
-    return this->QueryInterface(IID_IMFAttributes, reinterpret_cast<void **>(ppAttributes));
+    if (!ppAttributes) {
+        AkLogError("Invalid pointer");
+
+        return E_POINTER;
+    }
+
+    *ppAttributes = nullptr;
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+    auto hr = MFCreateAttributes(ppAttributes, 0);
+
+    if (FAILED(hr))
+        return hr;
+
+    hr = this->CopyAllItems(*ppAttributes);
+
+    if (FAILED(hr)) {
+        (*ppAttributes)->Release();
+        *ppAttributes = nullptr;
+
+        return hr;
+    }
+
+    return hr;
 }
 
 HRESULT AkVCam::MediaSource::GetStreamAttributes(DWORD dwStreamIdentifier,
