@@ -83,21 +83,21 @@ namespace AkVCam
 
             // IKsControl
 
-            HRESULT STDMETHODCALLTYPE KsProperty(PKSPROPERTY Property,
-                                                 ULONG PropertyLength,
-                                                 LPVOID PropertyData,
-                                                 ULONG DataLength,
-                                                 ULONG *BytesReturned) override;
-            HRESULT STDMETHODCALLTYPE KsMethod(PKSMETHOD Method,
-                                               ULONG MethodLength,
-                                               LPVOID MethodData,
-                                               ULONG DataLength,
-                                               ULONG *BytesReturned) override;
-            HRESULT STDMETHODCALLTYPE KsEvent(PKSEVENT Event,
-                                              ULONG EventLength,
-                                              LPVOID EventData,
-                                              ULONG DataLength,
-                                              ULONG *BytesReturned) override;
+            STDMETHOD(KsProperty)(PKSPROPERTY Property,
+                                  ULONG PropertyLength,
+                                  LPVOID PropertyData,
+                                  ULONG DataLength,
+                                  ULONG *BytesReturned) override;
+            STDMETHOD(KsMethod)(PKSMETHOD Method,
+                                ULONG MethodLength,
+                                LPVOID MethodData,
+                                ULONG DataLength,
+                                ULONG *BytesReturned) override;
+            STDMETHOD(KsEvent)(PKSEVENT Event,
+                               ULONG EventLength,
+                               LPVOID EventData,
+                               ULONG DataLength,
+                               ULONG *BytesReturned) override;
 
             // IMFMediaSource
 

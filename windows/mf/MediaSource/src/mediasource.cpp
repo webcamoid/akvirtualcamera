@@ -105,7 +105,11 @@ namespace AkVCam
             MediaSourcePrivate(MediaSource *self);
             ~MediaSourcePrivate();
             void configureSensorProfile();
+
+#ifdef _WIN64
             void configureWinRTSupport();
+#endif
+
             static void frameReady(void *userData,
                                    const std::string &deviceId,
                                    const VideoFrame &frame,
@@ -736,16 +740,22 @@ using MFCreateSensorProfileType =
 
 void AkVCam::MediaSourcePrivate::configureSensorProfile()
 {
+    AkLogFunction();
     auto mfsensorgroupHnd = LoadLibrary(TEXT("mfsensorgroup.dll"));
 
-    if (!mfsensorgroupHnd)
+    if (!mfsensorgroupHnd) {
+        AkLogError("mfsensorgroup.dll not found");
+
         return;
+    }
 
     auto mfCreateSensorProfileCollection =
         reinterpret_cast<MFCreateSensorProfileCollectionType>(GetProcAddress(mfsensorgroupHnd,
                                                                              "MFCreateSensorProfileCollection"));
 
     if (!mfCreateSensorProfileCollection) {
+        AkLogError("MFCreateSensorProfileCollection function not found in mfsensorgroup.dll");
+
         FreeLibrary(mfsensorgroupHnd);
 
         return;
@@ -756,6 +766,7 @@ void AkVCam::MediaSourcePrivate::configureSensorProfile()
                                                                    "MFCreateSensorProfile"));
 
     if (!mfCreateSensorProfile) {
+        AkLogError("MFCreateSensorProfile function not found in mfsensorgroup.dll");
         FreeLibrary(mfsensorgroupHnd);
 
         return;
@@ -764,6 +775,7 @@ void AkVCam::MediaSourcePrivate::configureSensorProfile()
     IMFSensorProfCollection *collection = nullptr;
 
     if (FAILED(mfCreateSensorProfileCollection(&collection))) {
+        AkLogError("Failed to create the sensor profile collection");
         FreeLibrary(mfsensorgroupHnd);
 
         return;
@@ -794,8 +806,10 @@ void AkVCam::MediaSourcePrivate::configureSensorProfile()
         profile->Release();
     }
 
-    if (hr == S_OK)
+    if (hr == S_OK) {
         self->SetUnknown(AKVCAM_MF_DEVICEMFT_SENSORPROFILE_COLLECTION, collection);
+        AkLogDebug("Sensor profile set");
+    }
 
     collection->Release();
 }
@@ -803,6 +817,8 @@ void AkVCam::MediaSourcePrivate::configureSensorProfile()
 #ifdef _WIN64
 void AkVCam::MediaSourcePrivate::configureWinRTSupport()
 {
+    AkLogFunction();
+
     try {
         auto appInfo = winrt::Windows::ApplicationModel::AppInfo::Current();
 
