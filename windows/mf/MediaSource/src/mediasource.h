@@ -44,7 +44,7 @@ namespace AkVCam
         AKVCAM_SIGNAL(PropertyChanged, LONG Property, LONG lValue, LONG Flags)
 
         public:
-            MediaSource(const GUID &clsid, IMFActivate *activator);
+            MediaSource(const GUID &clsid, IMFActivate *activator=nullptr);
             ~MediaSource();
 
             std::string deviceId() const;
