@@ -40,7 +40,7 @@ AkVCam::Activate::Activate(const CLSID &clsid)
 {
     this->d = new ActivatePrivate;
     this->d->m_clsid = clsid;
-    this->SetUINT32(MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 1);
+    this->SetUINT32(AKVCAM_MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 1);
     this->SetGUID(MFT_TRANSFORM_CLSID_Attribute, clsid);
 
     AkLogDebug("Created Activate for CLSID: %s", stringFromClsidMF(clsid).c_str());

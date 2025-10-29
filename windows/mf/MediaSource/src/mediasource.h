@@ -22,6 +22,8 @@
 
 #include <string>
 #include <mfidl.h>
+#include <ks.h>
+#include <ksproxy.h>
 
 #include "attributes.h"
 #include "mfvcam.h"
@@ -36,7 +38,8 @@ namespace AkVCam
             public virtual IMFMediaSrcEx,
             public virtual IMFAttributes,
             public virtual IMFGetService,
-            public virtual IAMVideoProcAmp
+            public virtual IAMVideoProcAmp,
+            public virtual IKsControl
     {
         AKVCAM_SIGNAL(PropertyChanged, LONG Property, LONG lValue, LONG Flags)
 
@@ -77,6 +80,24 @@ namespace AkVCam
             HRESULT STDMETHODCALLTYPE Get(LONG property,
                                           LONG *lValue,
                                           LONG *flags) override;
+
+            // IKsControl
+
+            HRESULT STDMETHODCALLTYPE KsProperty(PKSPROPERTY Property,
+                                                 ULONG PropertyLength,
+                                                 LPVOID PropertyData,
+                                                 ULONG DataLength,
+                                                 ULONG *BytesReturned) override;
+            HRESULT STDMETHODCALLTYPE KsMethod(PKSMETHOD Method,
+                                               ULONG MethodLength,
+                                               LPVOID MethodData,
+                                               ULONG DataLength,
+                                               ULONG *BytesReturned) override;
+            HRESULT STDMETHODCALLTYPE KsEvent(PKSEVENT Event,
+                                              ULONG EventLength,
+                                              LPVOID EventData,
+                                              ULONG DataLength,
+                                              ULONG *BytesReturned) override;
 
             // IMFMediaSource
 

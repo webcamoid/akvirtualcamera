@@ -473,17 +473,22 @@ std::string AkVCam::pixelFormatMFToCommonString(PixelFormat format)
 std::string AkVCam::stringFromClsidMF(const CLSID &clsid)
 {
     static const std::map<CLSID, std::string> clsidToStringMF {
-        {IID_IMFAttributes                                 , "IMFAttributes"                                     },
-        {IID_IMFActivate                                   , "IMFActivate"                                       },
-        {IID_IMFMediaEventGenerator                        , "IMFMediaEventGenerator"                            },
-        {IID_IMFMediaSrcEx                                 , "IMFMediaSourceEx"                                  },
-        {AKVCAM_PINNAME_VIDEO_CAPTURE                      , "PINNAME_VIDEO_CAPTURE"                             },
-        {AKVCAM_MF_DEVICESTREAM_STREAM_CATEGORY            , "MF_DEVICESTREAM_STREAM_CATEGORY"                   },
-        {AKVCAM_MF_DEVICESTREAM_STREAM_ID                  , "MF_DEVICESTREAM_STREAM_ID"                         },
-        {AKVCAM_MF_DEVICESTREAM_FRAMESERVER_SHARED         , "MF_DEVICESTREAM_FRAMESERVER_SHARED"                },
-        {AKVCAM_MF_DEVICESTREAM_ATTRIBUTE_FRAMESOURCE_TYPES, "MF_DEVICESTREAM_ATTRIBUTE_FRAMESOURCE_TYPES"       },
-        {MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, "MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES"},
-        {MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME              , "MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME"              },
+        {IID_IMFActivate                                              , "IMFActivate"                                           },
+        {IID_IMFAttributes                                            , "IMFAttributes"                                         },
+        {IID_IMFCollection                                            , "IMFCollection"                                         },
+        {IID_IMFGetService                                            , "IMFGetService"                                         },
+        {IID_IMFMediaEventGenerator                                   , "IMFMediaEventGenerator"                                },
+        {IID_IMFMediaSource                                           , "IMFMediaSource"                                        },
+        {IID_IMFMediaSrcEx                                            , "IMFMediaSourceEx"                                      },
+        {AKVCAM_PINNAME_VIDEO_CAPTURE                                 , "PINNAME_VIDEO_CAPTURE"                                 },
+        {AKVCAM_MF_DEVICEMFT_SENSORPROFILE_COLLECTION                 , "MF_DEVICEMFT_SENSORPROFILE_COLLECTION"                 },
+        {AKVCAM_MF_DEVICESTREAM_ATTRIBUTE_FRAMESOURCE_TYPES           , "MF_DEVICESTREAM_ATTRIBUTE_FRAMESOURCE_TYPES"           },
+        {AKVCAM_MF_DEVICESTREAM_FRAMESERVER_SHARED                    , "MF_DEVICESTREAM_FRAMESERVER_SHARED"                    },
+        {AKVCAM_MF_DEVICESTREAM_STREAM_CATEGORY                       , "MF_DEVICESTREAM_STREAM_CATEGORY"                       },
+        {AKVCAM_MF_DEVICESTREAM_STREAM_ID                             , "MF_DEVICESTREAM_STREAM_ID"                             },
+        {AKVCAM_MF_VIRTUALCAMERA_CONFIGURATION_APP_PACKAGE_FAMILY_NAME, "MF_VIRTUALCAMERA_CONFIGURATION_APP_PACKAGE_FAMILY_NAME"},
+        {AKVCAM_MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES    , "MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES"    },
+        {MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME                         , "MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME"                  },
     };
 
     for (auto &id: clsidToStringMF)

@@ -26,6 +26,8 @@
 #include <mfreadwrite.h>
 #include <propvarutil.h>
 #include <dbt.h>
+#include <winerror.h>
+#include <winrt/Windows.ApplicationModel.h>
 
 #include "mediasource.h"
 #include "mediastream.h"
@@ -97,6 +99,8 @@ namespace AkVCam
 
             MediaSourcePrivate(MediaSource *self);
             ~MediaSourcePrivate();
+            void configureSensorProfile();
+            void configureWinRTSupport();
             static void frameReady(void *userData,
                                    const std::string &deviceId,
                                    const VideoFrame &frame,
@@ -111,8 +115,6 @@ namespace AkVCam
     };
 }
 
-BOOL CALLBACK AkVCamEnumWindowsProc(HWND handler, LPARAM userData);
-
 AkVCam::MediaSource::MediaSource(const GUID &clsid)
 {
     AkLogFunction();
@@ -120,6 +122,8 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid)
     this->d->m_clsid = clsid;
     AkLogDebug("CLSID: %s", stringFromClsidMF(clsid).c_str());
 
+    this->d->configureSensorProfile();
+    this->d->configureWinRTSupport();
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);
     AkLogDebug("Camera index: %d", cameraIndex);
     std::vector<IMFMediaType *> mediaTypes;
@@ -239,6 +243,7 @@ HRESULT AkVCam::MediaSource::QueryInterface(const IID &riid, void **ppv)
         COM_INTERFACE(IMFAttributes)
         COM_INTERFACE(IMFGetService)
         COM_INTERFACE(IAMVideoProcAmp)
+        COM_INTERFACE(IKsControl)
         COM_INTERFACE(IMFMediaSource)
         COM_INTERFACE(IMFMediaSrcEx)
         COM_INTERFACE2(IUnknown, IMFMediaSource)
@@ -368,6 +373,58 @@ HRESULT AkVCam::MediaSource::Get(LONG property, LONG *lValue, LONG *flags)
     *flags = control->flags;
 
     return S_OK;
+}
+
+HRESULT AkVCam::MediaSource::KsProperty(PKSPROPERTY Property,
+                                        ULONG PropertyLength,
+                                        LPVOID PropertyData,
+                                        ULONG DataLength,
+                                        ULONG *BytesReturned)
+{
+    AkLogFunction();
+    UNUSED(PropertyLength);
+    UNUSED(PropertyData);
+    UNUSED(DataLength);
+
+    if (!Property || !BytesReturned)
+        return E_POINTER;
+
+    return HRESULT_FROM_WIN32(ERROR_SET_NOT_FOUND);
+}
+
+HRESULT AkVCam::MediaSource::KsMethod(PKSMETHOD Method,
+                                      ULONG MethodLength,
+                                      LPVOID MethodData,
+                                      ULONG DataLength,
+                                      ULONG *BytesReturned)
+{
+    AkLogFunction();
+    UNUSED(MethodLength);
+    UNUSED(MethodData);
+    UNUSED(DataLength);
+
+    if (!Method || !BytesReturned)
+        return E_POINTER;
+
+    return HRESULT_FROM_WIN32(ERROR_SET_NOT_FOUND);
+}
+
+HRESULT AkVCam::MediaSource::KsEvent(PKSEVENT Event,
+                                     ULONG EventLength,
+                                     LPVOID EventData,
+                                     ULONG DataLength,
+                                     ULONG *BytesReturned)
+{
+    AkLogFunction();
+    UNUSED(Event);
+    UNUSED(EventLength);
+    UNUSED(EventData);
+    UNUSED(DataLength);
+
+    if (!BytesReturned)
+        return E_POINTER;
+
+    return HRESULT_FROM_WIN32(ERROR_SET_NOT_FOUND);
 }
 
 HRESULT AkVCam::MediaSource::GetCharacteristics(DWORD *pdwCharacteristics)
@@ -661,6 +718,92 @@ AkVCam::MediaSourcePrivate::~MediaSourcePrivate()
 {
 }
 
+using MFCreateSensorProfileCollectionType =
+    HRESULT (*)(IMFSensorProfCollection **ppSensorProfile);
+using MFCreateSensorProfileType =
+    HRESULT (*)(REFGUID ProfileType,
+                UINT32 ProfileIndex,
+                LPCWSTR Constraints,
+                IMFSensorProf **ppProfile);
+
+void AkVCam::MediaSourcePrivate::configureSensorProfile()
+{
+    auto mfsensorgroupHnd = LoadLibrary(TEXT("mfsensorgroup.dll"));
+
+    if (!mfsensorgroupHnd)
+        return;
+
+    auto mfCreateSensorProfileCollection =
+        reinterpret_cast<MFCreateSensorProfileCollectionType>(GetProcAddress(mfsensorgroupHnd,
+                                                                             "MFCreateSensorProfileCollection"));
+
+    if (!mfCreateSensorProfileCollection) {
+        FreeLibrary(mfsensorgroupHnd);
+
+        return;
+    }
+
+    auto mfCreateSensorProfile =
+        reinterpret_cast<MFCreateSensorProfileType>(GetProcAddress(mfsensorgroupHnd,
+                                                                   "MFCreateSensorProfile"));
+
+    if (!mfCreateSensorProfile) {
+        FreeLibrary(mfsensorgroupHnd);
+
+        return;
+    }
+
+    IMFSensorProfCollection *collection = nullptr;
+
+    if (FAILED(mfCreateSensorProfileCollection(&collection))) {
+        FreeLibrary(mfsensorgroupHnd);
+
+        return;
+    }
+
+    HRESULT hr = S_FALSE;
+    IMFSensorProf *profile = nullptr;
+
+    if (SUCCEEDED(mfCreateSensorProfile(AKVCAM_KSCAMERAPROFILE_Legacy,
+                                        0,
+                                        nullptr,
+                                        &profile))) {
+        if (SUCCEEDED(profile->AddProfileFilter(0, L"((RES==;FRT<=30,1;SUT==))")))
+            hr = collection->AddProfile(profile);
+
+        profile->Release();
+    }
+
+    profile = nullptr;
+
+    if (SUCCEEDED(mfCreateSensorProfile(AKVCAM_KSCAMERAPROFILE_HighFrameRate,
+                                        0,
+                                        nullptr,
+                                        &profile))) {
+        if (SUCCEEDED(profile->AddProfileFilter(0, L"((RES==;FRT>=60,1;SUT==))")))
+            hr = collection->AddProfile(profile);
+
+        profile->Release();
+    }
+
+    if (hr == S_OK)
+        self->SetUnknown(AKVCAM_MF_DEVICEMFT_SENSORPROFILE_COLLECTION, collection);
+
+    collection->Release();
+}
+
+void AkVCam::MediaSourcePrivate::configureWinRTSupport()
+{
+    try {
+        auto appInfo = winrt::Windows::ApplicationModel::AppInfo::Current();
+
+        if (appInfo)
+            self->SetString(AKVCAM_MF_VIRTUALCAMERA_CONFIGURATION_APP_PACKAGE_FAMILY_NAME,
+                            appInfo.PackageFamilyName().data());
+    } catch (...) {
+    }
+}
+
 void AkVCam::MediaSourcePrivate::frameReady(void *userData,
                                             const std::string &deviceId,
                                             const VideoFrame &frame,
@@ -681,6 +824,14 @@ void AkVCam::MediaSourcePrivate::pictureChanged(void *userData,
     AkLogFunction();
     auto self = reinterpret_cast<MediaSourcePrivate *>(userData);
     self->m_pStream->setPicture(picture);
+}
+
+BOOL CALLBACK AkVCamEnumWindowsProc(HWND handler, LPARAM userData)
+{
+    auto handlers = reinterpret_cast<std::vector<HWND> *>(userData);
+    handlers->push_back(handler);
+
+    return TRUE;
 }
 
 void AkVCam::MediaSourcePrivate::devicesChanged(void *userData,
@@ -708,12 +859,4 @@ void AkVCam::MediaSourcePrivate::setControls(void *userData,
         return;
 
     self->m_pStream->setControls(controls);
-}
-
-BOOL CALLBACK AkVCamEnumWindowsProc(HWND handler, LPARAM userData)
-{
-    auto handlers = reinterpret_cast<std::vector<HWND> *>(userData);
-    handlers->push_back(handler);
-
-    return TRUE;
 }
