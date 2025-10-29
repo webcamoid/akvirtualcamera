@@ -26,8 +26,13 @@
 #include <mfreadwrite.h>
 #include <propvarutil.h>
 #include <dbt.h>
+#include <ks.h>
+#include <ksproxy.h>
 #include <winerror.h>
+
+#ifdef _WIN64
 #include <winrt/Windows.ApplicationModel.h>
+#endif
 
 #include "mediasource.h"
 #include "mediastream.h"
@@ -123,7 +128,11 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid)
     AkLogDebug("CLSID: %s", stringFromClsidMF(clsid).c_str());
 
     this->d->configureSensorProfile();
+
+#ifdef _WIN64
     this->d->configureWinRTSupport();
+#endif
+
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);
     AkLogDebug("Camera index: %d", cameraIndex);
     std::vector<IMFMediaType *> mediaTypes;
@@ -792,6 +801,7 @@ void AkVCam::MediaSourcePrivate::configureSensorProfile()
     collection->Release();
 }
 
+#ifdef _WIN64
 void AkVCam::MediaSourcePrivate::configureWinRTSupport()
 {
     try {
@@ -803,6 +813,7 @@ void AkVCam::MediaSourcePrivate::configureWinRTSupport()
     } catch (...) {
     }
 }
+#endif
 
 void AkVCam::MediaSourcePrivate::frameReady(void *userData,
                                             const std::string &deviceId,

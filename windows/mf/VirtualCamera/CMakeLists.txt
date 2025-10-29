@@ -59,6 +59,10 @@ if (WIN32)
         mfplat
         mfuuid
         winmm)
+
+    if (IS_WIN64_TARGET OR IS_WIN64_ARM_TARGET)
+        list(APPEND EXTRA_LIBS runtimeobject)
+    endif ()
 endif ()
 
 target_link_libraries(VirtualCamera_mf
