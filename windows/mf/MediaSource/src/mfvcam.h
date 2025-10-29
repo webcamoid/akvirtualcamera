@@ -61,7 +61,7 @@ class IMFCamSyncObject: public IUnknown
         virtual void Shutdown() = 0;
 };
 
-struct SENSORPROFILEID
+struct SENSORPROFID
 {
     GUID Type;
     UINT32 Index;
@@ -71,7 +71,7 @@ struct SENSORPROFILEID
 class IMFSensorProf: public IUnknown
 {
     public:
-        virtual HRESULT STDMETHODCALLTYPE GetProfileId(SENSORPROFILEID *pId) = 0;
+        virtual HRESULT STDMETHODCALLTYPE GetProfileId(SENSORPROFID *pId) = 0;
         virtual HRESULT STDMETHODCALLTYPE AddProfileFilter(UINT32 StreamId,
                                                            LPCWSTR wzFilterSetString) = 0;
         virtual HRESULT STDMETHODCALLTYPE IsMediaTypeSupported(UINT32 StreamId,
@@ -87,10 +87,10 @@ class IMFSensorProfCollection: public IUnknown
         virtual HRESULT STDMETHODCALLTYPE GetProfile(DWORD Index,
                                                      IMFSensorProf **ppProfile) = 0;
         virtual HRESULT STDMETHODCALLTYPE AddProfile(IMFSensorProf *pProfile) = 0;
-        virtual HRESULT STDMETHODCALLTYPE FindProfile(SENSORPROFILEID *ProfileId,
+        virtual HRESULT STDMETHODCALLTYPE FindProfile(SENSORPROFID *ProfileId,
                                                       IMFSensorProf **ppProfile) = 0;
         virtual void STDMETHODCALLTYPE RemoveProfileByIndex(DWORD Index) = 0;
-        virtual void STDMETHODCALLTYPE RemoveProfile(SENSORPROFILEID *ProfileId) = 0;
+        virtual void STDMETHODCALLTYPE RemoveProfile(SENSORPROFID *ProfileId) = 0;
 };
 
 class IMFMediaSrcEx: public IMFMediaSource

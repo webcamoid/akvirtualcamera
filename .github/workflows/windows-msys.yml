@@ -44,12 +44,14 @@ jobs:
           mingw-w64-i686-gcc
           mingw-w64-i686-gdb
           mingw-w64-i686-pkgconf
+          mingw-w64-i686-cppwinrt
           mingw-w64-x86_64-binutils
           mingw-w64-x86_64-clang
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-gcc
           mingw-w64-x86_64-gdb
           mingw-w64-x86_64-pkgconf
+          mingw-w64-x86_64-cppwinrt
     - name: Install dependencies
       run: ./ports/ci/windows-msys/install_deps.sh
     - name: Release Build

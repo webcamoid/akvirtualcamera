@@ -59,6 +59,7 @@ pacman --noconfirm --needed -S \
     mingw-w64-cmake \
     mingw-w64-gcc \
     mingw-w64-pkg-config \
+    mingw-w64-cppwinrt \
     pkgconf \
     python \
     sed \
