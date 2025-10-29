@@ -211,7 +211,6 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid)
 AkVCam::MediaSource::~MediaSource()
 {
     AkLogFunction();
-    this->Shutdown();
 
     this->d->m_ipcBridge->stopNotifications();
 
