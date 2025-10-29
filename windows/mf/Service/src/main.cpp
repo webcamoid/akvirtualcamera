@@ -212,7 +212,6 @@ void updateCameras(void *, const std::vector<std::string> &)
 
         camerasPtr->push_back(std::shared_ptr<IMFVCam>(vcam, [] (IMFVCam *vcam) {
             vcam->Remove();
-            vcam->Shutdown();
             vcam->Release();
         }));
     }

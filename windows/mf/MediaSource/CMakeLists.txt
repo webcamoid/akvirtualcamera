@@ -51,9 +51,21 @@ target_include_directories(VCamMediaSource
                            ../..
                            ../../..)
 
+if (WIN32)
+   set(EXTRA_LIBS
+       mfplat
+       mfuuid
+       winmm)
+
+   if (IS_WIN64_TARGET OR IS_WIN64_ARM_TARGET)
+       list(APPEND EXTRA_LIBS runtimeobject)
+   endif ()
+endif ()
+
 target_link_libraries(VCamMediaSource
                       VCamIPC_windows
                       PlatformUtils_windows
-                      VCamUtils)
+                      VCamUtils
+                      ${EXTRA_LIBS})
 add_definitions(-DNOMINMAX
                 -DSTRSAFE_NO_DEPRECATE)
