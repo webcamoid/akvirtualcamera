@@ -255,7 +255,8 @@ HRESULT AkVCam::MediaSource::QueryInterface(const IID &riid, void **ppv)
         COM_INTERFACE(IMFAttributes)
         COM_INTERFACE(IMFGetService)
         COM_INTERFACE(IAMVideoProcAmp)
-        COM_INTERFACE(IKsControl)
+        //COM_INTERFACE(IKsControl)
+        {&IID_IKsCtrl, static_cast<IKsControl *>(this)},
         COM_INTERFACE(IMFMediaSource)
         COM_INTERFACE(IMFMediaSrcEx)
         COM_INTERFACE2(IUnknown, IMFMediaSource)
@@ -387,11 +388,11 @@ HRESULT AkVCam::MediaSource::Get(LONG property, LONG *lValue, LONG *flags)
     return S_OK;
 }
 
-HRESULT AkVCam::MediaSource::KsProperty(PKSPROPERTY Property,
-                                        ULONG PropertyLength,
-                                        LPVOID PropertyData,
-                                        ULONG DataLength,
-                                        ULONG *BytesReturned)
+STDMETHODIMP AkVCam::MediaSource::KsProperty(PKSPROPERTY Property,
+                                             ULONG PropertyLength,
+                                             LPVOID PropertyData,
+                                             ULONG DataLength,
+                                             ULONG *BytesReturned)
 {
     AkLogFunction();
     UNUSED(PropertyLength);
@@ -404,11 +405,11 @@ HRESULT AkVCam::MediaSource::KsProperty(PKSPROPERTY Property,
     return HRESULT_FROM_WIN32(ERROR_SET_NOT_FOUND);
 }
 
-HRESULT AkVCam::MediaSource::KsMethod(PKSMETHOD Method,
-                                      ULONG MethodLength,
-                                      LPVOID MethodData,
-                                      ULONG DataLength,
-                                      ULONG *BytesReturned)
+STDMETHODIMP AkVCam::MediaSource::KsMethod(PKSMETHOD Method,
+                                           ULONG MethodLength,
+                                           LPVOID MethodData,
+                                           ULONG DataLength,
+                                           ULONG *BytesReturned)
 {
     AkLogFunction();
     UNUSED(MethodLength);
@@ -421,11 +422,11 @@ HRESULT AkVCam::MediaSource::KsMethod(PKSMETHOD Method,
     return HRESULT_FROM_WIN32(ERROR_SET_NOT_FOUND);
 }
 
-HRESULT AkVCam::MediaSource::KsEvent(PKSEVENT Event,
-                                     ULONG EventLength,
-                                     LPVOID EventData,
-                                     ULONG DataLength,
-                                     ULONG *BytesReturned)
+STDMETHODIMP AkVCam::MediaSource::KsEvent(PKSEVENT Event,
+                                          ULONG EventLength,
+                                          LPVOID EventData,
+                                          ULONG DataLength,
+                                          ULONG *BytesReturned)
 {
     AkLogFunction();
     UNUSED(Event);

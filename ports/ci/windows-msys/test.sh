@@ -23,7 +23,6 @@ export INSTALL_PREFIX="${PWD}/build-${COMPILER}-x64/build"
 
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
-sleep 10
 
 # Configure a virtual camera for testing
 
@@ -35,19 +34,17 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 "${manager}" devices
 "${manager}" formats FakeCamera0
 "${manager}" set-loglevel 7
-sleep 5
 
 echo "Initilize the Media Foundation assistant"
-#nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
-nohup gdb -batch \
-    -ex 'set pagination off' \
-    -ex 'handle SIGSEGV stop' \
-    -ex 'run' \
-    -ex 'bt full' \
-    -ex 'info registers' \
-    -ex 'quit' \
-    --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"> gdb_output.log 2>&1 &
-sleep 20
+nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
+# nohup gdb -batch \
+#     -ex 'set pagination off' \
+#     -ex 'handle SIGSEGV stop' \
+#     -ex 'run' \
+#     -ex 'bt full' \
+#     -ex 'info registers' \
+#     -ex 'quit' \
+#     --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"> gdb_output.log 2>&1 &
 
 echo "Testing the virtual camera in DirectShow"
 
@@ -66,7 +63,6 @@ pgrep -a AkVCam || true
 echo "Log"
 
 if [ -f gdb_output.log ]; then
-    sleep 10
     cat gdb_output.log
 fi
 
