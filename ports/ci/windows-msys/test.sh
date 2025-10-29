@@ -45,6 +45,7 @@ nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
 #     -ex 'info registers' \
 #     -ex 'quit' \
 #     --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"> gdb_output.log 2>&1 &
+sleep 20
 
 echo "Testing the virtual camera in DirectShow"
 
