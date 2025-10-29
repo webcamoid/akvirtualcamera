@@ -124,12 +124,15 @@ namespace AkVCam
     };
 }
 
-AkVCam::MediaSource::MediaSource(const GUID &clsid)
+AkVCam::MediaSource::MediaSource(const GUID &clsid, IMFActivate *activator)
 {
     AkLogFunction();
     this->d = new MediaSourcePrivate(this);
     this->d->m_clsid = clsid;
     AkLogDebug("CLSID: %s", stringFromClsidMF(clsid).c_str());
+
+    if (activator)
+        activator->CopyAllItems(this);
 
     this->d->configureSensorProfile();
 

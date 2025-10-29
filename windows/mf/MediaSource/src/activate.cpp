@@ -115,10 +115,8 @@ HRESULT AkVCam::Activate::ActivateObject(REFIID riid, void **ppv)
 
     *ppv = nullptr;
 
-    if (!this->d->m_mediaSource) {
-        this->d->m_mediaSource = new MediaSource(this->d->m_clsid);
-        this->CopyAllItems(this->d->m_mediaSource);
-    }
+    if (!this->d->m_mediaSource)
+        this->d->m_mediaSource = new MediaSource(this->d->m_clsid, this);
 
     return this->d->m_mediaSource->QueryInterface(riid, ppv);
 }
