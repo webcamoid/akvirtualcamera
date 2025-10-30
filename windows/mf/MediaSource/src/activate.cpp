@@ -42,6 +42,7 @@ AkVCam::Activate::Activate(const CLSID &clsid)
     this->d->m_clsid = clsid;
     this->SetUINT32(AKVCAM_MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 1);
     this->SetGUID(MFT_TRANSFORM_CLSID_Attribute, clsid);
+    this->d->m_mediaSource = new MediaSource(this->d->m_clsid, this);
 
     AkLogDebug("Created Activate for CLSID: %s", stringFromClsidMF(clsid).c_str());
 }
@@ -116,7 +117,7 @@ HRESULT AkVCam::Activate::ActivateObject(REFIID riid, void **ppv)
     *ppv = nullptr;
 
     if (!this->d->m_mediaSource)
-        this->d->m_mediaSource = new MediaSource(this->d->m_clsid, this);
+        return E_UNEXPECTED;
 
     return this->d->m_mediaSource->QueryInterface(riid, ppv);
 }

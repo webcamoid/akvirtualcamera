@@ -489,6 +489,7 @@ std::string AkVCam::stringFromClsidMF(const CLSID &clsid)
         {AKVCAM_MF_VIRTUALCAMERA_CONFIGURATION_APP_PACKAGE_FAMILY_NAME, "MF_VIRTUALCAMERA_CONFIGURATION_APP_PACKAGE_FAMILY_NAME"},
         {AKVCAM_MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES    , "MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES"    },
         {MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME                         , "MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME"                  },
+        {MFT_TRANSFORM_CLSID_Attribute                                , "MFT_TRANSFORM_CLSID_Attribute"                         },
     };
 
     for (auto &id: clsidToStringMF)

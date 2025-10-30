@@ -679,23 +679,11 @@ HRESULT AkVCam::MediaSource::GetSourceAttributes(IMFAttributes **ppAttributes)
         return E_POINTER;
     }
 
-    *ppAttributes = nullptr;
     std::lock_guard<std::mutex> lock(this->d->m_mutex);
-    auto hr = MFCreateAttributes(ppAttributes, 0);
+    *ppAttributes = this;
+    (*ppAttributes)->AddRef();
 
-    if (FAILED(hr))
-        return hr;
-
-    hr = this->CopyAllItems(*ppAttributes);
-
-    if (FAILED(hr)) {
-        (*ppAttributes)->Release();
-        *ppAttributes = nullptr;
-
-        return hr;
-    }
-
-    return hr;
+    return S_OK;
 }
 
 HRESULT AkVCam::MediaSource::GetStreamAttributes(DWORD dwStreamIdentifier,
@@ -719,19 +707,8 @@ HRESULT AkVCam::MediaSource::GetStreamAttributes(DWORD dwStreamIdentifier,
         return E_FAIL;
     }
 
-    auto hr = MFCreateAttributes(ppAttributes, 0);
-
-    if (FAILED(hr))
-        return hr;
-
-    hr = this->d->m_pStream->CopyAllItems(*ppAttributes);
-
-    if (FAILED(hr)) {
-        (*ppAttributes)->Release();
-        *ppAttributes = nullptr;
-
-        return hr;
-    }
+    *ppAttributes = this->d->m_pStream;
+    (*ppAttributes)->AddRef();
 
     return hr;
 }
