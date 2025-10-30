@@ -710,7 +710,7 @@ HRESULT AkVCam::MediaSource::GetStreamAttributes(DWORD dwStreamIdentifier,
     *ppAttributes = this->d->m_pStream;
     (*ppAttributes)->AddRef();
 
-    return hr;
+    return S_OK;
 }
 
 HRESULT AkVCam::MediaSource::SetD3DManager(IUnknown *pManager)
