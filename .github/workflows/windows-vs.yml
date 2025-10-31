@@ -25,3 +25,5 @@ jobs:
       run: ports\ci\windows-vs\build.bat
     - name: Deploy
       run: ports\ci\windows-vs\deploy.bat
+    - name: Test
+      run: ports\ci\windows-vs\test.bat
