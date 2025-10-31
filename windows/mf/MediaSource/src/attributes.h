@@ -53,8 +53,12 @@
         { \
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetItem(guidKey, pValue); \
             \
-            return attributes()->GetItem(guidKey, pValue); \
+            if (FAILED(hr)) \
+                AkLogError("GetItem failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE GetItemType(REFGUID guidKey, \
@@ -64,7 +68,9 @@
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             auto hr = attributes()->GetItemType(guidKey, pType); \
             \
-            if (pType) \
+            if (FAILED(hr)) \
+                AkLogError("GetItemType failed: 0x%x", hr); \
+            else if (pType) \
                 AkLogDebug("Type: %d", *pType); \
             \
             return hr; \
@@ -76,8 +82,12 @@
         { \
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->CompareItem(guidKey, Value, pbResult); \
             \
-            return attributes()->CompareItem(guidKey, Value, pbResult); \
+            if (FAILED(hr)) \
+                AkLogError("CompareItem failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE Compare(IMFAttributes *pTheirs, \
@@ -85,8 +95,12 @@
                                           BOOL *pbResult) override \
         { \
             AkLogFunction(); \
+            auto hr = attributes()->Compare(pTheirs, MatchType, pbResult); \
             \
-            return attributes()->Compare(pTheirs, MatchType, pbResult); \
+            if (FAILED(hr)) \
+                AkLogError("Compare failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE GetUINT32(REFGUID guidKey, \
@@ -96,7 +110,9 @@
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             auto hr = attributes()->GetUINT32(guidKey, punValue); \
             \
-            if (punValue) \
+            if (FAILED(hr)) \
+                AkLogError("GetUINT32 failed: 0x%x", hr); \
+            else if (punValue) \
                 AkLogDebug("Value: %u", *punValue); \
             \
             return hr; \
@@ -109,7 +125,9 @@
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             auto hr = attributes()->GetUINT64(guidKey, punValue); \
             \
-            if (punValue) \
+            if (FAILED(hr)) \
+                AkLogError("GetUINT64 failed: 0x%x", hr); \
+            else if (punValue) \
                 AkLogDebug("Value: %" PRIu64, *punValue); \
             \
             return hr; \
@@ -122,7 +140,9 @@
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             auto hr = attributes()->GetDouble(guidKey, pfValue); \
             \
-            if (pfValue) \
+            if (FAILED(hr)) \
+                AkLogError("GetDouble failed: 0x%x", hr); \
+            else if (pfValue) \
                 AkLogDebug("Value: %f", *pfValue); \
             \
             return hr; \
@@ -135,7 +155,9 @@
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             auto hr = attributes()->GetGUID(guidKey, pguidValue); \
             \
-            if (pguidValue) \
+            if (FAILED(hr)) \
+                AkLogError("GetGUID failed: 0x%x", hr); \
+            else if (pguidValue) \
                 AkLogDebug("Value: %s", stringFromClsidMF(*pguidValue).c_str()); \
             \
             return hr; \
@@ -148,7 +170,9 @@
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             auto hr = attributes()->GetStringLength(guidKey, pcchLength); \
             \
-            if (pcchLength) \
+            if (FAILED(hr)) \
+                AkLogError("GetStringLength failed: 0x%x", hr); \
+            else if (pcchLength) \
                 AkLogDebug("Value: %u", *pcchLength); \
             \
             return hr; \
@@ -166,7 +190,9 @@
                                               cchBufSize, \
                                               pcchLength); \
             \
-            if (pwszValue) \
+            if (FAILED(hr)) \
+                AkLogError("GetString failed: 0x%x", hr); \
+            else if (pwszValue) \
                 AkLogDebug("Value: %s", stringFromWSTR(pwszValue).c_str()); \
             \
             return hr; \
@@ -178,10 +204,16 @@
         { \
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetAllocatedString(guidKey, \
+                                                       ppwszValue, \
+                                                       pcchLength); \
             \
-            return attributes()->GetAllocatedString(guidKey, \
-                                                    ppwszValue, \
-                                                    pcchLength); \
+            if (FAILED(hr)) \
+                AkLogError("GetAllocatedString failed: 0x%x", hr); \
+            else if (ppwszValue) \
+                AkLogDebug("Value: %s", stringFromWSTR(*ppwszValue).c_str()); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE GetBlobSize(REFGUID guidKey, \
@@ -191,8 +223,10 @@
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             auto hr = attributes()->GetBlobSize(guidKey, pcbBlobSize); \
             \
-            if (pcbBlobSize) \
-                AkLogDebug("Value: %d", *pcbBlobSize); \
+            if (FAILED(hr)) \
+                AkLogError("GetBlobSize failed: 0x%x", hr); \
+            else if (pcbBlobSize) \
+                AkLogDebug("Value: %u", *pcbBlobSize); \
             \
             return hr; \
         } \
@@ -204,11 +238,17 @@
         { \
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetBlob(guidKey, \
+                                            pBuf, \
+                                            cbBufSize, \
+                                            pcbBlobSize); \
             \
-            return attributes()->GetBlob(guidKey, \
-                                         pBuf, \
-                                         cbBufSize, \
-                                         pcbBlobSize); \
+            if (FAILED(hr)) \
+                AkLogError("GetBlob failed: 0x%x", hr); \
+            else if (pcbBlobSize) \
+                AkLogDebug("Value: %u", *pcbBlobSize); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE GetAllocatedBlob(REFGUID guidKey, \
@@ -217,8 +257,14 @@
         { \
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->GetAllocatedBlob(guidKey, ppBuf, pcbSize);\
             \
-            return attributes()->GetAllocatedBlob(guidKey, ppBuf, pcbSize); \
+            if (FAILED(hr)) \
+                AkLogError("GetAllocatedBlob failed: 0x%x", hr); \
+            else if (pcbSize) \
+                AkLogDebug("Value: %u", *pcbSize); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE GetUnknown(REFGUID guidKey, \
@@ -227,8 +273,15 @@
         { \
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            AkLogDebug("REFIID: %s", stringFromClsidMF(riid).c_str()); \
+            auto hr = attributes()->GetUnknown(guidKey, riid, ppv); \
             \
-            return attributes()->GetUnknown(guidKey, riid, ppv); \
+            if (FAILED(hr)) \
+                AkLogError("GetUnknown failed: 0x%x", hr); \
+            else if (ppv) \
+                AkLogDebug("Value: 0x%p", *ppv); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE SetItem(REFGUID guidKey, \
@@ -236,23 +289,35 @@
         { \
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->SetItem(guidKey, Value); \
             \
-            return attributes()->SetItem(guidKey, Value); \
+            if (FAILED(hr)) \
+                AkLogError("SetItem failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE DeleteItem(REFGUID guidKey) override \
         { \
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->DeleteItem(guidKey); \
             \
-            return attributes()->DeleteItem(guidKey); \
+            if (FAILED(hr)) \
+                AkLogError("DeleteItem failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE DeleteAllItems() override \
         { \
             AkLogFunction(); \
+            auto hr = attributes()->DeleteAllItems(); \
             \
-            return attributes()->DeleteAllItems(); \
+            if (FAILED(hr)) \
+                AkLogError("DeleteAllItems failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE SetUINT32(REFGUID guidKey, \
@@ -261,8 +326,12 @@
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             AkLogDebug("Value: %u", unValue); \
+            auto hr = attributes()->SetUINT32(guidKey, unValue); \
             \
-            return attributes()->SetUINT32(guidKey, unValue); \
+            if (FAILED(hr)) \
+                AkLogError("SetUINT32 failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE SetUINT64(REFGUID guidKey, \
@@ -271,8 +340,12 @@
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             AkLogDebug("Value: %" PRIu64, unValue); \
+            auto hr = attributes()->SetUINT64(guidKey, unValue); \
             \
-            return attributes()->SetUINT64(guidKey, unValue); \
+            if (FAILED(hr)) \
+                AkLogError("SetUINT64 failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE SetDouble(REFGUID guidKey, \
@@ -281,8 +354,12 @@
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             AkLogDebug("Value: %f", fValue); \
+            auto hr = attributes()->SetDouble(guidKey, fValue); \
             \
-            return attributes()->SetDouble(guidKey, fValue); \
+            if (FAILED(hr)) \
+                AkLogError("SetDouble failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE SetGUID(REFGUID guidKey, \
@@ -291,8 +368,12 @@
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             AkLogDebug("Value: %s", stringFromClsidMF(guidValue).c_str()); \
+            auto hr = attributes()->SetGUID(guidKey, guidValue); \
             \
-            return attributes()->SetGUID(guidKey, guidValue); \
+            if (FAILED(hr)) \
+                AkLogError("SetGUID failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE SetString(REFGUID guidKey, \
@@ -301,8 +382,12 @@
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
             AkLogDebug("Value: %s", stringFromWSTR(wszValue).c_str()); \
+            auto hr = attributes()->SetString(guidKey, wszValue); \
             \
-            return attributes()->SetString(guidKey, wszValue); \
+            if (FAILED(hr)) \
+                AkLogError("SetString failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE SetBlob(REFGUID guidKey, \
@@ -311,8 +396,12 @@
         { \
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            auto hr = attributes()->SetBlob(guidKey, pBuf, cbBufSize); \
             \
-            return attributes()->SetBlob(guidKey, pBuf, cbBufSize); \
+            if (FAILED(hr)) \
+                AkLogError("SetBlob failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE SetUnknown(REFGUID guidKey, \
@@ -320,29 +409,48 @@
         { \
             AkLogFunction(); \
             AkLogDebug("GUID: %s", stringFromClsidMF(guidKey).c_str()); \
+            AkLogDebug("Value: 0x%p", pUnknown); \
+            auto hr = attributes()->SetUnknown(guidKey, pUnknown); \
             \
-            return attributes()->SetUnknown(guidKey, pUnknown); \
+            if (FAILED(hr)) \
+                AkLogError("SetUnknown failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE LockStore() override \
         { \
             AkLogFunction(); \
+            auto hr = attributes()->LockStore(); \
             \
-            return attributes()->LockStore(); \
+            if (FAILED(hr)) \
+                AkLogError("LockStore failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE UnlockStore() override \
         { \
             AkLogFunction(); \
+            auto hr = attributes()->UnlockStore(); \
             \
-            return attributes()->UnlockStore(); \
+            if (FAILED(hr)) \
+                AkLogError("UnlockStore failed: 0x%x", hr); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE GetCount(UINT32 *pcItems) override \
         { \
             AkLogFunction(); \
+            auto hr = attributes()->GetCount(pcItems); \
             \
-            return attributes()->GetCount(pcItems); \
+            if (FAILED(hr)) \
+                AkLogError("GetCount failed: 0x%x", hr); \
+            else if (pcItems) \
+                AkLogDebug("Value: %u", *pcItems); \
+            \
+            return hr; \
         } \
         \
         HRESULT STDMETHODCALLTYPE GetItemByIndex(UINT32 unIndex, \
@@ -353,7 +461,9 @@
             AkLogDebug("Index: %u", unIndex); \
             auto hr = attributes()->GetItemByIndex(unIndex, pguidKey, pValue); \
             \
-            if (pguidKey) \
+            if (FAILED(hr)) \
+                AkLogError("GetItemByIndex failed: 0x%x", hr); \
+            else if (pguidKey) \
                 AkLogDebug("GUID: %s", stringFromClsidMF(*pguidKey).c_str()); \
             \
             return hr; \
@@ -362,8 +472,12 @@
         HRESULT STDMETHODCALLTYPE CopyAllItems(IMFAttributes *pDest) override \
         { \
             AkLogFunction(); \
+            auto hr = attributes()->CopyAllItems(pDest); \
             \
-            return attributes()->CopyAllItems(pDest); \
+            if (FAILED(hr)) \
+                AkLogError("CopyAllItems failed: 0x%x", hr); \
+            \
+            return hr; \
         }
 
 #endif // ATTRIBUTES_H
