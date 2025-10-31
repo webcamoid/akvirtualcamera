@@ -1,3 +1,10 @@
+akvirtualcamera 9.3.3:
+
+- The DirectShow virtual camera code was simplified and implemented all
+  interfaces properly, it should be more compatible now.
+- Media Foundation virtual camera is not even near usable yet. Need some help
+  here.
+
 akvirtualcamera 9.3.2:
 
 - Applied some fixes to the Media Foundation virtual camera.

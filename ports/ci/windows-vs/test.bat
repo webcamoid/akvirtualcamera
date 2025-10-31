@@ -39,16 +39,6 @@ set manager=%INSTALL_PREFIX%\x64\Release\AkVCamManager.exe
 
 echo Initialize the Media Foundation assistant
 start /b "" "%INSTALL_PREFIX%\x64\Release\AkVCamAssistantMF.exe"
-
-REM REM nohup gdb -batch ^
-REM REM -ex 'set pagination off' ^
-REM REM -ex 'handle SIGSEGV stop' ^
-REM REM -ex 'run' ^
-REM REM -ex 'bt full' ^
-REM REM -ex 'info registers' ^
-REM REM -ex 'quit' ^
-REM REM --args "%INSTALL_PREFIX%\x64\Release\AkVCamAssistantMF.exe" ^> gdb_output.log 2^>^&1
-
 timeout /t 20 /nobreak >nul
 
 echo Testing the virtual camera in DirectShow
