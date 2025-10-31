@@ -17,10 +17,12 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <algorithm>
 #include <iostream>
 #include <csignal>
 #include <memory>
 #include <mutex>
+#include <thread>
 #include <windows.h>
 #include <mfapi.h>
 #include <mfidl.h>
@@ -32,6 +34,20 @@
 #include "VCamUtils/src/sharedmemory.h"
 #include "MFUtils/src/utils.h"
 
+struct VirtualCamera
+{
+    std::string m_description;
+    std::shared_ptr<IMFVCam> m_vcam;
+    std::thread m_thread;
+
+    VirtualCamera();
+    VirtualCamera(const std::string &description,
+                  std::shared_ptr<IMFVCam> vcam);
+    ~VirtualCamera();
+    void start();
+    void run();
+};
+
 using MFCreateVirtualCameraType = HRESULT (*)(MFVCamType type,
                                               MFVCamLifetime lifetime,
                                               MFVCamAccess access,
@@ -40,15 +56,19 @@ using MFCreateVirtualCameraType = HRESULT (*)(MFVCamType type,
                                               const GUID *categories,
                                               ULONG categoryCount,
                                               IMFVCam **virtualCamera);
-using CamerasList = std::vector<std::shared_ptr<IMFVCam>>;
+using VirtualCameras = std::map<CLSID, std::shared_ptr<VirtualCamera>>;
 
 HMODULE mfsensorgroupHnd;
 MFCreateVirtualCameraType mfCreateVirtualCamera;
 AkVCam::IpcBridge *ipcBridgePtr;
 std::mutex *mtxPtr;
-CamerasList *camerasPtr;
+VirtualCameras *camerasPtr;
 
 void updateCameras(void *, const std::vector<std::string> &);
+inline bool operator <(const GUID &a, const GUID &b)
+{
+    return AkVCam::stringFromIid(a) < AkVCam::stringFromIid(b);
+}
 
 int main(int argc, char **argv)
 {
@@ -93,7 +113,7 @@ int main(int argc, char **argv)
 
     // Create the cameras
 
-    CamerasList cameras;
+    VirtualCameras cameras;
     camerasPtr = &cameras;
     updateCameras(nullptr, {});
 
@@ -132,9 +152,11 @@ int main(int argc, char **argv)
 void updateCameras(void *, const std::vector<std::string> &)
 {
     std::lock_guard<std::mutex> lock(*mtxPtr);
-    camerasPtr->clear();
+    auto cameras = AkVCam::listRegisteredMFCameras();
 
-    for (auto &clsid: AkVCam::listRegisteredMFCameras()) {
+    // Append new devices if any.
+
+    for (auto &clsid: cameras) {
         auto cameraIndex = AkVCam::Preferences::cameraFromCLSID(clsid);
 
         if (cameraIndex < 0)
@@ -145,7 +167,7 @@ void updateCameras(void *, const std::vector<std::string> &)
         if (description.empty())
             continue;
 
-        auto clsidStr = AkVCam::stringFromClsidMF(clsid);
+        auto clsidStr = AkVCam::stringFromIid(clsid);
         auto clsidWStr = AkVCam::wstrFromString(clsidStr);
 
         if (!clsidWStr)
@@ -159,60 +181,107 @@ void updateCameras(void *, const std::vector<std::string> &)
             continue;
         }
 
-        // For creating the virtual camera, the MediaSource must be registered
+        if (!camerasPtr->contains(clsid)) {
+            auto deviceId = AkVCam::Preferences::cameraId(cameraIndex);
+            AkPrintOut("Registering device '%s' (%s, %s)",
+                       description.c_str(),
+                       deviceId.c_str(),
+                       clsidStr.c_str());
 
-        auto deviceId = AkVCam::Preferences::cameraId(cameraIndex);
-        AkPrintOut("Registering device '%s' (%s, %s)",
-                   description.c_str(),
-                   deviceId.c_str(),
-                   clsidStr.c_str());
+            if (!AkVCam::isDeviceIdMFTaken(deviceId)) {
+                AkPrintErr("WARNING: The device is not registered");
+                CoTaskMemFree(clsidWStr);
+                CoTaskMemFree(descriptionWStr);
 
-        if (!AkVCam::isDeviceIdMFTaken(deviceId)) {
-            AkPrintErr("WARNING: The device is not registered");
-            CoTaskMemFree(clsidWStr);
+                continue;
+            }
 
-            continue;
+            AkPrintOut("Creating '%s'", description.c_str());
+
+            IMFVCam *vcam = nullptr;
+            auto hr = mfCreateVirtualCamera(MFVCamType_SoftwareCameraSource,
+                                            MFVCamLifetime_Session,
+                                            MFVCamAccess_CurrentUser,
+                                            descriptionWStr,
+                                            clsidWStr,
+                                            nullptr,
+                                            0,
+                                            &vcam);
+
+            if (FAILED(hr) || !vcam) {
+                AkPrintErr("Error creating the virtual camera: 0x%x", hr);
+                CoTaskMemFree(clsidWStr);
+                CoTaskMemFree(descriptionWStr);
+
+                continue;
+            }
+
+            AkPrintOut("Appending '%s' to the virtual cameras list", description.c_str());
+            auto vcamPtr = std::shared_ptr<IMFVCam>(vcam, [] (IMFVCam *vcam) {
+                               vcam->Remove();
+                               vcam->Release();
+                           });
+            camerasPtr->emplace(clsid, std::make_shared<VirtualCamera>(description, vcamPtr));
+
+            AkPrintOut("Starting '%s'", description.c_str());
+            camerasPtr->at(clsid)->start();
         }
-
-        AkPrintOut("Creating '%s'", description.c_str());
-
-        IMFVCam *vcam = nullptr;
-        auto hr = mfCreateVirtualCamera(MFVCamType_SoftwareCameraSource,
-                                        MFVCamLifetime_Session,
-                                        MFVCamAccess_CurrentUser,
-                                        descriptionWStr,
-                                        clsidWStr,
-                                        nullptr,
-                                        0,
-                                        &vcam);
-
-        if (FAILED(hr) || !vcam) {
-            AkPrintErr("Error creating the virtual camera: 0x%x", hr);
-            CoTaskMemFree(clsidWStr);
-            CoTaskMemFree(descriptionWStr);
-
-            continue;
-        }
-
-        AkPrintOut("Starting '%s'", description.c_str());
 
         CoTaskMemFree(clsidWStr);
         CoTaskMemFree(descriptionWStr);
-        hr = vcam->Start(nullptr);
-
-        if (FAILED(hr)) {
-            AkPrintErr("Error starting the virtual camera: 0x%x", hr);
-            vcam->Shutdown();
-            vcam->Release();
-
-            continue;
-        }
-
-        AkPrintOut("Appending '%s' to the virtual cameras list", description.c_str());
-
-        camerasPtr->push_back(std::shared_ptr<IMFVCam>(vcam, [] (IMFVCam *vcam) {
-            vcam->Remove();
-            vcam->Release();
-        }));
     }
+
+    // Remove old devices.
+
+    std::vector<CLSID> camerasToRemove;
+
+    for (auto it = camerasPtr->begin(); it != camerasPtr->end(); it++) {
+        auto cit = std::find_if(cameras.begin(),
+                                cameras.end(),
+                                [&it] (const CLSID &clsid) {
+            return clsid == it->first;
+        });
+
+        if (cit == cameras.end())
+            camerasToRemove.push_back(it->first);
+    }
+
+    for (auto &camera: camerasToRemove)
+        camerasPtr->erase(camera);
+}
+
+VirtualCamera::VirtualCamera()
+{
+
+}
+
+VirtualCamera::VirtualCamera(const std::string &description,
+                             std::shared_ptr<IMFVCam> vcam):
+    m_description(description),
+    m_vcam(vcam)
+{
+
+}
+
+VirtualCamera::~VirtualCamera()
+{
+    this->m_vcam->Stop();
+
+    if (this->m_thread.joinable())
+        this->m_thread.join();
+}
+
+void VirtualCamera::start()
+{
+    this->m_thread = std::thread(&VirtualCamera::run, this);
+}
+
+void VirtualCamera::run()
+{
+    auto hr = this->m_vcam->Start(nullptr);
+
+    if (SUCCEEDED(hr))
+        AkPrintOut("'%s' started", this->m_description.c_str());
+    else
+        AkPrintErr("Error starting the virtual camera: 0x%x", hr);
 }
