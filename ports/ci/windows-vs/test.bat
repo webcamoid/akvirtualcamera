@@ -19,9 +19,13 @@ rem Web-Site: http://webcamoid.github.io/
 @echo off
 setlocal enabledelayedexpansion
 
+echo Configure th MSVC environment for x64
+
+call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+
 set INSTALL_PREFIX=%CD%\build-x64\build
 echo Initialize the assistant
-rem start /b "" "%INSTALL_PREFIX%\x64\Release\AkVCamAssistant.exe"
+start /b "" "%INSTALL_PREFIX%\x64\Release\AkVCamAssistant.exe"
 
 echo Configuring a virtual camera for testing
 
@@ -34,7 +38,7 @@ set manager=%INSTALL_PREFIX%\x64\Release\AkVCamManager.exe
 "%manager%" set-loglevel 7
 
 echo Initialize the Media Foundation assistant
-rem start /b "" "%INSTALL_PREFIX%\x64\Release\AkVCamAssistantMF.exe"
+start /b "" "%INSTALL_PREFIX%\x64\Release\AkVCamAssistantMF.exe"
 
 REM REM nohup gdb -batch ^
 REM REM -ex 'set pagination off' ^
