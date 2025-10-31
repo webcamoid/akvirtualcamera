@@ -21,9 +21,10 @@ setlocal enabledelayedexpansion
 
 set INSTALL_PREFIX=%CD%\build-x64\build
 echo Initialize the assistant
-start /b "" "%INSTALL_PREFIX%\x64\AkVCamAssistant.exe"
+rem start /b "" "%INSTALL_PREFIX%\x64\AkVCamAssistant.exe"
 
-REM Configure a virtual camera for testing
+echo Configuring a virtual camera for testing
+
 set manager=%INSTALL_PREFIX%\x64\AkVCamManager.exe
 "%manager%" add-device -i FakeCamera0 "Virtual Camera"
 "%manager%" add-format FakeCamera0 RGB24 640 480 30
@@ -33,7 +34,7 @@ set manager=%INSTALL_PREFIX%\x64\AkVCamManager.exe
 "%manager%" set-loglevel 7
 
 echo Initialize the Media Foundation assistant
-start /b "" "%INSTALL_PREFIX%\x64\AkVCamAssistantMF.exe"
+rem start /b "" "%INSTALL_PREFIX%\x64\AkVCamAssistantMF.exe"
 
 REM REM nohup gdb -batch ^
 REM REM -ex 'set pagination off' ^
