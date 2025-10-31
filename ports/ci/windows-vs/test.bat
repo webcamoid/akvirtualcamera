@@ -21,11 +21,11 @@ setlocal enabledelayedexpansion
 
 set INSTALL_PREFIX=%CD%\build-x64\build
 echo Initialize the assistant
-rem start /b "" "%INSTALL_PREFIX%\x64\AkVCamAssistant.exe"
+rem start /b "" "%INSTALL_PREFIX%\x64\Release\AkVCamAssistant.exe"
 
 echo Configuring a virtual camera for testing
 
-set manager=%INSTALL_PREFIX%\x64\AkVCamManager.exe
+set manager=%INSTALL_PREFIX%\x64\Release\AkVCamManager.exe
 "%manager%" add-device -i FakeCamera0 "Virtual Camera"
 "%manager%" add-format FakeCamera0 RGB24 640 480 30
 "%manager%" update
@@ -34,7 +34,7 @@ set manager=%INSTALL_PREFIX%\x64\AkVCamManager.exe
 "%manager%" set-loglevel 7
 
 echo Initialize the Media Foundation assistant
-rem start /b "" "%INSTALL_PREFIX%\x64\AkVCamAssistantMF.exe"
+rem start /b "" "%INSTALL_PREFIX%\x64\Release\AkVCamAssistantMF.exe"
 
 REM REM nohup gdb -batch ^
 REM REM -ex 'set pagination off' ^
@@ -43,7 +43,7 @@ REM REM -ex 'run' ^
 REM REM -ex 'bt full' ^
 REM REM -ex 'info registers' ^
 REM REM -ex 'quit' ^
-REM REM --args "%INSTALL_PREFIX%\x64\AkVCamAssistantMF.exe" ^> gdb_output.log 2^>^&1
+REM REM --args "%INSTALL_PREFIX%\x64\Release\AkVCamAssistantMF.exe" ^> gdb_output.log 2^>^&1
 
 timeout /t 20 /nobreak >nul
 
