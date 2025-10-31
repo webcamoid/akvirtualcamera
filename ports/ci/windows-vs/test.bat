@@ -67,7 +67,7 @@ if exist gdb_output.log (
     type gdb_output.log
 )
 
-for /f "delims=" %%f in ('dir /b /s "D:\a\_temp\msys64\tmp\AkVirtualCameraMF-*.log" 2^>nul') do (
+for /f "delims=" %%f in ('dir /b /s "C:\Users\RUNNER~1\AppData\Local\Temp\AkVirtualCameraMF-*.log" 2^>nul') do (
     echo Contents of %%f:
     type "%%f"
 )
