@@ -17,6 +17,8 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <mferror.h>
+
 #include "activate.h"
 #include "mediasource.h"
 #include "mfvcam.h"
@@ -33,6 +35,7 @@ namespace AkVCam
             std::atomic<uint64_t> m_refCount {1};
             CLSID m_clsid;
             MediaSource *m_mediaSource {nullptr};
+            bool m_shutdown {false};
     };
 }
 
@@ -49,8 +52,12 @@ AkVCam::Activate::Activate(const CLSID &clsid)
 
 AkVCam::Activate::~Activate()
 {
-    if (this->d->m_mediaSource)
+    if (this->d->m_mediaSource) {
+        if (!this->d->m_shutdown)
+            this->d->m_mediaSource->Shutdown();
+
         this->d->m_mediaSource->Release();
+    }
 
     delete this->d;
 }
@@ -63,7 +70,7 @@ HRESULT AkVCam::Activate::QueryInterface(const IID &riid, void **ppv)
     if (!ppv)
         return E_POINTER;
 
-    static const struct
+    const struct
     {
         const IID *iid;
         void *ptr;
@@ -116,8 +123,15 @@ HRESULT AkVCam::Activate::ActivateObject(REFIID riid, void **ppv)
 
     *ppv = nullptr;
 
-    if (!this->d->m_mediaSource)
-        return E_UNEXPECTED;
+    if (this->d->m_shutdown)
+        return MF_E_SHUTDOWN;
+
+    if (!this->d->m_mediaSource) {
+        this->d->m_mediaSource = new MediaSource(this->d->m_clsid, this);
+
+        if (!this->d->m_mediaSource)
+            return E_OUTOFMEMORY;
+    }
 
     return this->d->m_mediaSource->QueryInterface(riid, ppv);
 }
@@ -127,6 +141,7 @@ HRESULT AkVCam::Activate::DetachObject()
     AkLogFunction();
 
     if (this->d->m_mediaSource) {
+        this->d->m_mediaSource->Shutdown();
         this->d->m_mediaSource->Release();
         this->d->m_mediaSource = nullptr;
     }
@@ -137,6 +152,14 @@ HRESULT AkVCam::Activate::DetachObject()
 HRESULT AkVCam::Activate::ShutdownObject()
 {
     AkLogFunction();
+
+    if (this->d->m_mediaSource) {
+        this->d->m_mediaSource->Shutdown();
+        this->d->m_mediaSource->Release();
+        this->d->m_mediaSource = nullptr;
+    }
+
+    this->d->m_shutdown =false;
 
     return S_OK;
 }

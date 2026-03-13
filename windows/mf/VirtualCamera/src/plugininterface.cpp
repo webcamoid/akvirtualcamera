@@ -17,6 +17,7 @@
  * Web-Site: http://webcamoid.github.io/
  */
 
+#include <mutex>
 #include <vector>
 #include <combaseapi.h>
 #include <winreg.h>
@@ -83,30 +84,28 @@ void AkVCam::PluginInterface::destroyDevice(const CLSID &clsid)
 
 void AkVCam::PluginInterface::initializeLogger() const
 {
-    static bool loggerReady = false;
+    static std::once_flag loggerFlag;
 
-    if (loggerReady)
-        return;
+    std::call_once(loggerFlag, [this] () {
+        auto loglevel = Preferences::logLevel();
+        Logger::setLogLevel(loglevel);
 
-    auto loglevel = Preferences::logLevel();
-    Logger::setLogLevel(loglevel);
-
-    if (loglevel > AKVCAM_LOGLEVEL_DEFAULT) {
-        // Turn on lights
+        if (loglevel > AKVCAM_LOGLEVEL_DEFAULT) {
+            // Turn on lights
 #ifdef _WIN32
-        FILE *fp;
-        freopen_s(&fp, "CONOUT$", "a", stdout);
-        freopen_s(&fp, "CONOUT$", "a", stderr);
-        setvbuf(stdout, nullptr, _IONBF, 0);
+            FILE *fp;
+            freopen_s(&fp, "CONOUT$", "a", stdout);
+            freopen_s(&fp, "CONOUT$", "a", stderr);
+            setvbuf(stdout, nullptr, _IONBF, 0);
 #else
-        freopen("CONOUT$", "a", stdout);
-        freopen("CONOUT$", "a", stderr);
-        setbuf(stdout, nullptr);
+            freopen("CONOUT$", "a", stdout);
+            freopen("CONOUT$", "a", stderr);
+            setbuf(stdout, nullptr);
 #endif
-    }
+        }
 
-    AkVCam::logSetup();
-    loggerReady = true;
+        AkVCam::logSetup();
+    });
 }
 
 bool AkVCam::PluginInterfacePrivate::registerMediaSource(const std::string &deviceId,
@@ -134,12 +133,11 @@ bool AkVCam::PluginInterfacePrivate::registerMediaSource(const std::string &devi
     if (result != ERROR_SUCCESS)
         goto registerServer_failed;
 
-    result =
-            RegSetValueA(keyCLSID,
-                         nullptr,
-                         REG_SZ,
-                         description.c_str(),
-                         DWORD(description.size()));
+    result = RegSetValueA(keyCLSID,
+                          nullptr,
+                          REG_SZ,
+                          description.c_str(),
+                          DWORD(description.size() + 1));
 
     if (result != ERROR_SUCCESS)
         goto registerServer_failed;
@@ -149,12 +147,11 @@ bool AkVCam::PluginInterfacePrivate::registerMediaSource(const std::string &devi
     if (result != ERROR_SUCCESS)
         goto registerServer_failed;
 
-    result =
-            RegSetValueA(keyServerType,
-                         nullptr,
-                         REG_SZ,
-                         fileName.c_str(),
-                         DWORD(fileName.size()));
+    result = RegSetValueA(keyServerType,
+                          nullptr,
+                          REG_SZ,
+                          fileName.c_str(),
+                          DWORD(fileName.size() + 1));
 
     if (result != ERROR_SUCCESS)
         goto registerServer_failed;

@@ -52,6 +52,7 @@ namespace AkVCam
             HRESULT start(IMFMediaType *mediaType);
             HRESULT stop();
             HRESULT pause();
+            HRESULT resume();
 
             DECLARE_ATTRIBUTES
             DECLARE_EVENT_GENERATOR

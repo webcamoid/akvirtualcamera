@@ -412,7 +412,7 @@ HRESULT AkVCam::Pin::QueryInterface(const IID &riid, void **ppv)
     if (!ppv)
         return E_POINTER;
 
-    static const struct
+    const struct
     {
         const IID *iid;
         void *ptr;

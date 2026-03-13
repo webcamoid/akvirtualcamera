@@ -43,18 +43,19 @@ namespace AkVCam
         PixelFormat format;
         const char *name;
         GUID mfFormat;
+        DWORD mfFourcc;
 
         static const AkPixelFormatMF *table()
         {
             static const AkPixelFormatMF akPixelFormatMFTable[] = {
-                {PixelFormat_bgrx   , "RGB32", MFVideoFormat_RGB32 },
-                {PixelFormat_rgb24  , "RGB24", MFVideoFormat_RGB24 },
-                {PixelFormat_rgb565 , "RGB16", MFVideoFormat_RGB565},
-                {PixelFormat_rgb555 , "RGB15", MFVideoFormat_RGB555},
-                {PixelFormat_uyvy422, "UYVY" , MFVideoFormat_UYVY  },
-                {PixelFormat_yuyv422, "YUY2" , MFVideoFormat_YUY2  },
-                {PixelFormat_nv12   , "NV12" , MFVideoFormat_NV12  },
-                {PixelFormat_none   , ""     , GUID_NULL           },
+                {PixelFormat_bgrx   , "RGB32", MFVideoFormat_RGB32 , MFVideoFormat_RGB32.Data1 },
+                {PixelFormat_rgb24  , "RGB24", MFVideoFormat_RGB24 , MFVideoFormat_RGB24.Data1 },
+                {PixelFormat_rgb565 , "RGB16", MFVideoFormat_RGB565, MFVideoFormat_RGB565.Data1},
+                {PixelFormat_rgb555 , "RGB15", MFVideoFormat_RGB555, MFVideoFormat_RGB555.Data1},
+                {PixelFormat_uyvy422, "UYVY" , MFVideoFormat_UYVY  , MFVideoFormat_UYVY.Data1  },
+                {PixelFormat_yuyv422, "YUY2" , MFVideoFormat_YUY2  , MFVideoFormat_YUY2.Data1  },
+                {PixelFormat_nv12   , "NV12" , MFVideoFormat_NV12  , MFVideoFormat_NV12.Data1  },
+                {PixelFormat_none   , ""     , GUID_NULL           , 0                         },
             };
 
             return akPixelFormatMFTable;
@@ -297,6 +298,11 @@ AkVCam::PixelFormat AkVCam::pixelFormatFromMediaFormat(const GUID &mfFormat)
 GUID AkVCam::mediaFormatFromPixelFormat(PixelFormat format)
 {
     return AkPixelFormatMF::byFormat(format)->mfFormat;
+}
+
+DWORD AkVCam::fourccFromPixelFormat(PixelFormat format)
+{
+    return AkPixelFormatMF::byFormat(format)->mfFourcc;
 }
 
 IMFMediaType *AkVCam::mfMediaTypeFromFormat(const VideoFormat &videoFormat)

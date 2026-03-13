@@ -28,6 +28,7 @@
 #include <mferror.h>
 #include <mfidl.h>
 #include <mfobjects.h>
+#include <propvarutil.h>
 
 #include "mediastream.h"
 #include "mediasource.h"
@@ -198,34 +199,47 @@ void AkVCam::MediaStream::frameReady(const VideoFrame &frame, bool isActive)
 
     AkLogDebug("Active: %d", isActive);
 
-    this->d->m_mutex.lock();
-
     if (this->d->m_directMode) {
-        if (isActive && frame & this->d->m_format.isSameFormat(frame.format())) {
+        std::unique_lock<std::mutex> lock(this->d->m_mutex);
+
+        if (isActive && frame && this->d->m_format.isSameFormat(frame.format())) {
             memcpy(this->d->m_currentFrame.data(),
                    frame.constData(),
                    frame.size());
             this->d->m_frameReady = true;
         } else if (!isActive && this->d->m_testFrame) {
-            this->d->m_currentFrame =
-                    this->d->applyAdjusts(this->d->m_testFrame);
+            VideoFrame inputFrame = this->d->m_testFrame;
+
+            lock.unlock();
+            auto adjusted = this->d->applyAdjusts(inputFrame);
+            lock.lock();
+
+            this->d->m_currentFrame = adjusted;
             this->d->m_frameReady = true;
         } else {
             this->d->m_frameReady = false;
         }
     } else {
-        auto frameAdjusted =
-                this->d->applyAdjusts(isActive? frame: this->d->m_testFrame);
+        VideoFrame inputFrame;
 
-        if (frameAdjusted) {
-            this->d->m_currentFrame = frameAdjusted;
-            this->d->m_frameReady = true;
-        } else {
-            this->d->m_frameReady = false;
+        {
+            std::lock_guard<std::mutex> lock(this->d->m_mutex);
+            inputFrame = isActive? frame: this->d->m_testFrame;
+        }
+
+        auto frameAdjusted = this->d->applyAdjusts(inputFrame);
+
+        {
+            std::lock_guard<std::mutex> lock(this->d->m_mutex);
+
+            if (frameAdjusted) {
+                this->d->m_currentFrame = frameAdjusted;
+                this->d->m_frameReady = true;
+            } else {
+                this->d->m_frameReady = false;
+            }
         }
     }
-
-    this->d->m_mutex.unlock();
 }
 
 void AkVCam::MediaStream::setPicture(const std::string &picture)
@@ -297,6 +311,8 @@ HRESULT AkVCam::MediaStream::start(IMFMediaType *mediaType)
     this->d->m_running = true;
     this->d->m_frameReady = false;
     this->d->m_currentFrame = {this->d->m_format};
+    this->d->m_sampleCount = 0;
+    this->d->m_sampleTokens.clear();
     this->d->m_videoConverter.setOutputFormat(this->d->m_format);
 
     if (this->d->m_mediaType)
@@ -364,6 +380,25 @@ HRESULT AkVCam::MediaStream::pause()
                                                   nullptr);
 }
 
+HRESULT AkVCam::MediaStream::resume()
+{
+    AkLogFunction();
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
+
+    if (this->d->m_state != MediaStreamState_Paused)
+        return MF_E_INVALID_STATE_TRANSITION;
+
+    this->d->m_state = MediaStreamState_Started;
+
+    PROPVARIANT time;
+    InitPropVariantFromInt64(MFGetSystemTime(), &time);
+
+    return this->eventQueue()->QueueEventParamVar(MEStreamStarted,
+                                                  GUID_NULL,
+                                                  S_OK,
+                                                  &time);
+}
+
 HRESULT AkVCam::MediaStream::QueryInterface(const IID &riid, void **ppv)
 {
     AkLogFunction();
@@ -372,7 +407,7 @@ HRESULT AkVCam::MediaStream::QueryInterface(const IID &riid, void **ppv)
     if (!ppv)
         return E_POINTER;
 
-    static const struct
+    const struct
     {
         const IID *iid;
         void *ptr;
@@ -455,13 +490,6 @@ HRESULT AkVCam::MediaStream::GetStreamDescriptor(IMFStreamDescriptor **ppStreamD
 HRESULT AkVCam::MediaStream::RequestSample(IUnknown *pToken)
 {
     AkLogFunction();
-    auto hr = this->d->queueSample();
-
-    if (FAILED(hr)) {
-        AkLogError("Failed to queue sample: 0x%x", hr);
-
-        return hr;
-    }
 
     AkLogDebug("Saving token");
 
@@ -477,12 +505,12 @@ HRESULT AkVCam::MediaStream::RequestSample(IUnknown *pToken)
         this->d->m_sampleTokens.push_back(token);
     }
 
-    AkLogDebug("Sending MEStreamSinkRequestSample event");
+    auto hr = this->d->queueSample();
 
-    return this->eventQueue()->QueueEventParamVar(MEStreamSinkRequestSample,
-                                                  GUID_NULL,
-                                                  S_OK,
-                                                  nullptr);
+    if (FAILED(hr))
+        AkLogError("Failed to queue sample: 0x%x", hr);
+
+    return hr;
 }
 
 AkVCam::MediaStreamPrivate::MediaStreamPrivate(MediaStream *self):
@@ -504,8 +532,35 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
         return hr;
     }
 
+    LONG dstStride = 0;
+
+    if (FAILED(this->m_mediaType->GetUINT32(MF_MT_DEFAULT_STRIDE,
+                                            reinterpret_cast<UINT32*>(&dstStride)))
+        || dstStride == 0) {
+        auto fourcc = fourccFromPixelFormat(this->m_format.format());
+        MFGetStrideForBitmapInfoHeader(fourcc,
+                                       this->m_format.width(),
+                                       &dstStride);
+    }
+
+    DWORD absDstStride = static_cast<DWORD>(std::abs(dstStride));
     UINT32 sampleSize = 0;
     this->m_mediaType->GetUINT32(MF_MT_SAMPLE_SIZE, &sampleSize);
+
+    if (sampleSize == 0) {
+        UINT32 width = this->m_format.width();
+        UINT32 height = this->m_format.height();
+        auto mediaFormat = mediaFormatFromPixelFormat(this->m_format.format());
+        MFCalculateImageSize(mediaFormat, width, height, &sampleSize);
+    }
+
+    if (sampleSize == 0) {
+        AkLogError("Cannot determine sample size");
+        pSample->Release();
+
+        return MF_E_INVALIDMEDIATYPE;
+    }
+
     IMFMediaBuffer *pBuffer = nullptr;
     hr = MFCreateMemoryBuffer(sampleSize, &pBuffer);
 
@@ -539,44 +594,46 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
         return hr;
     }
 
-    this->m_mutex.lock();
+    {
+        std::lock_guard<std::mutex> lock(this->m_mutex);
 
-    if (this->m_frameReady && this->m_currentFrame.size() > 0) {
-        DWORD height = this->m_format.height();
-        UINT32 dstStride = 0;
-        this->m_mediaType->GetUINT32(MF_MT_DEFAULT_STRIDE, &dstStride);
+        if (this->m_frameReady && this->m_currentFrame.size() > 0) {
+            DWORD height = this->m_format.height();
 
-        if (this->m_isRgb) {
-            size_t lineSize = std::min<size_t>(dstStride, this->m_currentFrame.lineSize(0));
-            auto dstLine = pData;
-
-            for (DWORD y = 0; y < height; ++y) {
-                auto srcLine = this->m_currentFrame.constLine(0, height - y - 1);
-                memcpy(dstLine, srcLine, lineSize);
-                dstLine += dstStride;
-            }
-        } else {
-            auto dstLine = pData;
-
-            for (int plane = 0; plane < this->m_currentFrame.planes(); ++plane) {
-                size_t lineSize = std::min<size_t>(dstStride, this->m_currentFrame.lineSize(plane));
+            if (this->m_isRgb) {
+                auto lineSize =
+                        std::min<size_t>(absDstStride,
+                                         this->m_currentFrame.lineSize(0));
+                auto dstLine = pData;
 
                 for (DWORD y = 0; y < height; ++y) {
-                    auto srcLine = this->m_currentFrame.constLine(plane, y);
+                    auto srcLine = this->m_currentFrame.constLine(0, height - y - 1);
                     memcpy(dstLine, srcLine, lineSize);
-                    dstLine += dstStride;
+                    dstLine += absDstStride;
+                }
+            } else {
+                auto dstLine = pData;
+
+                for (int plane = 0; plane < this->m_currentFrame.planes(); ++plane) {
+                    auto lineSize =
+                            std::min<size_t>(absDstStride,
+                                             this->m_currentFrame.lineSize(plane));
+
+                    for (DWORD y = 0; y < height; ++y) {
+                        auto srcLine = this->m_currentFrame.constLine(plane, y);
+                        memcpy(dstLine, srcLine, lineSize);
+                        dstLine += absDstStride;
+                    }
                 }
             }
+        } else {
+            auto frame = this->randomFrame();
+            size_t copyBytes = std::min<size_t>(maxLen, frame.size());
+
+            if (copyBytes > 0)
+                memcpy(pData, frame.constData(), copyBytes);
         }
-    } else {
-        auto frame = this->randomFrame();
-        size_t copyBytes = std::min<size_t>(maxLen, frame.size());
-
-        if (copyBytes > 0)
-            memcpy(pData, frame.constData(), copyBytes);
     }
-
-    this->m_mutex.unlock();
 
     pBuffer->Unlock();
     hr = pBuffer->SetCurrentLength(sampleSize);
@@ -591,7 +648,9 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
 
     auto clock = LONGLONG(TIME_BASE * timeGetTime() / 1e3);
     auto fps = this->m_format.fps();
-    auto duration = LONGLONG(TIME_BASE / fps.value());
+    auto duration = fps.value() > 0.0?
+                        LONGLONG(TIME_BASE / fps.value()):
+                        LONGLONG(TIME_BASE / 30.0);
 
     if (this->m_pts < 0) {
         this->m_pts = 0;
@@ -611,6 +670,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
 
     if (FAILED(hr)) {
         AkLogError("Failed setting the sample time: 0x%x", hr);
+        pBuffer->Release();
         pSample->Release();
 
         return hr;
@@ -620,6 +680,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
 
     if (FAILED(hr)) {
         AkLogError("Failed setting the sample duration: 0x%x", hr);
+        pBuffer->Release();
         pSample->Release();
 
         return hr;
@@ -637,6 +698,7 @@ HRESULT AkVCam::MediaStreamPrivate::queueSample()
 
             if (FAILED(hr)) {
                 AkLogError("Failed setting the sample token: 0x%x", hr);
+                pBuffer->Release();
                 pSample->Release();
 
                 return hr;
@@ -749,8 +811,8 @@ AkVCam::VideoFrame AkVCam::MediaStreamPrivate::randomFrame()
         return {};
 
     VideoFrame frame(this->m_format);
-    static std::uniform_int_distribution<int> distribution(0, 255);
-    static std::default_random_engine engine;
+    thread_local std::default_random_engine engine(std::random_device{}());
+    thread_local std::uniform_int_distribution<int> distribution(0, 255);
     std::generate(frame.data(),
                   frame.data() + frame.size(),
                   [] () {

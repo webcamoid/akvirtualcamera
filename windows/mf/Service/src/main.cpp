@@ -72,6 +72,9 @@ inline bool operator <(const GUID &a, const GUID &b)
 
 int main(int argc, char **argv)
 {
+    UNUSED(argc);
+    UNUSED(argv);
+
     // Only allow one instance
     AkVCam::SharedMemory instanceLock;
     instanceLock.setName(AKVCAM_SERVICE_MF_NAME "_Lock");
@@ -111,6 +114,10 @@ int main(int argc, char **argv)
     std::mutex mtx;
     mtxPtr = &mtx;
 
+    // Create the bridge
+    AkVCam::IpcBridge ipcBridge;
+    ipcBridgePtr = &ipcBridge;
+
     // Create the cameras
 
     VirtualCameras cameras;
@@ -119,25 +126,27 @@ int main(int argc, char **argv)
 
     // Subscribe for the virtual cameras updated event
 
-    AkVCam::IpcBridge ipcBridge;
-    ipcBridgePtr = &ipcBridge;
     ipcBridge.connectDevicesChanged(nullptr, updateCameras);
+
+    static HANDLE g_stopEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+
+    // Stop the virtual camera the user ask for termination
+
+    signal(SIGTERM, [] (int) {
+        SetEvent(g_stopEvent);
+    });
 
     // Stop the virtual camera on Ctrl + C
 
-    signal(SIGTERM, [] (int) {
-        ipcBridgePtr->disconnectDevicesChanged(nullptr, updateCameras);
-        mtxPtr->lock();
-        camerasPtr->clear();
-        mtxPtr->unlock();
-        FreeLibrary(mfsensorgroupHnd);
-        MFShutdown();
+    signal(SIGINT, [] (int) {
+        SetEvent(g_stopEvent);
     });
 
     // Run the virtual camera.
 
-    AkPrintOut("Virtual camera service started. Press Enter to stop it...");
-    getchar();
+    AkPrintOut("Virtual camera service started. Press Ctrl+C to stop it...");
+    WaitForSingleObject(g_stopEvent, INFINITE);
+    CloseHandle(g_stopEvent);
 
     ipcBridge.disconnectDevicesChanged(nullptr, updateCameras);
     mtx.lock();
@@ -265,10 +274,11 @@ VirtualCamera::VirtualCamera(const std::string &description,
 
 VirtualCamera::~VirtualCamera()
 {
-    this->m_vcam->Stop();
-
     if (this->m_thread.joinable())
         this->m_thread.join();
+
+    if (this->m_vcam)
+        this->m_vcam->Stop();
 }
 
 void VirtualCamera::start()

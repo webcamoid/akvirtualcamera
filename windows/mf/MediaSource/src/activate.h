@@ -30,7 +30,7 @@ namespace AkVCam
 {
     class ActivatePrivate;
 
-    class Activate: IMFActivate
+    class Activate: public IMFActivate
     {
         public:
             Activate(const CLSID &clsid);

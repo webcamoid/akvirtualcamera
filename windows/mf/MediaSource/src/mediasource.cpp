@@ -141,39 +141,52 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid, IMFActivate *activator)
 #endif
 
     auto cameraIndex = Preferences::cameraFromCLSID(clsid);
+
+    if (cameraIndex < 0) {
+        AkLogError("Invalid camera index: %d", cameraIndex);
+
+        return;
+    }
+
     AkLogDebug("Camera index: %d", cameraIndex);
+    this->d->m_directMode = Preferences::cameraDirectMode(cameraIndex);
+
+    // Build the format list based on the mode
+    AkLogDebug("Virtual camera formats:");
+    std::vector<VideoFormat> formats;
+
+    if (this->d->m_directMode) {
+        auto fmts = Preferences::cameraFormats(size_t(cameraIndex));
+
+        if (!fmts.empty())
+            formats.push_back(fmts.front());
+    } else {
+        formats = Preferences::cameraFormats(size_t(cameraIndex));
+    }
+
+    // Convert to IMFMediaType
     std::vector<IMFMediaType *> mediaTypes;
 
-    if (cameraIndex >= 0) {
-        this->d->m_directMode = Preferences::cameraDirectMode(cameraIndex);
+    for (auto &format: formats) {
+        auto mediaType = mfMediaTypeFromFormat(format);
 
-        AkLogDebug("Virtual camera formats:");
-        std::vector<VideoFormat> formats;
+        if (mediaType) {
+            AkLogDebug("    %s", format.toString().c_str());
+            mediaTypes.push_back(mediaType);
+        }
+    }
 
-        if (this->d->m_directMode) {
-            auto fmts = Preferences::cameraFormats(size_t(cameraIndex));
+    // Creathe the MFCreateStreamDescriptor
+    if (!mediaTypes.empty()) {
+        auto hr = MFCreateStreamDescriptor(0,
+                                           mediaTypes.size(),
+                                           mediaTypes.data(),
+                                           &this->d->m_pStreamDesc);
 
-            if (!fmts.empty())
-                formats.push_back(fmts.front());
+        if (FAILED(hr)) {
+            AkLogError("Failed to create stream descriptor: 0x%x", hr);
         } else {
-            formats = Preferences::cameraFormats(size_t(cameraIndex));
-        }
-
-        for (auto &format: formats) {
-            auto mediaType = mfMediaTypeFromFormat(format);
-
-            if (mediaType) {
-                AkLogDebug("    %s", format.toString().c_str());
-                mediaTypes.push_back(mediaType);
-            }
-        }
-
-        MFCreateStreamDescriptor(0,
-                                 mediaTypes.size(),
-                                 mediaTypes.data(),
-                                 &this->d->m_pStreamDesc);
-
-        if (!mediaTypes.empty()) {
+            // Set the current media type to the first one in the list
             IMFMediaTypeHandler *mediaTypeHandler = nullptr;
 
             if (SUCCEEDED(this->d->m_pStreamDesc->GetMediaTypeHandler(&mediaTypeHandler))) {
@@ -181,30 +194,39 @@ AkVCam::MediaSource::MediaSource(const GUID &clsid, IMFActivate *activator)
                 mediaTypeHandler->Release();
             }
         }
+
+        for (auto mediaType: mediaTypes)
+            mediaType->Release();
+    }
+
+    // Read the deviceId
+    auto deviceId = Preferences::cameraId(size_t(cameraIndex));
+
+    if (!deviceId.empty())
+        this->d->m_deviceId = deviceId;
+
+    if (!this->d->m_pStreamDesc) {
+        AkLogError("No stream descriptor available - MediaSource will be non-functional");
+
+        return;
     }
 
     this->d->m_ipcBridge = std::make_shared<IpcBridge>();
     this->d->m_pStream = new MediaStream(this, this->d->m_pStreamDesc);
     this->d->m_pStream->setBridge(this->d->m_ipcBridge);
 
-    if (cameraIndex >= 0) {
-        for (auto mediaType: mediaTypes)
-            mediaType->Release();
+    // Set the controls to the stream
+    if (!this->d->m_deviceId.empty()) {
+        auto controlsList = this->d->m_ipcBridge->controls(this->d->m_deviceId);
+        std::map<std::string, int> controls;
 
-        auto deviceId = Preferences::cameraId(size_t(cameraIndex));
+        for (auto &control: controlsList)
+            controls[control.id] = control.value;
 
-        if (!deviceId.empty()) {
-            auto controlsList = this->d->m_ipcBridge->controls(deviceId);
-            std::map<std::string, int> controls;
-
-            for (auto &control: controlsList)
-                controls[control.id] = control.value;
-
-            this->d->m_pStream->setControls(controls);
-            this->d->m_deviceId = deviceId;
-        }
+        this->d->m_pStream->setControls(controls);
     }
 
+    // Conect the IPC callbacks
     this->d->m_ipcBridge->connectDevicesChanged(this->d,
                                                 &MediaSourcePrivate::devicesChanged);
     this->d->m_ipcBridge->connectFrameReady(this->d,
@@ -248,7 +270,7 @@ HRESULT AkVCam::MediaSource::QueryInterface(const IID &riid, void **ppv)
     if (!ppv)
         return E_POINTER;
 
-    static const struct
+    const struct
     {
         const IID *iid;
         void *ptr;
@@ -260,7 +282,6 @@ HRESULT AkVCam::MediaSource::QueryInterface(const IID &riid, void **ppv)
         COM_INTERFACE(IAMVideoProcAmp)
         //COM_INTERFACE(IKsControl)
         {&IID_IKsCtrl, static_cast<IKsControl *>(this)},
-        COM_INTERFACE(IMFMediaSource)
         COM_INTERFACE(IMFMediaSrcEx)
         COM_INTERFACE2(IUnknown, IMFMediaSource)
         COM_INTERFACE_NULL
@@ -364,7 +385,11 @@ HRESULT AkVCam::MediaSource::Set(LONG property, LONG lValue, LONG flags)
         return E_INVALIDARG;
     }
 
-    this->d->m_controls[property] = lValue;
+    {
+        std::lock_guard<std::mutex> lock(this->d->m_mutex);
+        this->d->m_controls[property] = lValue;
+    }
+
     AKVCAM_EMIT(this, PropertyChanged, property, lValue, flags)
 
     return S_OK;
@@ -384,6 +409,8 @@ HRESULT AkVCam::MediaSource::Get(LONG property, LONG *lValue, LONG *flags)
 
     if (!control)
         return E_INVALIDARG;
+
+    std::lock_guard<std::mutex> lock(this->d->m_mutex);
 
     if (this->d->m_controls.count(property))
         *lValue = this->d->m_controls[property];
@@ -507,7 +534,7 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
     HRESULT hr = S_OK;
     std::lock_guard<std::mutex> lock(this->d->m_mutex);
 
-    if (this->d->m_state != MediaSourceState_Stopped) {
+    if (this->d->m_state == MediaSourceState_Started) {
         AkLogError("Invalid state transition");
 
         return MF_E_INVALID_STATE_TRANSITION;
@@ -517,6 +544,26 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
         AkLogError("Unsuported time format");
 
         return MF_E_UNSUPPORTED_TIME_FORMAT;
+    }
+
+    if (this->d->m_state == MediaSourceState_Paused) {
+        this->d->m_state = MediaSourceState_Started;
+
+        hr = this->d->m_pStream->resume();
+
+        if (FAILED(hr)) {
+            this->d->m_state = MediaSourceState_Paused;
+
+            return hr;
+        }
+
+        PROPVARIANT time;
+        InitPropVariantFromInt64(MFGetSystemTime(), &time);
+
+        return this->eventQueue()->QueueEventParamVar(MESourceStarted,
+                                                     GUID_NULL,
+                                                     S_OK,
+                                                     &time);
     }
 
     // Validate the presentation descriptor
@@ -569,11 +616,6 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
     }
 
     // Change the state and start the stream
-    this->d->m_state = MediaSourceState_Started;
-    this->eventQueue()->QueueEventParamUnk(MENewStream,
-                                           GUID_NULL,
-                                           S_OK,
-                                           static_cast<IMFMediaStream *>(this->d->m_pStream));
 
     hr = this->d->m_pStream->start(mediaType);
     mediaType->Release();
@@ -581,6 +623,20 @@ HRESULT AkVCam::MediaSource::Start(IMFPresentationDescriptor *pPresentationDescr
     if (FAILED(hr)) {
         AkLogError("Failed to start the stream: 0x%x", hr);
         this->d->m_state = MediaSourceState_Stopped;
+
+        return hr;
+    }
+
+    this->d->m_state = MediaSourceState_Started;
+    hr = this->eventQueue()->QueueEventParamUnk(MENewStream,
+                                                GUID_NULL,
+                                                S_OK,
+                                                static_cast<IMFMediaStream *>(this->d->m_pStream));
+
+    if (FAILED(hr)) {
+        AkLogError("Failed to queue MENewStream: 0x%x", hr);
+        this->d->m_state = MediaSourceState_Stopped;
+        this->d->m_pStream->stop();
 
         return hr;
     }
@@ -638,11 +694,15 @@ HRESULT AkVCam::MediaSource::Pause()
         return MF_E_INVALID_STATE_TRANSITION;
 
     this->d->m_state = MediaSourceState_Paused;
+    auto hr = this->d->m_pStream->pause();
+
+    if (FAILED(hr))
+        return hr;
 
     return this->eventQueue()->QueueEventParamVar(MESourcePaused,
-                                                     GUID_NULL,
-                                                     S_OK,
-                                                     nullptr);
+                                                  GUID_NULL,
+                                                  S_OK,
+                                                  nullptr);
 }
 
 HRESULT AkVCam::MediaSource::Shutdown()
@@ -650,23 +710,18 @@ HRESULT AkVCam::MediaSource::Shutdown()
     AkLogFunction();
     std::lock_guard<std::mutex> lock(this->d->m_mutex);
 
-    if (this->d->m_state == MediaSourceState_Stopped) {
-        this->d->m_pStream->stop();
-        this->eventQueue()->Shutdown();
-
+    if (this->d->m_state == MediaSourceState_Stopped)
         return S_OK;
-    }
 
     this->d->m_state = MediaSourceState_Stopped;
     auto hr = this->d->m_pStream->stop();
 
-    if (FAILED(hr)) {
-        this->eventQueue()->Shutdown();
+    if (FAILED(hr))
+        AkLogError("Stream stop failed during shutdown: 0x%x", hr);
 
-        return hr;
-    }
+    this->eventQueue()->Shutdown();
 
-    return this->eventQueue()->Shutdown();
+    return S_OK;
 }
 
 HRESULT AkVCam::MediaSource::GetSourceAttributes(IMFAttributes **ppAttributes)
@@ -819,6 +874,7 @@ void AkVCam::MediaSourcePrivate::configureSensorProfile()
     }
 
     collection->Release();
+    FreeLibrary(mfsensorgroupHnd);
 }
 
 #ifdef _WIN64
@@ -884,7 +940,6 @@ void AkVCam::MediaSourcePrivate::setControls(void *userData,
                                              const std::string &deviceId,
                                              const std::map<std::string, int> &controls)
 {
-    UNUSED(deviceId);
     AkLogFunction();
     auto self = reinterpret_cast<MediaSourcePrivate *>(userData);
 

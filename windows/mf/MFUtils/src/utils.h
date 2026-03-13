@@ -35,6 +35,7 @@ namespace AkVCam
     std::vector<CLSID> listRegisteredMFCameras();
     PixelFormat pixelFormatFromMediaFormat(const GUID &mfFormat);
     GUID mediaFormatFromPixelFormat(PixelFormat format);
+    DWORD fourccFromPixelFormat(PixelFormat format);
     IMFMediaType *mfMediaTypeFromFormat(const VideoFormat &videoFormat);
     VideoFormat formatFromMFMediaType(IMFMediaType *mediaType);
     PixelFormat pixelFormatMFFromCommonString(const std::string &format);

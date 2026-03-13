@@ -77,21 +77,31 @@ HRESULT AkVCam::ClassFactory::CreateInstance(IUnknown *pUnkOuter,
         return hr;
     }
 
-    auto activate = new MediaSource(this->d->m_clsid);
-    auto hr = activate->QueryInterface(riid, ppvObject);
-    activate->Release();
+    if (riid == IID_IMFMediaSource
+        || riid == IID_IMFMediaSrcEx
+        || riid == IID_IUnknown) {
+        auto mediaSource = new MediaSource(this->d->m_clsid);
+        auto hr = mediaSource->QueryInterface(riid, ppvObject);
+        mediaSource->Release();
 
-    return hr;
+        return hr;
+    }
+
+    return E_NOINTERFACE;
 }
 
 HRESULT AkVCam::ClassFactory::LockServer(BOOL fLock)
 {
     AkLogFunction();
 
-    if (fLock)
+    if (fLock) {
         this->d->m_locked++;
-    else
-        this->d->m_locked--;
+    } else {
+        uint64_t current = this->d->m_locked.load();
+
+        if (current > 0)
+            this->d->m_locked--;
+    }
 
     return S_OK;
 }
