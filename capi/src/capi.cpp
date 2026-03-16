@@ -319,8 +319,7 @@ CAPI_EXPORT int vcam_remove_devices(void *vcam)
     if (!vcamApi)
         return -EINVAL;
 
-    for (auto &device: vcamApi->m_bridge.devices())
-        vcamApi->m_bridge.removeDevice(device);
+    AkVCam::Preferences::removeAllCameras();
 
     return 0;
 }
@@ -1659,18 +1658,17 @@ void VCamAPI::createDevice(AkVCam::Settings &settings, const VideoFormatMatrix &
         return;
 
     auto deviceId = settings.value("id");
-    deviceId = this->m_bridge.addDevice(description, deviceId);
+    std::vector<AkVCam::VideoFormat> validFormats;
     auto supportedFormats =
-            this->m_bridge.supportedPixelFormats(AkVCam::IpcBridge::StreamType_Output);
+        this->m_bridge.supportedPixelFormats(AkVCam::IpcBridge::StreamType_Output);
 
-    for (auto &format: formats) {
-        auto it = std::find(supportedFormats.begin(),
-                            supportedFormats.end(),
-                            format.format());
+    for (auto &format: formats)
+        if (std::find(supportedFormats.begin(),
+                      supportedFormats.end(),
+                      format.format()) != supportedFormats.end())
+            validFormats.push_back(format);
 
-        if (it != supportedFormats.end())
-            this->m_bridge.addFormat(deviceId, format, -1);
-    }
+    deviceId = AkVCam::Preferences::addCamera(deviceId, description, validFormats);
 
     if (settings.contains("direct_mode")) {
         auto directMode = settings.valueBool("direct_mode");
@@ -1680,8 +1678,7 @@ void VCamAPI::createDevice(AkVCam::Settings &settings, const VideoFormatMatrix &
 
 void VCamAPI::createDevices(AkVCam::Settings &settings, const VideoFormatMatrix &availableFormats)
 {
-    for (auto &device: this->m_bridge.devices())
-        this->m_bridge.removeDevice(device);
+    AkVCam::Preferences::removeAllCameras();
 
     settings.beginGroup("Cameras");
     size_t nCameras = settings.beginArray("cameras");

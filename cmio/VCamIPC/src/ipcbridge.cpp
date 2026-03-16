@@ -204,7 +204,6 @@ AkVCam::IpcBridge::~IpcBridge()
         this->deviceStop(device);
 
     this->d->m_messagesTimer.stop();
-
     AkLogDebug("Bridge Destroyed");
 
     delete this->d;
@@ -404,7 +403,6 @@ std::string AkVCam::IpcBridge::addDevice(const std::string &description,
 {
     AkLogFunction();
     auto device = Preferences::addDevice(description, deviceId);
-    this->updateDevices();
 
     return device;
 }
@@ -413,7 +411,6 @@ void AkVCam::IpcBridge::removeDevice(const std::string &deviceId)
 {
     AkLogFunction();
     Preferences::removeCamera(deviceId);
-    this->updateDevices();
 }
 
 void AkVCam::IpcBridge::addFormat(const std::string &deviceId,
@@ -926,7 +923,7 @@ void AkVCam::IpcBridgePrivate::checkStatus(void *userData)
     std::vector<std::string> removeDevices;
 
     for (auto &device: self->m_controlValues)
-        if (std::count(devices.begin(), devices.begin(), device.first) < 1)
+        if (std::count(devices.begin(), devices.end(), device.first) < 1)
             removeDevices.push_back(device.first);
 
     for (auto &device: removeDevices)

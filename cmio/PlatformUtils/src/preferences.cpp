@@ -482,6 +482,11 @@ bool AkVCam::Preferences::removeCamera(const std::string &deviceId)
     return true;
 }
 
+bool AkVCam::Preferences::removeAllCameras()
+{
+    deleteKey("cameras");
+}
+
 size_t AkVCam::Preferences::camerasCount()
 {
     AkLogFunction();

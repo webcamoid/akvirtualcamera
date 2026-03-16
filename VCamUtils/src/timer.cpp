@@ -18,6 +18,8 @@
  */
 
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 
 #include "timer.h"
@@ -29,6 +31,8 @@ namespace AkVCam
         public:
             Timer *self;
             std::thread m_thread;
+            std::condition_variable m_cv;
+            std::mutex m_mutex;
             int m_interval {0};
             bool m_running {false};
             bool m_singleShot {false};
@@ -75,13 +79,23 @@ void AkVCam::Timer::stop()
 {
     AkLogFunction();
 
-    if (!this->d->m_running)
-        return;
+    {
+        std::unique_lock<std::mutex> lock(this->d->m_mutex);
 
-    this->d->m_running = false;
+        if (!this->d->m_running) {
+            AkLogDebug("Timer stopped");
+
+            return;
+        }
+
+        this->d->m_running = false;
+        this->d->m_cv.notify_all();
+    }
 
     if (this->d->m_thread.joinable())
         this->d->m_thread.join();
+
+    AkLogDebug("Timer stopped");
 }
 
 void AkVCam::Timer::singleShot()
@@ -115,19 +129,24 @@ AkVCam::TimerPrivate::TimerPrivate(AkVCam::Timer *self):
 
 void AkVCam::TimerPrivate::timerLoop()
 {
-    while (this->m_running) {
-        if (this->m_interval > 0 && this->m_singleShot)
-            std::this_thread::sleep_for(std::chrono::milliseconds(this->m_interval));
+    while (true) {
+        {
+            std::unique_lock<std::mutex> lock(this->m_mutex);
+            this->m_cv.wait_for(lock,
+                                std::chrono::milliseconds(this->m_interval),
+                                [this] { return !this->m_running; });
+
+            if (!this->m_running)
+                return;
+        }
 
         AKVCAM_EMIT_NOARGS(this->self, Timeout)
 
         if (this->m_singleShot) {
+            std::unique_lock<std::mutex> lock(this->m_mutex);
             this->m_running = false;
 
-            break;
-        } else {
-            if (this->m_interval > 0)
-                std::this_thread::sleep_for(std::chrono::milliseconds(this->m_interval));
+            return;
         }
     }
 }

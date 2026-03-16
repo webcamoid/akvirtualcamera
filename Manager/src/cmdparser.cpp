@@ -987,8 +987,7 @@ int AkVCam::CmdParserPrivate::removeDevices(const StringMap &flags,
     UNUSED(flags);
     UNUSED(args);
 
-    for (auto &device: this->m_ipcBridge.devices())
-        this->m_ipcBridge.removeDevice(device);
+    AkVCam::Preferences::removeAllCameras();
 
     return 0;
 }
@@ -2762,8 +2761,7 @@ void AkVCam::CmdParserPrivate::matrixCombineP(const StringMatrix &matrix,
 void AkVCam::CmdParserPrivate::createDevices(Settings &settings,
                                              const VideoFormatMatrix &availableFormats)
 {
-    for (auto &device: this->m_ipcBridge.devices())
-        this->m_ipcBridge.removeDevice(device);
+    AkVCam::Preferences::removeAllCameras();
 
     settings.beginGroup("Cameras");
     size_t nCameras = settings.beginArray("cameras");
@@ -2798,18 +2796,17 @@ void AkVCam::CmdParserPrivate::createDevice(Settings &settings,
     }
 
     auto deviceId = settings.value("id");
-    deviceId = this->m_ipcBridge.addDevice(description, deviceId);
+    std::vector<AkVCam::VideoFormat> validFormats;
     auto supportedFormats =
-            this->m_ipcBridge.supportedPixelFormats(IpcBridge::StreamType_Output);
+        this->m_ipcBridge.supportedPixelFormats(AkVCam::IpcBridge::StreamType_Output);
 
-    for (auto &format: formats) {
-        auto it = std::find(supportedFormats.begin(),
-                            supportedFormats.end(),
-                            format.format());
+    for (auto &format: formats)
+        if (std::find(supportedFormats.begin(),
+                      supportedFormats.end(),
+                      format.format()) != supportedFormats.end())
+            validFormats.push_back(format);
 
-        if (it != supportedFormats.end())
-            this->m_ipcBridge.addFormat(deviceId, format, -1);
-    }
+        deviceId = AkVCam::Preferences::addCamera(deviceId, description, validFormats);
 
     if (settings.contains("direct_mode")) {
         auto directMode = settings.valueBool("direct_mode");
