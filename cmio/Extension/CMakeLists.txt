@@ -106,7 +106,6 @@ if (COREMEDIAIO
                           ${COREVIDEO}
                           ${FOUNDATION}
                           ${COREAUDIO})
-    install(TARGETS CameraExtension DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif ()
 
 if (APPLE OR FAKE_APPLE)

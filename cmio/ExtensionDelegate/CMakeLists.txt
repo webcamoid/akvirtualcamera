@@ -89,7 +89,6 @@ if (COCOA
                           ${COCOA}
                           ${SYSTEMEXTENSIONS}
                           ${FOUNDATION})
-    install(TARGETS AppDelegate DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif ()
 
 if (APPLE OR FAKE_APPLE)
