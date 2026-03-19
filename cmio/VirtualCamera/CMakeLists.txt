@@ -82,24 +82,22 @@ set(CMIO_PLUGIN_PRODUCT ${AKVCAM_PLUGIN_NAME})
 add_definitions(-DCMIO_PLUGIN_VENDOR="${CMIO_PLUGIN_VENDOR}"
                 -DCMIO_PLUGIN_PRODUCT="${CMIO_PLUGIN_PRODUCT}")
 
-if (APPLE OR FAKE_APPLE)
-    if (APPLE)
-        find_library(COREFOUNDATION_FRAMEWORK NAMES CoreFoundation)
-        find_library(COREGRAPHICS_FRAMEWORK NAMES CoreGraphics)
-        find_library(COREMEDIA_FRAMEWORK NAMES CoreMedia)
-        find_library(COREMEDIAIO_FRAMEWORK NAMES CoreMediaIO)
-        find_library(COREVIDEO_FRAMEWORK NAMES CoreVideo)
-        find_library(FOUNDATION_FRAMEWORK NAMES Foundation)
-        find_library(IOKIT_FRAMEWORK NAMES IOKit)
-        set(EXTRA_LIBS
-            ${COREFOUNDATION_FRAMEWORK}
-            ${COREGRAPHICS_FRAMEWORK}
-            ${COREMEDIA_FRAMEWORK}
-            ${COREMEDIAIO_FRAMEWORK}
-            ${COREVIDEO_FRAMEWORK}
-            ${FOUNDATION_FRAMEWORK}
-            ${IOKIT_FRAMEWORK})
-    endif ()
+if (APPLE)
+    find_library(COREFOUNDATION_FRAMEWORK NAMES CoreFoundation)
+    find_library(COREGRAPHICS_FRAMEWORK NAMES CoreGraphics)
+    find_library(COREMEDIA_FRAMEWORK NAMES CoreMedia)
+    find_library(COREMEDIAIO_FRAMEWORK NAMES CoreMediaIO)
+    find_library(COREVIDEO_FRAMEWORK NAMES CoreVideo)
+    find_library(FOUNDATION_FRAMEWORK NAMES Foundation)
+    find_library(IOKIT_FRAMEWORK NAMES IOKit)
+    set(EXTRA_LIBS
+        ${COREFOUNDATION_FRAMEWORK}
+        ${COREGRAPHICS_FRAMEWORK}
+        ${COREMEDIA_FRAMEWORK}
+        ${COREMEDIAIO_FRAMEWORK}
+        ${COREVIDEO_FRAMEWORK}
+        ${FOUNDATION_FRAMEWORK}
+        ${IOKIT_FRAMEWORK})
 endif ()
 
 target_link_libraries(VirtualCamera_cmio
@@ -107,10 +105,6 @@ target_link_libraries(VirtualCamera_cmio
                       PlatformUtils_cmio
                       VCamUtils
                       ${EXTRA_LIBS})
-
-if (FAKE_APPLE)
-    add_definitions(-DFAKE_APPLE)
-endif ()
 
 if (APPLE OR FAKE_APPLE)
     install(TARGETS VirtualCamera_cmio DESTINATION ${BINDIR})

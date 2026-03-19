@@ -485,6 +485,8 @@ bool AkVCam::Preferences::removeCamera(const std::string &deviceId)
 bool AkVCam::Preferences::removeAllCameras()
 {
     deleteKey("cameras");
+
+    return true;
 }
 
 size_t AkVCam::Preferences::camerasCount()

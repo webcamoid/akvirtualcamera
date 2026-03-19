@@ -29,6 +29,10 @@ if (NOT (APPLE OR FAKE_APPLE) AND NOT WIN32)
     message(FATAL_ERROR "This driver only works in Mac an Windows. For Linux check 'akvcam' instead.")
 endif ()
 
+if (FAKE_APPLE)
+    add_definitions(-DFAKE_APPLE)
+endif ()
+
 include(CheckCXXSourceCompiles)
 
 set(COMMONS_APPNAME AkVirtualCamera)
@@ -38,17 +42,14 @@ set(VER_MAJ 9)
 set(VER_MIN 3)
 set(VER_PAT 3)
 set(VERSION ${VER_MAJ}.${VER_MIN}.${VER_PAT})
+math(EXPR VER_MIN_PAD "${VER_MIN} + 1000")
+math(EXPR VER_PAT_PAD "${VER_PAT} + 1000")
+string(SUBSTRING "${VER_MIN_PAD}" 1 3 VER_MIN_STR)
+string(SUBSTRING "${VER_PAT_PAD}" 1 3 VER_PAT_STR)
+set(VERSION_BUNDLE "${VER_MAJ}${VER_MIN_STR}${VER_PAT_STR}")
 set(DAILY_BUILD OFF CACHE BOOL "Mark this as a daily build")
 
-add_definitions(-DCOMMONS_APPNAME="${COMMONS_APPNAME}"
-                -DCOMMONS_TARGET="${COMMONS_TARGET}"
-                -DCOMMONS_VER_MAJ=${VER_MAJ}
-                -DCOMMONS_VER_MIN=${VER_MIN}
-                -DCOMMONS_VER_PAT=${VER_PAT}
-                -DCOMMONS_VERSION="${VERSION}"
-                -DPREFIX="${PREFIX}")
-
-set(AKVCAM_PLUGIN_NAME AkVirtualCamera)
+set(AKVCAM_PLUGIN_NAME ${COMMONS_APPNAME})
 set(AKVCAM_PLUGIN_MF_NAME "${AKVCAM_PLUGIN_NAME}MF")
 set(AKVCAM_SERVICE_NAME AkVCamAssistant)
 set(AKVCAM_SERVICE_MF_NAME "${AKVCAM_SERVICE_NAME}MF")
@@ -56,13 +57,23 @@ set(AKVCAM_MANAGER_NAME AkVCamManager)
 set(AKVCAM_BRIDGE_NAME AkVCamBridge)
 set(AKVCAM_DEVICE_PREFIX AkVCamVideoDevice)
 set(AKVCAM_SERVICEPORT "8226" CACHE STRING "Virtual camera service port")
+set(ORGANIZATION_IDENTIFIER "io.github.webcamoid" CACHE STRING "Organization identifier")
+set(APP_IDENTIFIER "${ORGANIZATION_IDENTIFIER}.${COMMONS_APPNAME}" CACHE STRING "Application identifier")
 
-add_definitions(-DAKVCAM_PLUGIN_NAME="${AKVCAM_PLUGIN_NAME}"
+add_definitions(-DCOMMONS_APPNAME="${COMMONS_APPNAME}"
+                -DCOMMONS_TARGET="${COMMONS_TARGET}"
+                -DCOMMONS_VER_MAJ=${VER_MAJ}
+                -DCOMMONS_VER_MIN=${VER_MIN}
+                -DCOMMONS_VER_PAT=${VER_PAT}
+                -DCOMMONS_VERSION="${VERSION}"
+                -DCOMMONS_APP_IDENTIFIER="${APP_IDENTIFIER}"
+                -DAKVCAM_PLUGIN_NAME="${AKVCAM_PLUGIN_NAME}"
                 -DAKVCAM_PLUGIN_MF_NAME="${AKVCAM_PLUGIN_MF_NAME}"
                 -DAKVCAM_SERVICE_NAME="${AKVCAM_SERVICE_NAME}"
                 -DAKVCAM_SERVICE_MF_NAME="${AKVCAM_SERVICE_MF_NAME}"
                 -DAKVCAM_MANAGER_NAME="${AKVCAM_MANAGER_NAME}"
-                -DAKVCAM_DEVICE_PREFIX="${AKVCAM_DEVICE_PREFIX}")
+                -DAKVCAM_DEVICE_PREFIX="${AKVCAM_DEVICE_PREFIX}"
+                -DPREFIX="${PREFIX}")
 
 if (WIN32)
     add_definitions(-DUNICODE -D_UNICODE)
@@ -72,10 +83,20 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT FAKE_APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
 endif()
 
+if (DEFINED CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM AND NOT CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM STREQUAL "")
+    set(DEVELOPMENT_TEAM ${CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM})
+else ()
+    set(DEVELOPMENT_TEAM "A2C4E6G8I0")
+endif ()
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if (DAILY_BUILD)
     add_definitions(-DDAILY_BUILD)
+endif ()
+
+if (APPLE OR FAKE_APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 12.3)
 endif ()
 
 set(GIT_COMMIT_HASH "" CACHE STRING "Set the alternative commit hash if not detected by git")
@@ -269,6 +290,7 @@ if (APPLE OR FAKE_APPLE)
     set(TARGET_PLATFORM mac)
     set(BUILD_INFO_FILE ${DATAROOTDIR}/build-info.txt)
     set(APP_LIBDIR ${LIBDIR})
+    set(SYSTEMEXTENSIONSDIR ${EXECPREFIX}/Library/SystemExtensions)
     set(MAIN_EXECUTABLE ${BINDIR}/${AKVCAM_PLUGIN_NAME})
     set(PACKET_HIDE_ARCH false)
     set(QTIFW_TARGET_DIR "\@ApplicationsDir\@/${AKVCAM_PLUGIN_NAME}")

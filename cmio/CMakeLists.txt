@@ -20,6 +20,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(cmio)
 
+add_subdirectory(Extension)
+add_subdirectory(ExtensionDelegate)
 add_subdirectory(PlatformUtils)
 add_subdirectory(VCamIPC)
 add_subdirectory(VirtualCamera)

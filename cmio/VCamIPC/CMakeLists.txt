@@ -59,7 +59,3 @@ endif ()
 target_link_libraries(VCamIPC_cmio
                       VCamUtils
                       ${EXTRA_LIBS})
-
-if (FAKE_APPLE)
-    add_definitions(-DFAKE_APPLE)
-endif ()
