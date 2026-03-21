@@ -85,6 +85,10 @@ if (APPLE OR FAKE_APPLE)
     configure_file(Info.plist.in ${CMAKE_BINARY_DIR}/${BUILDDIR}/${BUNDLE_EXECPREFIX}/Info.plist)
 endif ()
 
+target_link_libraries(AppDelegate
+                      PlatformUtils_cmio
+                      VCamUtils)
+
 if (COCOA
     AND SYSTEMEXTENSIONS
     AND FOUNDATION)

@@ -60,13 +60,13 @@ static void controlsChangedCallback(void *userData,
         m_ipcBridge = std::make_shared<AkVCam::IpcBridge>();
 
         m_ipcBridge->connectDevicesChanged((__bridge void *) self,
-                                          ExtensionProviderSource::devicesChangedCallback);
+                                           devicesChangedCallback);
         m_ipcBridge->connectFrameReady((__bridge void *) self,
-                                      ExtensionProviderSource::frameReadyCallback);
+                                       frameReadyCallback);
         m_ipcBridge->connectPictureChanged((__bridge void *) self,
-                                          ExtensionProviderSource::pictureChangedCallback);
+                                           pictureChangedCallback);
         m_ipcBridge->connectControlsChanged((__bridge void *) self,
-                                           ExtensionProviderSource::controlsChangedCallback);
+                                            controlsChangedCallback);
 
         for (auto &deviceId: m_ipcBridge->devices()) {
             auto description = m_ipcBridge->description(deviceId);
