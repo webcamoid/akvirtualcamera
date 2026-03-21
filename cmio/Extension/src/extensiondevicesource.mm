@@ -447,7 +447,7 @@
         return NULL;
 
     auto fmt = frame.format();
-    OSType fourcc = formatToCM(AkVCam::PixelFormat(fmt.format()));
+    OSType fourcc = AkVCam::formatToCM(fmt.format());
 
     CVPixelBufferRef buffer = NULL;
     CVReturn status =
@@ -455,12 +455,10 @@
                                      size_t(fmt.width()),
                                      size_t(fmt.height()),
                                      fourcc,
-                                     const_cast<void *>(
-                                         static_cast<const void *>(
-                                             frame.constData())),
+                                     static_cast<void *>(frame.data()),
                                      frame.lineSize(0),
                                      // No-op release: VideoFrame owns the data.
-                                     [] (void *, void *) {},
+                                     [] (void *, const void *) {},
                                      nullptr,
                                      nullptr,
                                      &buffer);

@@ -113,7 +113,7 @@
         if (fps <= 0.0)
             fps = 30.0;
 
-        OSType fourcc = formatToCM(AkVCam::PixelFormat(akFmt.format()));
+        OSType fourcc = AkVCam::formatToCM(akFmt.format());
 
         CMVideoFormatDescriptionRef formatDesc = NULL;
         OSStatus status =
