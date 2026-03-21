@@ -20,6 +20,7 @@
 #import "extensionstreamsource.h"
 #import "extensiondevicesource.h"
 #include "PlatformUtils/src/utils.h"
+#include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/logger.h"
 #include "VCamUtils/src/videoformat.h"
 

@@ -458,7 +458,7 @@
                                      const_cast<void *>(
                                          static_cast<const void *>(
                                              frame.constData())),
-                                     frame.bytesPerLine(),
+                                     frame.lineSize(0),
                                      // No-op release: VideoFrame owns the data.
                                      [] (void *, void *) {},
                                      nullptr,
