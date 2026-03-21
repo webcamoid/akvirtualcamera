@@ -28,6 +28,7 @@
 #import "extensionstreamsource.h"
 #include "PlatformUtils/src/preferences.h"
 #include "PlatformUtils/src/utils.h"
+#include "VCamUtils/src/fraction.h"
 #include "VCamUtils/src/logger.h"
 #include "VCamUtils/src/videoadjusts.h"
 #include "VCamUtils/src/videoconverter.h"
@@ -102,7 +103,7 @@
             AkVCam::VideoConverter::AspectRatioMode(
                 AkVCam::Preferences::cameraControlValue(cameraIndex, "aspect_ratio")));
 
-        m_streamSource =
+        _streamSource =
             [[ExtensionStreamSource alloc] initWithDeviceSource: self];
 
         m_frameQueue = dispatch_queue_create(
@@ -445,7 +446,7 @@
     if (!frame)
         return NULL;
 
-    auto &fmt    = frame.format();
+    auto fmt = frame.format();
     OSType fourcc = formatToCM(AkVCam::PixelFormat(fmt.format()));
 
     CVPixelBufferRef buffer = NULL;
