@@ -455,7 +455,7 @@
                                      size_t(fmt.width()),
                                      size_t(fmt.height()),
                                      fourcc,
-                                     static_cast<void *>(frame.data()),
+                                     const_cast<void *>(static_cast<const void *>(frame.constData())),
                                      frame.lineSize(0),
                                      // No-op release: VideoFrame owns the data.
                                      [] (void *, const void *) {},
