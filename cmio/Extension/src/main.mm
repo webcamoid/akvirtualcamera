@@ -24,6 +24,7 @@
 #import "extensionprovidersource.h"
 #endif
 
+#include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/logger.h"
 
 int main(int argc, char *argv[])

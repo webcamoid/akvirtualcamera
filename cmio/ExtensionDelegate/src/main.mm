@@ -23,6 +23,7 @@
 #import "appdelegate.h"
 #endif
 
+#include "PlatformUtils/src/utils.h"
 #include "VCamUtils/src/logger.h"
 
 int main(int argc, const char *argv[])
