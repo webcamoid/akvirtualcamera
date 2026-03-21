@@ -22,15 +22,19 @@
 #import <CoreMediaIO/CMIOExtensionProvider.h>
 
 #import "extensionprovidersource.h"
-#import "extensiondevicesource.h"
 #endif
+
+#include "VCamUtils/src/logger.h"
 
 int main(int argc, char *argv[])
 {
+    AkVCam::logSetup();
+
 #ifndef FAKE_APPLE
     @autoreleasepool {
-        // Create the provider source. The virtual device and its stream are
-        // constructed internally, but not yet registered with any provider.
+        /* Create the provider source. The virtual device and its stream are
+         * constructed internally, but not yet registered with any provider.
+         */
         ExtensionProviderSource *providerSource =
             [[ExtensionProviderSource alloc] init];
 
@@ -43,19 +47,8 @@ int main(int argc, char *argv[])
              providerWithSource: providerSource
              clientQueue: dispatch_get_main_queue()];
 
-        // Store the cross-reference needed by addDevice: / removeDevice:.
+        // Store the cross-reference needed by addDevice/removeDevice.
         providerSource.provider = provider;
-
-        // Register the virtual device with the provider. This must happen after
-        // providerSource.provider is assigned so that the device can be looked
-        // up during removal.
-        NSError *addDeviceError = nil;
-        [provider
-         addDevice: providerSource.deviceSource.device
-         error: &addDeviceError];
-
-        if (addDeviceError)
-            NSLog(@"Error registering device: %@", addDeviceError);
 
         // Start serving clients. From this point the extension is visible to
         // AVCaptureDevice and other CoreMediaIO consumers.

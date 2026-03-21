@@ -22,6 +22,14 @@
 #import <CoreMediaIO/CMIOExtensionDevice.h>
 #import <Foundation/Foundation.h>
 
+#include <map>
+#include <string>
+#include <vector>
+
+#include "VCamUtils/src/ipcbridge.h"
+#include "VCamUtils/src/videoformat.h"
+#include "VCamUtils/src/videoframe.h"
+
 NS_ASSUME_NONNULL_BEGIN
 
 @class ExtensionStreamSource;
@@ -34,28 +42,62 @@ NS_ASSUME_NONNULL_BEGIN
 // The child stream source associated with this device.
 @property (nonatomic, strong, readonly) ExtensionStreamSource *streamSource;
 
-- (instancetype) init;
+// The list of video formats this device was initialized with.
+@property (nonatomic, readonly) std::vector<AkVCam::VideoFormat> formats;
 
-/* startStreaming
+// Index into formats[] identifying the currently active format.
+@property (nonatomic, readonly) NSUInteger activeFormatIndex;
+
+/* Switches the active format. If streaming is in progress, the timer is
+ * restarted at the new frame rate. Out-of-range indices are ignored.
+ */
+- (void) setActiveFormatIndex: (NSUInteger) index;
+
+/* Designated initializer. Stores the device identity and the list of
+ * supported video formats used to configure the stream source and the
+ * frame converter.
  *
- * Starts the frame generation timer. Called by the stream source when
+ * @param deviceId    Unique identifier of the virtual device
+ * @param description User-visible name/description of the device
+ * @param formats     List of supported video formats
+ */
+- (instancetype) initWithDeviceId: (const std::string &) deviceId
+                      description: (const std::string &) description
+                          formats: (const std::vector<AkVCam::VideoFormat> &) formats;
+
+/* Stores the IpcBridge shared pointer used to notify the daemon when the
+ * stream starts or stops. Must be called before startStreaming.
+ */
+- (void) setBridge: (AkVCam::IpcBridgePtr) bridge;
+
+/* Starts the frame generation timer. Called by the stream source when
  * the client begins consuming the stream.
  */
 - (void) startStreaming;
 
-/* stopStreaming
- *
- * Stops the frame generation timer. Called by the stream source when
+/* Stops the frame generation timer. Called by the stream source when
  * the client stops consuming the stream.
  */
 - (void) stopStreaming;
 
-/* frameReady:
+/* Handles a new video frame received from the IPC bridge.
+ * Converts the frame, applies adjustments, and stores it for the next delivery.
  *
- * Delivers an incoming frame to the device source. Call this from the
- * IpcBridge whenever a new VideoFrame arrives for this device.
+ * @param frame    The incoming video frame
+ * @param isActive YES if this frame should be used (instead of fallback image)
  */
-- (void) frameReady: (CVPixelBufferRef) pixelBuffer;
+- (void) frameReady: (const AkVCam::VideoFrame &) frame
+           isActive: (BOOL) isActive;
+
+/* Loads the image at the given path and uses it as the static test frame
+ * shown when no active VideoFrame is being received.
+ */
+- (void) setPicture: (const std::string &) picture;
+
+/* Applies the given control values (hflip, vflip, swap_rgb, scaling,
+ * aspect_ratio) to the video adjuster and converter.
+ */
+- (void) setControls: (const std::map<std::string, int> &) controls;
 
 @end
 

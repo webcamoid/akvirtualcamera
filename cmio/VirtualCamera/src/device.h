@@ -33,9 +33,6 @@ namespace AkVCam
 
     class Device: public Object
     {
-        AKVCAM_SIGNAL(AddListener, const std::string &deviceId)
-        AKVCAM_SIGNAL(RemoveListener, const std::string &deviceId)
-
         public:
             Device(CMIOHardwarePlugInRef pluginInterface,
                    bool createObject=false);

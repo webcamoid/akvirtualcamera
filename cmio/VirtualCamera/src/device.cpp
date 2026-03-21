@@ -267,8 +267,6 @@ OSStatus AkVCam::Device::startStream(CMIOStreamID stream)
         this->propertyChanged(1, &address);
     }
 
-    AKVCAM_EMIT(this, AddListener, this->m_deviceId)
-
     return kCMIOHardwareNoError;
 }
 
@@ -298,8 +296,6 @@ OSStatus AkVCam::Device::stopStream(CMIOStreamID stream)
         auto address = this->address(kCMIODevicePropertyDeviceIsRunning);
         this->propertyChanged(1, &address);
     }
-
-    AKVCAM_EMIT(this, RemoveListener, this->m_deviceId)
 
     return kCMIOHardwareNoError;
 }

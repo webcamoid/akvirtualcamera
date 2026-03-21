@@ -23,8 +23,12 @@
 #import "appdelegate.h"
 #endif
 
+#include "VCamUtils/src/logger.h"
+
 int main(int argc, const char *argv[])
 {
+    AkVCam::logSetup();
+
 #ifndef FAKE_APPLE
     @autoreleasepool {
         NSApplication *app = [NSApplication sharedApplication];

@@ -73,6 +73,9 @@ target_include_directories(AppDelegate
                            PRIVATE ../..)
 
 if (FAKE_APPLE)
+    target_include_directories(AppDelegateExtras
+                               PRIVATE ..
+                               PRIVATE ../..)
     target_include_directories(AppDelegate
                                PRIVATE
                                ../FakeAPI)

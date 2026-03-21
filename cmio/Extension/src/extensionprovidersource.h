@@ -22,15 +22,11 @@
 #import <CoreMediaIO/CMIOExtensionProvider.h>
 #import <Foundation/Foundation.h>
 
-#import "extensiondevicesource.h"
-
 NS_ASSUME_NONNULL_BEGIN
 
 @interface ExtensionProviderSource: NSObject <CMIOExtensionProviderSource>
 
 @property (nonatomic, strong, nullable) CMIOExtensionProvider *provider;
-
-@property (nonatomic, readonly) ExtensionDeviceSource *deviceSource;
 
 - (instancetype) init;
 

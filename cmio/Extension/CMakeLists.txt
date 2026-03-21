@@ -81,6 +81,9 @@ target_include_directories(CameraExtension
                            PRIVATE ../..)
 
 if (FAKE_APPLE)
+    target_include_directories(CameraExtensionExtras
+                               PRIVATE ..
+                               PRIVATE ../..)
     target_include_directories(CameraExtension
                                PRIVATE
                                ../FakeAPI)

@@ -18,6 +18,7 @@
  */
 
 #import "appdelegate.h"
+#include "VCamUtils/src/logger.h"
 
 static NSString * const kExtensionBundleID     = @EXTENSION_BUNDLE_ID;
 static NSString * const kExtensionInstalledKey = @"extensionInstalled";
@@ -44,7 +45,10 @@ typedef NS_ENUM(NSInteger, ExtensionStatus) {
  * Builds the main window and its controls, then queries the last known
  * extension state from persistent storage to configure the UI accordingly.
  */
-- (void) applicationDidFinishLaunching: (NSNotification *) notification {
+- (void) applicationDidFinishLaunching: (NSNotification *) notification
+{
+    AkLogFunction();
+
     self.window = [[NSWindow alloc]
                    initWithContentRect: NSMakeRect(0, 0, 340, 170)
                    styleMask: NSWindowStyleMaskTitled
@@ -86,7 +90,10 @@ typedef NS_ENUM(NSInteger, ExtensionStatus) {
  * UI accordingly. If no value has ever been stored (fresh install), the
  * extension is assumed to be not installed, which is the safer default.
  */
-- (void) refreshStatus {
+- (void) refreshStatus
+{
+    AkLogFunction();
+
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 
     /* boolForKey returns NO when the key is absent, which correctly maps to
@@ -109,7 +116,11 @@ typedef NS_ENUM(NSInteger, ExtensionStatus) {
  * extension status. ExtensionStatusUnknown (operation in progress or pending
  * reboot) leaves both buttons enabled so the user can retry if needed.
  */
-- (void) updateUIForStatus: (ExtensionStatus) status message: (NSString *) message {
+- (void) updateUIForStatus: (ExtensionStatus) status
+                   message: (NSString *) message
+{
+    AkLogFunction();
+
     self.statusLabel.stringValue = message;
 
     switch (status) {
@@ -134,7 +145,10 @@ typedef NS_ENUM(NSInteger, ExtensionStatus) {
  * Submits an activation request for the system extension. The UI is set to
  * the unknown/in-progress state while the operation is pending.
  */
-- (IBAction) installExtension: (id) sender {
+- (IBAction) installExtension: (id) sender
+{
+    AkLogFunction();
+
     self.pendingInstall = YES;
     self.installButton.enabled   = NO;
     self.uninstallButton.enabled = NO;
@@ -154,7 +168,10 @@ typedef NS_ENUM(NSInteger, ExtensionStatus) {
  * Submits a deactivation request for the system extension. The UI is set to
  * the unknown/in-progress state while the operation is pending.
  */
-- (IBAction) uninstallExtension: (id) sender {
+- (IBAction) uninstallExtension: (id) sender
+{
+    AkLogFunction();
+
     self.pendingInstall = NO;
     self.installButton.enabled   = NO;
     self.uninstallButton.enabled = NO;
@@ -174,12 +191,19 @@ typedef NS_ENUM(NSInteger, ExtensionStatus) {
  * existing one. Always instructs the system to replace the old version.
  */
 - (OSSystemExtensionReplacementAction) request: (OSSystemExtensionRequest *) request
-                                       actionForReplacingExtension: (OSSystemExtensionProperties *) existing
-                                       withExtension: (OSSystemExtensionProperties *) ext {
-    NSLog(@"Updating extension %@ -> %@",
-          existing.bundleVersion, ext.bundleVersion);
+                   actionForReplacingExtension: (OSSystemExtensionProperties *) existing
+                                 withExtension: (OSSystemExtensionProperties *) ext
+{
+    AkLogFunction();
+
+    const char *existingVersion = existing.bundleVersion? [existing.bundleVersion UTF8String]: "unknown";
+    const char *newVersion = ext.bundleVersion? [ext.bundleVersion UTF8String]: "unknown";
+
+    AkPrintOut("Updating extension %s -> %s\n", existingVersion, newVersion);
+
     return OSSystemExtensionReplacementActionReplace;
 }
+
 
 /* request:didFinishWithResult:
  *
@@ -188,8 +212,10 @@ typedef NS_ENUM(NSInteger, ExtensionStatus) {
  * the change takes effect immediately or requires a session restart. On error,
  * NSUserDefaults is not modified; the UI is restored from the last valid state.
  */
-- (void) request: (OSSystemExtensionRequest *) request
-         didFinishWithResult: (OSSystemExtensionRequestResult) result {
+- (void)        request: (OSSystemExtensionRequest *) request
+    didFinishWithResult: (OSSystemExtensionRequestResult) result
+{
+    AkLogFunction();
 
     /* Persist the new state before updating the UI. The change will happen
      * regardless of whether it requires a reboot, so storing it now prevents
@@ -224,10 +250,13 @@ typedef NS_ENUM(NSInteger, ExtensionStatus) {
  * Called when the request fails. NSUserDefaults is left untouched so the UI
  * can be restored to the last valid known state, allowing the user to retry.
  */
-- (void) request: (OSSystemExtensionRequest *) request
-    didFailWithError: (NSError *) error {
+- (void)     request: (OSSystemExtensionRequest *) request
+    didFailWithError: (NSError *) error
+{
+    AkLogFunction();
 
-    NSLog(@"Error: %@", error);
+    auto errorStr = [[error description] UTF8String];
+    AkPrintErr("Error: %s", errorStr);
 
     [self refreshStatus];
 
@@ -242,8 +271,10 @@ typedef NS_ENUM(NSInteger, ExtensionStatus) {
  * Called when the system requires explicit user approval before the extension
  * can be loaded. The user must grant permission in System Preferences.
  */
-- (void)requestNeedsUserApproval: (OSSystemExtensionRequest *) request {
-    NSLog(@"System requires user approval to load the extension.");
+- (void) requestNeedsUserApproval: (OSSystemExtensionRequest *) request
+{
+    AkLogFunction();
+    AkPrintOut("System requires user approval to load the extension.");
     [self updateUIForStatus: ExtensionStatusUnknown
           message: @"Approval required in System Preferences"];
 }

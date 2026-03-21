@@ -19,123 +19,174 @@
 
 #import "extensionstreamsource.h"
 #import "extensiondevicesource.h"
-
-// Pixel format and dimensions exposed by this stream.
-static const int    kStreamWidth  = 1280;
-static const int    kStreamHeight = 720;
-static const double kStreamFPS    = 30.0;
+#include "PlatformUtils/src/utils.h"
+#include "VCamUtils/src/logger.h"
+#include "VCamUtils/src/videoformat.h"
 
 @implementation ExtensionStreamSource
 
-/* initWithDeviceSource:
- *
- * Initializes the stream source and stores a weak back-reference to the
+/* Initializes the stream source and stores a weak back-reference to the
  * parent device source.
  */
-- (instancetype) initWithDeviceSource: (ExtensionDeviceSource *) deviceSource {
+- (instancetype) initWithDeviceSource: (ExtensionDeviceSource *) deviceSource
+{
+    AkLogFunction();
+
     if (self = [super init])
         _deviceSource = deviceSource;
 
     return self;
 }
 
-/* availableProperties
- *
- * Declares the stream properties exposed to the CoreMediaIO framework.
- */
-- (NSSet<CMIOExtensionProperty> *) availableProperties {
+// Declares the stream properties exposed to the CoreMediaIO framework.
+- (NSSet<CMIOExtensionProperty> *) availableProperties
+{
+    AkLogFunction();
+
     return [NSSet setWithObjects:
             CMIOExtensionPropertyStreamActiveFormatIndex,
             CMIOExtensionPropertyStreamFrameDuration,
             nil];
 }
 
-/* streamPropertiesForProperties:error:
- *
- * Returns the current values for the requested stream properties.
+/* Returns the current values for the requested stream properties.
+ * Frame duration is derived from the first format reported by the device
+ * source, falling back to 30 fps if none are available.
  */
-- (nullable CMIOExtensionStreamProperties *) streamPropertiesForProperties: (NSSet<CMIOExtensionProperty> *)properties
-                                             error: (NSError **) outError {
+- (nullable CMIOExtensionStreamProperties *)
+    streamPropertiesForProperties: (NSSet<CMIOExtensionProperty> *) properties
+                            error: (NSError **) outError
+{
+    AkLogFunction();
+
     CMIOExtensionStreamProperties *streamProperties =
-        [CMIOExtensionStreamProperties streamPropertiesWithDictionary:@{}];
+        [CMIOExtensionStreamProperties streamPropertiesWithDictionary: @{}];
 
-    if ([properties containsObject:CMIOExtensionPropertyStreamActiveFormatIndex])
-        streamProperties.activeFormatIndex = @(0);
+    if ([properties containsObject: CMIOExtensionPropertyStreamActiveFormatIndex])
+        streamProperties.activeFormatIndex = @(self.deviceSource.activeFormatIndex);
 
-    if ([properties containsObject:CMIOExtensionPropertyStreamFrameDuration]) {
-        CMTime duration = CMTimeMake(1, (int32_t) kStreamFPS);
-        NSDictionary *dict = CFBridgingRelease(CMTimeCopyAsDictionary(duration,
-                                                                      kCFAllocatorDefault));
+    if ([properties containsObject: CMIOExtensionPropertyStreamFrameDuration]) {
+        CMTime duration = [self primaryFrameDuration];
+        NSDictionary *dict =
+            CFBridgingRelease(CMTimeCopyAsDictionary(duration,
+                                                     kCFAllocatorDefault));
         streamProperties.frameDuration = dict;
     }
 
     return streamProperties;
 }
 
-/* setStreamProperties:error:
- *
- * Handles writable stream property updates. Read activeFormatIndex here
- * to switch formats if multiple video formats are supported.
+/* Handles writable stream property updates from the framework. When the
+ * client requests a different activeFormatIndex, the device source is
+ * notified so it can restart the timer at the new frame rate and update
+ * the video converter's output format.
  */
 - (BOOL) setStreamProperties: (CMIOExtensionStreamProperties *) streamProperties
-         error: (NSError **) outError {
+                       error: (NSError **) outError
+{
+    AkLogFunction();
+
+    if (streamProperties.activeFormatIndex) {
+        NSUInteger index = streamProperties.activeFormatIndex.unsignedIntegerValue;
+        [self.deviceSource setActiveFormatIndex: index];
+    }
+
     return YES;
 }
 
-/* formats
- *
- * Returns the list of video formats advertised by this stream.
- * Currently exposes a single 32-bit BGRA format at the configured
- * resolution and frame rate.
+/* Converts each AkVCam::VideoFormat reported by the device source into a
+ * CMIOExtensionStreamFormat and returns the full list.
  */
-- (NSArray<CMIOExtensionStreamFormat *> *)formats {
-    CMVideoFormatDescriptionRef formatDescription = NULL;
-    CMVideoFormatDescriptionCreate(kCFAllocatorDefault,
-                                   kCVPixelFormatType_32BGRA,
-                                   kStreamWidth,
-                                   kStreamHeight,
-                                   NULL,
-                                   &formatDescription);
+- (NSArray<CMIOExtensionStreamFormat *> *) formats
+{
+    AkLogFunction();
 
-    CMIOExtensionStreamFormat *format =
-        [CMIOExtensionStreamFormat
-         streamFormatWithFormatDescription: (CMFormatDescriptionRef) formatDescription
-         maxFrameDuration: CMTimeMake(1, (int32_t) kStreamFPS)
-         minFrameDuration: CMTimeMake(1, (int32_t) kStreamFPS)
-         validFrameDurations: nil];
+    NSMutableArray<CMIOExtensionStreamFormat *> *result =
+        [NSMutableArray array];
 
-    CFRelease(formatDescription);
+    auto akFormats = self.deviceSource.formats;
 
-    return @[format];
+    for (auto &akFmt: akFormats) {
+        double fps = akFmt.fps().value();
+
+        if (fps <= 0.0)
+            fps = 30.0;
+
+        OSType fourcc = formatToCM(AkVCam::PixelFormat(akFmt.format()));
+
+        CMVideoFormatDescriptionRef formatDesc = NULL;
+        OSStatus status =
+            CMVideoFormatDescriptionCreate(kCFAllocatorDefault,
+                                           fourcc,
+                                           akFmt.width(),
+                                           akFmt.height(),
+                                           NULL,
+                                           &formatDesc);
+
+        if (status != noErr || !formatDesc)
+            continue;
+
+        CMTime frameDuration = CMTimeMake(1, (int32_t) fps);
+
+        CMIOExtensionStreamFormat *fmt =
+            [CMIOExtensionStreamFormat
+             streamFormatWithFormatDescription: (CMFormatDescriptionRef) formatDesc
+             maxFrameDuration: frameDuration
+             minFrameDuration: frameDuration
+             validFrameDurations: nil];
+
+        CFRelease(formatDesc);
+        [result addObject: fmt];
+    }
+
+    return result;
 }
 
-/* authorizedToStartStreamForClient:
- *
- * Always returns YES for a virtual camera. For physical devices, delegate
+/* Always returns YES for a virtual camera. Physical devices should delegate
  * to AVCaptureDevice authorization instead.
  */
-- (BOOL) authorizedToStartStreamForClient: (CMIOExtensionClient *) client {
+- (BOOL) authorizedToStartStreamForClient: (CMIOExtensionClient *) client
+{
+    AkLogFunction();
+
     return YES;
 }
 
-/* startStreamAndReturnError:
- *
- * Starts the device source's frame generation timer.
- */
-- (BOOL) startStreamAndReturnError: (NSError **) outError {
+// Starts the device source's frame generation timer.
+- (BOOL) startStreamAndReturnError: (NSError **) outError
+{
+    AkLogFunction();
     [self.deviceSource startStreaming];
 
     return YES;
 }
 
-/* stopStreamAndReturnError:
- *
- * Stops the device source's frame generation timer.
- */
-- (BOOL) stopStreamAndReturnError: (NSError **) outError {
+// Stops the device source's frame generation timer.
+- (BOOL) stopStreamAndReturnError: (NSError **) outError
+{
+    AkLogFunction();
     [self.deviceSource stopStreaming];
 
     return YES;
+}
+
+/* Returns the CMTime frame duration for the first format in the device
+ * source's format list. Falls back to 1/30 s if the list is empty or the
+ * fps value is non-positive.
+ */
+- (CMTime) primaryFrameDuration
+{
+    auto akFormats = self.deviceSource.formats;
+    NSUInteger index = self.deviceSource.activeFormatIndex;
+
+    if (index < akFormats.size()) {
+        double fps = akFormats[index].fps().value();
+
+        if (fps > 0.0)
+            return CMTimeMake(1, (int32_t) fps);
+    }
+
+    return CMTimeMake(1, 30);
 }
 
 @end
