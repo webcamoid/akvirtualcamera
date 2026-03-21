@@ -33,6 +33,18 @@
 }
 @end
 
+static void devicesChangedCallback(void *userData,
+                                   const std::vector<std::string> &devices);
+static void frameReadyCallback(void *userData,
+                               const std::string &deviceId,
+                               const AkVCam::VideoFrame &frame,
+                               bool isActive);
+static void pictureChangedCallback(void *userData,
+                                   const std::string &picture);
+static void controlsChangedCallback(void *userData,
+                                    const std::string &deviceId,
+                                    const std::map<std::string, int> &controls);
+
 @implementation ExtensionProviderSource
 
 /* Creates the IpcBridge, subscribes to its four callbacks, starts
@@ -55,8 +67,6 @@
                                           ExtensionProviderSource::pictureChangedCallback);
         m_ipcBridge->connectControlsChanged((__bridge void *) self,
                                            ExtensionProviderSource::controlsChangedCallback);
-
-        m_ipcBridge->startNotifications();
 
         for (auto &deviceId: m_ipcBridge->devices()) {
             auto description = m_ipcBridge->description(deviceId);
