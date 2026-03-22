@@ -123,7 +123,7 @@ sudo ln -s "\${INSTALL_PATH}/AkVirtualCamera.plugin" "/Library/CoreMediaIO/Plug-
 
 echo "Writing the uninstaller"
 
-cat << UNINSTALLER_EOF > "\${INSTALL_PATH}/uninstall.sh"
+cat << 'UNINSTALLER_EOF' > "\${INSTALL_PATH}/uninstall.sh"
 #!/bin/sh
 set -ex
 
