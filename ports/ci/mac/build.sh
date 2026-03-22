@@ -123,7 +123,7 @@ echo "Setting the assistant daemon"
 service=io.github.webcamoid.AkVirtualCamera.Assistant
 daemonPlist=/Library/LaunchDaemons/\${service}.plist
 
-sudo tee "\${daemonPlist}" > /dev/null << 'EOF'
+sudo tee "\${daemonPlist}" > /dev/null << 'DAEMON_PLIST_EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -148,6 +148,7 @@ sudo tee "\${daemonPlist}" > /dev/null << 'EOF'
         <string>/tmp/AkVCamAssistant.log</string>
     </dict>
 </plist>
+DAEMON_PLIST_EOF
 
 echo
 echo "Webcamoid is ready to use at \${INSTALL_PATH}"
@@ -269,4 +270,4 @@ echo
 echo
 echo "Test uninstall"
 echo
-/Applications/AkVirtualCamera/uninstall.sh --no-gui
+sudo /Applications/AkVirtualCamera/uninstall.sh --no-gui
