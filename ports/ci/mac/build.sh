@@ -157,9 +157,6 @@ esac
 path=\$(realpath "\$0")
 targetDir=\$(dirname "\${path}")
 
-# Unregister app from packages database
-pkgutil --forget io.github.webcamoid.\${appName}
-
 resourcesDir=\${targetDir}/\${appName}.plugin/Contents/Resources
 
 # Remove virtual cameras
