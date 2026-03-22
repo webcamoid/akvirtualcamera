@@ -118,38 +118,6 @@ chmod a+x "\${resourcesDir}/AkVCamManager"
 echo "Creating a symlink to the plugin"
 sudo ln -s "\${INSTALL_PATH}/AkVirtualCamera.plugin" "/Library/CoreMediaIO/Plug-Ins/DAL/AkVirtualCamera.plugin"
 
-echo "Setting the assistant daemon"
-
-service=io.github.webcamoid.AkVirtualCamera.Assistant
-daemonPlist=/Library/LaunchDaemons/\${service}.plist
-
-sudo tee "\${daemonPlist}" > /dev/null << 'DAEMON_PLIST_EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
- "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-    <dict>
-        <key>Label</key>
-        <string>\${service}</string>
-        <key>ProgramArguments</key>
-        <array>
-            <string>\${resourcesDir}/AkVCamAssistant</string>
-            <string>--timeout</string>
-            <string>300.0</string>
-        </array>
-        <key>MachServices</key>
-        <dict>
-            <key>\${service}</key>
-            <true/>
-        </dict>
-        <key>StandardOutPath</key>
-        <string>/tmp/AkVCamAssistant.log</string>
-        <key>StandardErrorPath</key>
-        <string>/tmp/AkVCamAssistant.log</string>
-    </dict>
-</plist>
-DAEMON_PLIST_EOF
-
 echo
 echo "Webcamoid is ready to use at \${INSTALL_PATH}"
 EOF
