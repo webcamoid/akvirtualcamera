@@ -107,7 +107,7 @@ python3 "\${DT_PATH}/deploy.py" \
     -c "\${BUILD_PATH}/package_info.conf"
 
 echo "Removing the old plugin"
-rm -rf "/Library/CoreMediaIO/Plug-Ins/DAL/AkVirtualCamera.plugin"
+sudo rm -rf "/Library/CoreMediaIO/Plug-Ins/DAL/AkVirtualCamera.plugin"
 
 resourcesDir="\${INSTALL_PATH}/AkVirtualCamera.plugin/Contents/Resources"
 
@@ -116,13 +116,14 @@ chmod a+x "\${resourcesDir}/AkVCamAssistant"
 chmod a+x "\${resourcesDir}/AkVCamManager"
 
 echo "Creating a symlink to the plugin"
-ln -s "\${INSTALL_PATH}/AkVirtualCamera.plugin" "/Library/CoreMediaIO/Plug-Ins/DAL/AkVirtualCamera.plugin"
+sudo ln -s "\${INSTALL_PATH}/AkVirtualCamera.plugin" "/Library/CoreMediaIO/Plug-Ins/DAL/AkVirtualCamera.plugin"
 
 echo "Setting the assistant daemon"
 
 service=io.github.webcamoid.AkVirtualCamera.Assistant
 daemonPlist=/Library/LaunchDaemons/\${service}.plist
-cat << EOF > "\${daemonPlist}"
+
+sudo tee "\${daemonPlist}" > /dev/null << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
