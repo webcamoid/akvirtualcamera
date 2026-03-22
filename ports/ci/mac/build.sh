@@ -38,6 +38,9 @@ rm -rf /tmp/akvirtualcamera-data/${component}/DeployTools/.git
 
 mkdir -p /tmp/installScripts
 cat << EOF > /tmp/installScripts/postinstall
+#!/bin/sh
+set -ex
+
 # Install XCode command line tools and homebrew
 
 if [ ! -d /Applications/Xcode.app ]; then
@@ -119,11 +122,14 @@ echo "Creating a symlink to the plugin"
 sudo ln -s "\${INSTALL_PATH}/AkVirtualCamera.plugin" "/Library/CoreMediaIO/Plug-Ins/DAL/AkVirtualCamera.plugin"
 
 echo
-echo "Webcamoid is ready to use at \${INSTALL_PATH}"
+echo "AkVirtualCamera is ready to use at \${INSTALL_PATH}"
 EOF
 
 mkdir -p /tmp/uninstallScripts
 cat << EOF > /tmp/uninstallScripts/uninstall.sh
+#!/bin/sh
+set -ex
+
 appName=AkVirtualCamera
 
 if [[ "\$*" == *--no-gui* ]]; then
