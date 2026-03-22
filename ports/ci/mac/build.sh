@@ -1,42 +1,271 @@
-#!/bin/bash
+#!/bin/sh
 
-# akvirtualcamera, virtual camera for Mac and Windows.
-# Copyright (C) 2021  Gonzalo Exequiel Pedone
-#
-# akvirtualcamera is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# akvirtualcamera is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with akvirtualcamera. If not, see <http://www.gnu.org/licenses/>.
-#
-# Web-Site: http://webcamoid.github.io/
+set -e
 
-COMPILER_C=clang
-COMPILER_CXX=clang++
-
-if [ -z "${DISABLE_CCACHE}" ]; then
-    EXTRA_PARAMS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache"
+if [ ! -z "${GITHUB_SHA}" ]; then
+    export GIT_COMMIT_HASH="${GITHUB_SHA}"
+elif [ ! -z "${CIRRUS_CHANGE_IN_REPO}" ]; then
+    export GIT_COMMIT_HASH="${CIRRUS_CHANGE_IN_REPO}"
 fi
 
-INSTALL_PREFIX=${PWD}/package-data
+export GIT_BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
-mkdir -p build
+if [ -z "${GIT_BRANCH_NAME}" ]; then
+    if [ ! -z "${GITHUB_REF_NAME}" ]; then
+        export GIT_BRANCH_NAME="${GITHUB_REF_NAME}"
+    elif [ ! -z "${CIRRUS_BRANCH}" ]; then
+        export GIT_BRANCH_NAME="${CIRRUS_BRANCH}"
+    else
+        export GIT_BRANCH_NAME=master
+    fi
+fi
+
+brew update
+brew upgrade
+brew install makeself
+
+# Distribute a static version of DeployTools with akvirtualcamera source code
+
+git clone https://github.com/webcamoid/DeployTools.git
+
+component=AkVirtualCameraSrc
+
+rm -rf "${PWD}/akvirtualcamera-packages"
+mkdir -p /tmp/akvirtualcamera-data
+cp -rf . /tmp/akvirtualcamera-data/${component}
+rm -rf /tmp/akvirtualcamera-data/${component}/.git
+rm -rf /tmp/akvirtualcamera-data/${component}/DeployTools/.git
+
+mkdir -p /tmp/installScripts
+cat << EOF > /tmp/installScripts/postinstall
+# Install XCode command line tools and homebrew
+
+if [ ! -d /Applications/Xcode.app ]; then
+    echo "Installing XCode command line tools"
+    echo
+    xcode-select --install
+    echo
+fi
+
+if ! command -v brew >/dev/null 2>&1; then
+    echo "Installing Homebrew"
+    echo
+    /bin/bash -c "\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    echo
+fi
+
+# Install the build dependencies for AkVirtualCamera
+
+echo "Updating Homebrew database"
+echo
+brew update
+brew upgrade
+echo
+echo "Installing dependencies"
+echo
+brew install \
+    ccache \
+    cmake \
+    p7zip \
+    pkg-config \
+    python
+
+echo
+echo "Building AkVirtualCamera with Cmake"
+echo
+
+export MACOSX_DEPLOYMENT_TARGET="10.\$(sw_vers -productVersion | cut -d. -f1)"
+
+INSTALL_PATH=/Applications/AkVirtualCamera
+BUILD_PATH=/tmp/build-AkVirtualCamera-Release
+mkdir -p "\${BUILD_PATH}"
 cmake \
-    -LA \
-    -S . \
-    -B build \
+    -S /tmp/${component} \
+    -B "\${BUILD_PATH}" \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCMAKE_C_COMPILER="${COMPILER_C}" \
-    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
-    -DDAILY_BUILD="${DAILY_BUILD}" \
-    ${EXTRA_PARAMS}
-cmake --build build --parallel ${NJOBS}
-cmake --build build --target install
+    -DCMAKE_INSTALL_PREFIX="\${INSTALL_PATH}" \
+    -DGIT_COMMIT_HASH="${GIT_COMMIT_HASH}" \
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache \
+    -DDAILY_BUILD=${DAILY_BUILD}
+cmake --build "\${BUILD_PATH}" --parallel \$(sysctl -n hw.ncpu)
+cmake --install "\${BUILD_PATH}"
+
+echo
+echo "Packaging AkVirtualCamera"
+echo
+
+DT_PATH="/tmp/${component}/DeployTools"
+export PYTHONPATH="\${DT_PATH}"
+
+# Only solve the dependencies, do not package into another pkg
+
+python3 "\${DT_PATH}/deploy.py" \
+    -r \
+    -d "\${INSTALL_PATH}" \
+    -c "\${BUILD_PATH}/package_info.conf"
+
+echo "Removing the old plugin"
+rm -rf "/Library/CoreMediaIO/Plug-Ins/DAL/AkVirtualCamera.plugin"
+
+resourcesDir="\${INSTALL_PATH}/AkVirtualCamera.plugin/Contents/Resources"
+
+echo "Reseting binary permissions"
+chmod a+x "\${resourcesDir}/AkVCamAssistant"
+chmod a+x "\${resourcesDir}/AkVCamManager"
+
+echo "Creating a symlink to the plugin"
+ln -s "\${INSTALL_PATH}/AkVirtualCamera.plugin" "/Library/CoreMediaIO/Plug-Ins/DAL/AkVirtualCamera.plugin"
+
+echo "Setting the assistant daemon"
+
+service=io.github.webcamoid.AkVirtualCamera.Assistant
+daemonPlist=/Library/LaunchDaemons/\${service}.plist
+cat << EOF > "\${daemonPlist}"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>\${service}</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>\${resourcesDir}/AkVCamAssistant</string>
+            <string>--timeout</string>
+            <string>300.0</string>
+        </array>
+        <key>MachServices</key>
+        <dict>
+            <key>\${service}</key>
+            <true/>
+        </dict>
+        <key>StandardOutPath</key>
+        <string>/tmp/AkVCamAssistant.log</string>
+        <key>StandardErrorPath</key>
+        <string>/tmp/AkVCamAssistant.log</string>
+    </dict>
+</plist>
+
+echo
+echo "Webcamoid is ready to use at \${INSTALL_PATH}"
+EOF
+
+mkdir -p /tmp/uninstallScripts
+cat << EOF > /tmp/uninstallScripts/uninstall.sh
+appName=AkVirtualCamera
+
+if [[ "\$*" == *--no-gui* ]]; then
+    if [ "\${EUID}" -ne 0 ]; then
+        echo "The uninstall script must be run as root" 1>&2
+
+        exit -1
+    fi
+else
+    answer=\$(osascript -e "button returned of (display dialog \"Uninstall \${appName}?\" with icon caution buttons {\"Yes\", \"No\"} default button 2)")
+
+    if [ "\${answer}" == No ]; then
+        echo "Uninstall not executed" 1>&2
+
+        exit -1
+    fi
+
+    if [ "\${EUID}" -ne 0 ]; then
+        osascript -e "do shell script \"\$0 --no-gui\" with administrator privileges"
+
+        exit \$?
+    fi
+fi
+
+path=\$(realpath "\$0")
+targetDir=\$(dirname "\${path}")
+
+# Unregister app from packages database
+pkgutil --forget io.github.webcamoid.\${appName}
+
+resourcesDir=\${targetDir}/\${appName}.plugin/Contents/Resources
+
+# Remove virtual cameras
+"\${resourcesDir}/AkVCamManager" remove-devices
+"\${resourcesDir}/AkVCamManager" update
+
+# Remove symlink
+rm -f "/Library/CoreMediaIO/Plug-Ins/DAL/\${appName}.plugin"
+
+# Disable service
+service=org.webcamoid.cmio.AkVCam.Assistant
+daemonPlist=/Library/LaunchDaemons/\${service}.plist
+launchctl enable "system/\${service}"
+launchctl bootout system "\${daemonPlist}"
+rm -f "\${daemonPlist}"
+
+# Remove installed files
+rm -rf "\${targetDir}"
+
+# Ending message
+endMessage="\${appName} successfully uninstalled"
+
+if [[ "\$*" == *--no-gui* ]]; then
+    echo "\${endMessage}"
+else
+    osascript -e "display dialog \\\"\${endMessage}\\\" buttons {\\\"Ok\\\"} default button 1"
+fi
+EOF
+
+verMaj=$(grep commons.cmake | awk '{print $2}' | tr -d ')' | head -n 1)
+verMin=$(grep commons.cmake | awk '{print $2}' | tr -d ')' | head -n 1)
+verPat=$(grep commons.cmake | awk '{print $2}' | tr -d ')' | head -n 1)
+releaseVer=${verMaj}.${verMin}.${verPat}
+
+cat << EOF > /tmp/package_info.conf
+[Package]
+name = akvirtualcamera
+identifier = io.github.webcamoid.AkVirtualCamera
+targetPlatform = mac
+sourcesDir = ${PWD}
+targetArch = any
+version = ${releaseVer}
+outputFormats = Makeself
+dailyBuild = ${DAILY_BUILD}
+buildType = Release
+writeBuildInfo = false
+
+[Git]
+hideCommitCount = true
+
+[Makeself]
+name = akvirtualcamera-installer
+appName = AkVirtualCamera
+targetDir = /tmp
+installScript = /tmp/installScripts/postinstall
+uninstallScript = /tmp/uninstallScripts/uninstall.sh
+hideArch = true
+EOF
+
+chmod +x /tmp/installScripts/postinstall
+chmod +x /tmp/installScripts/uninstall.sh
+
+PACKAGES_DIR="${PWD}/akvirtualcamera-packages/mac"
+
+python3 DeployTools/deploy.py \
+    -d "/tmp/akvirtualcamera-data" \
+    -c "/tmp/package_info.conf" \
+    -o "${PACKAGES_DIR}"
+
+echo
+echo "Testing the package install"
+echo
+
+chmod +x "${PACKAGES_DIR}"/*.run
+"${PACKAGES_DIR}"/*.run --accept
+
+echo
+echo "Test AkVCamManager"
+echo
+/Applications/AkVirtualCamera/AkVirtualCamera.plugin/Contents/Resources/AkVCamManager --version
+
+echo
+echo "Test uninstall"
+echo
+/Applications/AkVirtualCamera/uninstall.sh --no-gui
