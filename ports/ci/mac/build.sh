@@ -244,7 +244,7 @@ hideArch = true
 EOF
 
 chmod +x /tmp/installScripts/postinstall
-chmod +x /tmp/installScripts/uninstall.sh
+chmod +x /tmp/uninstallScripts/uninstall.sh
 
 PACKAGES_DIR="${PWD}/akvirtualcamera-packages/mac"
 
