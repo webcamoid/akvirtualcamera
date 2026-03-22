@@ -39,6 +39,7 @@ rm -rf /tmp/akvirtualcamera-data/${component}/DeployTools/.git
 mkdir -p /tmp/installScripts
 cat << EOF > /tmp/installScripts/postinstall
 #!/bin/sh
+set -ex
 
 # Install XCode command line tools and homebrew
 
@@ -124,6 +125,7 @@ echo "Writing the uninstaller"
 
 cat << UNINSTALLER_EOF > "\${INSTALL_PATH}/uninstall.sh"
 #!/bin/sh
+set -ex
 
 appName=AkVirtualCamera
 
