@@ -32,7 +32,7 @@ appName=AkVirtualCamera
 appNameLower=$(echo "${appName}" | tr '[:upper:]' '[:lower:]')
 component=${appName}Src
 
-rm -rf "${PWD}/${appNameLower}-packages"
+rm -rf "${PWD}/packages"
 mkdir -p /tmp/${appNameLower}-data
 cp -rf . /tmp/${appNameLower}-data/${component}
 rm -rf /tmp/${appNameLower}-data/${component}/.git
@@ -214,6 +214,44 @@ resourcesDir=\${targetDir}/${appName}.plugin/Contents/Resources
 # Remove symlink
 rm -f "/Library/CoreMediaIO/Plug-Ins/DAL/${appName}.plugin"
 
+# Remove CMIO extension if installed
+
+MIN_VERSION="12.3"
+
+version_gte() {
+    awk -v v1="\$1" -v v2="\$2" 'BEGIN {
+        split(v1, a, ".")
+        split(v2, b, ".")
+
+        for (i = 1; i <= 3; i++) {
+            if (a[i]+0 > b[i]+0) {
+                print 1
+
+                exit
+            }
+
+            if (a[i]+0 < b[i]+0) {
+                print 0
+
+                exit
+            }
+        }
+
+        print 1
+    }'
+}
+
+CURRENT="\$(sw_vers -productVersion)"
+
+if [ "\$(version_gte "\$CURRENT" "\$MIN_VERSION")" = "1" ]; then
+    extensionBundle="io.github.webcamoid.${appName}CX.Extension"
+    extensionTeamId="ABCDEF1234"  # Reemplazar con el Team ID real
+
+    if systemextensionsctl list | grep -q "\${extensionBundle}"; then
+        systemextensionsctl uninstall "\${extensionTeamId}" "\${extensionBundle}"
+    fi
+fi
+
 # Remove installed files
 rm -rf "\${targetDir}"
 
@@ -281,7 +319,7 @@ EOF
 
 chmod +x /tmp/installScripts/postinstall
 
-PACKAGES_DIR="${PWD}/${appNameLower}-packages/mac"
+PACKAGES_DIR="${PWD}/packages/mac"
 
 python3 DeployTools/deploy.py \
     -d "/tmp/${appNameLower}-data" \
