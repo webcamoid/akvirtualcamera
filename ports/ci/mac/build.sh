@@ -28,18 +28,19 @@ brew install makeself
 
 git clone https://github.com/webcamoid/DeployTools.git
 
-component=AkVirtualCameraSrc
+appName=AkVirtualCamera
+appNameLower=$(echo "${appName}" | tr '[:upper:]' '[:lower:]')
+component=${appName}Src
 
-rm -rf "${PWD}/akvirtualcamera-packages"
-mkdir -p /tmp/akvirtualcamera-data
-cp -rf . /tmp/akvirtualcamera-data/${component}
-rm -rf /tmp/akvirtualcamera-data/${component}/.git
-rm -rf /tmp/akvirtualcamera-data/${component}/DeployTools/.git
+rm -rf "${PWD}/${appNameLower}-packages"
+mkdir -p /tmp/${appNameLower}-data
+cp -rf . /tmp/${appNameLower}-data/${component}
+rm -rf /tmp/${appNameLower}-data/${component}/.git
+rm -rf /tmp/${appNameLower}-data/${component}/DeployTools/.git
 
 mkdir -p /tmp/installScripts
 cat << EOF > /tmp/installScripts/postinstall
 #!/bin/sh
-set -ex
 
 # Install XCode command line tools and homebrew
 
@@ -57,7 +58,7 @@ if ! command -v brew >/dev/null 2>&1; then
     echo
 fi
 
-# Install the build dependencies for AkVirtualCamera
+# Install the build dependencies for ${appName}
 
 echo "Updating Homebrew database"
 echo
@@ -74,13 +75,13 @@ brew install \
     python
 
 echo
-echo "Building AkVirtualCamera with Cmake"
+echo "Building ${appName} with Cmake"
 echo
 
-export MACOSX_DEPLOYMENT_TARGET="10.\$(sw_vers -productVersion | cut -d. -f1)"
+export MACOSX_DEPLOYMENT_TARGET="\$(sw_vers -productVersion | cut -d. -f1-2)"
 
-INSTALL_PATH=/Applications/AkVirtualCamera
-BUILD_PATH=/tmp/build-AkVirtualCamera-Release
+INSTALL_PATH=/Applications/${appName}
+BUILD_PATH=/tmp/build-${appName}-Release
 mkdir -p "\${BUILD_PATH}"
 cmake \
     -S /tmp/${component} \
@@ -96,7 +97,7 @@ cmake --build "\${BUILD_PATH}" --parallel \$(sysctl -n hw.ncpu)
 cmake --install "\${BUILD_PATH}"
 
 echo
-echo "Packaging AkVirtualCamera"
+echo "Packaging ${appName}"
 echo
 
 DT_PATH="/tmp/${component}/DeployTools"
@@ -110,35 +111,82 @@ python3 "\${DT_PATH}/deploy.py" \
     -c "\${BUILD_PATH}/package_info.conf"
 
 echo "Removing the old plugin"
-sudo rm -rf "/Library/CoreMediaIO/Plug-Ins/DAL/AkVirtualCamera.plugin"
+sudo rm -rf "/Library/CoreMediaIO/Plug-Ins/DAL/${appName}.plugin"
 
-resourcesDir="\${INSTALL_PATH}/AkVirtualCamera.plugin/Contents/Resources"
+resourcesDir="\${INSTALL_PATH}/${appName}.plugin/Contents/Resources"
 
 echo "Reseting binary permissions"
 chmod a+x "\${resourcesDir}/AkVCamAssistant"
 chmod a+x "\${resourcesDir}/AkVCamManager"
 
 echo "Creating a symlink to the plugin"
-sudo ln -s "\${INSTALL_PATH}/AkVirtualCamera.plugin" "/Library/CoreMediaIO/Plug-Ins/DAL/AkVirtualCamera.plugin"
+sudo ln -s "\${INSTALL_PATH}/${appName}.plugin" "/Library/CoreMediaIO/Plug-Ins/DAL/${appName}.plugin"
+
+# Configure the CMIO extension
+
+MIN_VERSION="12.3"
+
+version_gte() {
+    awk -v v1="\$1" -v v2="\$2" 'BEGIN {
+        split(v1, a, ".")
+        split(v2, b, ".")
+
+        for (i = 1; i <= 3; i++) {
+            if (a[i]+0 > b[i]+0) {
+                print 1
+
+                exit
+            }
+
+            if (a[i]+0 < b[i]+0) {
+                print 0
+
+                exit
+            }
+        }
+
+        print 1
+    }'
+}
+
+CURRENT="\$(sw_vers -productVersion)"
+cmioExtensionSupported=false
+
+if [ "\$(version_gte "\$CURRENT" "\$MIN_VERSION")" = "1" ]; then
+    cmioExtensionSupported=true
+fi
+
+developerMode=disabled
+
+if systemextensionsctl developer | grep -q "enabled"; then
+    developerMode=enabled
+fi
+
+showExtensionMessage=false
+
+if [ "\${cmioExtensionSupported}" = "true" ]; then
+    if [ "\${developerMode}" = "enabled" ]; then
+        systemextensionsctl install \${INSTALL_PATH}/${appName}CX.app/Contents/Library/SystemExtensions/io.github.webcamoid.${appName}CX.Extension.systemextension
+    else
+        showExtensionMessage=true
+    fi
+fi
 
 echo "Writing the uninstaller"
 
 cat << 'UNINSTALLER_EOF' > "\${INSTALL_PATH}/uninstall.sh"
 #!/bin/sh
-set -ex
-
-appName=AkVirtualCamera
 
 case "\$*" in
     *--no-gui*)
-        if [ "\${EUID}" -ne 0 ]; then
+        if [ "\$(id -u)" -ne 0 ]; then
             echo "The uninstall script must be run as root" 1>&2
 
             exit 1
         fi
         ;;
     *)
-        answer=\$(osascript -e "button returned of (display dialog \"Uninstall \${appName}?\" with icon caution buttons {\"Yes\", \"No\"} default button 2)")
+        answer=\$(osascript -e "button returned of (display dialog \"Uninstall ${appName}?\" with icon caution buttons {\"Yes\", \"No\"} default button 2)")
 
         if [ "\${answer}" = "No" ]; then
             echo "Uninstall not executed" 1>&2
@@ -146,7 +194,7 @@ case "\$*" in
             exit 1
         fi
 
-        if [ "\${EUID}" -ne 0 ]; then
+        if [ "\$(id -u)" -ne 0 ]; then
             osascript -e "do shell script \"\$0 --no-gui\" with administrator privileges"
 
             exit \$?
@@ -157,20 +205,20 @@ esac
 path=\$(realpath "\$0")
 targetDir=\$(dirname "\${path}")
 
-resourcesDir=\${targetDir}/\${appName}.plugin/Contents/Resources
+resourcesDir=\${targetDir}/${appName}.plugin/Contents/Resources
 
 # Remove virtual cameras
 "\${resourcesDir}/AkVCamManager" remove-devices
 "\${resourcesDir}/AkVCamManager" update
 
 # Remove symlink
-rm -f "/Library/CoreMediaIO/Plug-Ins/DAL/\${appName}.plugin"
+rm -f "/Library/CoreMediaIO/Plug-Ins/DAL/${appName}.plugin"
 
 # Remove installed files
 rm -rf "\${targetDir}"
 
 # Ending message
-endMessage="\${appName} successfully uninstalled"
+endMessage="${appName} successfully uninstalled"
 
 case "\$*" in
     *--no-gui*)
@@ -184,19 +232,33 @@ UNINSTALLER_EOF
 
 chmod +x "\${INSTALL_PATH}/uninstall.sh"
 
+if [ "\${showExtensionMessage}" = "true" ]; then
+    echo
+    echo "The CMIO extension can't be installed because the developer mode is disbled."
+    echo "For enabling the developer mode do as follow:"
+    echo
+    echo "1. Restart in Recovery Mode as follow:"
+    echo "    Apple Silicon: Keep pressed the powr button until it shows 'Loading startup options'"
+    echo "    Intel: Press Command + R on start"
+    echo "2. Open the Terminal from the Utilities menu."
+    echo "3. Run the command: 'systemextensionsctl developer on'"
+    echo "4. Restart normally."
+    echo "5. Then install the extension with: 'systemextensionsctl install \${INSTALL_PATH}/${appName}CX.app/Contents/Library/SystemExtensions/io.github.webcamoid.${appName}CX.Extension.systemextension'"
+fi
+
 echo
-echo "AkVirtualCamera is ready to use at \${INSTALL_PATH}"
+echo "${appName} is ready to use at \${INSTALL_PATH}"
 EOF
 
-verMaj=$(grep commons.cmake | awk '{print $2}' | tr -d ')' | head -n 1)
-verMin=$(grep commons.cmake | awk '{print $2}' | tr -d ')' | head -n 1)
-verPat=$(grep commons.cmake | awk '{print $2}' | tr -d ')' | head -n 1)
+verMaj=$(grep VER_MAJ commons.cmake | awk '{print $2}' | tr -d ')' | head -n 1)
+verMin=$(grep VER_MIN commons.cmake | awk '{print $2}' | tr -d ')' | head -n 1)
+verPat=$(grep VER_PAT commons.cmake | awk '{print $2}' | tr -d ')' | head -n 1)
 releaseVer=${verMaj}.${verMin}.${verPat}
 
 cat << EOF > /tmp/package_info.conf
 [Package]
-name = akvirtualcamera
-identifier = io.github.webcamoid.AkVirtualCamera
+name = ${appNameLower}
+identifier = io.github.webcamoid.${appName}
 targetPlatform = mac
 sourcesDir = ${PWD}
 targetArch = any
@@ -210,8 +272,8 @@ writeBuildInfo = false
 hideCommitCount = true
 
 [Makeself]
-name = akvirtualcamera-installer
-appName = AkVirtualCamera
+name = ${appNameLower}-installer
+appName = ${appName}
 targetDir = /tmp
 installScript = /tmp/installScripts/postinstall
 hideArch = true
@@ -219,10 +281,10 @@ EOF
 
 chmod +x /tmp/installScripts/postinstall
 
-PACKAGES_DIR="${PWD}/akvirtualcamera-packages/mac"
+PACKAGES_DIR="${PWD}/${appNameLower}-packages/mac"
 
 python3 DeployTools/deploy.py \
-    -d "/tmp/akvirtualcamera-data" \
+    -d "/tmp/${appNameLower}-data" \
     -c "/tmp/package_info.conf" \
     -o "${PACKAGES_DIR}"
 
@@ -236,9 +298,9 @@ chmod +x "${PACKAGES_DIR}"/*.run
 echo
 echo "Test AkVCamManager"
 echo
-/Applications/AkVirtualCamera/AkVirtualCamera.plugin/Contents/Resources/AkVCamManager --version
+/Applications/${appNameLower}/${appNameLower}.plugin/Contents/Resources/AkVCamManager --version
 
 echo
 echo "Test uninstall"
 echo
-sudo /Applications/AkVirtualCamera/uninstall.sh --no-gui
+sudo /Applications/${appNameLower}/uninstall.sh --no-gui
