@@ -44,8 +44,12 @@ export PACKAGES_DIR="${PWD}/packages/windows-${COMPILER}"
 export BUILD_PATH="${PWD}/build-${COMPILER}-x64"
 export PYTHONPATH="${PWD}/DeployTools"
 
-/mingw32/bin/strip "${INSTALL_PREFIX}/x86"/*
 /mingw64/bin/strip "${INSTALL_PREFIX}/x64"/*
+
+if [ "${COMPILER}" != clang ]; then
+    /mingw32/bin/strip "${INSTALL_PREFIX}/x86"/*
+fi
+
 mkdir -p "${PACKAGES_DIR}"
 
 python3 DeployTools/deploy.py \

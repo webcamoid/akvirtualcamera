@@ -30,8 +30,8 @@ if [ "${DISABLE_CCACHE}" != 1 ]; then
     EXTRA_PARAMS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache"
 fi
 
-#BUILD_TYPE=Release
-BUILD_TYPE=Debug
+BUILD_TYPE=Release
+#BUILD_TYPE=Debug
 INSTALL_PREFIX=${PWD}/package-data-${COMPILER}
 ORIG_PATH=${PATH}
 
@@ -56,23 +56,25 @@ cmake \
 cmake --build ${buildDir} --parallel ${NJOBS}
 cmake --build ${buildDir} --target install
 
-echo
-echo "Building x86 virtual camera driver"
-echo
+if [ "${COMPILER}" != clang ]; then
+    echo
+    echo "Building x86 virtual camera driver"
+    echo
 
-export PATH=/mingw32/bin:/c/msys64/mingw32/bin:/c/msys64/usr/bin:${ORIG_PATH}
-buildDir=build-${COMPILER}-x86
-mkdir -p ${buildDir}
-cmake \
-    -LA \
-    -S . \
-    -B ${buildDir} \
-    -G "MSYS Makefiles" \
-    -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCMAKE_C_COMPILER="${COMPILER_C}" \
-    -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
-    -DDAILY_BUILD="${DAILY_BUILD}" \
-    ${EXTRA_PARAMS}
-cmake --build ${buildDir} --parallel ${NJOBS}
-cmake --build ${buildDir} --target install
+    export PATH=/mingw32/bin:/c/msys64/mingw32/bin:/c/msys64/usr/bin:${ORIG_PATH}
+    buildDir=build-${COMPILER}-x86
+    mkdir -p ${buildDir}
+    cmake \
+        -LA \
+        -S . \
+        -B ${buildDir} \
+        -G "MSYS Makefiles" \
+        -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+        -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+        -DCMAKE_C_COMPILER="${COMPILER_C}" \
+        -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+        -DDAILY_BUILD="${DAILY_BUILD}" \
+        ${EXTRA_PARAMS}
+    cmake --build ${buildDir} --parallel ${NJOBS}
+    cmake --build ${buildDir} --target install
+fi

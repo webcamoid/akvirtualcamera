@@ -18,7 +18,13 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(AppDelegate LANGUAGES CXX OBJCXX)
+set(LANGS CXX)
+
+if (APPLE OR FAKE_APPLE)
+    list(APPEND LANGS OBJCXX)
+endif ()
+
+project(AppDelegate LANGUAGES ${LANGS})
 
 include(../../commons.cmake)
 
