@@ -1,3 +1,9 @@
+akvirtualcamera 9.4.0:
+
+- Microsoft Media Foundation virtual camera is now working.
+- Added support for CMIO media extensions, not tested but shuold work, maybe.
+- Distributing Mac packages as Makeself instead of pkg.
+
 akvirtualcamera 9.3.3:
 
 - The DirectShow virtual camera code was simplified and implemented all
