@@ -1,5 +1,10 @@
 mac_task:
   matrix:
+    - name: MacOS Tahoe (16.0)
+      macos_instance:
+        image: ghcr.io/cirruslabs/macos-tahoe-base:latest
+      env:
+        UPLOAD: 0
     - name: MacOS Sequoia (15.0)
       macos_instance:
         image: ghcr.io/cirruslabs/macos-sequoia-base:latest
@@ -8,16 +13,6 @@ mac_task:
     - name: MacOS Sonoma (14.0)
       macos_instance:
         image: ghcr.io/cirruslabs/macos-sonoma-base:latest
-      env:
-        UPLOAD: 0
-    - name: MacOS Ventura (13.0)
-      macos_instance:
-        image: ghcr.io/cirruslabs/macos-ventura-base:latest
-      env:
-        UPLOAD: 0
-    - name: MacOS Monterrey (12.0)
-      macos_instance:
-        image: ghcr.io/cirruslabs/macos-monterey-base:latest
       env:
         UPLOAD: 0
   env:
@@ -34,15 +29,6 @@ mac_task:
     cpu: 2
     memory: 4G
   timeout_in: 60m
-  install_script:
-    - chmod +x ports/ci/mac/install_deps.sh
-    - ./ports/ci/mac/install_deps.sh
   script:
     - chmod +x ports/ci/mac/build.sh
     - ./ports/ci/mac/build.sh
-  deploy_script:
-    - chmod +x ports/ci/mac/deploy.sh
-    - ./ports/ci/mac/deploy.sh
-  upload_script:
-    - chmod +x ports/ci/mac/upload.sh
-    - ./ports/ci/mac/upload.sh
