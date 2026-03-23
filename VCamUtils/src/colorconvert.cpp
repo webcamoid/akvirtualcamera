@@ -560,9 +560,9 @@ int64_t AkVCam::ColorConvertPrivate::nearestPowOf2(int64_t value) const
         res++;
 
     if (std::abs((1 << (res + 1)) - value) <= std::abs((1 << res) - value))
-        return 1 << (res + 1);
+        return 1LL << (res + 1);
 
-    return 1 << res;
+    return 1LL << res;
 }
 
 void AkVCam::ColorConvertPrivate::limitsY(int bits,
