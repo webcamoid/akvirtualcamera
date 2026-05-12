@@ -49,12 +49,12 @@ sleep 20
 
 echo "Testing the virtual camera in DirectShow"
 
-"${COMPILER}++" -o testds.exe ports/ci/windows-msys/testds.cpp -lole32 -loleaut32 -lstrmiids -lquartz
+"/mingw64/bin/${COMPILER}++" -o testds.exe ports/ci/windows-msys/testds.cpp -lole32 -loleaut32 -lstrmiids -lquartz
 ./testds.exe
 
 echo "Testing the virtual camera in Media Foundation"
 
-"${COMPILER}++" -o testmf.exe ports/ci/windows-msys/testmf.cpp -lole32 -lmf -lmfplat -lmfreadwrite -lmfuuid
+"/mingw64/bin/${COMPILER}++" -o testmf.exe ports/ci/windows-msys/testmf.cpp -lole32 -lmf -lmfplat -lmfreadwrite -lmfuuid
 ./testmf.exe
 
 echo "Checking if the services are up"
