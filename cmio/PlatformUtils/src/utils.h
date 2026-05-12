@@ -35,6 +35,7 @@ namespace AkVCam
     std::string locateManagerPath();
     std::string locateServicePath();
     std::string locatePluginPath();
+    bool supportsCmioExtensionVCam();
     std::string tempPath();
     bool uuidEqual(const REFIID &uuid1, const CFUUIDRef uuid2);
     std::string enumToString(uint32_t value);

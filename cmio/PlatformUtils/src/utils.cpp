@@ -25,6 +25,7 @@
 #include <CoreGraphics/CGImage.h>
 #include <CoreGraphics/CGDataProvider.h>
 #include <libproc.h>
+#include <sys/sysctl.h>
 
 #include "utils.h"
 #include "preferences.h"
@@ -130,6 +131,29 @@ std::string AkVCam::locatePluginPath()
     auto file = pluginInstallPath() + "/" + BINDIR "/" AKVCAM_PLUGIN_NAME;
 
     return fileExists(file)? file: std::string();
+}
+
+bool AkVCam::supportsCmioExtensionVCam()
+{
+    char version[16];
+    size_t size = sizeof(version);
+
+    // Get the commercial version of macOS
+    if (sysctlbyname("kern.osproductversion", version, &size, NULL, 0) != 0)
+        return false;
+
+    // Get the major and minor number (major.minor)
+    int major = 0, minor = 0;
+    sscanf(version, "%d.%d", &major, &minor);
+
+    // CMIO Extensions requires macOS 12.3 or higher
+    if (major > 12)
+        return true;
+
+    if (major == 12 && minor >= 3)
+        return true;
+
+    return false;
 }
 
 std::string AkVCam::tempPath()

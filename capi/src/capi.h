@@ -45,6 +45,11 @@ CAPI_EXPORT void *vcam_open();
 // Close the virtual camera
 CAPI_EXPORT void vcam_close(void *vcam);
 
+// Show the virtual camera API being used
+CAPI_EXPORT void vcam_system_api(void *vcam,
+                                 char *api_name,
+                                 size_t *api_name_len);
+
 // List devices.
 CAPI_EXPORT int vcam_devices(void *vcam, char *devs, size_t *buffer_size);
 

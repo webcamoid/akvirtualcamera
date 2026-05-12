@@ -119,6 +119,7 @@ namespace AkVCam {
             int defaultHandler(const StringMap &flags,
                                const StringVector &args);
             int showHelp(const StringMap &flags, const StringVector &args);
+            int showSystemAPI(const StringMap &flags, const StringVector &args);
             int showDevices(const StringMap &flags, const StringVector &args);
             int addDevice(const StringMap &flags, const StringVector &args);
             int removeDevice(const StringMap &flags, const StringVector &args);
@@ -205,6 +206,10 @@ AkVCam::CmdParser::CmdParser()
     this->addFlags("",
                    {"--build-info"},
                    "Show build information.");
+    this->addCommand("system-api",
+                     "",
+                     "Show the virtual camera API being used.",
+                     AKVCAM_BIND_FUNC(CmdParserPrivate::showSystemAPI));
     this->addCommand("devices",
                      "",
                      "List devices.",
@@ -889,6 +894,17 @@ int AkVCam::CmdParserPrivate::showHelp(const StringMap &flags,
     }
 
     return 0;
+}
+
+int AkVCam::CmdParserPrivate::showSystemAPI(const StringMap &flags,
+                                            const StringVector &args)
+{
+    UNUSED(flags);
+    UNUSED(args);
+
+    auto api = this->m_ipcBridge.systemAPI();
+
+    AkPrintOut(api.c_str());
 }
 
 int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,

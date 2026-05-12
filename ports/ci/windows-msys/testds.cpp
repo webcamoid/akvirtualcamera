@@ -25,6 +25,267 @@
 #pragma comment(lib, "oleaut32")
 #pragma comment(lib, "strmiids.lib")
 
+// Helper function to get pixel format from media type
+const char* GetPixelFormatFromMediaType(AM_MEDIA_TYPE* pmt)
+{
+    if (pmt->formattype == FORMAT_VideoInfo) {
+        VIDEOINFOHEADER* pVih = reinterpret_cast<VIDEOINFOHEADER*>(pmt->pbFormat);
+        BITMAPINFOHEADER* pBmi = &pVih->bmiHeader;
+
+        if (pBmi->biCompression == BI_RGB) {
+            if (pBmi->biBitCount == 32) return "RGB32";
+            if (pBmi->biBitCount == 24) return "RGB24";
+            if (pBmi->biBitCount == 16) return "RGB16";
+            if (pBmi->biBitCount == 8) return "RGB8";
+
+            return "RGB";
+        } else {
+            // FourCC code
+            DWORD fourcc = pBmi->biCompression;
+            char fourccStr[5] = {0};
+            memcpy(fourccStr, &fourcc, 4);
+
+            return _strdup(fourccStr);
+        }
+    }
+
+    return "UNKNOWN";
+}
+
+// Helper function to capture frames from a camera
+void CaptureFramesFromCamera(IMoniker* pMoniker,
+                             int deviceIndex,
+                             const wchar_t* deviceName)
+{
+    IBaseFilter* pCaptureFilter = nullptr;
+    IGraphBuilder* pGraph = nullptr;
+    IMediaControl* pMediaControl = nullptr;
+    ISampleGrabber* pSampleGrabber = nullptr;
+    IBaseFilter* pGrabberFilter = nullptr;
+    IMediaEvent* pMediaEvent = nullptr;
+
+    // Bind moniker to filter
+    HRESULT hr = pMoniker->BindToObject(0, 0, IID_IBaseFilter, reinterpret_cast<void**>(&pCaptureFilter));
+
+    if (FAILED(hr)) {
+        printf("  Error binding camera filter: 0x%08lX\n", static_cast<unsigned long>(hr));
+
+        return;
+    }
+
+    // Create filter graph
+    hr = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, reinterpret_cast<void**>(&pGraph));
+
+    if (FAILED(hr)) {
+        printf("  Error creating filter graph: 0x%08lX\n", static_cast<unsigned long>(hr));
+        pCaptureFilter->Release();
+
+        return;
+    }
+
+    // Get media control interface
+    hr = pGraph->QueryInterface(IID_IMediaControl, reinterpret_cast<void**>(&pMediaControl));
+
+    if (FAILED(hr)) {
+        printf("  Error getting media control: 0x%08lX\n", static_cast<unsigned long>(hr));
+        pGraph->Release();
+        pCaptureFilter->Release();
+
+        return;
+    }
+
+    // Get media event interface
+    hr = pGraph->QueryInterface(IID_IMediaEvent, reinterpret_cast<void**>(&pMediaEvent));
+
+    if (FAILED(hr)) {
+        printf("  Error getting media event: 0x%08lX\n", static_cast<unsigned long>(hr));
+        pMediaControl->Release();
+        pGraph->Release();
+        pCaptureFilter->Release();
+
+        return;
+    }
+
+    // Create sample grabber
+    hr = CoCreateInstance(CLSID_SampleGrabber, NULL, CLSCTX_INPROC_SERVER, IID_IBaseFilter, reinterpret_cast<void**>(&pGrabberFilter));
+
+    if (FAILED(hr)) {
+        printf("  Error creating sample grabber: 0x%08lX\n", static_cast<unsigned long>(hr));
+        pMediaEvent->Release();
+        pMediaControl->Release();
+        pGraph->Release();
+        pCaptureFilter->Release();
+
+        return;
+    }
+
+    hr = pGrabberFilter->QueryInterface(IID_ISampleGrabber, reinterpret_cast<void**>(&pSampleGrabber));
+
+    if (FAILED(hr)) {
+        printf("  Error getting sample grabber interface: 0x%08lX\n", static_cast<unsigned long>(hr));
+        pGrabberFilter->Release();
+        pMediaEvent->Release();
+        pMediaControl->Release();
+        pGraph->Release();
+        pCaptureFilter->Release();
+
+        return;
+    }
+
+    // Add filters to graph
+    hr = pGraph->AddFilter(pCaptureFilter, L"Capture Filter");
+
+    if (FAILED(hr)) {
+        printf("  Error adding capture filter: 0x%08lX\n", static_cast<unsigned long>(hr));
+        pSampleGrabber->Release();
+        pGrabberFilter->Release();
+        pMediaEvent->Release();
+        pMediaControl->Release();
+        pGraph->Release();
+        pCaptureFilter->Release();
+
+        return;
+    }
+
+    hr = pGraph->AddFilter(pGrabberFilter, L"Sample Grabber");
+
+    if (FAILED(hr)) {
+        printf("  Error adding sample grabber filter: 0x%08lX\n", static_cast<unsigned long>(hr));
+        pSampleGrabber->Release();
+        pGrabberFilter->Release();
+        pMediaEvent->Release();
+        pMediaControl->Release();
+        pGraph->Release();
+        pCaptureFilter->Release();
+
+        return;
+    }
+
+    // Set media type for sample grabber
+    AM_MEDIA_TYPE mt;
+    ZeroMemory(&mt, sizeof(AM_MEDIA_TYPE));
+    mt.majortype = MEDIATYPE_Video;
+    mt.subtype = MEDIASUBTYPE_RGB24; // Request RGB24
+
+    hr = pSampleGrabber->SetMediaType(&mt);
+
+    if (FAILED(hr)) {
+        printf("  Error setting media type: 0x%08lX\n", static_cast<unsigned long>(hr));
+        pSampleGrabber->Release();
+        pGrabberFilter->Release();
+        pMediaEvent->Release();
+        pMediaControl->Release();
+        pGraph->Release();
+        pCaptureFilter->Release();
+
+        return;
+    }
+
+    // Set grabber to buffer samples
+    hr = pSampleGrabber->SetOneShot(FALSE);
+    hr = pSampleGrabber->SetBufferSamples(TRUE);
+
+    // Find capture pin and render it
+    IPin* pCapturePin = nullptr;
+    // Simplified: find first output pin
+    IEnumPins* pEnumPins = nullptr;
+    hr = pCaptureFilter->EnumPins(&pEnumPins);
+
+    if (SUCCEEDED(hr)) {
+        pEnumPins->Next(1, &pCapturePin, nullptr);
+        pEnumPins->Release();
+    }
+
+    if (pCapturePin) {
+        hr = pGraph->Connect(pCapturePin, pGrabberFilter, nullptr);
+
+        if (FAILED(hr)) {
+            printf("  Error connecting pins: 0x%08lX\n", static_cast<unsigned long>(hr));
+            pCapturePin->Release();
+            pSampleGrabber->Release();
+            pGrabberFilter->Release();
+            pMediaEvent->Release();
+            pMediaControl->Release();
+            pGraph->Release();
+            pCaptureFilter->Release();
+
+            return;
+        }
+
+        pCapturePin->Release();
+    }
+
+    // Get the actual media type
+    hr = pSampleGrabber->GetConnectedMediaType(&mt);
+
+    if (SUCCEEDED(hr)) {
+        if (mt.formattype == FORMAT_VideoInfo) {
+            VIDEOINFOHEADER* pVih = reinterpret_cast<VIDEOINFOHEADER*>(mt.pbFormat);
+            BITMAPINFOHEADER* pBmi = &pVih->bmiHeader;
+            const char* formatStr = GetPixelFormatFromMediaType(&mt);
+
+            printf("  Media type: %s %dx%d\n", formatStr, pBmi->biWidth, abs(pBmi->biHeight));
+            printf("  Captured frames:\n");
+
+            // Capture up to 10 frames
+            int frameCount = 0;
+            const int MAX_FRAMES = 10;
+
+            // Run the graph
+            hr = pMediaControl->Run();
+
+            if (SUCCEEDED(hr)) {
+                while (frameCount < MAX_FRAMES) {
+                    long evCode = 0;
+                    hr = pMediaEvent->WaitForCompletion(100, &evCode);
+
+                    // Get sample
+                    long cbBuffer = 0;
+                    BYTE* pBuffer = nullptr;
+                    hr = pSampleGrabber->GetCurrentBuffer(&cbBuffer, nullptr);
+
+                    if (hr == S_OK && cbBuffer > 0) {
+                        pBuffer = new BYTE[cbBuffer];
+                        hr = pSampleGrabber->GetCurrentBuffer(&cbBuffer, pBuffer);
+
+                        if (SUCCEEDED(hr)) {
+                            printf("    %d: %s %dx%d %ld bytes\n", frameCount, formatStr,
+                                   pBmi->biWidth, abs(pBmi->biHeight), cbBuffer);
+                            frameCount++;
+                        }
+
+                        delete[] pBuffer;
+                    }
+
+                    Sleep(100);
+                }
+
+                // Stop the graph
+                pMediaControl->Stop();
+            } else {
+                printf("  Error running graph: 0x%08lX\n", static_cast<unsigned long>(hr));
+            }
+        }
+
+        // Free media type
+        if (mt.cbFormat)
+            CoTaskMemFree(mt.pbFormat);
+    } else {
+        printf("  Error getting media type\n");
+    }
+
+    if (frameCount == 0)
+        printf("  No frames captured\n");
+
+    // Cleanup
+    pSampleGrabber->Release();
+    pGrabberFilter->Release();
+    pMediaEvent->Release();
+    pMediaControl->Release();
+    pGraph->Release();
+    pCaptureFilter->Release();
+}
+
 int main()
 {
     auto hr = CoInitialize(nullptr);
@@ -85,7 +346,12 @@ int main()
             hr = pPropBag->Read(L"FriendlyName", &var, 0);
 
             if (SUCCEEDED(hr)) {
-                printf("\tDevice %lu: %S\n", count, var.bstrVal);
+                printf("%lu: %S\n\n", count, var.bstrVal);
+
+                // Capture frames from this camera
+                CaptureFramesFromCamera(pMoniker, count, var.bstrVal);
+
+                printf("\n");
                 VariantClear(&var);
             } else {
                 printf("Error reading the device name %lu: 0x%08lX\n", count, hr);

@@ -206,6 +206,13 @@ AkVCam::IpcBridge::~IpcBridge()
     delete this->d;
 }
 
+std::string AkVCam::IpcBridge::systemAPI() const
+{
+    return supportsMediaFoundationVCam()?
+                "Microsoft Media Foundation":
+                "DirectShow";
+}
+
 std::string AkVCam::IpcBridge::picture() const
 {
     return this->d->m_picture;

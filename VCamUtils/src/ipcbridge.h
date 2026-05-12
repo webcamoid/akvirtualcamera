@@ -86,6 +86,7 @@ namespace AkVCam
 
             /* Server & Client */
 
+            std::string systemAPI() const;
             std::string picture() const;
             void setPicture(const std::string &picture);
             int logLevel() const;

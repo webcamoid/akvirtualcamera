@@ -209,6 +209,13 @@ AkVCam::IpcBridge::~IpcBridge()
     delete this->d;
 }
 
+std::string AkVCam::IpcBridge::systemAPI() const
+{
+    return supportsCmioExtensionVCam()?
+                "CoreMediaIO Extension":
+                "CoreMediaIO";
+}
+
 std::string AkVCam::IpcBridge::picture() const
 {
     return this->d->m_picture;
