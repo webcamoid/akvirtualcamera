@@ -26,6 +26,7 @@
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "mfplat.lib")
 #pragma comment(lib, "mf.lib")
+#pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 
 // Helper function to get pixel format string
@@ -36,7 +37,7 @@ const char* GetPixelFormatString(GUID format)
     if (format == MFVideoFormat_RGB555) return "RGB555";
     if (format == MFVideoFormat_RGB565) return "RGB565";
     if (format == MFVideoFormat_YUY2) return "YUY2";
-    if (format == MFVideoFormat_YVY2) return "YVY2";
+    if (format == MFVideoFormat_YVYU) return "YVYU";
     if (format == MFVideoFormat_NV12) return "NV12";
     if (format == MFVideoFormat_NV11) return "NV11";
     if (format == MFVideoFormat_I420) return "I420";
@@ -95,7 +96,12 @@ void CaptureFramesFromCamera(IMFActivate* pDevice,
     UINT32 width = 0, height = 0;
 
     MFGetAttributeSize(pNativeType, MF_MT_FRAME_SIZE, &width, &height);
-    MFGetAttributeGUID(pNativeType, MF_MT_SUBTYPE, &format);
+
+    // Get the media subtype (format)
+    hr = pNativeType->GetGUID(MF_MT_SUBTYPE, &format);
+
+    if (FAILED(hr))
+        printf("  Error getting media subtype: 0x%08lX\n", static_cast<unsigned long>(hr));
 
     const char* formatStr = GetPixelFormatString(format);
 

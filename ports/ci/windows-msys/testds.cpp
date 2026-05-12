@@ -20,17 +20,19 @@
 #include <windows.h>
 #include <dshow.h>
 #include <stdio.h>
+#include <qedit.h>
 
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "oleaut32")
 #pragma comment(lib, "strmiids.lib")
+#pragma comment(lib, "quartz.lib")
 
 // Helper function to get pixel format from media type
-const char* GetPixelFormatFromMediaType(AM_MEDIA_TYPE* pmt)
+const char* GetPixelFormatFromMediaType(AM_MEDIA_TYPE *pmt)
 {
     if (pmt->formattype == FORMAT_VideoInfo) {
-        VIDEOINFOHEADER* pVih = reinterpret_cast<VIDEOINFOHEADER*>(pmt->pbFormat);
-        BITMAPINFOHEADER* pBmi = &pVih->bmiHeader;
+        auto pVih = reinterpret_cast<VIDEOINFOHEADER *>(pmt->pbFormat);
+        BITMAPINFOHEADER *pBmi = &pVih->bmiHeader;
 
         if (pBmi->biCompression == BI_RGB) {
             if (pBmi->biBitCount == 32) return "RGB32";
@@ -63,9 +65,12 @@ void CaptureFramesFromCamera(IMoniker* pMoniker,
     ISampleGrabber* pSampleGrabber = nullptr;
     IBaseFilter* pGrabberFilter = nullptr;
     IMediaEvent* pMediaEvent = nullptr;
+    int frameCount = 0;
 
     // Bind moniker to filter
-    HRESULT hr = pMoniker->BindToObject(0, 0, IID_IBaseFilter, reinterpret_cast<void**>(&pCaptureFilter));
+    HRESULT hr = pMoniker->BindToObject(0,
+                                        0,
+                                        IID_IBaseFilter, reinterpret_cast<void**>(&pCaptureFilter));
 
     if (FAILED(hr)) {
         printf("  Error binding camera filter: 0x%08lX\n", static_cast<unsigned long>(hr));
@@ -74,7 +79,11 @@ void CaptureFramesFromCamera(IMoniker* pMoniker,
     }
 
     // Create filter graph
-    hr = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, reinterpret_cast<void**>(&pGraph));
+    hr = CoCreateInstance(CLSID_FilterGraph,
+                          nullptr,
+                          CLSCTX_INPROC_SERVER,
+                          IID_IGraphBuilder,
+                          reinterpret_cast<void**>(&pGraph));
 
     if (FAILED(hr)) {
         printf("  Error creating filter graph: 0x%08lX\n", static_cast<unsigned long>(hr));
@@ -84,7 +93,8 @@ void CaptureFramesFromCamera(IMoniker* pMoniker,
     }
 
     // Get media control interface
-    hr = pGraph->QueryInterface(IID_IMediaControl, reinterpret_cast<void**>(&pMediaControl));
+    hr = pGraph->QueryInterface(IID_IMediaControl,
+                                reinterpret_cast<void**>(&pMediaControl));
 
     if (FAILED(hr)) {
         printf("  Error getting media control: 0x%08lX\n", static_cast<unsigned long>(hr));
@@ -95,7 +105,8 @@ void CaptureFramesFromCamera(IMoniker* pMoniker,
     }
 
     // Get media event interface
-    hr = pGraph->QueryInterface(IID_IMediaEvent, reinterpret_cast<void**>(&pMediaEvent));
+    hr = pGraph->QueryInterface(IID_IMediaEvent,
+                                reinterpret_cast<void**>(&pMediaEvent));
 
     if (FAILED(hr)) {
         printf("  Error getting media event: 0x%08lX\n", static_cast<unsigned long>(hr));
@@ -107,7 +118,11 @@ void CaptureFramesFromCamera(IMoniker* pMoniker,
     }
 
     // Create sample grabber
-    hr = CoCreateInstance(CLSID_SampleGrabber, NULL, CLSCTX_INPROC_SERVER, IID_IBaseFilter, reinterpret_cast<void**>(&pGrabberFilter));
+    hr = CoCreateInstance(CLSID_SampleGrabber,
+                          nullptr,
+                          CLSCTX_INPROC_SERVER,
+                          IID_IBaseFilter,
+                          reinterpret_cast<void**>(&pGrabberFilter));
 
     if (FAILED(hr)) {
         printf("  Error creating sample grabber: 0x%08lX\n", static_cast<unsigned long>(hr));
@@ -119,7 +134,8 @@ void CaptureFramesFromCamera(IMoniker* pMoniker,
         return;
     }
 
-    hr = pGrabberFilter->QueryInterface(IID_ISampleGrabber, reinterpret_cast<void**>(&pSampleGrabber));
+    hr = pGrabberFilter->QueryInterface(IID_ISampleGrabber,
+                                        reinterpret_cast<void**>(&pSampleGrabber));
 
     if (FAILED(hr)) {
         printf("  Error getting sample grabber interface: 0x%08lX\n", static_cast<unsigned long>(hr));
@@ -185,34 +201,60 @@ void CaptureFramesFromCamera(IMoniker* pMoniker,
     hr = pSampleGrabber->SetOneShot(FALSE);
     hr = pSampleGrabber->SetBufferSamples(TRUE);
 
-    // Find capture pin and render it
-    IPin* pCapturePin = nullptr;
-    // Simplified: find first output pin
-    IEnumPins* pEnumPins = nullptr;
+    // Find capture pin and connect to sample grabber
+    IEnumPins *pEnumPins = nullptr;
+    IPin *pCapturePin = nullptr;
+
     hr = pCaptureFilter->EnumPins(&pEnumPins);
 
     if (SUCCEEDED(hr)) {
-        pEnumPins->Next(1, &pCapturePin, nullptr);
+        // Find the first output pin
+        while (pEnumPins->Next(1, &pCapturePin, nullptr) == S_OK) {
+            PIN_DIRECTION pinDir;
+            pCapturePin->QueryDirection(&pinDir);
+
+            if (pinDir == PINDIR_OUTPUT)
+                break;
+
+            pCapturePin->Release();
+            pCapturePin = nullptr;
+        }
+
         pEnumPins->Release();
     }
 
     if (pCapturePin) {
-        hr = pGraph->Connect(pCapturePin, pGrabberFilter, nullptr);
+        // Get the sample grabber's input pin
+        IEnumPins *pGrabberEnum = nullptr;
+        IPin *pGrabberPin = nullptr;
 
-        if (FAILED(hr)) {
-            printf("  Error connecting pins: 0x%08lX\n", static_cast<unsigned long>(hr));
-            pCapturePin->Release();
-            pSampleGrabber->Release();
-            pGrabberFilter->Release();
-            pMediaEvent->Release();
-            pMediaControl->Release();
-            pGraph->Release();
-            pCaptureFilter->Release();
+        hr = pGrabberFilter->EnumPins(&pGrabberEnum);
 
-            return;
+        if (SUCCEEDED(hr)) {
+            if (pGrabberEnum->Next(1, &pGrabberPin, nullptr) == S_OK) {
+                // Connect the pins
+                hr = pGraph->Connect(pCapturePin, pGrabberPin);
+
+                if (FAILED(hr))
+                    printf("  Error connecting pins: 0x%08lX\n", static_cast<unsigned long>(hr));
+
+                pGrabberPin->Release();
+            }
+
+            pGrabberEnum->Release();
         }
 
         pCapturePin->Release();
+    } else {
+        printf("  Error: Could not find capture pin\n");
+        pSampleGrabber->Release();
+        pGrabberFilter->Release();
+        pMediaEvent->Release();
+        pMediaControl->Release();
+        pGraph->Release();
+        pCaptureFilter->Release();
+
+        return;
     }
 
     // Get the actual media type
@@ -220,15 +262,14 @@ void CaptureFramesFromCamera(IMoniker* pMoniker,
 
     if (SUCCEEDED(hr)) {
         if (mt.formattype == FORMAT_VideoInfo) {
-            VIDEOINFOHEADER* pVih = reinterpret_cast<VIDEOINFOHEADER*>(mt.pbFormat);
-            BITMAPINFOHEADER* pBmi = &pVih->bmiHeader;
-            const char* formatStr = GetPixelFormatFromMediaType(&mt);
+            auto pVih = reinterpret_cast<VIDEOINFOHEADER*>(mt.pbFormat);
+            auto pBmi = &pVih->bmiHeader;
+            auto formatStr = GetPixelFormatFromMediaType(&mt);
 
             printf("  Media type: %s %dx%d\n", formatStr, pBmi->biWidth, abs(pBmi->biHeight));
             printf("  Captured frames:\n");
 
             // Capture up to 10 frames
-            int frameCount = 0;
             const int MAX_FRAMES = 10;
 
             // Run the graph
@@ -241,12 +282,13 @@ void CaptureFramesFromCamera(IMoniker* pMoniker,
 
                     // Get sample
                     long cbBuffer = 0;
-                    BYTE* pBuffer = nullptr;
+                    BYTE *pBuffer = nullptr;
                     hr = pSampleGrabber->GetCurrentBuffer(&cbBuffer, nullptr);
 
                     if (hr == S_OK && cbBuffer > 0) {
                         pBuffer = new BYTE[cbBuffer];
-                        hr = pSampleGrabber->GetCurrentBuffer(&cbBuffer, pBuffer);
+                        hr = pSampleGrabber->GetCurrentBuffer(&cbBuffer,
+                                                              reinterpret_cast<LONG *>(pBuffer));
 
                         if (SUCCEEDED(hr)) {
                             printf("    %d: %s %dx%d %ld bytes\n", frameCount, formatStr,
