@@ -155,7 +155,7 @@ CAPI_EXPORT void vcam_system_api(void *vcam,
 {
     // Validate buffer_size
     if (!api_name_len)
-        return -EINVAL;
+        return;
 
     // Cast vcam to VCamAPI
     auto vcamApi = reinterpret_cast<VCamAPI *>(vcam);
@@ -165,8 +165,6 @@ CAPI_EXPORT void vcam_system_api(void *vcam,
 
     if (api_name)
         snprintf(api_name, *api_name_len, "%s", apiName.c_str());
-
-    return apiName.size();
 }
 
 CAPI_EXPORT int vcam_devices(void *vcam, char *devs, size_t *buffer_size)

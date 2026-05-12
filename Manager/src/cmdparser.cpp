@@ -905,6 +905,8 @@ int AkVCam::CmdParserPrivate::showSystemAPI(const StringMap &flags,
     auto api = this->m_ipcBridge.systemAPI();
 
     AkPrintOut(api.c_str());
+
+    return 0;
 }
 
 int AkVCam::CmdParserPrivate::showDevices(const StringMap &flags,
