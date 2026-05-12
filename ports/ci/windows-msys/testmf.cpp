@@ -49,9 +49,9 @@ const char* GetPixelFormatString(GUID format)
 }
 
 // Helper function to capture frames from a camera
-void CaptureFramesFromCamera(IMFActivate* pDevice,
+void CaptureFramesFromCamera(IMFActivate *pDevice,
                              int deviceIndex,
-                             const WCHAR* deviceName)
+                             const WCHAR *deviceName)
 {
     IMFMediaSource *pSource = nullptr;
     IMFSourceReader *pReader = nullptr;
