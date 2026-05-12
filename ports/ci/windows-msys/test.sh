@@ -18,6 +18,14 @@
 #
 # Web-Site: http://webcamoid.github.io/
 
+if [ "${COMPILER}" = clang ]; then
+    COMPILER_C=clang
+    COMPILER_CXX=clang++
+else
+    COMPILER_C=gcc
+    COMPILER_CXX=g++
+fi
+
 #export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
 export INSTALL_PREFIX="${PWD}/build-${COMPILER}-x64/build"
 
@@ -49,12 +57,12 @@ sleep 20
 
 echo "Testing the virtual camera in DirectShow"
 
-"/mingw64/bin/${COMPILER}++" -o testds.exe ports/ci/windows-msys/testds.cpp -lole32 -loleaut32 -lstrmiids -lquartz
+"${COMPILER}" -o testds.exe ports/ci/windows-msys/testds.cpp -lole32 -loleaut32 -lstrmiids -lquartz
 ./testds.exe
 
 echo "Testing the virtual camera in Media Foundation"
 
-"/mingw64/bin/${COMPILER}++" -o testmf.exe ports/ci/windows-msys/testmf.cpp -lole32 -lmf -lmfplat -lmfreadwrite -lmfuuid
+"${COMPILER}" -o testmf.exe ports/ci/windows-msys/testmf.cpp -lole32 -lmf -lmfplat -lmfreadwrite -lmfuuid
 ./testmf.exe
 
 echo "Checking if the services are up"
