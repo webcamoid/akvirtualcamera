@@ -34,7 +34,7 @@ cmd //c "sc start FrameServerMonitor" || true
 export BUILD_DIR="${PWD}/build-${COMPILER}-x64/build"
 export INSTALL_PREFIX="C:/Program Files/AkVirtualCamera"
 
-mkdir -p "${INSTALL_DIR}"
+mkdir -p "${INSTALL_PREFIX}"
 cp -rvf "${BUILD_DIR}"/* "${INSTALL_PREFIX}/"
 
 echo "Initilize the assistant"
