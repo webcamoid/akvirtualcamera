@@ -35,7 +35,7 @@ export BUILD_DIR="${PWD}/build-${COMPILER}-x64/build"
 export INSTALL_PREFIX="C:/Program Files/AkVirtualCamera"
 
 mkdir -p "${INSTALL_DIR}"
-cp -rvf "${BUILD_DIR}"/* "${INSTALL_DIR}/"
+cp -rvf "${BUILD_DIR}"/* "${INSTALL_PREFIX}/"
 
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
