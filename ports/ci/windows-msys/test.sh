@@ -37,9 +37,6 @@ export INSTALL_PREFIX="C:/Program Files/AkVirtualCamera"
 mkdir -p "${INSTALL_PREFIX}"
 cp -rvf "${BUILD_DIR}"/* "${INSTALL_PREFIX}/"
 
-# Temporally remove the MF plugin to test the DirectShow one.
-rm -vf "${INSTALL_PREFIX}/x64/AkVirtualCameraMF.dll"
-
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
 
