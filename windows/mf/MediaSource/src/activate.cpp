@@ -43,7 +43,7 @@ AkVCam::Activate::Activate(const CLSID &clsid)
 {
     this->d = new ActivatePrivate;
     this->d->m_clsid = clsid;
-    this->SetUINT32(AKVCAM_MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 1);
+    this->SetUINT32(AKVCAM_MF_VIRTUALCAMERA_PROVIDE_ASSOCIATED_CAMERA_SOURCES, 0);
     this->SetGUID(MFT_TRANSFORM_CLSID_Attribute, clsid);
     this->d->m_mediaSource = new MediaSource(this->d->m_clsid, this);
 
@@ -118,19 +118,28 @@ HRESULT AkVCam::Activate::ActivateObject(REFIID riid, void **ppv)
     AkLogFunction();
     AkLogInfo("Activating for IID: %s", stringFromClsidMF(riid).c_str());
 
-    if (!ppv)
+    if (!ppv) {
+        AkLogError("Invalid ponter");
+
         return E_POINTER;
+    }
 
     *ppv = nullptr;
 
-    if (this->d->m_shutdown)
+    if (this->d->m_shutdown) {
+        AkLogError("The object is shutdown");
+
         return MF_E_SHUTDOWN;
+    }
 
     if (!this->d->m_mediaSource) {
         this->d->m_mediaSource = new MediaSource(this->d->m_clsid, this);
 
-        if (!this->d->m_mediaSource)
+        if (!this->d->m_mediaSource) {
+            AkLogError("The program is out of memory");
+
             return E_OUTOFMEMORY;
+        }
     }
 
     return this->d->m_mediaSource->QueryInterface(riid, ppv);
