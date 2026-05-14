@@ -72,8 +72,8 @@ pgrep -a AkVCam || true
 
 echo "Log"
 
-if [ -f gdb_output.log ]; then
-    cat gdb_output.log
-fi
-
 cat /d/a/_temp/msys64/tmp/AkVirtualCameraMF-*.log || true
+
+echo "Log (Temp)"
+
+cat /c/Windows/Temp/*.log || true

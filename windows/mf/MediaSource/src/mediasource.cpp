@@ -490,11 +490,17 @@ HRESULT AkVCam::MediaSource::CreatePresentationDescriptor(IMFPresentationDescrip
 {
     AkLogFunction();
 
-    if (!presentationDescriptor)
-        return E_POINTER;
+    if (!presentationDescriptor) {
+        AkLogError("The presentation descriptor is NULL");
 
-    if (!this->d->m_pStreamDesc)
+        return E_POINTER;
+    }
+
+    if (!this->d->m_pStreamDesc) {
+        AkLogError("The stream descriptor was not created");
+
         return E_UNEXPECTED;
+    }
 
     *presentationDescriptor = nullptr;
 
@@ -503,12 +509,16 @@ HRESULT AkVCam::MediaSource::CreatePresentationDescriptor(IMFPresentationDescrip
                                              &this->d->m_pStreamDesc,
                                              &pPresentationDesc);
 
-    if (FAILED(hr))
+    if (FAILED(hr)) {
+        AkLogError("Failed to create the presentation descriptor");
+
         return hr;
+    }
 
     hr = pPresentationDesc->SelectStream(0);
 
     if (FAILED(hr)) {
+        AkLogError("Failed selecting the stream for the presentation descriptor");
         pPresentationDesc->Release();
 
         return hr;
