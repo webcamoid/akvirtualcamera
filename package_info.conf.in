@@ -33,3 +33,9 @@ license = COPYING
 requiresAdminRights = true
 multiUserInstall = false
 script = ports/deploy/installscript.nsi
+extraSections = MediaFoundation
+
+[Nsis_Section_MediaFoundation]
+description = Media Foundation support (experimental)
+checked = false
+files = x64/@AKVCAM_SERVICE_MF_NAME@.exe, x64/AkVCamTestMF.exe, x64/@AKVCAM_PLUGIN_MF_NAME@.dll, x86/@AKVCAM_SERVICE_MF_NAME@.exe, x86/AkVCamTestMF.exe, x86/@AKVCAM_PLUGIN_MF_NAME@.dll, arm64/@AKVCAM_SERVICE_MF_NAME@.exe, arm64/AkVCamTestMF.exe, arm64/@AKVCAM_PLUGIN_MF_NAME@.dll
