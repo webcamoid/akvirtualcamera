@@ -26,8 +26,16 @@ else
     COMPILER_CXX=g++
 fi
 
-#export INSTALL_PREFIX="${PWD}/package-data-${COMPILER}"
-export INSTALL_PREFIX="${PWD}/build-${COMPILER}-x64/build"
+echo "Starting the FrameServer"
+
+cmd //c "sc start FrameServer" || true
+cmd //c "sc start FrameServerMonitor" || true
+
+export BUILD_DIR="${PWD}/build-${COMPILER}-x64/build"
+export INSTALL_PREFIX="C:/Program Files/AkVirtualCamera"
+
+mkdir -p "${INSTALL_DIR}"
+cp -rvf "${BUILD_DIR}"/* "${INSTALL_DIR}/"
 
 echo "Initilize the assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistant.exe" &
@@ -38,6 +46,7 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 
 "${manager}" add-device -i FakeCamera0 "Virtual Camera"
 "${manager}" add-format FakeCamera0 RGB24 640 480 30
+"${manager}" add-format FakeCamera0 RGB32 640 480 30
 "${manager}" update
 "${manager}" devices
 "${manager}" formats FakeCamera0
@@ -45,14 +54,6 @@ manager="${INSTALL_PREFIX}/x64/AkVCamManager.exe"
 
 echo "Initilize the Media Foundation assistant"
 nohup "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe" &
-# nohup gdb -batch \
-#     -ex 'set pagination off' \
-#     -ex 'handle SIGSEGV stop' \
-#     -ex 'run' \
-#     -ex 'bt full' \
-#     -ex 'info registers' \
-#     -ex 'quit' \
-#     --args "${INSTALL_PREFIX}/x64/AkVCamAssistantMF.exe"> gdb_output.log 2>&1 &
 sleep 20
 
 echo "Testing the virtual camera in DirectShow"
