@@ -210,7 +210,7 @@ void updateCameras(void *, const std::vector<std::string> &)
             IMFVCam *vcam = nullptr;
             auto hr = mfCreateVirtualCamera(MFVCamType_SoftwareCameraSource,
                                             //MFVCamLifetime_Session,
-                                            MFMFVCamLifetime_System,
+                                            MFVCamLifetime_System,
                                             //MFVCamAccess_CurrentUser,
                                             MFVCamAccess_AllUsers,
                                             descriptionWStr,
