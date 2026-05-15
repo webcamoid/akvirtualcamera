@@ -22,7 +22,7 @@ jobs:
     env:
       COMPILER: ${{ matrix.compiler }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
     - name: Install MSYS2 dependencies
       uses: msys2/setup-msys2@v2
       with:
