@@ -1,3 +1,11 @@
+akvirtualcamera 9.4.1:
+
+- Disable MediaFoundation by default again. The virtual camera is detectable but
+  IMFActivate::ActivateObject() always returns E_ACCESSDENIED, it's probably
+  Windows 11 limiting it rather than a problem with the code.
+- Added information about the underlaying system API.
+- Fixed uninstall.
+
 akvirtualcamera 9.4.0:
 
 - Microsoft Media Foundation virtual camera is now working.
